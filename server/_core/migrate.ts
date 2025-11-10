@@ -1,4 +1,5 @@
-import { db } from '../db/index.js';
+import * as dbModule from '../db';
+const db = (dbModule as any).db;
 import { sql } from 'drizzle-orm';
 
 export async function runMigrations() {
