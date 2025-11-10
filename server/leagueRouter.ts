@@ -445,4 +445,204 @@ export const leagueRouter = router({
         return null;
       }
     }),
+
+  /**
+   * Randomize draft order for a league
+   * Only commissioner can do this
+   */
+  randomizeDraftOrder: protectedProcedure
+    .input(z.object({ leagueId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Database not available",
+        });
+      }
+
+      try {
+        // Check if user is commissioner
+        const [league] = await db
+          .select()
+          .from(leagues)
+          .where(eq(leagues.id, input.leagueId))
+          .limit(1);
+
+        if (!league) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "League not found",
+          });
+        }
+
+        if (league.commissionerUserId !== ctx.user.id) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Only the commissioner can randomize draft order",
+          });
+        }
+
+        // Get all teams in the league
+        const leagueTeams = await db
+          .select()
+          .from(teams)
+          .where(eq(teams.leagueId, input.leagueId));
+
+        if (leagueTeams.length === 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "No teams in league to randomize",
+          });
+        }
+
+        // Shuffle teams using Fisher-Yates algorithm
+        const shuffled = [...leagueTeams];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+
+        // Assign draft positions
+        for (let i = 0; i < shuffled.length; i++) {
+          await db
+            .update(teams)
+            .set({ draftPosition: i + 1 })
+            .where(eq(teams.id, shuffled[i].id));
+        }
+
+        console.log(`[LeagueRouter] Randomized draft order for league ${input.leagueId}`);
+        return { success: true, teamCount: shuffled.length };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        console.error("[LeagueRouter] Error randomizing draft order:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to randomize draft order",
+        });
+      }
+    }),
+
+  /**
+   * Set custom draft order for a league
+   * Only commissioner can do this
+   */
+  setDraftOrder: protectedProcedure
+    .input(
+      z.object({
+        leagueId: z.number(),
+        teamOrder: z.array(z.number()), // Array of team IDs in desired order
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Database not available",
+        });
+      }
+
+      try {
+        // Check if user is commissioner
+        const [league] = await db
+          .select()
+          .from(leagues)
+          .where(eq(leagues.id, input.leagueId))
+          .limit(1);
+
+        if (!league) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "League not found",
+          });
+        }
+
+        if (league.commissionerUserId !== ctx.user.id) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Only the commissioner can set draft order",
+          });
+        }
+
+        // Verify all teams belong to the league
+        const leagueTeams = await db
+          .select()
+          .from(teams)
+          .where(eq(teams.leagueId, input.leagueId));
+
+        const leagueTeamIds = new Set(leagueTeams.map((t) => t.id));
+        const invalidTeams = input.teamOrder.filter((id) => !leagueTeamIds.has(id));
+
+        if (invalidTeams.length > 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Some teams do not belong to this league",
+          });
+        }
+
+        if (input.teamOrder.length !== leagueTeams.length) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Team order must include all teams in the league",
+          });
+        }
+
+        // Assign draft positions
+        for (let i = 0; i < input.teamOrder.length; i++) {
+          await db
+            .update(teams)
+            .set({ draftPosition: i + 1 })
+            .where(eq(teams.id, input.teamOrder[i]));
+        }
+
+        console.log(`[LeagueRouter] Set custom draft order for league ${input.leagueId}`);
+        return { success: true };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        console.error("[LeagueRouter] Error setting draft order:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to set draft order",
+        });
+      }
+    }),
+
+  /**
+   * Get draft order for a league
+   */
+  getDraftOrder: protectedProcedure
+    .input(z.object({ leagueId: z.number() }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Database not available",
+        });
+      }
+
+      try {
+        const leagueTeams = await db
+          .select({
+            id: teams.id,
+            name: teams.name,
+            draftPosition: teams.draftPosition,
+            userId: teams.userId,
+            userName: users.username,
+          })
+          .from(teams)
+          .leftJoin(users, eq(teams.userId, users.id))
+          .where(eq(teams.leagueId, input.leagueId))
+          .orderBy(teams.draftPosition);
+
+        return leagueTeams;
+      } catch (error) {
+        console.error("[LeagueRouter] Error fetching draft order:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to fetch draft order",
+        });
+      }
+    }),
 });

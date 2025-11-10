@@ -354,21 +354,59 @@ export const draftRouter = router({
       // Stop current timer
       draftTimerManager.stopTimer(input.leagueId);
 
-      // Calculate and notify next pick
-      const nextPickInfo = await calculateNextPick(input.leagueId).catch(() => null);
-      if (nextPickInfo) {
-        wsManager.notifyNextPick(input.leagueId, {
-          teamId: nextPickInfo.teamId,
-          teamName: nextPickInfo.teamName,
-          pickNumber: nextPickInfo.pickNumber,
-          round: nextPickInfo.round,
-        });
+      // Check if draft is complete
+      const [league] = await db
+        .select()
+        .from(leagues)
+        .where(eq(leagues.id, input.leagueId))
+        .limit(1);
 
-        // Start timer for next pick
-        await draftTimerManager.startTimer(input.leagueId);
-      } else {
-        // Draft is complete
+      const allTeams = await db
+        .select()
+        .from(teams)
+        .where(eq(teams.leagueId, input.leagueId));
+
+      const totalPicks = await db
+        .select()
+        .from(rosters)
+        .where(
+          sql`${rosters.teamId} IN (${allTeams.map((t) => t.id).join(",")})`
+        );
+
+      const expectedPicks = allTeams.length * 9; // 9 picks per team
+      const isDraftComplete = totalPicks.length >= expectedPicks;
+
+      if (isDraftComplete) {
+        // Mark draft as complete
+        await db
+          .update(leagues)
+          .set({
+            draftCompleted: true,
+            status: "active",
+          })
+          .where(eq(leagues.id, input.leagueId));
+
+        // Stop timer
+        draftTimerManager.stopTimer(input.leagueId);
+
+        // Notify all clients
         wsManager.notifyDraftComplete(input.leagueId);
+
+        console.log(`[DraftRouter] Draft complete for league ${input.leagueId}`);
+      } else {
+        // Calculate and notify next pick
+        const nextPickInfo = await calculateNextPick(input.leagueId).catch(() => null);
+        if (nextPickInfo) {
+          wsManager.notifyNextPick(input.leagueId, {
+            teamId: nextPickInfo.teamId,
+            teamName: nextPickInfo.teamName,
+            pickNumber: nextPickInfo.pickNumber,
+            round: nextPickInfo.round,
+          });
+
+          // Start timer for next pick
+          await draftTimerManager.startTimer(input.leagueId);
+        }
       }
 
       return { success: true, assetName };

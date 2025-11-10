@@ -253,25 +253,53 @@ export default function LeagueDetail() {
                   <CardTitle className="text-card-foreground">Commissioner-Aktionen</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <Button
-                    className="w-full"
-                    onClick={handleStartDraft}
-                    disabled={!league.teams || league.teams.length < 2}
-                  >
-                    <Play className="w-4 h-4 mr-2" />
-                    Draft starten
-                  </Button>
+                  {!league.draftStarted && (
+                    <>
+                      <Button
+                        className="w-full"
+                        onClick={() => setLocation(`/league/${league.id}/pre-draft`)}
+                        disabled={!league.teams || league.teams.length < 2}
+                      >
+                        <Play className="w-4 h-4 mr-2" />
+                        Setup Draft
+                      </Button>
+                      <p className="text-xs text-muted-foreground">
+                        {league.teams && league.teams.length < 2
+                          ? "Mindestens 2 Teams benötigt für Draft"
+                          : "Bereit zum Draft Setup"}
+                      </p>
+                    </>
+                  )}
+                  {league.draftStarted && !league.draftCompleted && (
+                    <>
+                      <Button
+                        className="w-full"
+                        onClick={() => setLocation(`/league/${league.id}/draft`)}
+                      >
+                        <Play className="w-4 h-4 mr-2" />
+                        Go to Draft
+                      </Button>
+                      <p className="text-xs text-muted-foreground">
+                        Draft in progress...
+                      </p>
+                    </>
+                  )}
+                  {league.draftCompleted && (
+                    <>
+                      <Badge variant="outline" className="w-full justify-center py-2">
+                        ✅ Draft Complete
+                      </Badge>
+                      <p className="text-xs text-muted-foreground text-center">
+                        League is now active
+                      </p>
+                    </>
+                  )}
                   <Button variant="outline" className="w-full" asChild>
                     <Link href={`/league/${league.id}/settings`}>
                       <Settings className="w-4 h-4 mr-2" />
                       Einstellungen
                     </Link>
                   </Button>
-                  <p className="text-xs text-muted-foreground">
-                    {league.teams && league.teams.length < 2
-                      ? "Mindestens 2 Teams benötigt für Draft"
-                      : "Bereit zum Draft starten"}
-                  </p>
                 </CardContent>
               </Card>
             )}

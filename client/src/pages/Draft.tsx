@@ -79,8 +79,12 @@ export default function Draft() {
         setCurrentRound(message.round);
         toast.info(`It's ${message.teamName}'s turn to pick!`);
       } else if (message.type === 'draft_complete') {
-        toast.success('Draft complete!');
+        toast.success('🎉 Draft complete! Redirecting to league page...');
         setTimerSeconds(null);
+        // Redirect to league page after 3 seconds
+        setTimeout(() => {
+          setLocation(`/league/${leagueId}`);
+        }, 3000);
       } else if (message.type === 'timer_start') {
         setTimerSeconds(message.timeLimit);
         setTimeLimit(message.timeLimit);
