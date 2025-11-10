@@ -8,4 +8,4 @@ cmds = ["pnpm install --frozen-lockfile"]
 cmds = ["pnpm run build"]
 
 [start]
-cmd = "npm run railway:start"
+cmd = "npm run start"
