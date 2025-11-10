@@ -7,6 +7,8 @@ import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import { scoringScheduler } from "../scoringScheduler";
+import { wsManager } from "../websocket";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -59,6 +61,14 @@ async function startServer() {
 
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
+    
+    // Initialize WebSocket manager
+    wsManager.initialize(server);
+    console.log('[WebSocket] Manager initialized');
+    
+    // Start scoring scheduler
+    scoringScheduler.start();
+    console.log('[Scoring] Scheduler started');
   });
 }
 

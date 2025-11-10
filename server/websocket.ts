@@ -1,0 +1,362 @@
+import { WebSocketServer, WebSocket } from 'ws';
+import { IncomingMessage } from 'http';
+import { parse } from 'url';
+
+/**
+ * WebSocket Server for Real-time Multiplayer Features
+ * 
+ * Handles:
+ * - Real-time draft updates
+ * - Live scoring updates
+ * - League notifications
+ */
+
+interface Client {
+  ws: WebSocket;
+  userId: number;
+  leagueId?: number;
+  teamId?: number;
+}
+
+interface DraftRoom {
+  leagueId: number;
+  clients: Set<Client>;
+  currentPick: number;
+  draftOrder: number[];
+}
+
+class WebSocketManager {
+  private wss: WebSocketServer | null = null;
+  private clients: Map<WebSocket, Client> = new Map();
+  private draftRooms: Map<number, DraftRoom> = new Map();
+  private leagueChannels: Map<number, Set<Client>> = new Map();
+
+  initialize(server: any) {
+    this.wss = new WebSocketServer({ noServer: true });
+
+    // Handle upgrade requests
+    server.on('upgrade', (request: IncomingMessage, socket: any, head: Buffer) => {
+      const { pathname } = parse(request.url || '');
+      
+      if (pathname === '/ws') {
+        this.wss!.handleUpgrade(request, socket, head, (ws) => {
+          this.wss!.emit('connection', ws, request);
+        });
+      } else {
+        socket.destroy();
+      }
+    });
+
+    this.wss.on('connection', (ws: WebSocket, request: IncomingMessage) => {
+      console.log('[WebSocket] New connection');
+      
+      // Parse query parameters for authentication
+      const { query } = parse(request.url || '', true);
+      const userId = parseInt(query.userId as string);
+      const leagueId = query.leagueId ? parseInt(query.leagueId as string) : undefined;
+      const teamId = query.teamId ? parseInt(query.teamId as string) : undefined;
+
+      if (!userId) {
+        console.log('[WebSocket] Connection rejected: No userId provided');
+        ws.close(1008, 'Authentication required');
+        return;
+      }
+
+      const client: Client = { ws, userId, leagueId, teamId };
+      this.clients.set(ws, client);
+
+      // Join league channel if leagueId is provided
+      if (leagueId) {
+        this.joinLeagueChannel(client, leagueId);
+      }
+
+      ws.on('message', (data: Buffer) => {
+        try {
+          const message = JSON.parse(data.toString());
+          this.handleMessage(client, message);
+        } catch (error) {
+          console.error('[WebSocket] Error parsing message:', error);
+        }
+      });
+
+      ws.on('close', () => {
+        console.log('[WebSocket] Connection closed');
+        this.handleDisconnect(client);
+      });
+
+      ws.on('error', (error) => {
+        console.error('[WebSocket] Error:', error);
+      });
+
+      // Send connection confirmation
+      this.sendToClient(client, {
+        type: 'connected',
+        userId,
+        leagueId,
+        teamId,
+      });
+    });
+
+    console.log('[WebSocket] Server initialized');
+  }
+
+  private handleMessage(client: Client, message: any) {
+    console.log('[WebSocket] Received message:', message.type);
+
+    switch (message.type) {
+      case 'join_draft':
+        this.joinDraftRoom(client, message.leagueId);
+        break;
+      case 'leave_draft':
+        this.leaveDraftRoom(client);
+        break;
+      case 'join_league':
+        this.joinLeagueChannel(client, message.leagueId);
+        break;
+      case 'ping':
+        this.sendToClient(client, { type: 'pong' });
+        break;
+      default:
+        console.log('[WebSocket] Unknown message type:', message.type);
+    }
+  }
+
+  private handleDisconnect(client: Client) {
+    this.leaveDraftRoom(client);
+    this.leaveLeagueChannel(client);
+    this.clients.delete(client.ws);
+  }
+
+  // Draft Room Management
+  joinDraftRoom(client: Client, leagueId: number) {
+    if (!this.draftRooms.has(leagueId)) {
+      this.draftRooms.set(leagueId, {
+        leagueId,
+        clients: new Set(),
+        currentPick: 1,
+        draftOrder: [],
+      });
+    }
+
+    const room = this.draftRooms.get(leagueId)!;
+    room.clients.add(client);
+    client.leagueId = leagueId;
+
+    console.log(`[WebSocket] Client ${client.userId} joined draft room ${leagueId}`);
+
+    // Send current draft state to the new client
+    this.sendToClient(client, {
+      type: 'draft_joined',
+      leagueId,
+      currentPick: room.currentPick,
+      participantCount: room.clients.size,
+    });
+
+    // Notify other clients in the room
+    this.broadcastToDraftRoom(leagueId, {
+      type: 'participant_joined',
+      userId: client.userId,
+      participantCount: room.clients.size,
+    }, client);
+  }
+
+  leaveDraftRoom(client: Client) {
+    if (!client.leagueId) return;
+
+    const room = this.draftRooms.get(client.leagueId);
+    if (room) {
+      room.clients.delete(client);
+      
+      console.log(`[WebSocket] Client ${client.userId} left draft room ${client.leagueId}`);
+
+      // Notify other clients
+      this.broadcastToDraftRoom(client.leagueId, {
+        type: 'participant_left',
+        userId: client.userId,
+        participantCount: room.clients.size,
+      });
+
+      // Clean up empty rooms
+      if (room.clients.size === 0) {
+        this.draftRooms.delete(client.leagueId);
+      }
+    }
+  }
+
+  // League Channel Management
+  joinLeagueChannel(client: Client, leagueId: number) {
+    if (!this.leagueChannels.has(leagueId)) {
+      this.leagueChannels.set(leagueId, new Set());
+    }
+
+    const channel = this.leagueChannels.get(leagueId)!;
+    channel.add(client);
+    client.leagueId = leagueId;
+
+    console.log(`[WebSocket] Client ${client.userId} joined league channel ${leagueId}`);
+  }
+
+  leaveLeagueChannel(client: Client) {
+    if (!client.leagueId) return;
+
+    const channel = this.leagueChannels.get(client.leagueId);
+    if (channel) {
+      channel.delete(client);
+
+      // Clean up empty channels
+      if (channel.size === 0) {
+        this.leagueChannels.delete(client.leagueId);
+      }
+    }
+  }
+
+  // Broadcasting Methods
+  broadcastToDraftRoom(leagueId: number, message: any, exclude?: Client) {
+    const room = this.draftRooms.get(leagueId);
+    if (!room) return;
+
+    room.clients.forEach((client) => {
+      if (client !== exclude && client.ws.readyState === WebSocket.OPEN) {
+        client.ws.send(JSON.stringify(message));
+      }
+    });
+  }
+
+  broadcastToLeague(leagueId: number, message: any, exclude?: Client) {
+    const channel = this.leagueChannels.get(leagueId);
+    if (!channel) return;
+
+    channel.forEach((client) => {
+      if (client !== exclude && client.ws.readyState === WebSocket.OPEN) {
+        client.ws.send(JSON.stringify(message));
+      }
+    });
+  }
+
+  sendToClient(client: Client, message: any) {
+    if (client.ws.readyState === WebSocket.OPEN) {
+      client.ws.send(JSON.stringify(message));
+    }
+  }
+
+  // Draft Events
+  notifyPlayerPicked(leagueId: number, data: {
+    teamId: number;
+    teamName: string;
+    assetType: string;
+    assetId: number;
+    assetName: string;
+    pickNumber: number;
+  }) {
+    this.broadcastToDraftRoom(leagueId, {
+      type: 'player_picked',
+      ...data,
+      timestamp: Date.now(),
+    });
+  }
+
+  notifyNextPick(leagueId: number, data: {
+    teamId: number;
+    teamName: string;
+    pickNumber: number;
+    round: number;
+  }) {
+    const room = this.draftRooms.get(leagueId);
+    if (room) {
+      room.currentPick = data.pickNumber;
+    }
+
+    this.broadcastToDraftRoom(leagueId, {
+      type: 'next_pick',
+      teamId: data.teamId,
+      teamName: data.teamName,
+      pickNumber: data.pickNumber,
+      round: data.round,
+      timestamp: Date.now(),
+    });
+  }
+
+  notifyDraftComplete(leagueId: number) {
+    this.broadcastToDraftRoom(leagueId, {
+      type: 'draft_complete',
+      timestamp: Date.now(),
+    });
+  }
+
+  // Timer Events
+  notifyTimerStart(leagueId: number, data: {
+    pickNumber: number;
+    teamId: number;
+    timeLimit: number;
+    startTime: number;
+  }) {
+    this.broadcastToDraftRoom(leagueId, {
+      type: 'timer_start',
+      ...data,
+      timestamp: Date.now(),
+    });
+  }
+
+  notifyTimerTick(leagueId: number, data: {
+    pickNumber: number;
+    remaining: number;
+  }) {
+    this.broadcastToDraftRoom(leagueId, {
+      type: 'timer_tick',
+      ...data,
+      timestamp: Date.now(),
+    });
+  }
+
+  notifyTimerStop(leagueId: number) {
+    this.broadcastToDraftRoom(leagueId, {
+      type: 'timer_stop',
+      timestamp: Date.now(),
+    });
+  }
+
+  notifyTimerPause(leagueId: number, data: { remaining: number }) {
+    this.broadcastToDraftRoom(leagueId, {
+      type: 'timer_pause',
+      ...data,
+      timestamp: Date.now(),
+    });
+  }
+
+  notifyTimerResume(leagueId: number, data: {
+    pickNumber: number;
+    remaining: number;
+  }) {
+    this.broadcastToDraftRoom(leagueId, {
+      type: 'timer_resume',
+      ...data,
+      timestamp: Date.now(),
+    });
+  }
+
+  notifyAutoPick(leagueId: number, data: {
+    teamId: number;
+    pickNumber: number;
+  }) {
+    this.broadcastToDraftRoom(leagueId, {
+      type: 'auto_pick',
+      ...data,
+      timestamp: Date.now(),
+    });
+  }
+
+  // Scoring Events
+  notifyScoresUpdated(leagueId: number, data: {
+    week: number;
+    year: number;
+    scores: Array<{ teamId: number; teamName: string; points: number }>;
+  }) {
+    this.broadcastToLeague(leagueId, {
+      type: 'scores_updated',
+      ...data,
+      timestamp: Date.now(),
+    });
+  }
+}
+
+export const wsManager = new WebSocketManager();
