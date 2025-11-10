@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
-import { trpc } from "../_core/trpc";
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "../components/ui/card";
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Label } from "../components/ui/label";
+import { useSearch, useLocation } from "wouter";
+import { trpc } from "@/lib/trpc";
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Loader2, Mail, Trophy, CheckCircle, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
@@ -16,9 +16,9 @@ import { toast } from "sonner";
  */
 
 export default function AcceptInvitation() {
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const token = searchParams.get('token');
+  const [, setLocation] = useLocation();
+  const search = useSearch();
+  const token = new URLSearchParams(search).get('token');
 
   const [teamName, setTeamName] = useState('');
   const [username, setUsername] = useState('');
@@ -33,7 +33,7 @@ export default function AcceptInvitation() {
   const acceptMutation = trpc.invitation.acceptInvitation.useMutation({
     onSuccess: (data) => {
       toast.success('Successfully joined the league!');
-      navigate(`/league/${data.leagueId}`);
+      setLocation(`/leagues/${data.leagueId}`);
     },
     onError: (error) => {
       toast.error(error.message);
@@ -43,7 +43,7 @@ export default function AcceptInvitation() {
   const declineMutation = trpc.invitation.declineInvitation.useMutation({
     onSuccess: () => {
       toast.success('Invitation declined');
-      navigate('/');
+      setLocation('/');
     },
     onError: (error) => {
       toast.error(error.message);

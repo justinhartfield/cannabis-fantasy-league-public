@@ -1,27 +1,47 @@
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
-import Home from "./pages/Home";
+import Dashboard from "./pages/Dashboard";
+import LeagueList from "./pages/LeagueList";
+import LeagueDetail from "./pages/LeagueDetail";
+import CreateLeague from "./pages/CreateLeague";
+import Draft from "./pages/Draft";
+import PreDraft from "./pages/PreDraft";
+import Matchups from "./pages/Matchups";
+import Standings from "./pages/Standings";
+import Playoffs from "./pages/Playoffs";
+import Lineup from "./pages/Lineup";
+import Scoring from "./pages/Scoring";
+import AcceptInvitation from "./pages/AcceptInvitation";
+import Login from "./pages/Login";
+import Admin from "./pages/Admin";
 
 function Router() {
-  // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
-      <Route path={"/"} component={Home} />
+      <Route path={"/"} component={Dashboard} />
+      <Route path={"/login"} component={Login} />
+      <Route path={"/leagues"} component={LeagueList} />
+      <Route path={"/league/create"} component={CreateLeague} />
+      <Route path={"/league/:id"} component={LeagueDetail} />
+      <Route path={"/league/:id/draft"} component={Draft} />
+      <Route path={"/league/:id/pre-draft"} component={PreDraft} />
+      <Route path={"/league/:id/matchups"} component={Matchups} />
+      <Route path={"/league/:id/standings"} component={Standings} />
+      <Route path={"/league/:id/playoffs"} component={Playoffs} />
+      <Route path={"/league/:id/lineup"} component={Lineup} />
+      <Route path={"/league/:id/scoring"} component={Scoring} />
+      <Route path={"/invitations/:token"} component={AcceptInvitation} />
+      <Route path={"/admin"} component={Admin} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
     </Switch>
   );
 }
-
-// NOTE: About Theme
-// - First choose a default theme according to your design style (dark or light bg), than change color palette in index.css
-//   to keep consistent foreground/background color across components
-// - If you want to make theme switchable, pass `switchable` ThemeProvider and use `useTheme` hook
 
 function App() {
   return (

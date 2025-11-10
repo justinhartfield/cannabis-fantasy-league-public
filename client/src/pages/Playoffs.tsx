@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { useParams } from "react-router-dom";
-import { trpc } from "../_core/trpc";
-import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/card";
-import { Button } from "../components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
-import { Badge } from "../components/ui/badge";
+import { useParams } from "wouter";
+import { trpc } from "@/lib/trpc";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { Loader2, Trophy, Crown, Award } from "lucide-react";
 import { toast } from "sonner";
 

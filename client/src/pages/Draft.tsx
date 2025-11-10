@@ -283,7 +283,7 @@ export default function Draft() {
                 assetId: r.assetId,
                 name: r.name || "Unknown",
               }))}
-              teamName={teamName || "My Team"}
+              teamName={myTeam.name || "My Team"}
             />
 
             {/* Recent Picks */}

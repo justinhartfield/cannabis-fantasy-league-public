@@ -6,7 +6,7 @@ import { createServer as createViteServer } from "vite";
 import viteConfig from "../../vite.config";
 
 export async function setupVite(app: Express, server: Server) {
-  const projectRoot = path.resolve(import.meta.dirname, "..");
+  const projectRoot = path.resolve(import.meta.dirname, "../..");
   const clientRoot = path.resolve(projectRoot, "client");
   
   const serverOptions = {
@@ -57,7 +57,7 @@ export async function setupVite(app: Express, server: Server) {
     try {
       const clientTemplate = path.resolve(
         import.meta.dirname,
-        "..",
+        "../..",
         "client",
         "index.html"
       );
