@@ -24,7 +24,7 @@ export const draftRouter = router({
       z.object({
         leagueId: z.number(),
         search: z.string().optional(),
-        limit: z.number().default(50),
+        limit: z.number().default(200),
       })
     )
     .query(async ({ input }) => {
@@ -83,7 +83,7 @@ export const draftRouter = router({
       z.object({
         leagueId: z.number(),
         search: z.string().optional(),
-        limit: z.number().default(50),
+        limit: z.number().default(200),
       })
     )
     .query(async ({ input }) => {
@@ -144,7 +144,7 @@ export const draftRouter = router({
       z.object({
         leagueId: z.number(),
         search: z.string().optional(),
-        limit: z.number().default(50),
+        limit: z.number().default(200),
       })
     )
     .query(async ({ input }) => {
@@ -206,7 +206,7 @@ export const draftRouter = router({
       z.object({
         leagueId: z.number(),
         search: z.string().optional(),
-        limit: z.number().default(50),
+        limit: z.number().default(200),
       })
     )
     .query(async ({ input }) => {
