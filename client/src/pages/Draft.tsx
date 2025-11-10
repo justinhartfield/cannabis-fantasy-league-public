@@ -5,6 +5,7 @@ import { Loader2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getLoginUrl } from "@/const";
 import DraftBoard from "@/components/DraftBoard";
+import { MyRoster } from "@/components/MyRoster";
 import { DraftClock } from "@/components/DraftClock";
 import { toast } from "sonner";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -248,6 +249,7 @@ export default function Draft() {
                 assetId: r.assetId,
                 name: r.name || "Unknown",
               }))}
+              remainingTime={timerSeconds}
               onDraftPick={handleDraftPick}
             />
           </div>
@@ -270,8 +272,18 @@ export default function Draft() {
               />
             )}
 
+            {/* My Roster */}
+            <MyRoster 
+              roster={roster.map((r: any) => ({
+                assetType: r.assetType,
+                assetId: r.assetId,
+                name: r.name || "Unknown",
+              }))}
+              teamName={teamName || "My Team"}
+            />
+
             {/* Recent Picks */}
-            <div className="bg-card border border-border rounded-lg p-4 sticky top-4">
+            <div className="bg-card border border-border rounded-lg p-4">
               <h3 className="text-lg font-semibold text-foreground mb-4">
                 📄 Recent Picks
               </h3>

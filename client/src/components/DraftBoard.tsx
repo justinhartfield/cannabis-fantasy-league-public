@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, TrendingUp, Leaf, Package, Building2, Users, ArrowUpDown } from "lucide-react";
 import { toast } from "sonner";
+import { DraftAssetCard } from "@/components/DraftAssetCard";
 
 type AssetType = "manufacturer" | "cannabis_strain" | "product" | "pharmacy";
 
@@ -15,6 +16,7 @@ interface DraftBoardProps {
   currentPick: number;
   isMyTurn: boolean;
   myRoster: Array<{ assetType: AssetType; assetId: number; name: string }>;
+  remainingTime?: number | null;
   onDraftPick: (assetType: AssetType, assetId: number) => void;
 }
 
@@ -33,6 +35,7 @@ export default function DraftBoard({
   currentPick,
   isMyTurn,
   myRoster,
+  remainingTime,
   onDraftPick,
 }: DraftBoardProps) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -232,6 +235,8 @@ export default function DraftBoard({
                           assetName={mfg.name}
                           stats={[{ label: "Produkte", value: mfg.productCount }]}
                           isMyTurn={isMyTurn}
+                          isInMyRoster={myRoster.some(r => r.assetType === "manufacturer" && r.assetId === mfg.id)}
+                          remainingTime={remainingTime}
                           onDraft={handleDraft}
                         />
                       ))}
@@ -255,6 +260,8 @@ export default function DraftBoard({
                             { label: "Effects", value: strain.effects?.slice(0, 2).join(", ") || "N/A" },
                           ]}
                           isMyTurn={isMyTurn}
+                          isInMyRoster={myRoster.some(r => r.assetType === "cannabis_strain" && r.assetId === strain.id)}
+                          remainingTime={remainingTime}
                           onDraft={handleDraft}
                         />
                       ))}
@@ -279,6 +286,8 @@ export default function DraftBoard({
                             { label: "Favorites", value: product.favoriteCount },
                           ]}
                           isMyTurn={isMyTurn}
+                          isInMyRoster={myRoster.some(r => r.assetType === "product" && r.assetId === product.id)}
+                          remainingTime={remainingTime}
                           onDraft={handleDraft}
                         />
                       ))}
@@ -299,6 +308,8 @@ export default function DraftBoard({
                           assetName={phm.name}
                           stats={[{ label: "Stadt", value: phm.city }]}
                           isMyTurn={isMyTurn}
+                          isInMyRoster={myRoster.some(r => r.assetType === "pharmacy" && r.assetId === phm.id)}
+                          remainingTime={remainingTime}
                           onDraft={handleDraft}
                         />
                       ))}
@@ -351,6 +362,8 @@ export default function DraftBoard({
                       { label: "Effects", value: strain.effects?.slice(0, 2).join(", ") || "N/A" },
                     ]}
                     isMyTurn={isMyTurn}
+                          isInMyRoster={myRoster.some(r => r.assetType === "cannabis_strain" && r.assetId === strain.id)}
+                          remainingTime={remainingTime}
                     onDraft={handleDraft}
                   />
                 ))
@@ -375,6 +388,8 @@ export default function DraftBoard({
                       { label: "Favorites", value: product.favoriteCount },
                     ]}
                     isMyTurn={isMyTurn}
+                          isInMyRoster={myRoster.some(r => r.assetType === "product" && r.assetId === product.id)}
+                          remainingTime={remainingTime}
                     onDraft={handleDraft}
                   />
                 ))
@@ -395,6 +410,8 @@ export default function DraftBoard({
                     assetName={phm.name}
                     stats={[{ label: "Stadt", value: phm.city }]}
                     isMyTurn={isMyTurn}
+                          isInMyRoster={myRoster.some(r => r.assetType === "pharmacy" && r.assetId === phm.id)}
+                          remainingTime={remainingTime}
                     onDraft={handleDraft}
                   />
                 ))
