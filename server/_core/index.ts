@@ -6,6 +6,7 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { healthRouter } from "../healthRouter";
+import { authRouter } from "../routes/auth";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { scoringScheduler } from "../scoringScheduler";
@@ -38,6 +39,8 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   // Health check endpoints
   app.use("/api", healthRouter);
+  // Auth endpoints
+  app.use("/api/auth", authRouter);
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
   // tRPC API
