@@ -42,13 +42,9 @@ router.post('/mock-login', async (req, res) => {
           email: `${username}@test.local`,
           loginMethod: 'mock',
         })
-        .$returningId();
+        .returning();
 
-      [user] = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, newUser.id))
-        .limit(1);
+      user = newUser;
     }
 
     // Create session token using SDK
