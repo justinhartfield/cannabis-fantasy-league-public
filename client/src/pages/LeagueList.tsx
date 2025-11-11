@@ -19,7 +19,7 @@ export default function LeagueList() {
     enabled: isAuthenticated,
   });
 
-  const joinLeague = trpc.league.join.useMutation({
+  const joinLeague = trpc.league.joinByCode.useMutation({
     onSuccess: (data) => {
       toast.success("Erfolgreich der Liga beigetreten!");
       setJoinCode("");

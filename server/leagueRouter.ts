@@ -282,6 +282,85 @@ export const leagueRouter = router({
     }),
 
   /**
+   * Join a league by invite code
+   */
+  joinByCode: protectedProcedure
+    .input(
+      z.object({
+        leagueCode: z.string().length(6),
+        teamName: z.string().min(3).max(50).optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Database not available",
+        });
+      }
+
+      try {
+        // Find league by code
+        const [league] = await db
+          .select()
+          .from(leagues)
+          .where(eq(leagues.leagueCode, input.leagueCode))
+          .limit(1);
+
+        if (!league) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Liga nicht gefunden. Überprüfe den Code.",
+          });
+        }
+
+        // Count current teams
+        const currentTeams = await db
+          .select()
+          .from(teams)
+          .where(eq(teams.leagueId, league.id));
+
+        if (currentTeams.length >= league.teamCount) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Liga ist voll",
+          });
+        }
+
+        // Check if user already has a team in this league
+        const existingTeam = currentTeams.find((t) => t.userId === ctx.user.id);
+        if (existingTeam) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Du hast bereits ein Team in dieser Liga",
+          });
+        }
+
+        // Create team with default name if not provided
+        const teamName = input.teamName || `${ctx.user.name}'s Team`;
+        await db.insert(teams).values({
+          leagueId: league.id,
+          userId: ctx.user.id,
+          name: teamName,
+          faabBudget: 100, // Default FAAB budget
+        });
+
+        return {
+          success: true,
+          leagueId: league.id,
+        };
+      } catch (error) {
+        console.error("[LeagueRouter] Error joining league by code:", error);
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Fehler beim Beitreten der Liga",
+        });
+      }
+    }),
+
+  /**
    * Get public leagues available to join
    */
   public: publicProcedure.query(async () => {
