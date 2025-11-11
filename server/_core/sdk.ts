@@ -261,10 +261,8 @@ class SDKServer {
     } as GetUserInfoWithJwtResponse;
   }
 
-  async authenticateRequest(req: Request): Promise<User> {
-    // Regular authentication flow
-    // Use parsed cookies from cookie-parser middleware (same as REST endpoints)
-    const sessionCookie = (req as RequestWithCookies).cookies[COOKIE_NAME];
+  async authenticateWithCookie(sessionCookie: string | undefined): Promise<User> {
+    // Authenticate using a session cookie string directly
     const session = await this.verifySession(sessionCookie);
 
     if (!session) {
@@ -297,12 +295,14 @@ class SDKServer {
       throw ForbiddenError("User not found");
     }
 
-    await db.upsertUser({
-      openId: user.openId,
-      lastSignedIn: signedInAt,
-    });
-
     return user;
+  }
+
+  async authenticateRequest(req: Request): Promise<User> {
+    // Regular authentication flow for REST endpoints
+    // Use parsed cookies from cookie-parser middleware
+    const sessionCookie = (req as RequestWithCookies).cookies[COOKIE_NAME];
+    return this.authenticateWithCookie(sessionCookie);
   }
 }
 
