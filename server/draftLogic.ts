@@ -25,7 +25,6 @@ export async function calculateNextPick(leagueId: number): Promise<{
 
   const currentPick = league.currentDraftPick;
   const currentRound = league.currentDraftRound;
-  const teamCount = league.teamCount;
 
   // Get all teams in draft order
   const allTeams = await db
@@ -35,6 +34,9 @@ export async function calculateNextPick(leagueId: number): Promise<{
     .orderBy(teams.draftPosition);
 
   if (allTeams.length === 0) throw new Error("No teams in league");
+  
+  // Use actual number of teams, not the configured teamCount
+  const teamCount = allTeams.length;
 
   // Calculate team index based on draft type
   let teamIndex: number;
