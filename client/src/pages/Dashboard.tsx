@@ -156,7 +156,7 @@ export default function Dashboard() {
             <h3 className="text-2xl font-bold text-foreground">Meine Ligen</h3>
             {hasLeagues && (
               <Button variant="outline" asChild>
-                <Link href="/leagues/browse">
+                <Link href="/leagues">
                   <Users className="w-4 h-4 mr-2" />
                   Ligen beitreten
                 </Link>
@@ -186,7 +186,7 @@ export default function Dashboard() {
                         </Link>
                       </Button>
                       <Button variant="outline" asChild>
-                        <Link href="/leagues/browse">
+                        <Link href="/leagues">
                           <Users className="w-4 h-4 mr-2" />
                           Ligen durchsuchen
                         </Link>
