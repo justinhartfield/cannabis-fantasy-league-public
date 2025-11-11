@@ -128,7 +128,7 @@ export default function RosterTest() {
 
   // Redirect to login if not authenticated
   if (!loading && !isAuthenticated) {
-    window.location.href = getLoginUrl();
+    const loginUrl = getLoginUrl(); if (loginUrl) window.location.href = loginUrl; else window.location.href = "/login";
     return null;
   }
 
