@@ -14,9 +14,13 @@ export async function createContext(
   let user: User | null = null;
 
   try {
+    console.log('[tRPC Context] Cookie header:', opts.req.headers.cookie);
+    console.log('[tRPC Context] Parsed cookies:', (opts.req as any).cookies);
     user = await sdk.authenticateRequest(opts.req);
+    console.log('[tRPC Context] Authenticated user:', user?.openId);
   } catch (error) {
     // Authentication is optional for public procedures.
+    console.log('[tRPC Context] Authentication failed:', error);
     user = null;
   }
 
