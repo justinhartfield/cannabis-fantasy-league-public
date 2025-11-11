@@ -6,7 +6,7 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { healthRouter } from "../healthRouter";
-import { authRouter } from "../routes/auth";
+import authRouter from "../routes/auth";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { scoringScheduler } from "../scoringScheduler";
