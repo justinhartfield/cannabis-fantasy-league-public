@@ -54,7 +54,7 @@ export const leagueRouter = router({
             playoffTeams: input.playoffTeams,
             seasonYear: currentYear,
           })
-          .$returningId();
+          .returning({ id: leagues.id });
 
         const leagueId = leagueResult[0].id;
         console.log('[LeagueRouter] leagueResult:', leagueResult);
