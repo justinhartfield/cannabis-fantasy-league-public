@@ -208,15 +208,15 @@ export class MetabaseClient {
           // Extract THC range from index 44
           let thcMin = null, thcMax = null;
           if (row[44] && typeof row[44] === 'object') {
-            thcMin = row[44].rangeLow || null;
-            thcMax = row[44].rangeHigh || null;
+            thcMin = row[44].rangeLow ? Math.round(row[44].rangeLow) : null;
+            thcMax = row[44].rangeHigh ? Math.round(row[44].rangeHigh) : null;
           }
 
           // Extract CBD range from index 11 (if available)
           let cbdMin = null, cbdMax = null;
           if (row[11] && typeof row[11] === 'object') {
-            cbdMin = row[11].rangeLow || null;
-            cbdMax = row[11].rangeHigh || null;
+            cbdMin = row[11].rangeLow ? Math.round(row[11].rangeLow) : null;
+            cbdMax = row[11].rangeHigh ? Math.round(row[11].rangeHigh) : null;
           }
 
           // Extract type from index 36 (array of types)
