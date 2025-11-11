@@ -258,8 +258,8 @@ class SDKServer {
 
   async authenticateRequest(req: Request): Promise<User> {
     // Regular authentication flow
-    // Use parsed cookies from cookie-parser middleware if available
-    const sessionCookie = (req as any).cookies?.[COOKIE_NAME] || this.parseCookies(req.headers.cookie).get(COOKIE_NAME);
+    // Use parsed cookies from cookie-parser middleware (same as REST endpoints)
+    const sessionCookie = (req as any).cookies[COOKIE_NAME];
     const session = await this.verifySession(sessionCookie);
 
     if (!session) {
