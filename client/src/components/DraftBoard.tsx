@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, TrendingUp, Leaf, Package, Building2, Users, ArrowUpDown } from "lucide-react";
+import { Search, TrendingUp, Leaf, Package, Building2, UserCircle, ArrowUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { DraftAssetCard } from "@/components/DraftAssetCard";
 
@@ -169,7 +169,7 @@ export default function DraftBoard({
               <p className="text-lg font-bold text-foreground">{rosterNeeds.brand || 0}/1</p>
             </div>
             <div className="text-center p-2 rounded-lg bg-orange-500/10 border border-orange-500/20">
-              <Users className="w-4 h-4 mx-auto mb-1 text-orange-500" />
+              <UserCircle className="w-4 h-4 mx-auto mb-1 text-orange-500" />
               <p className="text-xs text-muted-foreground">Flex</p>
               <p className="text-lg font-bold text-foreground">{rosterNeeds.flex}/1</p>
             </div>

@@ -2,7 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
-import { Trophy, Plus, Users, TrendingUp, Calendar, Zap, Loader2 } from "lucide-react";
+import { Trophy, Plus, UserCircle, TrendingUp, Calendar, Zap, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
 
@@ -166,7 +166,7 @@ export default function Dashboard() {
             {hasLeagues && (
               <Button variant="outline" asChild>
                 <Link href="/leagues">
-                  <Users className="w-4 h-4 mr-2" />
+                  <UserCircle className="w-4 h-4 mr-2" />
                   Ligen beitreten
                 </Link>
               </Button>
@@ -196,7 +196,7 @@ export default function Dashboard() {
                       </Button>
                       <Button variant="outline" asChild>
                         <Link href="/leagues">
-                          <Users className="w-4 h-4 mr-2" />
+                          <UserCircle className="w-4 h-4 mr-2" />
                           Ligen durchsuchen
                         </Link>
                       </Button>

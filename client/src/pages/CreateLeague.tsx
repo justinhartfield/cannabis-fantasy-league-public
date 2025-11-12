@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { trpc } from "@/lib/trpc";
-import { Trophy, ArrowLeft, Loader2, Calendar, Users, Settings } from "lucide-react";
+import { Trophy, ArrowLeft, Loader2, Calendar, UserCircle, Settings } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
@@ -179,7 +179,7 @@ export default function CreateLeague() {
           <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="text-card-foreground flex items-center gap-2">
-                <Users className="w-5 h-5" />
+                <UserCircle className="w-5 h-5" />
                 Roster-Struktur
               </CardTitle>
               <CardDescription className="text-muted-foreground">
@@ -285,7 +285,7 @@ export default function CreateLeague() {
           <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="text-card-foreground flex items-center gap-2">
-                <Users className="w-5 h-5" />
+                <UserCircle className="w-5 h-5" />
                 Liga-Regeln
               </CardTitle>
               <CardDescription className="text-muted-foreground">

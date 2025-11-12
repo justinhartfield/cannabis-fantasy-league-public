@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
-import { Trophy, ArrowLeft, Loader2, Users, Plus, Search } from "lucide-react";
+import { Trophy, ArrowLeft, Loader2, UserCircle, Plus, Search } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
@@ -164,7 +164,7 @@ export default function LeagueList() {
                               )}
                               <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                                 <div className="flex items-center gap-1">
-                                  <Users className="w-4 h-4" />
+                                  <UserCircle className="w-4 h-4" />
                                   <span>
                                     {league.teams?.length || 0} / {league.maxTeams} Teams
                                   </span>

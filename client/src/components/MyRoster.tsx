@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Leaf, Package, Users, CheckCircle2 } from "lucide-react";
+import { Building2, Leaf, Package, UserCircle, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type AssetType = "manufacturer" | "cannabis_strain" | "product" | "pharmacy";
@@ -133,7 +133,7 @@ export function MyRoster({ roster, teamName }: MyRosterProps) {
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span className="flex items-center gap-2">
-            <Users className="w-5 h-5" />
+            <UserCircle className="w-5 h-5" />
             {teamName}
           </span>
           <Badge variant="outline">
@@ -192,7 +192,7 @@ export function MyRoster({ roster, teamName }: MyRosterProps) {
         <div className="p-3 rounded-lg border bg-orange-50 dark:bg-orange-950/20 border-orange-500/50">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-orange-500" />
+              <UserCircle className="w-4 h-4 text-orange-500" />
               <span className="text-sm font-medium text-foreground">Flex</span>
             </div>
             <Badge variant="outline" className="text-xs">

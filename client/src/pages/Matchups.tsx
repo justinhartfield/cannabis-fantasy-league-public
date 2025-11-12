@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Trophy, Calendar, Users } from "lucide-react";
+import { Loader2, Trophy, Calendar, UserCircle } from "lucide-react";
 import { toast } from "sonner";
 
 /**
@@ -164,7 +164,7 @@ export default function Matchups() {
                   {/* Team 1 */}
                   <div className="flex-1">
                     <div className="flex items-center gap-3">
-                      <Users className="h-5 w-5 text-muted-foreground" />
+                      <UserCircle className="h-5 w-5 text-muted-foreground" />
                       <div>
                         <h3 className="font-semibold text-lg">
                           {matchup.team1?.name || 'Unknown Team'}
@@ -206,7 +206,7 @@ export default function Matchups() {
                           <Trophy className="inline h-4 w-4 text-yellow-500 mr-2" />
                         )}
                       </div>
-                      <Users className="h-5 w-5 text-muted-foreground" />
+                      <UserCircle className="h-5 w-5 text-muted-foreground" />
                     </div>
                   </div>
                 </div>
@@ -222,7 +222,7 @@ export default function Matchups() {
       ) : (
         <Card>
           <CardContent className="py-12 text-center">
-            <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <UserCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">No Matchups Found</h3>
             <p className="text-muted-foreground mb-4">
               There are no matchups scheduled for this week yet.

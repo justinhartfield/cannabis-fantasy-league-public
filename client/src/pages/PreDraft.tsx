@@ -3,7 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Shuffle, Play, ArrowLeft, Users, Trophy, Calendar } from "lucide-react";
+import { Loader2, Shuffle, Play, ArrowLeft, UserCircle, Trophy, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 
@@ -252,7 +252,7 @@ export default function PreDraft() {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center gap-2 text-sm">
-                <Users className="w-4 h-4 text-muted-foreground" />
+                <UserCircle className="w-4 h-4 text-muted-foreground" />
                 <span className="text-muted-foreground">Teams:</span>
                 <span className="font-medium text-foreground">
                   {draftOrder?.length || 0}
