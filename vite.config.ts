@@ -31,9 +31,21 @@ export default defineConfig({
     outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
     rollupOptions: {
+      treeshake: {
+        moduleSideEffects: (id) => {
+          // Prevent tree-shaking of lucide-react
+          if (id.includes('lucide-react')) {
+            return true;
+          }
+          return 'no-treeshake';
+        },
+      },
       output: {
-        manualChunks: {
-          'lucide': ['lucide-react'],
+        manualChunks(id) {
+          // Force all lucide-react imports into a single chunk
+          if (id.includes('lucide-react') || id.includes('lib/icons')) {
+            return 'lucide';
+          }
         },
       },
     },
