@@ -140,7 +140,7 @@ export default function Dashboard() {
           </Card>
 
           <Card className="bg-gradient-to-br from-accent/20 to-accent/5 border-accent/20 hover:border-accent/40 transition-colors cursor-pointer">
-            <Link href="/challenge/create">
+            <Link href="/challenges">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
