@@ -34,10 +34,7 @@ export default defineConfig({
       treeshake: {
         moduleSideEffects: (id) => {
           // Prevent tree-shaking of lucide-react
-          if (id.includes('lucide-react')) {
-            return true;
-          }
-          return 'no-treeshake';
+          return id.includes('lucide-react') || id.includes('lib/icons');
         },
       },
       output: {
