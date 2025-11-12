@@ -20,6 +20,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import LeagueNav from "@/components/LeagueNav";
 
 interface TeamScore {
   teamId: number;
@@ -165,20 +166,34 @@ export default function Scoring() {
     );
   }
 
+  const userTeam = league.teams?.find((team: any) => team.userId === user?.id);
+  const isCommissioner = league.commissionerUserId === user?.id;
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-              <Trophy className="w-8 h-8 text-yellow-500" />
-              {league.name} - Scoring
-            </h1>
-            <p className="text-muted-foreground mt-2">
-              Weekly fantasy scores and detailed breakdowns
-            </p>
-          </div>
+    <div className="min-h-screen bg-background">
+      <LeagueNav
+        leagueId={leagueId}
+        leagueName={league.name}
+        teamCount={league.teams?.length || 0}
+        maxTeams={league.maxTeams}
+        isCommissioner={isCommissioner}
+        hasTeam={!!userTeam}
+        currentPage="scoring"
+      />
+      
+      <div className="container mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+                <BarChart3 className="w-8 h-8 text-primary" />
+                Scoring & Breakdowns
+              </h1>
+              <p className="text-muted-foreground mt-2">
+                Weekly fantasy scores and detailed breakdowns
+              </p>
+            </div>
           
           {/* WebSocket Status */}
           <div className="flex items-center gap-4">
@@ -409,6 +424,7 @@ export default function Scoring() {
           )}
         </div>
       </div>
+    </div>
     </div>
   );
 }

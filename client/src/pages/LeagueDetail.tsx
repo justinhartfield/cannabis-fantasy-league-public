@@ -3,11 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
-import { Trophy, ArrowLeft, Loader2, Users, Calendar, Settings, Copy, Check, Play } from "lucide-react";
+import { Loader2, Calendar, Settings, Copy, Check, Play } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import { toast } from "sonner";
 import { getLoginUrl } from "@/const";
+import LeagueNav from "@/components/LeagueNav";
 
 export default function LeagueDetail() {
   const { id } = useParams();
@@ -74,34 +75,15 @@ export default function LeagueDetail() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" asChild>
-              <Link href="/dashboard">
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-            </Button>
-            <div className="flex items-center gap-3 flex-1">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Trophy className="w-6 h-6 text-primary" />
-              </div>
-              <div className="flex-1">
-                <h1 className="text-xl font-bold text-foreground">{league.name}</h1>
-                <p className="text-sm text-muted-foreground">
-                  {league.teams?.length || 0} / {league.maxTeams} Teams
-                </p>
-              </div>
-              {isCommissioner && (
-                <Badge variant="outline" className="bg-primary/10 text-primary border-primary">
-                  Commissioner
-                </Badge>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
+      <LeagueNav
+        leagueId={parseInt(id)}
+        leagueName={league.name}
+        teamCount={league.teams?.length || 0}
+        maxTeams={league.maxTeams}
+        isCommissioner={isCommissioner}
+        hasTeam={!!userTeam}
+        currentPage="overview"
+      />
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 max-w-6xl">
