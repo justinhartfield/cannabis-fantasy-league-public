@@ -157,7 +157,7 @@ export default function LeagueDetail() {
             <Card className="bg-card border-border">
               <CardHeader>
                 <CardTitle className="text-card-foreground flex items-center gap-2">
-                  <Users className="w-5 h-5" />
+                  <UserCircle className="w-5 h-5" />
                   Teams ({league.teams?.length || 0})
                 </CardTitle>
               </CardHeader>
@@ -191,7 +191,7 @@ export default function LeagueDetail() {
                   </div>
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
-                    <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <UserCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
                     <p>Noch keine Teams</p>
                   </div>
                 )}

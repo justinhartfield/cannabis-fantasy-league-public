@@ -8,7 +8,7 @@ import {
   Leaf, 
   Package, 
   Building, 
-  Users, 
+  UserCircle, 
   Lock, 
   Unlock,
   TrendingUp,
@@ -171,7 +171,7 @@ export default function LineupEditor({
     if (position.startsWith("PRD")) return <Package className="w-5 h-5" />;
     if (position.startsWith("PHM")) return <Building className="w-5 h-5" />;
     if (position.startsWith("BRD")) return <Building2 className="w-5 h-5" />;
-    if (position === "FLEX") return <Users className="w-5 h-5" />;
+    if (position === "FLEX") return <UserCircle className="w-5 h-5" />;
     return null;
   };
 
@@ -522,7 +522,7 @@ export default function LineupEditor({
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2">
-              <Users className="w-5 h-5 text-orange-500" />
+              <UserCircle className="w-5 h-5 text-orange-500" />
               Flex (1)
               <TooltipProvider>
                 <Tooltip>
@@ -560,7 +560,7 @@ export default function LineupEditor({
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
-              <Users className="w-5 h-5" />
+              <UserCircle className="w-5 h-5" />
               Mein Roster {selectedSlot && `(Wähle Spieler für ${getPositionLabel(selectedSlot)})`}
             </CardTitle>
           </CardHeader>

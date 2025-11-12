@@ -13,7 +13,7 @@ import {
   Calendar, 
   RefreshCw,
   BarChart3,
-  Users,
+  UserCircle,
   Award,
   Zap
 } from "lucide-react";
@@ -416,7 +416,7 @@ export default function Scoring() {
             <Card>
               <CardContent className="py-16">
                 <div className="text-center text-muted-foreground">
-                  <Users className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                  <UserCircle className="w-16 h-16 mx-auto mb-4 opacity-50" />
                   <p className="text-lg">Select a team to view detailed scoring breakdown</p>
                 </div>
               </CardContent>
