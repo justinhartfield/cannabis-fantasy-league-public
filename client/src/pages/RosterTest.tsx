@@ -7,7 +7,7 @@ import RosterDisplay from "@/components/RosterDisplay";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getLoginUrl } from "@/const";
-import { Loader2 } from "lucide-react";
+import { Loader2 } from "@/lib/icons";
 
 /**
  * RosterTest Page

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, TrendingUp, Leaf, Package, Building2, UserCircle, ArrowUpDown } from "lucide-react";
+import { Search, TrendingUp, Leaf, Package, Building2, UserCircle, ArrowUpDown } from "@/lib/icons";
 import { toast } from "sonner";
 import { DraftAssetCard } from "@/components/DraftAssetCard";
 

@@ -10,7 +10,7 @@ import {
   TrendingUp,
   TrendingDown,
   Minus
-} from "lucide-react";
+} from "@/lib/icons";
 
 type AssetType = "manufacturer" | "cannabis_strain" | "product" | "pharmacy";
 

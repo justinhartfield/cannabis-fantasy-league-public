@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/componen
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Mail, Trophy, CheckCircle, XCircle } from "lucide-react";
+import { Loader2, Mail, Trophy, CheckCircle, XCircle } from "@/lib/icons";
 import { toast } from "sonner";
 
 /**

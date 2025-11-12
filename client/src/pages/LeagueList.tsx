@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
-import { Trophy, ArrowLeft, Loader2, UserCircle, Plus, Search } from "lucide-react";
+import { Trophy, ArrowLeft, Loader2, UserCircle, Plus, Search } from "@/lib/icons";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";

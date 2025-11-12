@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Leaf, Package, Clock, CheckCircle2, Lock } from "lucide-react";
+import { Building2, Leaf, Package, Clock, CheckCircle2, Lock } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 type AssetType = "manufacturer" | "cannabis_strain" | "product" | "pharmacy";

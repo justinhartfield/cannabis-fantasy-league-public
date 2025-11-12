@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
-import { Loader2, Calendar, Settings, Copy, Check, Play, UserCircle } from "lucide-react";
+import { Loader2, Calendar, Settings, Copy, Check, Play, UserCircle } from "@/lib/icons";
 import { useState } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import { toast } from "sonner";

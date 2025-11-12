@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { XIcon } from "lucide-react";
+import { XIcon } from "@/lib/icons";
 import * as React from "react";
 
 // Context to track composition state across dialog children

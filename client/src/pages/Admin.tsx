@@ -2,7 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
-import { Database, RefreshCw, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { Database, RefreshCw, CheckCircle, XCircle, Loader2 } from "@/lib/icons";
 import { toast } from "sonner";
 
 export default function Admin() {

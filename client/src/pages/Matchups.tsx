@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Trophy, Calendar, UserCircle } from "lucide-react";
+import { Loader2, Trophy, Calendar, UserCircle } from "@/lib/icons";
 import { toast } from "sonner";
 
 /**

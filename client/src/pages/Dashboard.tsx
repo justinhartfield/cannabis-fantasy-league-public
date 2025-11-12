@@ -2,7 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
-import { Trophy, Plus, UserCircle, TrendingUp, Calendar, Zap, Loader2 } from "lucide-react";
+import { Trophy, Plus, UserCircle, TrendingUp, Calendar, Zap, Loader2 } from "@/lib/icons";
 import { Link } from "wouter";
 import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
 

@@ -1,7 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
 import { getLoginUrl } from "@/const";
 import LineupEditor from "@/components/LineupEditor";

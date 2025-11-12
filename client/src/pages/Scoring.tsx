@@ -16,7 +16,7 @@ import {
   UserCircle,
   Award,
   Zap
-} from "lucide-react";
+} from "@/lib/icons";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useWebSocket } from "@/hooks/useWebSocket";

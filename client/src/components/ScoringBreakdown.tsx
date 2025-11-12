@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown, Minus, Trophy, BarChart3 } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Trophy, BarChart3 } from "@/lib/icons";
 
 interface ScoringComponent {
   category: string;
