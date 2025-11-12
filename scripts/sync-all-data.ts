@@ -76,7 +76,7 @@ async function syncWeeklyStats() {
           .update(manufacturerWeeklyStats)
           .set({
             salesVolumeGrams: mfg.productCount * 100, // Simulated: 100g per product
-            growthRatePercent: Math.random() * 20 - 5, // Random growth -5% to +15%
+            growthRatePercent: Math.floor(Math.random() * 20 - 5), // Random growth -5% to +15%
             marketShareRank: mfg.id, // Simplified ranking
             rankChange: Math.floor(Math.random() * 3) - 1, // -1, 0, or 1
             productCount: mfg.productCount || 0,
@@ -90,7 +90,7 @@ async function syncWeeklyStats() {
           year,
           week,
           salesVolumeGrams: mfg.productCount * 100,
-          growthRatePercent: Math.random() * 20 - 5,
+          growthRatePercent: Math.floor(Math.random() * 20 - 5),
           marketShareRank: mfg.id,
           rankChange: 0,
           productCount: mfg.productCount || 0,
@@ -210,7 +210,7 @@ async function syncWeeklyStats() {
           .set({
             revenueEuroCents: Math.floor(Math.random() * 1000000), // Random revenue
             orderCount: Math.floor(Math.random() * 500),
-            retentionRatePercent: 70 + Math.random() * 20, // 70-90%
+            retentionRatePercent: Math.floor(70 + Math.random() * 20), // 70-90%
             updatedAt: new Date(),
           })
           .where(eq(pharmacyWeeklyStats.id, existing[0].id));
@@ -221,7 +221,7 @@ async function syncWeeklyStats() {
           week,
           revenueEuroCents: Math.floor(Math.random() * 1000000),
           orderCount: Math.floor(Math.random() * 500),
-          retentionRatePercent: 70 + Math.random() * 20,
+          retentionRatePercent: Math.floor(70 + Math.random() * 20),
         });
       }
       phmCount++;
