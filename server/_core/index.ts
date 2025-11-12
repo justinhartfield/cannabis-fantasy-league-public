@@ -11,7 +11,7 @@ import authRouter from "../routes/auth";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { scoringScheduler } from "../scoringScheduler";
-import { challengeScheduler } from "../challengeScheduler";
+import { initDailyChallengeScheduler } from "../dailyChallengeScheduler";
 import { wsManager } from "../websocket";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -80,9 +80,9 @@ async function startServer() {
     scoringScheduler.start();
     console.log('[Scoring] Scheduler started');
     
-    // Start challenge scheduler
-    challengeScheduler.start();
-    console.log('[Challenge] Scheduler started');
+    // Start daily challenge scheduler
+    initDailyChallengeScheduler();
+    console.log('[DailyChallenge] Scheduler started');
   });
 }
 

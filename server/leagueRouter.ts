@@ -39,6 +39,7 @@ export const leagueRouter = router({
         tradeDeadlineWeek: z.number().min(1).max(18).default(13),
         playoffTeams: z.number().min(4).max(8).default(6),
         isPublic: z.boolean().default(false),
+        leagueType: z.enum(["season", "challenge"]).default("season"),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -81,6 +82,7 @@ export const leagueRouter = router({
             playoffTeams: input.playoffTeams,
             seasonYear: currentYear,
             leagueCode: leagueCode,
+            leagueType: input.leagueType,
           })
           .returning({ id: leagues.id });
 

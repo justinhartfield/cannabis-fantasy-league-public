@@ -179,6 +179,7 @@ export const leagues = pgTable("leagues", {
 	seasonYear: integer().notNull(),
 	currentWeek: integer().default(1).notNull(),
 	status: varchar({ length: 50 }).default('draft').notNull(),
+	leagueType: varchar({ length: 50 }).default('season').notNull(),
 	draftDate: timestamp({ mode: 'string', withTimezone: true }),
 	seasonStartDate: timestamp({ mode: 'string', withTimezone: true }),
 	playoffStartWeek: integer().default(19).notNull(),

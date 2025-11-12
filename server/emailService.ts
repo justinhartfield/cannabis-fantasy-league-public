@@ -569,10 +569,135 @@ export async function sendWelcomeEmail(params: {
   });
 }
 
+/**
+ * Send daily challenge reminder email
+ */
+export async function sendDailyChallengeReminder(params: {
+  toEmail: string;
+  toName: string;
+  leagueName: string;
+  leagueId: number;
+}): Promise<boolean> {
+  const lineupUrl = `${APP_URL}/league/${params.leagueId}/lineup`;
+  
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Challenge Reminder</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .container {
+      background: #ffffff;
+      border-radius: 8px;
+      padding: 40px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .logo {
+      font-size: 32px;
+      font-weight: bold;
+      color: #10b981;
+      margin-bottom: 10px;
+    }
+    .title {
+      font-size: 24px;
+      font-weight: bold;
+      color: #1f2937;
+      margin-bottom: 20px;
+    }
+    .message {
+      font-size: 16px;
+      color: #4b5563;
+      margin-bottom: 30px;
+    }
+    .button {
+      display: inline-block;
+      background: #10b981;
+      color: #ffffff;
+      text-decoration: none;
+      padding: 14px 32px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 16px;
+    }
+    .alert {
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      padding: 16px;
+      margin: 20px 0;
+      border-radius: 4px;
+    }
+    .footer {
+      text-align: center;
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid #e5e7eb;
+      font-size: 14px;
+      color: #6b7280;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">🌿 Cannabis Fantasy League</div>
+    </div>
+    
+    <div class="title">⏰ Daily Challenge Reminder</div>
+    
+    <div class="message">
+      <p>Hi ${params.toName},</p>
+      <p>It's time to set your lineup for today's Daily Challenge!</p>
+    </div>
+    
+    <div class="alert">
+      <strong>Challenge:</strong> ${params.leagueName}<br>
+      <strong>Reminder Time:</strong> 4:20 PM CET
+    </div>
+    
+    <div class="message">
+      <p>Select your 10 best-performing assets to compete for today's victory.</p>
+      <p>Assets are sorted by yesterday's scores to help you make the best choices.</p>
+    </div>
+    
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="${lineupUrl}" class="button">Set Your Lineup Now</a>
+    </div>
+    
+    <div class="footer">
+      <p>Good luck! 🏆</p>
+      <p>${params.leagueName}</p>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+
+  return sendEmail({
+    to: params.toEmail,
+    subject: `⏰ Set Your Lineup - ${params.leagueName}`,
+    html,
+  });
+}
+
 export default {
   sendEmail,
   sendLeagueInvitation,
   sendDraftStartingNotification,
   sendWeeklyScoringNotification,
   sendWelcomeEmail,
+  sendDailyChallengeReminder,
 };

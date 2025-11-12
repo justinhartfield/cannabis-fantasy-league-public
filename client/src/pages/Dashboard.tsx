@@ -139,23 +139,24 @@ export default function Dashboard() {
             </Link>
           </Card>
 
-          <Card className="bg-gradient-to-br from-accent/20 to-accent/5 border-accent/20 hover:border-accent/40 transition-colors cursor-pointer">
-            <Link href="/challenges">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-card-foreground flex items-center gap-2">
-                      <Zap className="w-5 h-5" />
-                      Neue Wochen-Challenge
-                    </CardTitle>
-                    <CardDescription className="text-muted-foreground">
-                      Schnelle Einzel-Woche Battle
-                    </CardDescription>
-                  </div>
-                  <Plus className="w-8 h-8 text-accent" />
+          <Card className="bg-gradient-to-br from-accent/20 to-accent/5 border-accent/20 hover:border-accent/40 transition-colors">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-card-foreground flex items-center gap-2">
+                    <Zap className="w-5 h-5" />
+                    Tägliche Challenge
+                  </CardTitle>
+                  <CardDescription className="text-muted-foreground">
+                    24-Stunden Head-to-Head Battle
+                  </CardDescription>
                 </div>
-              </CardHeader>
-            </Link>
+                <div className="text-right">
+                  <p className="text-xs text-muted-foreground">Neue Challenge</p>
+                  <p className="text-xs text-muted-foreground">täglich um 8:00 Uhr</p>
+                </div>
+              </div>
+            </CardHeader>
           </Card>
         </div>
 
@@ -302,20 +303,39 @@ export default function Dashboard() {
             <h3 className="text-2xl font-bold text-foreground">Meine Challenges</h3>
           </div>
 
-          <Card className="bg-card border-border">
-            <CardContent className="py-8">
-              <div className="text-center text-muted-foreground">
-                <Zap className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>Noch keine aktiven Challenges</p>
-                <Button variant="outline" className="mt-4" asChild>
-                  <Link href="/challenge/create">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Challenge erstellen
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          {myLeagues && myLeagues.filter(l => l.leagueType === 'challenge').length > 0 ? (
+            <div className="grid gap-4">
+              {myLeagues.filter(l => l.leagueType === 'challenge').map((league) => (
+                <Card key={league.id} className="bg-card border-border hover:border-primary/50 transition-colors">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-lg">
+                          <Link href={`/league/${league.id}`} className="hover:text-primary transition-colors">
+                            {league.name}
+                          </Link>
+                        </CardTitle>
+                        <CardDescription>
+                          {league.teamCount} Teams • {league.status === 'active' ? 'Aktiv' : 'Entwurf'}
+                        </CardDescription>
+                      </div>
+                      <Zap className="w-6 h-6 text-accent" />
+                    </div>
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card className="bg-card border-border">
+              <CardContent className="py-8">
+                <div className="text-center text-muted-foreground">
+                  <Zap className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>Noch keine aktiven Challenges</p>
+                  <p className="text-sm mt-2">Challenges werden täglich um 8:00 Uhr automatisch erstellt</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </main>
     </div>

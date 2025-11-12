@@ -18,10 +18,7 @@ import Scoring from "./pages/Scoring";
 import AcceptInvitation from "./pages/AcceptInvitation";
 import Login from "./pages/Login";
 import Admin from "./pages/Admin";
-import ChallengeList from "./pages/ChallengeList";
-import ChallengeDetail from "./pages/ChallengeDetail";
-import ChallengeDraft from "./pages/ChallengeDraft";
-import ChallengeResults from "./pages/ChallengeResults";
+
 
 function Router() {
   return (
@@ -40,10 +37,7 @@ function Router() {
       <Route path={"/league/:id/scoring"} component={Scoring} />
       <Route path={"/invitations/:token"} component={AcceptInvitation} />
       <Route path={"/admin"} component={Admin} />
-      <Route path={"/challenges"} component={ChallengeList} />
-      <Route path={"/challenge/:id"} component={ChallengeDetail} />
-      <Route path={"/challenge/:id/draft"} component={ChallengeDraft} />
-      <Route path={"/challenge/:id/results"} component={ChallengeResults} />
+
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

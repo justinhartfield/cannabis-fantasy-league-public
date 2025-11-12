@@ -35,6 +35,7 @@ export default function CreateLeague() {
     tradeDeadlineWeek: 13,
     playoffTeams: 6,
     isPublic: false,
+    leagueType: "season" as "season" | "challenge",
   });
 
   // Redirect to login if not authenticated
