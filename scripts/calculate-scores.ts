@@ -4,7 +4,8 @@
  * Manually trigger scoring calculation for a league and week.
  */
 
-import { calculateWeeklyScores } from '../server/scoringEngine';
+import 'dotenv/config';
+import { calculateWeeklyScores } from '../server/scoringEngine.js';
 
 // Get current year and week
 function getCurrentYearWeek(): { year: number; week: number } {
