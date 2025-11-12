@@ -704,33 +704,67 @@ export async function calculateTeamScore(teamId: number, year: number, week: num
   // Calculate final total
   const totalPoints = subtotal + totalBonus;
 
-  // Save to database
-  await db.insert(weeklyTeamScores).values({
-    teamId,
-    year,
-    week,
-    mfg1Points: positionPoints.mfg1,
-    mfg2Points: positionPoints.mfg2,
-    cstr1Points: positionPoints.cstr1,
-    cstr2Points: positionPoints.cstr2,
-    prd1Points: positionPoints.prd1,
-    prd2Points: positionPoints.prd2,
-    phm1Points: positionPoints.phm1,
-    phm2Points: positionPoints.phm2,
-    brd1Points: positionPoints.brd1,
-    flexPoints: positionPoints.flex,
-    bonusPoints: totalBonus,
-    penaltyPoints: 0, // Individual penalties are included in position scores
-    totalPoints,
-  });
-
-  // Save scoring breakdowns
-  const scoreId = (await db.select().from(weeklyTeamScores).where(and(
+  // Save to database (upsert: update if exists, insert if not)
+  const existingScore = await db.select().from(weeklyTeamScores).where(and(
     eq(weeklyTeamScores.teamId, teamId),
     eq(weeklyTeamScores.year, year),
     eq(weeklyTeamScores.week, week)
-  )).limit(1))[0].id;
+  )).limit(1);
 
+  let scoreId: number;
+
+  if (existingScore.length > 0) {
+    // Update existing score
+    await db.update(weeklyTeamScores)
+      .set({
+        mfg1Points: positionPoints.mfg1,
+        mfg2Points: positionPoints.mfg2,
+        cstr1Points: positionPoints.cstr1,
+        cstr2Points: positionPoints.cstr2,
+        prd1Points: positionPoints.prd1,
+        prd2Points: positionPoints.prd2,
+        phm1Points: positionPoints.phm1,
+        phm2Points: positionPoints.phm2,
+        brd1Points: positionPoints.brd1,
+        flexPoints: positionPoints.flex,
+        bonusPoints: totalBonus,
+        penaltyPoints: 0,
+        totalPoints,
+      })
+      .where(and(
+        eq(weeklyTeamScores.teamId, teamId),
+        eq(weeklyTeamScores.year, year),
+        eq(weeklyTeamScores.week, week)
+      ));
+    scoreId = existingScore[0].id;
+
+    // Delete old breakdowns
+    await db.delete(scoringBreakdowns)
+      .where(eq(scoringBreakdowns.weeklyTeamScoreId, scoreId));
+  } else {
+    // Insert new score
+    const inserted = await db.insert(weeklyTeamScores).values({
+      teamId,
+      year,
+      week,
+      mfg1Points: positionPoints.mfg1,
+      mfg2Points: positionPoints.mfg2,
+      cstr1Points: positionPoints.cstr1,
+      cstr2Points: positionPoints.cstr2,
+      prd1Points: positionPoints.prd1,
+      prd2Points: positionPoints.prd2,
+      phm1Points: positionPoints.phm1,
+      phm2Points: positionPoints.phm2,
+      brd1Points: positionPoints.brd1,
+      flexPoints: positionPoints.flex,
+      bonusPoints: totalBonus,
+      penaltyPoints: 0,
+      totalPoints,
+    }).returning({ id: weeklyTeamScores.id });
+    scoreId = inserted[0].id;
+  }
+
+  // Save scoring breakdowns
   for (const breakdown of breakdowns) {
     await db.insert(scoringBreakdowns).values({
       weeklyTeamScoreId: scoreId,
