@@ -1,67 +1,68 @@
-// Centralized icon exports to prevent tree-shaking issues in production builds
-// All lucide-react icons used in the application are explicitly imported and re-exported here
-export {
-  AlertCircle,
-  AlertTriangle,
-  ArrowLeft,
-  ArrowRight,
-  ArrowUpDown,
-  Award,
-  BarChart3,
-  Building,
-  Building2,
-  Calendar,
-  Check,
-  CheckCircle,
-  CheckCircle2,
-  CheckIcon,
-  ChevronDownIcon,
-  ChevronRight,
-  ChevronRightIcon,
-  ChevronUpIcon,
-  CircleIcon,
-  Clock,
-  Copy,
-  Crown,
-  Database,
-  GripVerticalIcon,
-  Home,
-  Info,
-  LayoutDashboard,
-  Leaf,
-  ListOrdered,
-  Loader2,
-  Loader2Icon,
-  Lock,
-  LogOut,
-  Mail,
-  Minus,
-  MinusIcon,
-  MoreHorizontal,
-  Package,
-  PanelLeft,
-  PanelLeftIcon,
-  Pause,
-  Play,
-  Plus,
-  RefreshCw,
-  RotateCcw,
-  Search,
-  SearchIcon,
-  Send,
-  Settings,
-  Shuffle,
-  Sparkles,
-  Swords,
-  TrendingDown,
-  TrendingUp,
-  Trophy,
-  Unlock,
-  User,
-  UserCircle,
-  Users,
-  X,
-  XCircle,
-  XIcon,
-  Zap,
-} from "lucide-react";
+// Nuclear option: Import entire lucide-react as namespace to prevent tree-shaking
+import * as LucideIcons from "lucide-react";
+
+// Re-export all icons that are used in the application
+// This forces the entire lucide-react library to be included
+export const AlertCircle = LucideIcons.AlertCircle;
+export const AlertTriangle = LucideIcons.AlertTriangle;
+export const ArrowLeft = LucideIcons.ArrowLeft;
+export const ArrowRight = LucideIcons.ArrowRight;
+export const ArrowUpDown = LucideIcons.ArrowUpDown;
+export const Award = LucideIcons.Award;
+export const BarChart3 = LucideIcons.BarChart3;
+export const Building = LucideIcons.Building;
+export const Building2 = LucideIcons.Building2;
+export const Calendar = LucideIcons.Calendar;
+export const Check = LucideIcons.Check;
+export const CheckCircle = LucideIcons.CheckCircle;
+export const CheckCircle2 = LucideIcons.CheckCircle2;
+export const CheckIcon = LucideIcons.Check;
+export const ChevronDownIcon = LucideIcons.ChevronDown;
+export const ChevronRight = LucideIcons.ChevronRight;
+export const ChevronRightIcon = LucideIcons.ChevronRight;
+export const ChevronUpIcon = LucideIcons.ChevronUp;
+export const CircleIcon = LucideIcons.Circle;
+export const Clock = LucideIcons.Clock;
+export const Copy = LucideIcons.Copy;
+export const Crown = LucideIcons.Crown;
+export const Database = LucideIcons.Database;
+export const GripVerticalIcon = LucideIcons.GripVertical;
+export const Home = LucideIcons.Home;
+export const Info = LucideIcons.Info;
+export const LayoutDashboard = LucideIcons.LayoutDashboard;
+export const Leaf = LucideIcons.Leaf;
+export const ListOrdered = LucideIcons.ListOrdered;
+export const Loader2 = LucideIcons.Loader2;
+export const Loader2Icon = LucideIcons.Loader2;
+export const Lock = LucideIcons.Lock;
+export const LogOut = LucideIcons.LogOut;
+export const Mail = LucideIcons.Mail;
+export const Minus = LucideIcons.Minus;
+export const MinusIcon = LucideIcons.Minus;
+export const MoreHorizontal = LucideIcons.MoreHorizontal;
+export const Package = LucideIcons.Package;
+export const PanelLeft = LucideIcons.PanelLeft;
+export const PanelLeftIcon = LucideIcons.PanelLeft;
+export const Pause = LucideIcons.Pause;
+export const Play = LucideIcons.Play;
+export const Plus = LucideIcons.Plus;
+export const RefreshCw = LucideIcons.RefreshCw;
+export const RotateCcw = LucideIcons.RotateCcw;
+export const Search = LucideIcons.Search;
+export const SearchIcon = LucideIcons.Search;
+export const Send = LucideIcons.Send;
+export const Settings = LucideIcons.Settings;
+export const Shuffle = LucideIcons.Shuffle;
+export const Sparkles = LucideIcons.Sparkles;
+export const Swords = LucideIcons.Swords;
+export const TrendingDown = LucideIcons.TrendingDown;
+export const TrendingUp = LucideIcons.TrendingUp;
+export const Trophy = LucideIcons.Trophy;
+export const Unlock = LucideIcons.Unlock;
+export const User = LucideIcons.User;
+export const UserCircle = LucideIcons.UserCircle;
+export const Users = LucideIcons.Users;
+export const X = LucideIcons.X;
+export const XCircle = LucideIcons.XCircle;
+export const XIcon = LucideIcons.X;
+export const Zap = LucideIcons.Zap;
