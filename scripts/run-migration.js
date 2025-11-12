@@ -18,7 +18,9 @@ if (!DATABASE_URL) {
 }
 
 async function runMigration() {
-  const sql = postgres(DATABASE_URL);
+  const sql = postgres(DATABASE_URL, {
+    ssl: 'require'
+  });
   
   try {
     console.log('Reading migration file...');
