@@ -14,6 +14,9 @@ const plugins = [react(), tailwindcss()];
 
 export default defineConfig({
   plugins,
+  optimizeDeps: {
+    include: ['lucide-react'],
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "client", "src"),
