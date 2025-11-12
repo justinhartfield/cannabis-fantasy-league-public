@@ -86,7 +86,9 @@ export default function CreateLeague() {
               </div>
               <div>
                 <h1 className="text-xl font-bold text-foreground">Neue Liga erstellen</h1>
-                <p className="text-sm text-muted-foreground">Saison-Modus</p>
+                <p className="text-sm text-muted-foreground">
+                  {formData.leagueType === "season" ? "Saison-Modus" : "Daily Challenge"}
+                </p>
               </div>
             </div>
           </div>
@@ -108,6 +110,47 @@ export default function CreateLeague() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* League Type Toggle */}
+              <div className="space-y-2">
+                <Label>Liga-Typ</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, leagueType: "season" })}
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      formData.leagueType === "season"
+                        ? "border-primary bg-primary/10"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <div className="flex flex-col items-center gap-2">
+                      <Trophy className="w-6 h-6" />
+                      <span className="font-semibold">Saison-Liga</span>
+                      <span className="text-xs text-muted-foreground text-center">
+                        Volle Saison mit Draft und Trades
+                      </span>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, leagueType: "challenge" })}
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      formData.leagueType === "challenge"
+                        ? "border-primary bg-primary/10"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <div className="flex flex-col items-center gap-2">
+                      <Calendar className="w-6 h-6" />
+                      <span className="font-semibold">Daily Challenge</span>
+                      <span className="text-xs text-muted-foreground text-center">
+                        24h Kopf-an-Kopf Wettbewerb
+                      </span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="name">Liga-Name *</Label>
                 <Input
@@ -130,9 +173,10 @@ export default function CreateLeague() {
                 />
               </div>
 
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="maxTeams">Maximale Teams</Label>
+              {formData.leagueType === "season" && (
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="maxTeams">Maximale Teams</Label>
                   <Select
                     value={formData.maxTeams.toString()}
                     onValueChange={(value) =>
@@ -170,9 +214,19 @@ export default function CreateLeague() {
                         </SelectItem>
                       ))}
                     </SelectContent>
-                  </Select>
+                    </Select>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {formData.leagueType === "challenge" && (
+                <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                  <p className="text-sm text-blue-700 dark:text-blue-300">
+                    <strong>Daily Challenge:</strong> 2 Spieler, 10-Asset Squads, 24h Wettbewerb.
+                    Keine Draft-Phase - direkte Lineup-Auswahl.
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -255,8 +309,9 @@ export default function CreateLeague() {
             </CardContent>
           </Card>
 
-          {/* Draft Settings */}
-          <Card className="bg-card border-border">
+          {/* Draft Settings - Season Only */}
+          {formData.leagueType === "season" && (
+            <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="text-card-foreground flex items-center gap-2">
                 <Calendar className="w-5 h-5" />
@@ -281,9 +336,11 @@ export default function CreateLeague() {
               </div>
             </CardContent>
           </Card>
+          )}
 
-          {/* League Rules */}
-          <Card className="bg-card border-border">
+          {/* League Rules - Season Only */}
+          {formData.leagueType === "season" && (
+            <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="text-card-foreground flex items-center gap-2">
                 <UserCircle className="w-5 h-5" />
@@ -387,6 +444,7 @@ export default function CreateLeague() {
               </div>
             </CardContent>
           </Card>
+          )}
 
           {/* Submit Button */}
           <div className="flex gap-3">
