@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Trophy, ArrowLeft, BarChart3, ListOrdered, Swords, Users } from "lucide-react";
+import { Trophy, ArrowLeft, BarChart3, ListOrdered, Swords, UserCircle } from "lucide-react";
 import { Link } from "wouter";
 
 interface LeagueNavProps {
@@ -104,7 +104,7 @@ export function LeagueNav({
               asChild
             >
               <Link href={`/league/${leagueId}/lineup`}>
-                <Users className="w-4 h-4 mr-2" />
+                <UserCircle className="w-4 h-4 mr-2" />
                 Mein Lineup
               </Link>
             </Button>
