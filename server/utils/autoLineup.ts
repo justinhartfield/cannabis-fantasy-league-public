@@ -28,6 +28,7 @@ interface AutoLineup {
   prd2Id: number | null;
   phm1Id: number | null;
   phm2Id: number | null;
+  brd1Id: number | null;
   flexId: number | null;
   flexType: string | null;
   locked: boolean;
@@ -35,11 +36,12 @@ interface AutoLineup {
 
 /**
  * Generate a lineup from a team's roster
- * Follows the 9-position structure:
+ * Follows the 10-position structure:
  * - 2 Manufacturers (MFG1, MFG2)
  * - 2 Cannabis Strains (CSTR1, CSTR2)
  * - 2 Products (PRD1, PRD2)
  * - 2 Pharmacies (PHM1, PHM2)
+ * - 1 Brand (BRD1)
  * - 1 Flex (any type)
  */
 export async function generateLineupFromRoster(
@@ -68,6 +70,7 @@ export async function generateLineupFromRoster(
   const cannabisStrains = rosterPlayers.filter(p => p.assetType === 'cannabis_strain');
   const products = rosterPlayers.filter(p => p.assetType === 'product');
   const pharmacies = rosterPlayers.filter(p => p.assetType === 'pharmacy');
+  const brands = rosterPlayers.filter(p => p.assetType === 'brand');
 
   // Build lineup following position requirements
   const lineup: AutoLineup = {
@@ -82,16 +85,20 @@ export async function generateLineupFromRoster(
     prd2Id: products[1]?.assetId || null,
     phm1Id: pharmacies[0]?.assetId || null,
     phm2Id: pharmacies[1]?.assetId || null,
+    brd1Id: brands[0]?.assetId || null,
     flexId: null,
     flexType: null,
     locked: false,
   };
 
   // Fill FLEX slot with any remaining player
-  // Priority: manufacturer > cannabis_strain > product > pharmacy
+  // Priority: manufacturer > brand > cannabis_strain > product > pharmacy
   if (manufacturers[2]) {
     lineup.flexId = manufacturers[2].assetId;
     lineup.flexType = 'manufacturer';
+  } else if (brands[1]) {
+    lineup.flexId = brands[1].assetId;
+    lineup.flexType = 'brand';
   } else if (cannabisStrains[2]) {
     lineup.flexId = cannabisStrains[2].assetId;
     lineup.flexType = 'cannabis_strain';

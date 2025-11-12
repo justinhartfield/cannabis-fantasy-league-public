@@ -11,10 +11,12 @@ import {
   strains, 
   cannabisStrains,
   pharmacies,
+  brands,
   manufacturerWeeklyStats,
   strainWeeklyStats,
   cannabisStrainWeeklyStats,
   pharmacyWeeklyStats,
+  brandWeeklyStats,
   weeklyLineups,
   weeklyTeamScores,
   scoringBreakdowns,
@@ -23,6 +25,7 @@ import {
 import { eq, and } from 'drizzle-orm';
 import { wsManager } from './websocket';
 import { getOrCreateLineup } from './utils/autoLineup';
+import { calculateBrandPoints } from './brandScoring';
 
 // ============================================================================
 // SCORING FORMULAS
@@ -599,7 +602,7 @@ export async function calculateTeamScore(teamId: number, year: number, week: num
     return 0;
   }
 
-  // Calculate points for each position (9 total)
+  // Calculate points for each position (10 total)
   const positionPoints = {
     mfg1: 0,
     mfg2: 0,
@@ -609,6 +612,7 @@ export async function calculateTeamScore(teamId: number, year: number, week: num
     prd2: 0,
     phm1: 0,
     phm2: 0,
+    brd1: 0,
     flex: 0,
   };
 
@@ -666,11 +670,20 @@ export async function calculateTeamScore(teamId: number, year: number, week: num
     breakdowns.push({ position: 'PHM2', assetType: 'pharmacy', assetId: teamLineup.phm2Id, ...result });
   }
 
+  // Score brand
+  if (teamLineup.brd1Id) {
+    const result = await scoreBrand(teamLineup.brd1Id, year, week);
+    positionPoints.brd1 = result.points;
+    breakdowns.push({ position: 'BRD1', assetType: 'brand', assetId: teamLineup.brd1Id, ...result });
+  }
+
   // Score FLEX
   if (teamLineup.flexId && teamLineup.flexType) {
     let result;
     if (teamLineup.flexType === 'manufacturer') {
       result = await scoreManufacturer(teamLineup.flexId, year, week);
+    } else if (teamLineup.flexType === 'brand') {
+      result = await scoreBrand(teamLineup.flexId, year, week);
     } else if (teamLineup.flexType === 'cannabis_strain') {
       result = await scoreCannabisStrain(teamLineup.flexId, year, week);
     } else if (teamLineup.flexType === 'product') {
@@ -704,6 +717,7 @@ export async function calculateTeamScore(teamId: number, year: number, week: num
     prd2Points: positionPoints.prd2,
     phm1Points: positionPoints.phm1,
     phm2Points: positionPoints.phm2,
+    brd1Points: positionPoints.brd1,
     flexPoints: positionPoints.flex,
     bonusPoints: totalBonus,
     penaltyPoints: 0, // Individual penalties are included in position scores
@@ -905,5 +919,46 @@ async function scorePharmacy(pharmacyId: number, year: number, week: number): Pr
     productVariety: weekStats.productVariety,
     appUsageRate: weekStats.appUsageRate,
     growthRatePercent: weekStats.growthRatePercent,
+  });
+}
+
+/**
+ * Score a brand for a specific week
+ */
+async function scoreBrand(brandId: number, year: number, week: number): Promise<{ points: number; breakdown: any }> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error('Database not available');
+  }
+
+  // Get weekly stats
+  const stats = await db
+    .select()
+    .from(brandWeeklyStats)
+    .where(and(
+      eq(brandWeeklyStats.brandId, brandId),
+      eq(brandWeeklyStats.year, year),
+      eq(brandWeeklyStats.week, week)
+    ))
+    .limit(1);
+
+  if (stats.length === 0) {
+    console.log(`[Scoring] No stats found for brand ${brandId}, ${year}-W${week}`);
+    return { points: 0, breakdown: {} };
+  }
+
+  const weekStats = stats[0];
+
+  return calculateBrandPoints({
+    favorites: weekStats.favorites,
+    favoriteGrowth: weekStats.favoriteGrowth,
+    views: weekStats.views,
+    viewGrowth: weekStats.viewGrowth,
+    comments: weekStats.comments,
+    commentGrowth: weekStats.commentGrowth,
+    affiliateClicks: weekStats.affiliateClicks,
+    clickGrowth: weekStats.clickGrowth,
+    engagementRate: weekStats.engagementRate,
+    sentimentScore: weekStats.sentimentScore,
   });
 }
