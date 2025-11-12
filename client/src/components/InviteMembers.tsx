@@ -5,7 +5,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Badge } from "./ui/badge";
-import { Loader2, Mail, Send, RefreshCw, X, CheckCircle, Clock, XCircle } from "@/lib/icons";
+import { Loader2, Mail, Send, RefreshCw, X, CheckCircle, Clock, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 /**

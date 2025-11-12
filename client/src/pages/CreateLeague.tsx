@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { trpc } from "@/lib/trpc";
-import { Trophy, ArrowLeft, Loader2, Calendar, UserCircle, Settings } from "@/lib/icons";
+import { Trophy, ArrowLeft, Loader2, Calendar, UserCircle, Settings } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";

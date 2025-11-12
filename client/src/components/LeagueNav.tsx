@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Trophy, ArrowLeft, BarChart3, ListOrdered, Swords, UserCircle } from "@/lib/icons";
+import { Trophy, ArrowLeft, BarChart3, ListOrdered, Swords, UserCircle } from "lucide-react";
 import { Link } from "wouter";
 
 interface LeagueNavProps {

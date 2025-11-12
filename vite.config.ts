@@ -14,9 +14,6 @@ const plugins = [react(), tailwindcss()];
 
 export default defineConfig({
   plugins,
-  optimizeDeps: {
-    include: ['lucide-react'],
-  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "client", "src"),
@@ -30,22 +27,6 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
-    rollupOptions: {
-      treeshake: {
-        moduleSideEffects: (id) => {
-          // Prevent tree-shaking of lucide-react
-          return id.includes('lucide-react') || id.includes('lib/icons');
-        },
-      },
-      output: {
-        manualChunks(id) {
-          // Force all lucide-react imports into a single chunk
-          if (id.includes('lucide-react') || id.includes('lib/icons')) {
-            return 'lucide';
-          }
-        },
-      },
-    },
   },
   server: {
     host: true,

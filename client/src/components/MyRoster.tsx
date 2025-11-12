@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Leaf, Package, UserCircle, CheckCircle2 } from "@/lib/icons";
+import { Building2, Leaf, Package, UserCircle, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type AssetType = "manufacturer" | "cannabis_strain" | "product" | "pharmacy";

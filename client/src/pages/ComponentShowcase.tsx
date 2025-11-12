@@ -168,7 +168,7 @@ import {
   Moon,
   Sun,
   X,
-} from "@/lib/icons";
+} from "lucide-react";
 import { useState } from "react";
 import { toast as sonnerToast } from "sonner";
 import { AIChatBox, type Message } from "@/components/AIChatBox";

@@ -13,7 +13,7 @@ import {
   Unlock,
   TrendingUp,
   Info
-} from "@/lib/icons";
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   Tooltip,
