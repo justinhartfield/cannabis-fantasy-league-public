@@ -5,6 +5,7 @@ import { trpc } from "@/lib/trpc";
 import { Trophy, Plus, UserCircle, TrendingUp, Calendar, Zap, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function Dashboard() {
   const { user, loading: authLoading, isAuthenticated } = useAuth();
@@ -49,6 +50,7 @@ export default function Dashboard() {
             </div>
 
             <div className="flex items-center gap-3">
+              <ThemeToggle />
               <span className="text-sm text-muted-foreground">
                 {user?.name || user?.email}
               </span>

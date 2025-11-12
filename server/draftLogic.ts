@@ -1,6 +1,7 @@
 import { getDb } from "./db";
 import { leagues, teams, draftPicks, rosters } from "../drizzle/schema";
 import { eq, and, sql } from "drizzle-orm";
+import { autoFillLeagueRosters } from "./autoFillRoster";
 
 /**
  * Calculate which team should pick next in a snake draft
@@ -179,6 +180,13 @@ export async function advanceDraftPick(leagueId: number): Promise<void> {
         currentDraftRound: 9,
       })
       .where(eq(leagues.id, leagueId));
+
+    // Auto-fill rosters with all drafted players
+    try {
+      await autoFillLeagueRosters(leagueId);
+    } catch (error) {
+      console.error("Error auto-filling rosters:", error);
+    }
   } else {
     // Calculate next round
     const nextRound = Math.ceil(nextPickNumber / league.teamCount);
