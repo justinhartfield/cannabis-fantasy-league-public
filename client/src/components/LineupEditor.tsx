@@ -53,11 +53,12 @@ interface LineupEditorProps {
 /**
  * LineupEditor Component
  * 
- * Manages weekly lineup with 9-player roster structure:
+ * Manages weekly lineup with 10-player roster structure:
  * - 2 Manufacturers (MFG1, MFG2)
  * - 2 Cannabis Strains (CSTR1, CSTR2)
  * - 2 Products (PRD1, PRD2)
  * - 2 Pharmacies (PHM1, PHM2)
+ * - 1 Brand (BRD1)
  * - 1 Flex (FLEX - any category)
  */
 export default function LineupEditor({
@@ -114,6 +115,7 @@ export default function LineupEditor({
         { position: 'PRD2', assetType: 'product' as AssetType, assetId: lineup.prd2Id, assetName: null, points: 0, locked: false },
         { position: 'PHM1', assetType: 'pharmacy' as AssetType, assetId: lineup.phm1Id, assetName: null, points: 0, locked: false },
         { position: 'PHM2', assetType: 'pharmacy' as AssetType, assetId: lineup.phm2Id, assetName: null, points: 0, locked: false },
+        { position: 'BRD1', assetType: 'brand' as AssetType, assetId: lineup.brd1Id, assetName: null, points: 0, locked: false },
         { position: 'FLEX', assetType: 'manufacturer' as AssetType, assetId: lineup.flexId, assetName: null, points: 0, locked: false },
       ];
     }
@@ -127,6 +129,7 @@ export default function LineupEditor({
       { position: 'PRD2', assetType: 'product' as AssetType, assetId: null, assetName: null, points: 0, locked: false },
       { position: 'PHM1', assetType: 'pharmacy' as AssetType, assetId: null, assetName: null, points: 0, locked: false },
       { position: 'PHM2', assetType: 'pharmacy' as AssetType, assetId: null, assetName: null, points: 0, locked: false },
+      { position: 'BRD1', assetType: 'brand' as AssetType, assetId: null, assetName: null, points: 0, locked: false },
       { position: 'FLEX', assetType: 'manufacturer' as AssetType, assetId: null, assetName: null, points: 0, locked: false },
     ];
   };
@@ -148,6 +151,7 @@ export default function LineupEditor({
       prd2Id: currentLineup.find(s => s.position === "PRD2")?.assetId || null,
       phm1Id: currentLineup.find(s => s.position === "PHM1")?.assetId || null,
       phm2Id: currentLineup.find(s => s.position === "PHM2")?.assetId || null,
+      brd1Id: currentLineup.find(s => s.position === "BRD1")?.assetId || null,
       flexId: currentLineup.find(s => s.position === "FLEX")?.assetId || null,
       flexType: currentLineup.find(s => s.position === "FLEX")?.assetType || null,
     };
@@ -166,6 +170,7 @@ export default function LineupEditor({
     if (position.startsWith("CSTR")) return <Leaf className="w-5 h-5" />;
     if (position.startsWith("PRD")) return <Package className="w-5 h-5" />;
     if (position.startsWith("PHM")) return <Building className="w-5 h-5" />;
+    if (position.startsWith("BRD")) return <Building2 className="w-5 h-5" />;
     if (position === "FLEX") return <Users className="w-5 h-5" />;
     return null;
   };
@@ -176,6 +181,7 @@ export default function LineupEditor({
     if (position.startsWith("CSTR")) return "bg-purple-500/10 border-purple-500/20 text-purple-500";
     if (position.startsWith("PRD")) return "bg-pink-500/10 border-pink-500/20 text-pink-500";
     if (position.startsWith("PHM")) return "bg-green-500/10 border-green-500/20 text-green-500";
+    if (position.startsWith("BRD")) return "bg-yellow-500/10 border-yellow-500/20 text-yellow-500";
     if (position === "FLEX") return "bg-orange-500/10 border-orange-500/20 text-orange-500";
     return "bg-muted";
   };
@@ -190,6 +196,7 @@ export default function LineupEditor({
     if (position === "PRD2") return "Produkt 2";
     if (position === "PHM1") return "Apotheke 1";
     if (position === "PHM2") return "Apotheke 2";
+    if (position === "BRD1") return "Brand";
     if (position === "FLEX") return "Flex (beliebig)";
     return position;
   };
@@ -204,6 +211,8 @@ export default function LineupEditor({
         return "Produkt";
       case "pharmacy":
         return "Apotheke";
+      case "brand":
+        return "Brand";
     }
   };
 
@@ -282,6 +291,7 @@ export default function LineupEditor({
     if (position.startsWith("CSTR")) return "cannabis_strain";
     if (position.startsWith("PRD")) return "product";
     if (position.startsWith("PHM")) return "pharmacy";
+    if (position.startsWith("BRD")) return "brand";
     return "manufacturer"; // Default
   };
 
@@ -482,7 +492,33 @@ export default function LineupEditor({
           </CardContent>
         </Card>
 
-        {/* Flex */}
+        {/* Brands */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-yellow-500" />
+              Brands (1)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {currentLineup
+              .filter((slot) => slot && slot.position && slot.position.startsWith("BRD"))
+              .map((slot) => (
+                <LineupSlotCard
+                  key={slot.position}
+                  slot={slot}
+                  onClick={() => handleSlotClick(slot)}
+                  isLocked={isLocked}
+                  getPositionLabel={getPositionLabel}
+                  getPositionColor={getPositionColor}
+                  getPositionIcon={getPositionIcon}
+                  getAssetTypeLabel={getAssetTypeLabel}
+                />
+              ))}
+          </CardContent>
+        </Card>
+
+        {/* FLEX */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2">
