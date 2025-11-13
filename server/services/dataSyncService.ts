@@ -35,40 +35,46 @@ export class DataSyncServiceV2 {
           // Use Drizzle's insert with onConflictDoUpdate
           const db = await getDb();
           if (!db) throw new Error('Database not available');
-          await db.insert(cannabisStrains)
-            .values({
-              metabaseId: strain.metabaseId,
-              name: strain.name,
-              slug: strain.slug,
-              type: strain.type,
-              description: strain.description,
-              effects: strain.effects ? JSON.stringify(strain.effects) : null,
-              flavors: strain.flavors ? JSON.stringify(strain.flavors) : null,
-              terpenes: strain.terpenes ? JSON.stringify(strain.terpenes) : null,
-              thcMin: strain.thcMin,
-              thcMax: strain.thcMax,
-              cbdMin: strain.cbdMin,
-              cbdMax: strain.cbdMax,
-              pharmaceuticalProductCount: strain.pharmaceuticalProductCount || 0,
-            })
-            .onConflictDoUpdate({
-              target: cannabisStrains.metabaseId,
-              set: {
-                name: strain.name,
-                slug: strain.slug,
-                type: strain.type,
-                description: strain.description,
-                effects: strain.effects ? JSON.stringify(strain.effects) : null,
-                flavors: strain.flavors ? JSON.stringify(strain.flavors) : null,
-                terpenes: strain.terpenes ? JSON.stringify(strain.terpenes) : null,
-                thcMin: strain.thcMin,
-                thcMax: strain.thcMax,
-                cbdMin: strain.cbdMin,
-                cbdMax: strain.cbdMax,
-                pharmaceuticalProductCount: strain.pharmaceuticalProductCount || 0,
-                updatedAt: new Date().toISOString(),
-              },
-            });
+          
+          // Use raw SQL to avoid Drizzle ORM issues with onConflictDoUpdate
+          await db.execute(sql`
+            INSERT INTO "cannabisStrains" (
+              "metabaseId", "name", "slug", "type", "description",
+              "effects", "flavors", "terpenes",
+              "thcMin", "thcMax", "cbdMin", "cbdMax",
+              "pharmaceuticalProductCount", "createdAt", "updatedAt"
+            ) VALUES (
+              ${strain.metabaseId},
+              ${strain.name},
+              ${strain.slug || null},
+              ${strain.type || null},
+              ${strain.description || null},
+              ${strain.effects ? JSON.stringify(strain.effects) : null},
+              ${strain.flavors ? JSON.stringify(strain.flavors) : null},
+              ${strain.terpenes ? JSON.stringify(strain.terpenes) : null},
+              ${strain.thcMin || null},
+              ${strain.thcMax || null},
+              ${strain.cbdMin || null},
+              ${strain.cbdMax || null},
+              ${strain.pharmaceuticalProductCount || 0},
+              NOW(),
+              NOW()
+            )
+            ON CONFLICT ("metabaseId") DO UPDATE SET
+              "name" = EXCLUDED."name",
+              "slug" = EXCLUDED."slug",
+              "type" = EXCLUDED."type",
+              "description" = EXCLUDED."description",
+              "effects" = EXCLUDED."effects",
+              "flavors" = EXCLUDED."flavors",
+              "terpenes" = EXCLUDED."terpenes",
+              "thcMin" = EXCLUDED."thcMin",
+              "thcMax" = EXCLUDED."thcMax",
+              "cbdMin" = EXCLUDED."cbdMin",
+              "cbdMax" = EXCLUDED."cbdMax",
+              "pharmaceuticalProductCount" = EXCLUDED."pharmaceuticalProductCount",
+              "updatedAt" = NOW()
+          `);
 
           synced++;
           
