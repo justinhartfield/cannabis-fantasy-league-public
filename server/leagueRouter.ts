@@ -4,6 +4,7 @@ import { getDb } from "./db";
 import { leagues, teams, users } from "../drizzle/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
+import { wsManager } from "./websocket";
 
 /**
  * Generate a random 6-character alphanumeric league code
@@ -342,12 +343,54 @@ export const leagueRouter = router({
 
         // Create team with default name if not provided
         const teamName = input.teamName || `${ctx.user.name}'s Team`;
-        await db.insert(teams).values({
+        const [newTeam] = await db.insert(teams).values({
           leagueId: league.id,
           userId: ctx.user.id,
           name: teamName,
           faabBudget: 100, // Default FAAB budget
-        });
+        }).returning();
+
+        // Check if this is a challenge and now has 2 teams
+        const allTeams = await db
+          .select()
+          .from(teams)
+          .where(eq(teams.leagueId, league.id));
+
+        if (league.leagueType === 'challenge' && allTeams.length === 2) {
+          // Trigger coin flip and draft setup
+          const coinFlip = Math.random() < 0.5;
+          const firstTeam = coinFlip ? allTeams[0] : allTeams[1];
+          const secondTeam = coinFlip ? allTeams[1] : allTeams[0];
+
+          // Assign draft positions
+          await db.update(teams)
+            .set({ draftPosition: 1 })
+            .where(eq(teams.id, firstTeam.id));
+          
+          await db.update(teams)
+            .set({ draftPosition: 2 })
+            .where(eq(teams.id, secondTeam.id));
+
+          // Broadcast to both players
+          wsManager.broadcastToLeague(league.id, {
+            type: 'second_player_joined',
+            leagueId: league.id,
+            team1: { id: allTeams[0].id, name: allTeams[0].name },
+            team2: { id: allTeams[1].id, name: allTeams[1].name },
+          });
+
+          // Delay coin flip result for animation timing
+          setTimeout(() => {
+            wsManager.broadcastToLeague(league.id, {
+              type: 'coin_flip_result',
+              leagueId: league.id,
+              winnerTeamId: firstTeam.id,
+              winnerTeamName: firstTeam.name,
+              loserTeamId: secondTeam.id,
+              loserTeamName: secondTeam.name,
+            });
+          }, 500);
+        }
 
         return {
           success: true,

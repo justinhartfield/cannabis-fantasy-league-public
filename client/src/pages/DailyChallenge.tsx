@@ -10,6 +10,7 @@ import { ComparisonBar } from "@/components/ComparisonBar";
 import ScoringBreakdown from "@/components/ScoringBreakdown";
 import { StatBadge } from "@/components/StatBadge";
 import { TrendIndicator } from "@/components/TrendIndicator";
+import { CoinFlip } from "@/components/CoinFlip";
 import {
   Loader2,
   ArrowLeft,
@@ -19,6 +20,8 @@ import {
   Sparkles,
   RefreshCw,
   Clock,
+  UserPlus,
+  Copy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getLoginUrl } from "@/const";
@@ -54,6 +57,8 @@ export default function DailyChallenge() {
   const [winner, setWinner] = useState<{ teamId: number; teamName: string; points: number } | null>(null);
   const [nextUpdateTime, setNextUpdateTime] = useState<Date | null>(null);
   const [timeUntilUpdate, setTimeUntilUpdate] = useState<string>("");
+  const [showCoinFlip, setShowCoinFlip] = useState(false);
+  const [coinFlipWinner, setCoinFlipWinner] = useState<{ teamId: number; teamName: string } | null>(null);
 
   const {
     data: league,
@@ -165,6 +170,18 @@ export default function DailyChallenge() {
         setLastUpdateTime(new Date(message.finalizedAt));
         refetchScores();
         toast.success(`Challenge complete! Winner: ${message.winner.teamName}`);
+      } else if (message.type === 'second_player_joined') {
+        toast.success("Dein Gegner ist beigetreten! Der Münzwurf beginnt...");
+        setShowCoinFlip(true);
+      } else if (message.type === 'coin_flip_result') {
+        setCoinFlipWinner({ 
+          teamId: message.winnerTeamId, 
+          teamName: message.winnerTeamName 
+        });
+        // After showing result, redirect to draft
+        setTimeout(() => {
+          setLocation(`/draft/${challengeId}`);
+        }, 5000);
       }
     },
     autoConnect: !!challengeId && !!user?.id,
@@ -384,6 +401,15 @@ export default function DailyChallenge() {
 
   return (
     <div className="min-h-screen gradient-dark">
+      {/* Coin Flip Overlay */}
+      {showCoinFlip && league?.teams && league.teams.length >= 2 && (
+        <CoinFlip
+          team1Name={league.teams[0]?.name || "Team 1"}
+          team2Name={league.teams[1]?.name || "Team 2"}
+          winnerTeamName={coinFlipWinner?.teamName || null}
+        />
+      )}
+
       <header className="sticky top-0 z-10 border-b border-border/50 bg-card/80 backdrop-blur-lg">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -497,6 +523,8 @@ export default function DailyChallenge() {
                     score={leader.points}
                     highlight
                   />
+                ) : league?.leagueCode ? (
+                  <InviteBlock leagueCode={league.leagueCode} />
                 ) : (
                   <EmptyTeamBlock />
                 )}
@@ -533,6 +561,8 @@ export default function DailyChallenge() {
                     name={challenger.teamName}
                     score={challenger.points}
                   />
+                ) : league?.leagueCode ? (
+                  <InviteBlock leagueCode={league.leagueCode} />
                 ) : (
                   <EmptyTeamBlock />
                 )}
@@ -931,6 +961,56 @@ function EmptyTeamBlock() {
     <div className="flex-1 rounded-2xl p-4 bg-muted/20 border border-border/40 text-center">
       <div className="text-sm text-muted-foreground">Kein Team</div>
     </div>
+  );
+}
+
+function InviteBlock({ leagueCode }: { leagueCode: string }) {
+  const handleCopyCode = () => {
+    navigator.clipboard.writeText(leagueCode);
+    toast.success("Invite code copied to clipboard!");
+  };
+
+  return (
+    <Card className="flex-1 rounded-2xl gradient-card border-border/50 glow-primary">
+      <CardContent className="p-6 text-center space-y-4">
+        <div className="flex justify-center">
+          <UserPlus className="w-12 h-12 text-primary" />
+        </div>
+        <div>
+          <h3 className="text-xl font-bold text-foreground mb-2">
+            Challenge einen Freund!
+          </h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Teile diesen Code, um deinen Gegner einzuladen
+          </p>
+        </div>
+        <div className="space-y-2">
+          <div className="text-sm uppercase text-muted-foreground tracking-wider">
+            Invite Code
+          </div>
+          <div className="text-4xl font-bold text-gradient-primary tracking-widest font-mono">
+            {leagueCode}
+          </div>
+        </div>
+        <Button 
+          onClick={handleCopyCode}
+          className="gradient-primary w-full"
+          size="lg"
+        >
+          <Copy className="w-4 h-4 mr-2" />
+          Code kopieren
+        </Button>
+        <div className="pt-2 space-y-1">
+          <div className="flex items-center justify-center gap-2 text-muted-foreground">
+            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+            <p className="text-sm">Warte auf Gegner...</p>
+          </div>
+          <p className="text-xs text-muted-foreground/80">
+            Der Draft startet automatisch, sobald dein Freund beitritt!
+          </p>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

@@ -105,8 +105,14 @@ export default function Draft() {
       } else if (message.type === 'draft_complete') {
         toast.success('🎉 Draft complete! All roster slots filled.');
         setTimerSeconds(null);
-        // Show the draft completion dialog
-        setShowDraftCompleteDialog(true);
+        // Show the draft completion dialog for season leagues, redirect for challenges
+        if (league?.leagueType === 'challenge') {
+          setTimeout(() => {
+            setLocation(`/challenge/${leagueId}`);
+          }, 2000);
+        } else {
+          setShowDraftCompleteDialog(true);
+        }
       } else if (message.type === 'timer_start') {
         setTimerSeconds(message.timeLimit);
         setTimeLimit(message.timeLimit);
