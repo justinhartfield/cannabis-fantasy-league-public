@@ -2,10 +2,12 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
-import { Trophy, Plus, UserCircle, TrendingUp, Calendar, Zap, Loader2 } from "lucide-react";
+import { Trophy, Plus, UserCircle, TrendingUp, Calendar, Zap, Loader2, Activity } from "lucide-react";
 import { Link } from "wouter";
-import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
+import { APP_TITLE, getLoginUrl } from "@/const";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { StatBadge } from "@/components/StatBadge";
+import { LiveScoreCard } from "@/components/LiveScoreCard";
 
 export default function Dashboard() {
   const { user, loading: authLoading, isAuthenticated } = useAuth();
@@ -34,128 +36,126 @@ export default function Dashboard() {
   const hasLeagues = myLeagues && myLeagues.length > 0;
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Trophy className="w-6 h-6 text-primary" />
+    <div className="min-h-screen gradient-dark">
+      {/* Hero Header */}
+      <header className="relative overflow-hidden border-b border-border/50">
+        <div className="absolute inset-0 gradient-primary opacity-10 blur-3xl" />
+        <div className="container mx-auto px-4 py-8 relative">
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center glow-primary">
+                <Trophy className="w-8 h-8 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-foreground">{APP_TITLE}</h1>
-                <p className="text-sm text-muted-foreground">Dashboard</p>
+                <h1 className="text-3xl font-bold text-gradient-primary">{APP_TITLE}</h1>
+                <p className="text-sm text-muted-foreground mt-1">Fantasy League Dashboard</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               <ThemeToggle />
-              <span className="text-sm text-muted-foreground">
-                {user?.name || user?.email}
-              </span>
+              <div className="hidden md:flex items-center gap-2 px-4 py-2 rounded-lg bg-card/50 border border-border/50">
+                <UserCircle className="w-5 h-5 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">
+                  {user?.name || user?.email}
+                </span>
+              </div>
             </div>
+          </div>
+
+          {/* Hero Welcome */}
+          <div className="text-center py-8">
+            <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-3">
+              Welcome back, {user?.name?.split(" ")[0] || "Champion"}!
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Track your leagues, manage your lineup, and dominate the competition
+            </p>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-foreground mb-2">
-            Willkommen zurück, {user?.name?.split(" ")[0] || "Champion"}!
-          </h2>
-          <p className="text-muted-foreground">
-            Verwalte deine Ligen und Challenges oder erstelle neue.
-          </p>
-        </div>
-
         {/* Platform Statistics */}
         {stats && (stats.manufacturerCount > 0 || stats.cannabisStrainCount > 0 || stats.pharmacyCount > 0) && (
-          <div className="grid grid-cols-5 gap-4 mb-8">
-            <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
-              <CardContent className="pt-6">
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground mb-1">Hersteller</p>
-                  <p className="text-3xl font-bold text-foreground">{stats.manufacturerCount}</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border-purple-500/20">
-              <CardContent className="pt-6">
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground mb-1">Cannabis Strains</p>
-                  <p className="text-3xl font-bold text-foreground">{stats.cannabisStrainCount || 0}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Genetik/Sorten</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-gradient-to-br from-pink-500/10 to-pink-500/5 border-pink-500/20">
-              <CardContent className="pt-6">
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground mb-1">Produkte</p>
-                  <p className="text-3xl font-bold text-foreground">{stats.productCount || stats.strainCount}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Pharma-Produkte</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
-              <CardContent className="pt-6">
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground mb-1">Apotheken</p>
-                  <p className="text-3xl font-bold text-foreground">{stats.pharmacyCount}</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-gradient-to-br from-yellow-500/10 to-yellow-500/5 border-yellow-500/20">
-              <CardContent className="pt-6">
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground mb-1">Brands</p>
-                  <p className="text-3xl font-bold text-foreground">{stats.brandCount || 0}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Marketing</p>
-                </div>
-              </CardContent>
-            </Card>
+          <div className="mb-8">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+              Platform Stats
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
+              <StatBadge
+                label="Manufacturers"
+                value={stats.manufacturerCount}
+                variant="primary"
+                icon={Activity}
+              />
+              <StatBadge
+                label="Strains"
+                value={stats.cannabisStrainCount || 0}
+                variant="green"
+                icon={Activity}
+              />
+              <StatBadge
+                label="Products"
+                value={stats.productCount || stats.strainCount}
+                variant="purple"
+                icon={Activity}
+              />
+              <StatBadge
+                label="Pharmacies"
+                value={stats.pharmacyCount}
+                variant="amber"
+                icon={Activity}
+              />
+              <StatBadge
+                label="Brands"
+                value={stats.brandCount || 0}
+                variant="secondary"
+                icon={Activity}
+              />
+            </div>
           </div>
         )}
 
         {/* Quick Actions */}
         <div className="grid md:grid-cols-2 gap-4 mb-8">
-          <Card className="bg-gradient-to-br from-primary/20 to-primary/5 border-primary/20 hover:border-primary/40 transition-colors cursor-pointer">
-            <Link href="/league/create">
+          <Link href="/league/create">
+            <Card className="gradient-card border-border/50 card-hover-lift cursor-pointer h-full">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-card-foreground flex items-center gap-2">
-                      <Calendar className="w-5 h-5" />
-                      Neue Saison-Liga
+                    <CardTitle className="text-foreground flex items-center gap-2 mb-2">
+                      <Calendar className="w-5 h-5 text-[#FF2D55]" />
+                      Create New League
                     </CardTitle>
                     <CardDescription className="text-muted-foreground">
-                      Starte eine jahreslanges Fantasy-Erlebnis
+                      Start a season-long fantasy experience
                     </CardDescription>
                   </div>
-                  <Plus className="w-8 h-8 text-primary" />
+                  <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center">
+                    <Plus className="w-6 h-6 text-white" />
+                  </div>
                 </div>
               </CardHeader>
-            </Link>
-          </Card>
+            </Card>
+          </Link>
 
-          <Card className="bg-gradient-to-br from-accent/20 to-accent/5 border-accent/20 hover:border-accent/40 transition-colors">
+          <Card className="gradient-card border-border/50 h-full">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-card-foreground flex items-center gap-2">
-                    <Zap className="w-5 h-5" />
-                    Tägliche Challenge
+                  <CardTitle className="text-foreground flex items-center gap-2 mb-2">
+                    <Zap className="w-5 h-5 text-[#00D9FF]" />
+                    Daily Challenge
                   </CardTitle>
                   <CardDescription className="text-muted-foreground">
-                    24-Stunden Head-to-Head Battle
+                    24-hour head-to-head battles
                   </CardDescription>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-muted-foreground">Neue Challenge</p>
-                  <p className="text-xs text-muted-foreground">täglich um 8:00 Uhr</p>
+                  <p className="text-xs text-muted-foreground">New challenge</p>
+                  <p className="text-xs text-[#00D9FF]">Daily at 8:00 AM</p>
                 </div>
               </div>
             </CardHeader>
@@ -164,43 +164,48 @@ export default function Dashboard() {
 
         {/* My Leagues */}
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-2xl font-bold text-foreground">Meine Ligen</h3>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-2xl font-bold text-foreground">My Leagues</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                {hasLeagues ? `${myLeagues?.length} active leagues` : "Get started with your first league"}
+              </p>
+            </div>
             {hasLeagues && (
-              <Button variant="outline" asChild>
+              <Button variant="outline" asChild className="border-border/50">
                 <Link href="/leagues">
                   <UserCircle className="w-4 h-4 mr-2" />
-                  Ligen beitreten
+                  Browse Leagues
                 </Link>
               </Button>
             )}
           </div>
 
           {!hasLeagues ? (
-            <Card className="bg-card border-border">
-              <CardContent className="py-12">
-                <div className="text-center space-y-4">
-                  <div className="w-16 h-16 rounded-full bg-muted mx-auto flex items-center justify-center">
-                    <Trophy className="w-8 h-8 text-muted-foreground" />
+            <Card className="gradient-card border-border/50">
+              <CardContent className="py-16">
+                <div className="text-center space-y-6 max-w-md mx-auto">
+                  <div className="w-20 h-20 rounded-2xl gradient-primary mx-auto flex items-center justify-center glow-primary">
+                    <Trophy className="w-10 h-10 text-white" />
                   </div>
                   <div>
-                    <h4 className="text-lg font-semibold text-foreground mb-2">
-                      Noch keine Ligen
+                    <h4 className="text-2xl font-bold text-foreground mb-3">
+                      Ready to Compete?
                     </h4>
-                    <p className="text-muted-foreground mb-6">
-                      Erstelle deine erste Liga oder tritt einer bestehenden bei.
+                    <p className="text-muted-foreground mb-8">
+                      Create your first league or join an existing one to start your fantasy journey.
                     </p>
                     <div className="flex gap-3 justify-center">
-                      <Button asChild>
+                      <Button asChild className="gradient-primary">
                         <Link href="/league/create">
                           <Plus className="w-4 h-4 mr-2" />
-                          Liga erstellen
+                          Create League
                         </Link>
                       </Button>
-                      <Button variant="outline" asChild>
+                      <Button variant="outline" asChild className="border-border/50">
                         <Link href="/leagues">
                           <UserCircle className="w-4 h-4 mr-2" />
-                          Ligen durchsuchen
+                          Browse Leagues
                         </Link>
                       </Button>
                     </div>
@@ -212,84 +217,79 @@ export default function Dashboard() {
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
               {myLeagues?.map((league) => (
                 <Link key={league.id} href={`/league/${league.id}`}>
-                  <Card className="bg-card border-border hover:border-primary/50 transition-colors cursor-pointer h-full">
-                    <CardHeader>
-                      <div className="flex items-start justify-between mb-2">
+                  <Card className="gradient-card border-border/50 card-hover-lift cursor-pointer h-full">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
-                          <CardTitle className="text-card-foreground text-lg mb-1">
+                          <CardTitle className="text-foreground text-xl mb-2">
                             {league.name}
                           </CardTitle>
-                          <CardDescription className="text-muted-foreground text-sm">
+                          <CardDescription className="text-muted-foreground">
                             {league.myTeam?.teamName}
                           </CardDescription>
                         </div>
                         {league.commissionerId === user?.id && (
-                          <span className="px-2 py-1 rounded text-xs bg-primary/10 text-primary font-medium">
-                            Commissioner
+                          <span className="px-2 py-1 rounded-lg text-xs gradient-primary text-white font-bold uppercase">
+                            Comm
                           </span>
                         )}
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-3">
-                        {/* League Status */}
+                      {/* My Team Stats - Prominent */}
+                      {league.myTeam && (
+                        <div className="mb-4 p-3 rounded-lg bg-muted/30 border border-border/50">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs text-muted-foreground uppercase tracking-wide">Your Rank</span>
+                            <div className="flex items-center gap-1">
+                              <div className={`text-2xl font-bold ${
+                                (league.myTeam.rank || 999) <= 3 ? 'text-gradient-primary' : 'text-foreground'
+                              }`}>
+                                #{league.myTeam.rank || "-"}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-muted-foreground">Total Points</span>
+                            <span className="text-lg font-bold text-[#00D9FF]">
+                              {league.myTeam.totalPoints?.toFixed(1) || "0.0"}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* League Info */}
+                      <div className="space-y-2">
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Status:</span>
-                          <span className="font-medium text-foreground capitalize">
+                          <span className="text-muted-foreground">Status</span>
+                          <span className="font-semibold text-foreground capitalize">
                             {league.seasonStatus === "pre_draft"
-                              ? "Vor Draft"
+                              ? "Pre-Draft"
                               : league.seasonStatus === "drafting"
                               ? "Drafting"
                               : league.seasonStatus === "in_progress"
-                              ? "Laufend"
+                              ? "Active"
                               : league.seasonStatus === "playoffs"
                               ? "Playoffs"
-                              : "Beendet"}
+                              : "Complete"}
                           </span>
                         </div>
 
-                        {/* Current Week */}
-                        {league.seasonStatus === "in_progress" || league.seasonStatus === "playoffs" ? (
+                        {(league.seasonStatus === "in_progress" || league.seasonStatus === "playoffs") && (
                           <div className="flex items-center justify-between text-sm">
-                            <span className="text-muted-foreground">Woche:</span>
-                            <span className="font-medium text-foreground">
+                            <span className="text-muted-foreground">Week</span>
+                            <span className="font-semibold text-foreground">
                               {league.currentWeek} / 18
                             </span>
                           </div>
-                        ) : null}
+                        )}
 
-                        {/* Team Count */}
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Teams:</span>
-                          <span className="font-medium text-foreground">
-                            {league.maxTeams} Teams
+                          <span className="text-muted-foreground">Teams</span>
+                          <span className="font-semibold text-foreground">
+                            {league.maxTeams}
                           </span>
                         </div>
-
-                        {/* My Team Stats */}
-                        {league.myTeam && (
-                          <div className="pt-3 border-t border-border">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <TrendingUp className="w-4 h-4 text-primary" />
-                                <span className="text-sm text-muted-foreground">
-                                  Mein Rang:
-                                </span>
-                              </div>
-                              <span className="text-lg font-bold text-primary">
-                                #{league.myTeam.rank || "-"}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between mt-2">
-                              <span className="text-sm text-muted-foreground">
-                                Punkte:
-                              </span>
-                              <span className="text-sm font-medium text-foreground">
-                                {league.myTeam.totalPoints?.toFixed(2) || "0.00"}
-                              </span>
-                            </div>
-                          </div>
-                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -301,39 +301,48 @@ export default function Dashboard() {
 
         {/* My Challenges */}
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-2xl font-bold text-foreground">Meine Challenges</h3>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-2xl font-bold text-foreground">My Challenges</h3>
+              <p className="text-sm text-muted-foreground mt-1">Quick daily competitions</p>
+            </div>
           </div>
 
           {myLeagues && myLeagues.filter(l => l.leagueType === 'challenge').length > 0 ? (
             <div className="grid gap-4">
               {myLeagues.filter(l => l.leagueType === 'challenge').map((league) => (
-                <Card key={league.id} className="bg-card border-border hover:border-primary/50 transition-colors">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="text-lg">
-                          <Link href={`/league/${league.id}`} className="hover:text-primary transition-colors">
+                <Link key={league.id} href={`/league/${league.id}`}>
+                  <Card className="gradient-card border-border/50 card-hover-lift cursor-pointer">
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-lg text-foreground mb-1">
                             {league.name}
-                          </Link>
-                        </CardTitle>
-                        <CardDescription>
-                          {league.teamCount} Teams • {league.status === 'active' ? 'Aktiv' : 'Entwurf'}
-                        </CardDescription>
+                          </CardTitle>
+                          <CardDescription>
+                            {league.teamCount} Teams • {league.status === 'active' ? 'Active' : 'Draft'}
+                          </CardDescription>
+                        </div>
+                        <div className="w-12 h-12 rounded-xl gradient-secondary flex items-center justify-center">
+                          <Zap className="w-6 h-6 text-white" />
+                        </div>
                       </div>
-                      <Zap className="w-6 h-6 text-accent" />
-                    </div>
-                  </CardHeader>
-                </Card>
+                    </CardHeader>
+                  </Card>
+                </Link>
               ))}
             </div>
           ) : (
-            <Card className="bg-card border-border">
-              <CardContent className="py-8">
-                <div className="text-center text-muted-foreground">
-                  <Zap className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>Noch keine aktiven Challenges</p>
-                  <p className="text-sm mt-2">Challenges werden täglich um 8:00 Uhr automatisch erstellt</p>
+            <Card className="gradient-card border-border/50">
+              <CardContent className="py-12">
+                <div className="text-center max-w-sm mx-auto">
+                  <div className="w-16 h-16 rounded-2xl bg-muted/30 mx-auto mb-4 flex items-center justify-center">
+                    <Zap className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <p className="text-foreground mb-2 font-semibold">No Active Challenges</p>
+                  <p className="text-sm text-muted-foreground">
+                    New daily challenges are created automatically at 8:00 AM
+                  </p>
                 </div>
               </CardContent>
             </Card>

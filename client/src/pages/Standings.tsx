@@ -59,84 +59,91 @@ export default function Standings() {
   const displayData = view === 'power' ? powerRankings : standings;
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Standings</h1>
-          <p className="text-muted-foreground">
-            {league?.name} - {year} Season
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Trophy className="h-5 w-5 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">
-            {standings?.length || 0} teams
-          </span>
-        </div>
-      </div>
-
-      {/* Controls */}
-      <Card>
-        <CardHeader>
-          <CardTitle>View Options</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium">Year:</label>
-              <Select value={year.toString()} onValueChange={(v) => setYear(Number(v))}>
-                <SelectTrigger className="w-[120px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="2024">2024</SelectItem>
-                  <SelectItem value="2025">2025</SelectItem>
-                </SelectContent>
-              </Select>
+    <div className="min-h-screen gradient-dark">
+      <div className="container mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <h1 className="text-4xl font-bold text-gradient-primary flex items-center gap-3">
+                <Trophy className="w-9 h-9" />
+                STANDINGS
+              </h1>
+              <p className="text-muted-foreground mt-2">
+                {league?.name} • {year} Season
+              </p>
             </div>
-
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium">View:</label>
-              <Select value={view} onValueChange={(v: any) => setView(v)}>
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="standings">Standings</SelectItem>
-                  <SelectItem value="power">Power Rankings</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-card/50 border border-border/50">
+              <Trophy className="h-5 w-5 text-[#FFD700]" />
+              <span className="text-sm font-semibold text-foreground">
+                {standings?.length || 0} Teams
+              </span>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Standings Table */}
-      {(isLoading || powerLoading) ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      ) : displayData && displayData.length > 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              {view === 'power' ? 'Power Rankings' : 'League Standings'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
+
+        {/* Controls */}
+        <Card className="mb-6 gradient-card border-border/50">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-muted-foreground">Year:</label>
+                <Select value={year.toString()} onValueChange={(v) => setYear(Number(v))}>
+                  <SelectTrigger className="w-[120px] bg-card border-border/50">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="2024">2024</SelectItem>
+                    <SelectItem value="2025">2025</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-muted-foreground">View:</label>
+                <Select value={view} onValueChange={(v: any) => setView(v)}>
+                  <SelectTrigger className="w-[160px] bg-card border-border/50">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="standings">Standings</SelectItem>
+                    <SelectItem value="power">Power Rankings</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Standings Table */}
+        {(isLoading || powerLoading) ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="text-center">
+              <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+              <p className="text-muted-foreground">Loading standings...</p>
+            </div>
+          </div>
+        ) : displayData && displayData.length > 0 ? (
+          <Card className="gradient-card border-border/50 overflow-hidden">
+            <CardHeader>
+              <CardTitle className="text-foreground text-xl">
+                {view === 'power' ? 'Power Rankings' : 'League Standings'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[80px]">Rank</TableHead>
-                  <TableHead>Team</TableHead>
-                  <TableHead className="text-center">W</TableHead>
-                  <TableHead className="text-center">L</TableHead>
-                  <TableHead className="text-center">T</TableHead>
-                  <TableHead className="text-center">Win %</TableHead>
-                  <TableHead className="text-right">PF</TableHead>
-                  <TableHead className="text-right">PA</TableHead>
-                  <TableHead className="text-right">Diff</TableHead>
+                <TableRow className="border-border/50 bg-muted/30">
+                  <TableHead className="w-[80px] text-foreground font-bold">RK</TableHead>
+                  <TableHead className="text-foreground font-bold">TEAM</TableHead>
+                  <TableHead className="text-center text-foreground font-bold">W</TableHead>
+                  <TableHead className="text-center text-foreground font-bold">L</TableHead>
+                  <TableHead className="text-center text-foreground font-bold">T</TableHead>
+                  <TableHead className="text-center text-foreground font-bold">WIN%</TableHead>
+                  <TableHead className="text-right text-foreground font-bold">PF</TableHead>
+                  <TableHead className="text-right text-foreground font-bold">PA</TableHead>
+                  <TableHead className="text-right text-foreground font-bold">DIFF</TableHead>
                   {view === 'power' && (
                     <>
                       <TableHead className="text-center">Recent</TableHead>
@@ -147,9 +154,9 @@ export default function Standings() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {displayData.map((team: any) => (
-                  <TableRow key={team.teamId}>
-                    <TableCell className="font-medium">
+                {displayData.map((team: any, index: number) => (
+                  <TableRow key={team.teamId} className="border-border/30 hover:bg-muted/20 transition-colors">
+                    <TableCell className="font-bold">
                       <div className="flex items-center gap-2">
                         <span>{team.rank}</span>
                         {getRankBadge(team.rank, league?.playoffTeams || 6)}

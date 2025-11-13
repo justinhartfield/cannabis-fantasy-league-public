@@ -1,8 +1,9 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft, Lock, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { getLoginUrl } from "@/const";
 import LineupEditor from "@/components/LineupEditor";
 import ScoringBreakdown from "@/components/ScoringBreakdown";
@@ -98,9 +99,9 @@ export default function Lineup() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen gradient-dark">
       {/* Header */}
-      <div className="border-b border-border bg-card">
+      <div className="border-b border-border/50 bg-card/95 backdrop-blur-lg sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -108,17 +109,24 @@ export default function Lineup() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setLocation(`/league/${leagueId}`)}
+                className="text-muted-foreground hover:text-foreground"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Zurück zur Liga
+                Back to League
               </Button>
               <div>
-                <h1 className="text-2xl font-bold text-foreground">{league.name}</h1>
+                <h1 className="text-2xl font-bold text-gradient-primary">{league.name}</h1>
                 <p className="text-sm text-muted-foreground">
-                  Lineup - {myTeam.name} - Woche {currentWeek}
+                  {myTeam.name} • Week {currentWeek}
                 </p>
               </div>
             </div>
+            {weeklyLineup?.isLocked && (
+              <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-muted/30 border border-border/50">
+                <Lock className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-semibold text-foreground">Lineup Locked</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -126,9 +134,13 @@ export default function Lineup() {
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="lineup" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="lineup">Lineup bearbeiten</TabsTrigger>
-            <TabsTrigger value="scoring">Scoring-Übersicht</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 mb-6 bg-card/50 border border-border/50">
+            <TabsTrigger value="lineup" className="data-[state=active]:gradient-primary data-[state=active]:text-white">
+              Set Lineup
+            </TabsTrigger>
+            <TabsTrigger value="scoring" className="data-[state=active]:gradient-primary data-[state=active]:text-white">
+              Scoring Breakdown
+            </TabsTrigger>
           </TabsList>
           
           <TabsContent value="lineup">
@@ -159,7 +171,7 @@ export default function Lineup() {
           
           <TabsContent value="scoring">
             {scoringData && scoringData.breakdowns && scoringData.breakdowns.length > 0 ? (
-              <div className="grid gap-6">
+              <div className="grid gap-4 md:gap-6">
                 {scoringData.breakdowns.map((breakdown: any, index: number) => (
                   <ScoringBreakdown
                     key={index}
@@ -178,14 +190,21 @@ export default function Lineup() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">
-                  Keine Scoring-Daten für diese Woche verfügbar.
-                </p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Scoring-Daten werden nach Ablauf der Woche berechnet.
-                </p>
-              </div>
+              <Card className="gradient-card border-border/50">
+                <CardContent className="py-20 text-center">
+                  <div className="max-w-md mx-auto">
+                    <div className="w-16 h-16 rounded-2xl bg-muted/30 mx-auto mb-4 flex items-center justify-center">
+                      <Activity className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                    <p className="text-lg font-semibold text-foreground mb-2">
+                      No Scoring Data Yet
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Scoring data will be available after the week concludes.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
             )}
           </TabsContent>
         </Tabs>

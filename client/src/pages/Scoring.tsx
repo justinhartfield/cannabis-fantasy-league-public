@@ -173,7 +173,7 @@ export default function Scoring() {
   const isCommissioner = league.commissionerUserId === user?.id;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen gradient-dark">
       <LeagueNav
         leagueId={leagueId}
         leagueName={league.name}
@@ -187,22 +187,25 @@ export default function Scoring() {
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-                <BarChart3 className="w-8 h-8 text-primary" />
-                Scoring & Breakdowns
+              <h1 className="text-4xl font-bold text-gradient-primary flex items-center gap-3">
+                <BarChart3 className="w-9 h-9" />
+                LEADERBOARD
               </h1>
               <p className="text-muted-foreground mt-2">
-                Weekly fantasy scores and detailed breakdowns
+                Live scores and detailed performance breakdowns
               </p>
             </div>
           
-          {/* WebSocket Status */}
-          <div className="flex items-center gap-4">
-            <Badge variant={isConnected ? "default" : "secondary"} className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
-              {isConnected ? 'Live' : 'Offline'}
+          {/* WebSocket Status & Actions */}
+          <div className="flex items-center gap-3">
+            <Badge 
+              variant={isConnected ? "default" : "secondary"} 
+              className={`flex items-center gap-2 ${isConnected ? 'gradient-primary text-white' : 'bg-muted'}`}
+            >
+              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-white pulse-live' : 'bg-gray-400'}`} />
+              {isConnected ? 'LIVE' : 'Offline'}
             </Badge>
             
             {user?.role === 'admin' && (
@@ -211,6 +214,7 @@ export default function Scoring() {
                 disabled={isCalculating}
                 variant="outline"
                 size="sm"
+                className="border-border/50"
               >
                 {isCalculating ? (
                   <>
@@ -230,21 +234,21 @@ export default function Scoring() {
       </div>
 
       {/* Week Selector */}
-      <Card className="mb-6">
+      <Card className="mb-6 gradient-card border-border/50">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="w-5 h-5" />
+          <CardTitle className="flex items-center gap-2 text-foreground">
+            <Calendar className="w-5 h-5 text-[#FF2D55]" />
             Select Week
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium">Year:</label>
+              <label className="text-sm font-medium text-muted-foreground">Year:</label>
               <select
                 value={selectedYear}
                 onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                className="px-3 py-2 border rounded-md bg-background"
+                className="px-4 py-2 border border-border/50 rounded-lg bg-card text-foreground"
               >
                 <option value={2024}>2024</option>
                 <option value={2025}>2025</option>
@@ -252,11 +256,11 @@ export default function Scoring() {
             </div>
             
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium">Week:</label>
+              <label className="text-sm font-medium text-muted-foreground">Week:</label>
               <select
                 value={selectedWeek}
                 onChange={(e) => setSelectedWeek(parseInt(e.target.value))}
-                className="px-3 py-2 border rounded-md bg-background"
+                className="px-4 py-2 border border-border/50 rounded-lg bg-card text-foreground"
               >
                 {Array.from({ length: 52 }, (_, i) => i + 1).map((week) => (
                   <option key={week} value={week}>
@@ -270,7 +274,7 @@ export default function Scoring() {
               onClick={() => refetchScores()}
               variant="outline"
               size="sm"
-              className="ml-auto"
+              className="ml-auto border-border/50"
             >
               <RefreshCw className="w-4 h-4 mr-2" />
               Refresh
@@ -283,10 +287,10 @@ export default function Scoring() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Leaderboard */}
         <div className="lg:col-span-1">
-          <Card>
+          <Card className="gradient-card border-border/50">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Award className="w-5 h-5 text-yellow-500" />
+              <CardTitle className="flex items-center gap-2 text-foreground">
+                <Award className="w-5 h-5 text-[#FFD700]" />
                 Leaderboard
               </CardTitle>
               <CardDescription>
@@ -295,37 +299,44 @@ export default function Scoring() {
             </CardHeader>
             <CardContent>
               {rankedScores.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">
-                  No scores yet for this week
-                </p>
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 rounded-2xl bg-muted/30 mx-auto mb-4 flex items-center justify-center">
+                    <Award className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    No scores yet for this week
+                  </p>
+                </div>
               ) : (
                 <div className="space-y-2">
                   {rankedScores.map((score) => (
                     <button
                       key={score.teamId}
                       onClick={() => setSelectedTeamId(score.teamId)}
-                      className={`w-full p-3 rounded-lg border transition-colors text-left ${
+                      className={`w-full p-4 rounded-xl border transition-all card-hover-lift text-left ${
                         selectedTeamId === score.teamId
-                          ? 'bg-primary/10 border-primary'
-                          : 'bg-card border-border hover:bg-accent/50'
-                      }`}
+                          ? 'bg-primary/10 border-primary glow-primary'
+                          : 'bg-card/50 border-border/50 hover:border-primary/30'
+                      } ${score.rank === 1 ? 'winner-celebration' : ''}`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
-                            score.rank === 1 ? 'bg-yellow-500 text-white' :
-                            score.rank === 2 ? 'bg-gray-400 text-white' :
-                            score.rank === 3 ? 'bg-orange-600 text-white' :
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg ${
+                            score.rank === 1 ? 'rank-gold text-white' :
+                            score.rank === 2 ? 'rank-silver text-white' :
+                            score.rank === 3 ? 'rank-bronze text-white' :
                             'bg-muted text-muted-foreground'
                           }`}>
                             {score.rank}
                           </div>
-                          <div>
-                            <div className="font-semibold text-foreground">
+                          <div className="flex-1 min-w-0">
+                            <div className={`font-bold truncate ${
+                              score.rank <= 3 ? 'text-gradient-primary' : 'text-foreground'
+                            }`}>
                               {score.teamName}
                             </div>
                             {isCalculating && liveScores.find(s => s.teamId === score.teamId) && (
-                              <Badge variant="secondary" className="text-xs mt-1">
+                              <Badge variant="secondary" className="text-xs mt-1 gradient-primary text-white">
                                 <Zap className="w-3 h-3 mr-1" />
                                 Live
                               </Badge>
@@ -333,10 +344,12 @@ export default function Scoring() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className="text-2xl font-bold text-foreground">
-                            {score.points || 0}
+                          <div className={`text-3xl font-bold score-animate ${
+                            score.rank === 1 ? 'text-gradient-primary' : 'text-foreground'
+                          }`}>
+                            {score.points?.toFixed(1) || '0.0'}
                           </div>
-                          <div className="text-xs text-muted-foreground">points</div>
+                          <div className="text-xs text-muted-foreground uppercase">pts</div>
                         </div>
                       </div>
                     </button>
@@ -486,11 +499,18 @@ export default function Scoring() {
               </Card>
             </div>
           ) : (
-            <Card>
-              <CardContent className="py-16">
-                <div className="text-center text-muted-foreground">
-                  <UserCircle className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                  <p className="text-lg">Select a team to view detailed scoring breakdown</p>
+            <Card className="gradient-card border-border/50">
+              <CardContent className="py-20">
+                <div className="text-center max-w-md mx-auto">
+                  <div className="w-20 h-20 rounded-2xl bg-muted/30 mx-auto mb-6 flex items-center justify-center">
+                    <UserCircle className="w-10 h-10 text-muted-foreground" />
+                  </div>
+                  <p className="text-xl font-bold text-foreground mb-2">
+                    Select a Team
+                  </p>
+                  <p className="text-muted-foreground">
+                    Choose a team from the leaderboard to view their detailed scoring breakdown
+                  </p>
                 </div>
               </CardContent>
             </Card>

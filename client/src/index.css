@@ -43,74 +43,76 @@
 }
 
 :root {
-  --primary: var(--color-blue-700);
-  --primary-foreground: var(--color-blue-50);
-  --sidebar-primary: var(--color-blue-600);
-  --sidebar-primary-foreground: var(--color-blue-50);
-  --chart-1: var(--color-blue-300);
-  --chart-2: var(--color-blue-500);
-  --chart-3: var(--color-blue-600);
-  --chart-4: var(--color-blue-700);
-  --chart-5: var(--color-blue-800);
-  --radius: 0.65rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.235 0.015 65);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.235 0.015 65);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.235 0.015 65);
-  --secondary: oklch(0.98 0.001 286.375);
-  --secondary-foreground: oklch(0.4 0.015 65);
-  --muted: oklch(0.967 0.001 286.375);
-  --muted-foreground: oklch(0.552 0.016 285.938);
-  --accent: oklch(0.967 0.001 286.375);
-  --accent-foreground: oklch(0.141 0.005 285.823);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.92 0.004 286.32);
-  --input: oklch(0.92 0.004 286.32);
-  --ring: oklch(0.623 0.214 259.815);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.235 0.015 65);
-  --sidebar-accent: oklch(0.967 0.001 286.375);
-  --sidebar-accent-foreground: oklch(0.141 0.005 285.823);
-  --sidebar-border: oklch(0.92 0.004 286.32);
-  --sidebar-ring: oklch(0.623 0.214 259.815);
+  /* Sports App Theme - Light Mode (fallback) */
+  --primary: #FF2D55; /* Pink/Red primary */
+  --primary-foreground: #FFFFFF;
+  --secondary: #00D9FF; /* Cyan/Teal secondary */
+  --secondary-foreground: #0A0E27;
+  --sidebar-primary: #FF2D55;
+  --sidebar-primary-foreground: #FFFFFF;
+  --chart-1: #FF2D55;
+  --chart-2: #00D9FF;
+  --chart-3: #A855F7; /* Purple accent */
+  --chart-4: #10B981; /* Green for positive */
+  --chart-5: #F59E0B; /* Amber for neutral */
+  --radius: 0.75rem;
+  --background: #F5F5F7;
+  --foreground: #1A1F37;
+  --card: #FFFFFF;
+  --card-foreground: #1A1F37;
+  --popover: #FFFFFF;
+  --popover-foreground: #1A1F37;
+  --muted: #E5E7EB;
+  --muted-foreground: #6B7280;
+  --accent: #00D9FF;
+  --accent-foreground: #0A0E27;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --border: #E5E7EB;
+  --input: #E5E7EB;
+  --ring: #FF2D55;
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #1A1F37;
+  --sidebar-accent: #F3F4F6;
+  --sidebar-accent-foreground: #1A1F37;
+  --sidebar-border: #E5E7EB;
+  --sidebar-ring: #FF2D55;
 }
 
 .dark {
-  --primary: var(--color-blue-700);
-  --primary-foreground: var(--color-blue-50);
-  --sidebar-primary: var(--color-blue-500);
-  --sidebar-primary-foreground: var(--color-blue-50);
-  --background: oklch(0.141 0.005 285.823);
-  --foreground: oklch(0.85 0.005 65);
-  --card: oklch(0.21 0.006 285.885);
-  --card-foreground: oklch(0.85 0.005 65);
-  --popover: oklch(0.21 0.006 285.885);
-  --popover-foreground: oklch(0.85 0.005 65);
-  --secondary: oklch(0.24 0.006 286.033);
-  --secondary-foreground: oklch(0.7 0.005 65);
-  --muted: oklch(0.274 0.006 286.033);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.274 0.006 286.033);
-  --accent-foreground:  oklch(0.92 0.005 65);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.488 0.243 264.376);
-  --chart-1: var(--color-blue-300);
-  --chart-2: var(--color-blue-500);
-  --chart-3: var(--color-blue-600);
-  --chart-4: var(--color-blue-700);
-  --chart-5: var(--color-blue-800);
-  --sidebar: oklch(0.21 0.006 285.885);
-  --sidebar-foreground: oklch(0.85 0.005 65);
-  --sidebar-accent: oklch(0.274 0.006 286.033);
-  --sidebar-accent-foreground:  oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.488 0.243 264.376);
+  /* Sports App Theme - Dark Mode (Primary) */
+  --primary: #FF2D55; /* Pink/Red primary */
+  --primary-foreground: #FFFFFF;
+  --secondary: #00D9FF; /* Cyan/Teal secondary */
+  --secondary-foreground: #0A0E27;
+  --sidebar-primary: #FF2D55;
+  --sidebar-primary-foreground: #FFFFFF;
+  --background: #0A0E27; /* Deep dark almost black */
+  --foreground: #FFFFFF;
+  --card: #1A1F37; /* Dark navy cards */
+  --card-foreground: #FFFFFF;
+  --popover: #252B45; /* Slightly lighter for popovers */
+  --popover-foreground: #FFFFFF;
+  --muted: #252B45;
+  --muted-foreground: #9CA3AF;
+  --accent: #00D9FF; /* Teal accent */
+  --accent-foreground: #0A0E27;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.1);
+  --ring: #FF2D55;
+  --chart-1: #FF2D55; /* Pink */
+  --chart-2: #00D9FF; /* Teal */
+  --chart-3: #A855F7; /* Purple */
+  --chart-4: #10B981; /* Green */
+  --chart-5: #F59E0B; /* Amber */
+  --sidebar: #13151E;
+  --sidebar-foreground: #FFFFFF;
+  --sidebar-accent: #1A1F37;
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-ring: #FF2D55;
 }
 
 @layer base {
@@ -173,5 +175,226 @@
       padding-right: 2rem;
       max-width: 1280px; /* Standard content width */
     }
+  }
+
+  /* Sports App Specific Utilities */
+  .gradient-primary {
+    background: linear-gradient(135deg, #FF2D55 0%, #F91D62 100%);
+  }
+
+  .gradient-secondary {
+    background: linear-gradient(135deg, #00D9FF 0%, #5FEDD1 100%);
+  }
+
+  .gradient-purple {
+    background: linear-gradient(135deg, #A855F7 0%, #C084FC 100%);
+  }
+
+  .gradient-dark {
+    background: linear-gradient(180deg, #0A0E27 0%, #13151E 100%);
+  }
+
+  .gradient-card {
+    background: linear-gradient(135deg, #1A1F37 0%, #252B45 100%);
+  }
+
+  .text-gradient-primary {
+    background: linear-gradient(135deg, #FF2D55 0%, #F91D62 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-secondary {
+    background: linear-gradient(135deg, #00D9FF 0%, #5FEDD1 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Live indicator pulse */
+  .pulse-live {
+    animation: pulse-live 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes pulse-live {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  /* Score count-up animation */
+  .score-animate {
+    animation: score-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes score-pop {
+    0% {
+      transform: scale(0.8);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(1.1);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  /* Slide in from bottom (for cards) */
+  .slide-in-bottom {
+    animation: slide-in-bottom 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes slide-in-bottom {
+    0% {
+      transform: translateY(20px);
+      opacity: 0;
+    }
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  /* Shimmer effect for loading */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.1) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  /* Glow effect for important elements */
+  .glow-primary {
+    box-shadow: 0 0 20px rgba(255, 45, 85, 0.5);
+  }
+
+  .glow-secondary {
+    box-shadow: 0 0 20px rgba(0, 217, 255, 0.5);
+  }
+
+  /* Winner celebration animation */
+  .winner-celebration {
+    animation: winner-celebration 0.6s ease-in-out;
+  }
+
+  @keyframes winner-celebration {
+    0%, 100% {
+      transform: scale(1) rotate(0deg);
+    }
+    25% {
+      transform: scale(1.1) rotate(-5deg);
+    }
+    75% {
+      transform: scale(1.1) rotate(5deg);
+    }
+  }
+
+  /* Rank badge styles */
+  .rank-gold {
+    background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+    box-shadow: 0 4px 12px rgba(255, 215, 0, 0.4);
+  }
+
+  .rank-silver {
+    background: linear-gradient(135deg, #C0C0C0 0%, #A8A8A8 100%);
+    box-shadow: 0 4px 12px rgba(192, 192, 192, 0.4);
+  }
+
+  .rank-bronze {
+    background: linear-gradient(135deg, #CD7F32 0%, #B8722C 100%);
+    box-shadow: 0 4px 12px rgba(205, 127, 50, 0.4);
+  }
+
+  /* Live game border animation */
+  .live-border {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .live-border::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #FF2D55, transparent);
+    animation: live-border 2s linear infinite;
+  }
+
+  @keyframes live-border {
+    0% {
+      left: -100%;
+    }
+    100% {
+      left: 100%;
+    }
+  }
+
+  /* Stat trending animations */
+  .trending-up {
+    animation: trending-up 0.5s ease-out;
+  }
+
+  .trending-down {
+    animation: trending-down 0.5s ease-out;
+  }
+
+  @keyframes trending-up {
+    0% {
+      transform: translateY(10px);
+      opacity: 0;
+    }
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes trending-down {
+    0% {
+      transform: translateY(-10px);
+      opacity: 0;
+    }
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  /* Card hover effects */
+  .card-hover-lift {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .card-hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Glass morphism effect */
+  .glass-effect {
+    background: rgba(26, 31, 55, 0.7);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
   }
 }

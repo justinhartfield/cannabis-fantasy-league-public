@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { useParams } from "wouter";
+import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, Trophy, Calendar, UserCircle } from "lucide-react";
+import { Loader2, RefreshCw, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+import { LiveScoreCard } from "@/components/LiveScoreCard";
 
 /**
  * Matchups Page
@@ -56,48 +56,42 @@ export default function Matchups() {
     updateScores.mutate({ leagueId: Number(leagueId), year, week });
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'scheduled':
-        return <Badge variant="outline">Scheduled</Badge>;
-      case 'in_progress':
-        return <Badge variant="default">In Progress</Badge>;
-      case 'final':
-        return <Badge variant="secondary">Final</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
+  const [, setLocation] = useLocation();
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Matchups</h1>
-          <p className="text-muted-foreground">
-            {league?.name} - Week {week}, {year}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Calendar className="h-5 w-5 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">
-            {matchups?.length || 0} matchups
-          </span>
-        </div>
-      </div>
+    <div className="min-h-screen gradient-dark">
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-10 bg-card/95 backdrop-blur-lg border-b border-border/50">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gradient-primary">SCORES</h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                {league?.name}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Calendar className="h-4 w-4" />
+              <span>{matchups?.length || 0} games</span>
+            </div>
+          </div>
 
-      {/* Controls */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Week Selector</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium">Year:</label>
+          {/* Week Navigation */}
+          <div className="flex items-center justify-between gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setWeek(Math.max(1, week - 1))}
+              disabled={week <= 1}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Previous
+            </Button>
+
+            <div className="flex items-center gap-3">
               <Select value={year.toString()} onValueChange={(v) => setYear(Number(v))}>
-                <SelectTrigger className="w-[120px]">
+                <SelectTrigger className="w-[100px] bg-card border-border/50">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -105,12 +99,14 @@ export default function Matchups() {
                   <SelectItem value="2025">2025</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
 
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium">Week:</label>
+              <div className="px-4 py-2 rounded-lg bg-card border border-border/50">
+                <span className="text-xs text-muted-foreground mr-2">WEEK</span>
+                <span className="text-lg font-bold text-foreground">{week}</span>
+              </div>
+
               <Select value={week.toString()} onValueChange={(v) => setWeek(Number(v))}>
-                <SelectTrigger className="w-[120px]">
+                <SelectTrigger className="w-[120px] bg-card border-border/50">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -123,7 +119,27 @@ export default function Matchups() {
               </Select>
             </div>
 
-            <Button onClick={() => refetch()} variant="outline">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setWeek(Math.min(18, week + 1))}
+              disabled={week >= 18}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2 mt-4">
+            <Button 
+              onClick={() => refetch()} 
+              variant="outline" 
+              size="sm"
+              className="border-border/50"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
             </Button>
 
@@ -132,6 +148,8 @@ export default function Matchups() {
                 <Button 
                   onClick={handleGenerateMatchups}
                   disabled={generateMatchups.isLoading}
+                  size="sm"
+                  className="gradient-primary"
                 >
                   {generateMatchups.isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Generate Matchups
@@ -139,7 +157,9 @@ export default function Matchups() {
                 <Button 
                   onClick={handleUpdateScores}
                   disabled={updateScores.isLoading}
-                  variant="secondary"
+                  variant="outline"
+                  size="sm"
+                  className="border-border/50"
                 >
                   {updateScores.isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Update Scores
@@ -147,94 +167,68 @@ export default function Matchups() {
               </>
             )}
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Matchups List */}
-      {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      ) : matchups && matchups.length > 0 ? (
-        <div className="grid gap-4">
-          {matchups.map((matchup) => (
-            <Card key={matchup.id} className="overflow-hidden">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  {/* Team 1 */}
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <UserCircle className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <h3 className="font-semibold text-lg">
-                          {matchup.team1?.name || 'Unknown Team'}
-                        </h3>
-                        {matchup.status === 'final' && matchup.winnerId === matchup.team1Id && (
-                          <Trophy className="inline h-4 w-4 text-yellow-500 ml-2" />
-                        )}
-                      </div>
-                    </div>
-                  </div>
+      </div>
 
-                  {/* Score */}
-                  <div className="flex items-center gap-6 px-8">
-                    <div className="text-center">
-                      <div className={`text-3xl font-bold ${
-                        matchup.winnerId === matchup.team1Id ? 'text-green-600' : ''
-                      }`}>
-                        {matchup.team1Score}
-                      </div>
-                    </div>
-                    <div className="text-2xl font-bold text-muted-foreground">vs</div>
-                    <div className="text-center">
-                      <div className={`text-3xl font-bold ${
-                        matchup.winnerId === matchup.team2Id ? 'text-green-600' : ''
-                      }`}>
-                        {matchup.team2Score}
-                      </div>
-                    </div>
-                  </div>
+      {/* Main Content */}
+      <div className="container mx-auto px-4 py-6">
 
-                  {/* Team 2 */}
-                  <div className="flex-1 text-right">
-                    <div className="flex items-center justify-end gap-3">
-                      <div>
-                        <h3 className="font-semibold text-lg">
-                          {matchup.team2?.name || 'Unknown Team'}
-                        </h3>
-                        {matchup.status === 'final' && matchup.winnerId === matchup.team2Id && (
-                          <Trophy className="inline h-4 w-4 text-yellow-500 mr-2" />
-                        )}
-                      </div>
-                      <UserCircle className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                  </div>
+        {/* Matchups List */}
+        {isLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="text-center">
+              <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+              <p className="text-muted-foreground">Loading matchups...</p>
+            </div>
+          </div>
+        ) : matchups && matchups.length > 0 ? (
+          <div className="grid gap-4 md:gap-6">
+            {matchups.map((matchup) => (
+              <LiveScoreCard
+                key={matchup.id}
+                team1={{
+                  id: matchup.team1Id,
+                  name: matchup.team1?.name || 'Unknown Team',
+                  score: matchup.team1Score || 0,
+                }}
+                team2={{
+                  id: matchup.team2Id,
+                  name: matchup.team2?.name || 'Unknown Team',
+                  score: matchup.team2Score || 0,
+                }}
+                status={matchup.status as "scheduled" | "in_progress" | "final"}
+                week={week}
+                winnerId={matchup.winnerId || undefined}
+                onClick={() => {
+                  // Navigate to matchup detail view if needed
+                  toast.info("Matchup details coming soon!");
+                }}
+                className="slide-in-bottom"
+              />
+            ))}
+          </div>
+        ) : (
+          <Card className="border-border/50">
+            <CardContent className="py-20 text-center">
+              <div className="max-w-md mx-auto">
+                <div className="w-20 h-20 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-6">
+                  <Calendar className="h-10 w-10 text-muted-foreground" />
                 </div>
-
-                {/* Status */}
-                <div className="mt-4 flex items-center justify-center">
-                  {getStatusBadge(matchup.status)}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <UserCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No Matchups Found</h3>
-            <p className="text-muted-foreground mb-4">
-              There are no matchups scheduled for this week yet.
-            </p>
-            {league?.isCommissioner && (
-              <Button onClick={handleGenerateMatchups}>
-                Generate Matchups
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      )}
+                <h3 className="text-2xl font-bold mb-3 text-foreground">No Matchups Yet</h3>
+                <p className="text-muted-foreground mb-6">
+                  There are no matchups scheduled for this week. 
+                  {league?.isCommissioner && " Generate matchups to get started."}
+                </p>
+                {league?.isCommissioner && (
+                  <Button onClick={handleGenerateMatchups} className="gradient-primary">
+                    Generate Matchups
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }
