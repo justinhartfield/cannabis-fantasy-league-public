@@ -272,7 +272,7 @@ export default function DraftBoard({
                           assetName={strain.name}
                           stats={[
                             { label: "Typ", value: strain.type },
-                            { label: "Effects", value: strain.effects?.slice(0, 2).join(", ") || "N/A" },
+                            { label: "Effects", value: Array.isArray(strain.effects) ? strain.effects.slice(0, 2).join(", ") : (strain.effects || "N/A") },
                           ]}
                           isMyTurn={isMyTurn}
                           isInMyRoster={myRoster.some(r => r.assetType === "cannabis_strain" && r.assetId === strain.id)}
@@ -392,20 +392,20 @@ export default function DraftBoard({
                 <p className="text-sm text-muted-foreground text-center py-8">Keine Strains gefunden</p>
               ) : (
                 sortAssets(cannabisStrains).map((strain) => (
-                  <DraftAssetCard
-                    key={strain.id}
-                    assetType="cannabis_strain"
-                    assetId={strain.id}
-                    assetName={strain.name}
-                    stats={[
-                      { label: "Typ", value: strain.type },
-                      { label: "Effects", value: strain.effects?.slice(0, 2).join(", ") || "N/A" },
-                    ]}
-                    isMyTurn={isMyTurn}
+                <DraftAssetCard
+                  key={strain.id}
+                  assetType="cannabis_strain"
+                  assetId={strain.id}
+                  assetName={strain.name}
+                  stats={[
+                    { label: "Typ", value: strain.type },
+                    { label: "Effects", value: Array.isArray(strain.effects) ? strain.effects.slice(0, 2).join(", ") : (strain.effects || "N/A") },
+                  ]}
+                  isMyTurn={isMyTurn}
                           isInMyRoster={myRoster.some(r => r.assetType === "cannabis_strain" && r.assetId === strain.id)}
                           remainingTime={remainingTime}
-                    onDraft={handleDraft}
-                  />
+                  onDraft={handleDraft}
+                />
                 ))
               )}
             </TabsContent>

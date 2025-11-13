@@ -8,6 +8,31 @@ import { validateDraftPick, advanceDraftPick, calculateNextPick, getDraftStatus 
 import { draftTimerManager } from "./draftTimer";
 
 /**
+ * Helper function to parse JSON or comma-separated string into array
+ */
+function parseJsonOrArray(value: string | null | undefined): string[] {
+  if (!value) return [];
+  
+  // If it's already an array (shouldn't happen but safe check)
+  if (Array.isArray(value)) return value;
+  
+  // Try to parse as JSON first
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) return parsed;
+    // If it's a single value, wrap it in array
+    return [String(parsed)];
+  } catch {
+    // If JSON parse fails, try comma-separated
+    if (typeof value === 'string' && value.includes(',')) {
+      return value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+    }
+    // Single value
+    return value ? [value] : [];
+  }
+}
+
+/**
  * Draft Router
  * 
  * Handles draft operations:
@@ -130,8 +155,8 @@ export const draftRouter = router({
         id: strain.id,
         name: strain.name,
         type: strain.type || "Unknown",
-        effects: strain.effects || [],
-        flavors: strain.flavors || [],
+        effects: parseJsonOrArray(strain.effects),
+        flavors: parseJsonOrArray(strain.flavors),
         // TODO: Add more stats
       }));
     }),
