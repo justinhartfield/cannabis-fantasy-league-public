@@ -302,15 +302,15 @@ export default function DailyChallenge() {
     if (!breakdown || !breakdown.breakdowns) {
       return [];
     }
-    return breakdown.breakdowns
-      .map((item: any) => ({
-        name: item.assetName || `${item.assetType} #${item.assetId}`,
-        type: item.assetType,
-        total: item.totalPoints || 0,
-        breakdown: item.breakdown,
-      }))
-      .sort((a: { total: number }, b: { total: number }) => b.total - a.total)
-      .slice(0, 3);
+      return breakdown.breakdowns
+        .map((item: any) => ({
+          name: item.assetName || `Unknown ${item.assetType}`,
+          type: item.assetType,
+          total: item.totalPoints || 0,
+          breakdown: item.breakdown,
+        }))
+        .sort((a: { total: number }, b: { total: number }) => b.total - a.total)
+        .slice(0, 3);
   }, [breakdown]);
 
   const recentChallenges = useMemo<ChallengeSummary[]>(() => {
@@ -833,7 +833,7 @@ export default function DailyChallenge() {
                   <ScoringBreakdown
                     data={{
                       assetName:
-                        item.assetName || `${item.assetType} #${item.assetId}`,
+                        item.assetName || `Unknown ${item.assetType}`,
                       assetType: item.assetType,
                       components: item.breakdown?.components || [],
                       bonuses: item.breakdown?.bonuses || [],

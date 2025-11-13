@@ -8,8 +8,16 @@ import { router, protectedProcedure } from './_core/trpc';
 import { calculateWeeklyScores, calculateTeamScore } from './scoringEngine';
 import { z } from 'zod';
 import { getDb } from './db';
-import { weeklyTeamScores, scoringBreakdowns, teams } from '../drizzle/schema';
-import { eq, and } from 'drizzle-orm';
+import { 
+  weeklyTeamScores, 
+  scoringBreakdowns, 
+  teams,
+  manufacturers,
+  cannabisStrains,
+  pharmacies,
+  brands,
+} from '../drizzle/schema';
+import { eq, and, inArray } from 'drizzle-orm';
 
 export const scoringRouter = router({
   /**
@@ -162,9 +170,64 @@ export const scoringRouter = router({
         .from(scoringBreakdowns)
         .where(eq(scoringBreakdowns.weeklyTeamScoreId, score.id));
 
+      // Fetch names for each asset type
+      const manufacturerIds: number[] = [];
+      const strainIds: number[] = [];
+      const pharmacyIds: number[] = [];
+      const brandIds: number[] = [];
+
+      breakdowns.forEach((bd) => {
+        if (bd.assetType === 'manufacturer') {
+          manufacturerIds.push(bd.assetId);
+        } else if (bd.assetType === 'cannabis_strain') {
+          strainIds.push(bd.assetId);
+        } else if (bd.assetType === 'pharmacy') {
+          pharmacyIds.push(bd.assetId);
+        } else if (bd.assetType === 'brand') {
+          brandIds.push(bd.assetId);
+        }
+      });
+
+      // Fetch names in parallel
+      const [manufacturerNames, strainNames, pharmacyNames, brandNames] = await Promise.all([
+        manufacturerIds.length > 0
+          ? db.select({ id: manufacturers.id, name: manufacturers.name })
+              .from(manufacturers)
+              .where(inArray(manufacturers.id, manufacturerIds))
+          : [],
+        strainIds.length > 0
+          ? db.select({ id: cannabisStrains.id, name: cannabisStrains.name })
+              .from(cannabisStrains)
+              .where(inArray(cannabisStrains.id, strainIds))
+          : [],
+        pharmacyIds.length > 0
+          ? db.select({ id: pharmacies.id, name: pharmacies.name })
+              .from(pharmacies)
+              .where(inArray(pharmacies.id, pharmacyIds))
+          : [],
+        brandIds.length > 0
+          ? db.select({ id: brands.id, name: brands.name })
+              .from(brands)
+              .where(inArray(brands.id, brandIds))
+          : [],
+      ]);
+
+      // Create lookup maps
+      const nameMap = new Map<number, string>();
+      manufacturerNames.forEach((m) => nameMap.set(m.id, m.name));
+      strainNames.forEach((s) => nameMap.set(s.id, s.name));
+      pharmacyNames.forEach((p) => nameMap.set(p.id, p.name));
+      brandNames.forEach((b) => nameMap.set(b.id, b.name));
+
+      // Enrich breakdowns with asset names
+      const enrichedBreakdowns = breakdowns.map((bd) => ({
+        ...bd,
+        assetName: nameMap.get(bd.assetId) || null,
+      }));
+
       return {
         score,
-        breakdowns,
+        breakdowns: enrichedBreakdowns,
       };
     }),
 
