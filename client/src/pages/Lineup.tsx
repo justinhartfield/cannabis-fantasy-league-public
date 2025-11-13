@@ -15,10 +15,6 @@ export default function Lineup() {
   const { user, loading: authLoading, isAuthenticated } = useAuth();
 
   const leagueId = parseInt(id!);
-  
-  // Get current week (for demo, using week 45 of 2025)
-  const currentYear = 2025;
-  const currentWeek = 45;
 
   const { data: league, isLoading: leagueLoading } = trpc.league.getById.useQuery(
     { leagueId },
@@ -30,10 +26,14 @@ export default function Lineup() {
     { enabled: !!id && isAuthenticated }
   );
 
+  // Get current year/week from league data (never hardcode this!)
+  const currentYear = league?.seasonYear || 2025;
+  const currentWeek = league?.currentWeek || 1;
+
   // Fetch weekly lineup
   const { data: weeklyLineup, isLoading: lineupLoading, refetch: refetchLineup } = trpc.lineup.getWeeklyLineup.useQuery(
     { teamId: myTeam?.id || 0, year: currentYear, week: currentWeek },
-    { enabled: !!myTeam }
+    { enabled: !!myTeam && !!league }
   );
 
   // Fetch roster
@@ -45,7 +45,7 @@ export default function Lineup() {
   // Fetch scoring breakdown
   const { data: scoringData, isLoading: scoringLoading } = trpc.scoring.getTeamBreakdown.useQuery(
     { teamId: myTeam?.id || 0, year: currentYear, week: currentWeek },
-    { enabled: !!myTeam }
+    { enabled: !!myTeam && !!league }
   );
 
   // Mutations
