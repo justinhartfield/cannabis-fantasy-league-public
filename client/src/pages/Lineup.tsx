@@ -9,6 +9,7 @@ import LineupEditor from "@/components/LineupEditor";
 import ScoringBreakdown from "@/components/ScoringBreakdown";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useEffect } from "react";
 
 export default function Lineup() {
   const { id } = useParams();
@@ -70,6 +71,12 @@ export default function Lineup() {
     },
   });
 
+  useEffect(() => {
+    if (league?.leagueType === "challenge") {
+      setLocation(`/challenge/${leagueId}`);
+    }
+  }, [league, leagueId, setLocation]);
+
   // Redirect to login if not authenticated
   if (!authLoading && !isAuthenticated) {
     const loginUrl = getLoginUrl(); if (loginUrl) window.location.href = loginUrl; else window.location.href = "/login";
@@ -96,6 +103,10 @@ export default function Lineup() {
         </div>
       </div>
     );
+  }
+
+  if (league.leagueType === "challenge") {
+    return null;
   }
 
   return (

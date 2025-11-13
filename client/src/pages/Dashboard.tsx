@@ -312,50 +312,21 @@ export default function Dashboard() {
             <div className="grid gap-4">
               {myLeagues.filter(l => l.leagueType === 'challenge').map((league) => (
                 <Link key={league.id} href={`/challenge/${league.id}`}>
-                  <Card className="gradient-card border-border/50 card-hover-lift cursor-pointer relative overflow-hidden">
-                    {/* Live indicator for active challenges */}
-                    {league.seasonStatus === 'in_progress' && (
-                      <div className="absolute top-0 left-0 right-0 h-1 gradient-primary" />
-                    )}
-                    
+                  <Card className="gradient-card border-border/50 card-hover-lift cursor-pointer">
                     <CardHeader>
                       <div className="flex items-center justify-between">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-2">
-                            <CardTitle className="text-lg text-foreground truncate">
-                              {league.name}
-                            </CardTitle>
-                            {league.seasonStatus === 'in_progress' && (
-                              <Badge className="gradient-primary text-white text-xs">
-                                LIVE
-                              </Badge>
-                            )}
-                          </div>
-                          <CardDescription className="flex items-center gap-2">
-                            <span>{league.teamCount} Participants</span>
-                            <span>•</span>
-                            <span className="capitalize">
-                              {league.seasonStatus === 'in_progress' ? 'In Progress' : 
-                               league.seasonStatus === 'completed' ? 'Completed' : 'Scheduled'}
-                            </span>
+                        <div>
+                          <CardTitle className="text-lg text-foreground mb-1">
+                            {league.name}
+                          </CardTitle>
+                          <CardDescription>
+                            {league.teamCount} Teams • {league.status === 'active' ? 'Active' : 'Draft'}
                           </CardDescription>
                         </div>
-                        <div className="w-14 h-14 rounded-xl gradient-secondary flex items-center justify-center glow-secondary">
-                          <Zap className="w-7 h-7 text-white" />
+                        <div className="w-12 h-12 rounded-xl gradient-secondary flex items-center justify-center">
+                          <Zap className="w-6 h-6 text-white" />
                         </div>
                       </div>
-                      
-                      {/* My Score */}
-                      {league.myTeam && (
-                        <div className="mt-4 pt-4 border-t border-border/50">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-muted-foreground">Your Score</span>
-                            <span className="text-2xl font-bold text-gradient-primary">
-                              {league.myTeam.totalPoints?.toFixed(1) || "0.0"}
-                            </span>
-                          </div>
-                        </div>
-                      )}
                     </CardHeader>
                   </Card>
                 </Link>

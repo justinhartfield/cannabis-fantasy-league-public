@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams } from "wouter";
+import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,7 @@ interface TeamScore {
  */
 export default function Scoring() {
   const { id } = useParams();
+  const [, setLocation] = useLocation();
   const leagueId = parseInt(id!);
   const { user } = useAuth();
   
@@ -54,6 +55,12 @@ export default function Scoring() {
 
   // Fetch league data
   const { data: league } = trpc.league.getById.useQuery({ leagueId: leagueId });
+
+  useEffect(() => {
+    if (league?.leagueType === "challenge") {
+      setLocation(`/challenge/${leagueId}`);
+    }
+  }, [league, leagueId, setLocation]);
   
   // Fetch team scores for selected week
   const { data: weekScores, refetch: refetchScores } = trpc.scoring.getLeagueWeekScores.useQuery({
@@ -167,6 +174,10 @@ export default function Scoring() {
         <p className="text-center text-muted-foreground">Loading league...</p>
       </div>
     );
+  }
+
+  if (league.leagueType === "challenge") {
+    return null;
   }
 
   const userTeam = league.teams?.find((team: any) => team.userId === user?.id);

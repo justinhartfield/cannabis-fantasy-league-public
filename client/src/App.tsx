@@ -18,8 +18,7 @@ import Scoring from "./pages/Scoring";
 import AcceptInvitation from "./pages/AcceptInvitation";
 import Login from "./pages/Login";
 import Admin from "./pages/Admin";
-import Challenge from "./pages/Challenge";
-import ChallengeLineup from "./pages/ChallengeLineup";
+import DailyChallenge from "./pages/DailyChallenge";
 
 
 function Router() {
@@ -37,12 +36,9 @@ function Router() {
       <Route path={"/league/:id/playoffs"} component={Playoffs} />
       <Route path={"/league/:id/lineup"} component={Lineup} />
       <Route path={"/league/:id/scoring"} component={Scoring} />
+      <Route path={"/challenge/:id"} component={DailyChallenge} />
       <Route path={"/invitations/:token"} component={AcceptInvitation} />
       <Route path={"/admin"} component={Admin} />
-      
-      {/* Daily Challenge Routes */}
-      <Route path={"/challenge/:id/lineup"} component={ChallengeLineup} />
-      <Route path={"/challenge/:id"} component={Challenge} />
 
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}

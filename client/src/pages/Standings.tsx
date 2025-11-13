@@ -1,8 +1,7 @@
-import { useState } from "react";
-import { useParams } from "wouter";
+import { useEffect, useState } from "react";
+import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Trophy, TrendingUp, TrendingDown, Minus } from "lucide-react";
@@ -38,6 +37,17 @@ export default function Standings() {
   });
 
   const { data: league } = trpc.league.getById.useQuery({ id: Number(leagueId) });
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (league?.leagueType === "challenge" && leagueId) {
+      setLocation(`/challenge/${leagueId}`);
+    }
+  }, [league, leagueId, setLocation]);
+
+  if (league?.leagueType === "challenge") {
+    return null;
+  }
 
   const getRankBadge = (rank: number, playoffTeams: number = 6) => {
     if (rank === 1) {

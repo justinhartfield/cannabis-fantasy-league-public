@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -57,6 +57,16 @@ export default function Matchups() {
   };
 
   const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (league?.leagueType === "challenge" && leagueId) {
+      setLocation(`/challenge/${leagueId}`);
+    }
+  }, [league, leagueId, setLocation]);
+
+  if (league?.leagueType === "challenge") {
+    return null;
+  }
 
   return (
     <div className="min-h-screen gradient-dark">
