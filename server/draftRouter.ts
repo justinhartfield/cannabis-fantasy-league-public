@@ -4,7 +4,7 @@ import { protectedProcedure, router } from "./_core/trpc";
 import { getDb } from "./db";
 import { manufacturers, cannabisStrains, strains, pharmacies, brands, rosters, leagues, teams, draftPicks } from "../drizzle/schema";
 import { wsManager } from "./websocket";
-import { validateDraftPick, advanceDraftPick, calculateNextPick, getDraftStatus } from "./draftLogic";
+import { validateDraftPick, advanceDraftPick, calculateNextPick, getDraftStatus, checkAndCompleteDraft } from "./draftLogic";
 import { draftTimerManager } from "./draftTimer";
 
 /**
@@ -360,6 +360,14 @@ export const draftRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
+      // Check if draft should be complete (handles stuck drafts)
+      const wasCompleted = await checkAndCompleteDraft(input.leagueId);
+      if (wasCompleted) {
+        // Draft just completed, notify clients
+        wsManager.notifyDraftComplete(input.leagueId);
+        throw new Error("Draft is complete");
+      }
+
       // Validate the draft pick
       const validation = await validateDraftPick(
         input.leagueId,
@@ -369,6 +377,12 @@ export const draftRouter = router({
       );
 
       if (!validation.valid) {
+        // Check again if draft should be complete before throwing error
+        const nowCompleted = await checkAndCompleteDraft(input.leagueId);
+        if (nowCompleted) {
+          wsManager.notifyDraftComplete(input.leagueId);
+          throw new Error("Draft is complete");
+        }
         throw new Error(validation.error || "Invalid draft pick");
       }
 
@@ -439,38 +453,10 @@ export const draftRouter = router({
       // Stop current timer
       draftTimerManager.stopTimer(input.leagueId);
 
-      // Check if draft is complete
-      const [league] = await db
-        .select()
-        .from(leagues)
-        .where(eq(leagues.id, input.leagueId))
-        .limit(1);
-
-      const allTeams = await db
-        .select()
-        .from(teams)
-        .where(eq(teams.leagueId, input.leagueId));
-
-      const totalPicks = await db
-        .select()
-        .from(rosters)
-        .where(
-          inArray(rosters.teamId, allTeams.map((t) => t.id))
-        );
-
-      const expectedPicks = allTeams.length * 10; // 10 picks per team (10 roster slots)
-      const isDraftComplete = totalPicks.length >= expectedPicks;
+      // Check if draft is now complete
+      const isDraftComplete = await checkAndCompleteDraft(input.leagueId);
 
       if (isDraftComplete) {
-        // Mark draft as complete
-        await db
-          .update(leagues)
-          .set({
-            draftCompleted: true,
-            status: "active",
-          })
-          .where(eq(leagues.id, input.leagueId));
-
         // Stop timer
         draftTimerManager.stopTimer(input.leagueId);
 
@@ -588,6 +574,33 @@ export const draftRouter = router({
       return {
         ...status,
         nextPick,
+      };
+    }),
+
+  /**
+   * Force check and complete draft if it should be done
+   * Useful for fixing stuck drafts
+   */
+  checkDraftCompletion: protectedProcedure
+    .input(z.object({ leagueId: z.number() }))
+    .mutation(async ({ input }) => {
+      const wasCompleted = await checkAndCompleteDraft(input.leagueId);
+      
+      if (wasCompleted) {
+        // Notify all clients
+        wsManager.notifyDraftComplete(input.leagueId);
+        
+        return {
+          success: true,
+          message: "Draft has been marked as complete",
+          completed: true,
+        };
+      }
+
+      return {
+        success: true,
+        message: "Draft is not yet complete",
+        completed: false,
       };
     }),
 });

@@ -2,6 +2,7 @@ import { getDb } from "./db";
 import { leagues, teams, draftPicks, rosters } from "../drizzle/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { autoFillLeagueRosters } from "./autoFillRoster";
+import { autoPopulateLeagueLineups } from "./lineupAutoPopulate";
 
 /**
  * Calculate which team should pick next in a snake draft
@@ -166,7 +167,14 @@ export async function advanceDraftPick(leagueId: number): Promise<void> {
 
   if (!league) throw new Error("League not found");
 
-  const totalPicks = league.teamCount * 10; // 10 rounds total (10 roster slots)
+  // Get actual team count from database
+  const allTeams = await db
+    .select()
+    .from(teams)
+    .where(eq(teams.leagueId, leagueId));
+  
+  const teamCount = allTeams.length;
+  const totalPicks = teamCount * 10; // 10 rounds total (10 roster slots)
   const nextPickNumber = league.currentDraftPick + 1;
 
   if (nextPickNumber > totalPicks) {
@@ -184,12 +192,28 @@ export async function advanceDraftPick(leagueId: number): Promise<void> {
     // Auto-fill rosters with all drafted players
     try {
       await autoFillLeagueRosters(leagueId);
+      console.log(`[advanceDraftPick] Auto-filled rosters for league ${leagueId}`);
     } catch (error) {
-      console.error("Error auto-filling rosters:", error);
+      console.error("[advanceDraftPick] Error auto-filling rosters:", error);
+    }
+
+    // Auto-populate starting lineups with first 10 picks
+    try {
+      const populateResult = await autoPopulateLeagueLineups(
+        leagueId,
+        league.seasonYear,
+        league.currentWeek
+      );
+      console.log(
+        `[advanceDraftPick] Auto-populated lineups: ${populateResult.lineupsCreated} created, ` +
+        `${populateResult.lineupsSkipped} skipped`
+      );
+    } catch (error) {
+      console.error("[advanceDraftPick] Error auto-populating lineups:", error);
     }
   } else {
     // Calculate next round
-    const nextRound = Math.ceil(nextPickNumber / league.teamCount);
+    const nextRound = Math.ceil(nextPickNumber / teamCount);
 
     await db
       .update(leagues)
@@ -199,6 +223,86 @@ export async function advanceDraftPick(leagueId: number): Promise<void> {
       })
       .where(eq(leagues.id, leagueId));
   }
+}
+
+/**
+ * Check if draft should be complete and mark it if so
+ * This can be called independently to fix stuck drafts
+ */
+export async function checkAndCompleteDraft(leagueId: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const [league] = await db
+    .select()
+    .from(leagues)
+    .where(eq(leagues.id, leagueId))
+    .limit(1);
+
+  if (!league || league.draftCompleted === 1) {
+    return false; // Already complete or doesn't exist
+  }
+
+  // Get actual team count
+  const allTeams = await db
+    .select()
+    .from(teams)
+    .where(eq(teams.leagueId, leagueId));
+
+  const teamCount = allTeams.length;
+  const totalExpectedPicks = teamCount * 10;
+
+  // Check if all teams have 10 players
+  let allTeamsComplete = true;
+  for (const team of allTeams) {
+    const teamRoster = await db
+      .select()
+      .from(rosters)
+      .where(eq(rosters.teamId, team.id));
+    
+    if (teamRoster.length < 10) {
+      allTeamsComplete = false;
+      break;
+    }
+  }
+
+  // If all teams have 10 players OR we've exceeded the expected picks, mark as complete
+  if (allTeamsComplete || league.currentDraftPick >= totalExpectedPicks) {
+    await db
+      .update(leagues)
+      .set({
+        draftCompleted: 1,
+        status: "active",
+      })
+      .where(eq(leagues.id, leagueId));
+
+    // Auto-fill rosters with all drafted players
+    try {
+      await autoFillLeagueRosters(leagueId);
+      console.log(`[checkAndCompleteDraft] Auto-filled rosters for league ${leagueId}`);
+    } catch (error) {
+      console.error("[checkAndCompleteDraft] Error auto-filling rosters:", error);
+    }
+
+    // Auto-populate starting lineups with first 10 picks
+    try {
+      const populateResult = await autoPopulateLeagueLineups(
+        leagueId,
+        league.seasonYear,
+        league.currentWeek
+      );
+      console.log(
+        `[checkAndCompleteDraft] Auto-populated lineups: ${populateResult.lineupsCreated} created, ` +
+        `${populateResult.lineupsSkipped} skipped`
+      );
+    } catch (error) {
+      console.error("[checkAndCompleteDraft] Error auto-populating lineups:", error);
+    }
+
+    return true;
+  }
+
+  return false;
 }
 
 /**

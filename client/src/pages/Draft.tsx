@@ -152,12 +152,25 @@ export default function Draft() {
     };
   }, [isConnected, leagueId]); // Remove joinDraft and leaveDraft from dependencies
 
+  const checkDraftCompletionMutation = trpc.draft.checkDraftCompletion.useMutation({
+    onSuccess: (data) => {
+      if (data.completed) {
+        toast.success("Draft abgeschlossen!");
+        setShowDraftCompleteDialog(true);
+      }
+    },
+  });
+
   const makeDraftPickMutation = trpc.draft.makeDraftPick.useMutation({
     onSuccess: () => {
       toast.success("Draft Pick erfolgreich!");
     },
     onError: (error) => {
       toast.error(`Draft Pick fehlgeschlagen: ${error.message}`);
+      // If error is "Roster is full", check if draft should be complete
+      if (error.message.includes("Roster is full") || error.message.includes("Draft is complete")) {
+        checkDraftCompletionMutation.mutate({ leagueId });
+      }
     },
   });
 
