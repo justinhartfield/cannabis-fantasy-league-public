@@ -11,7 +11,19 @@ export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
       const client = postgres(process.env.DATABASE_URL, {
-        ssl: 'require'
+        ssl: 'require',
+        transform: {
+          undefined: null,
+        },
+        types: {
+          // Ensure JSON columns accept JavaScript objects/arrays
+          json: {
+            to: 114, // PostgreSQL JSON type OID
+            from: [114], // PostgreSQL JSON type OID
+            serialize: (x: any) => JSON.stringify(x),
+            parse: (x: string) => JSON.parse(x),
+          },
+        },
       });
       _db = drizzle(client);
     } catch (error) {
