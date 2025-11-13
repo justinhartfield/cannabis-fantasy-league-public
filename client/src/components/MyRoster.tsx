@@ -50,6 +50,8 @@ export function MyRoster({ roster, teamName }: MyRosterProps) {
         return <Package className={cn(iconClass, "text-pink-500")} />;
       case "pharmacy":
         return <Building2 className={cn(iconClass, "text-green-500")} />;
+      case "brand":
+        return <Building2 className={cn(iconClass, "text-yellow-500")} />;
     }
   };
 
@@ -64,6 +66,8 @@ export function MyRoster({ roster, teamName }: MyRosterProps) {
         return "Produkt";
       case "pharmacy":
         return "Apotheke";
+      case "brand":
+        return "Brand";
     }
   };
 
@@ -186,6 +190,13 @@ export function MyRoster({ roster, teamName }: MyRosterProps) {
             max={2}
             colorClass="green"
           />
+          <PositionSlot
+            type="brand"
+            label="Brands"
+            current={counts.brand}
+            max={1}
+            colorClass="yellow"
+          />
         </div>
 
         {/* Flex Slot */}
@@ -196,11 +207,11 @@ export function MyRoster({ roster, teamName }: MyRosterProps) {
               <span className="text-sm font-medium text-foreground">Flex</span>
             </div>
             <Badge variant="outline" className="text-xs">
-              {Math.max(0, totalPicks - 8)}/1
+              {Math.max(0, totalPicks - 9)}/1
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground">
-            Any category (9th pick)
+            Any category (10th pick)
           </p>
         </div>
 

@@ -69,6 +69,7 @@ export default function RosterDisplay({
   const cannabisStrains = roster.filter((a) => a.assetType === "cannabis_strain");
   const products = roster.filter((a) => a.assetType === "product");
   const pharmacies = roster.filter((a) => a.assetType === "pharmacy");
+  const brands = roster.filter((a) => a.assetType === "brand");
 
   const getAssetTypeLabel = (type: AssetType) => {
     switch (type) {
@@ -80,6 +81,8 @@ export default function RosterDisplay({
         return "Produkt";
       case "pharmacy":
         return "Apotheke";
+      case "brand":
+        return "Brand";
     }
   };
 
@@ -119,7 +122,7 @@ export default function RosterDisplay({
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-4 gap-4 text-center">
+          <div className="grid grid-cols-5 gap-4 text-center">
             <div>
               <p className="text-2xl font-bold text-foreground">{manufacturers.length}/2</p>
               <p className="text-sm text-muted-foreground">Hersteller</p>
@@ -135,6 +138,10 @@ export default function RosterDisplay({
             <div>
               <p className="text-2xl font-bold text-foreground">{pharmacies.length}/2</p>
               <p className="text-sm text-muted-foreground">Apotheken</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-foreground">{brands.length}/1</p>
+              <p className="text-sm text-muted-foreground">Brands</p>
             </div>
           </div>
         </CardContent>
@@ -202,6 +209,23 @@ export default function RosterDisplay({
           </CardHeader>
           <CardContent className="space-y-2">
             {pharmacies.map((asset) => (
+              <RosterAssetCard key={asset.id} asset={asset} getAssetTypeLabel={getAssetTypeLabel} getAcquiredViaLabel={getAcquiredViaLabel} getTrendIcon={getTrendIcon} />
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Brands */}
+      {brands.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-yellow-500" />
+              Brands ({brands.length}/1)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {brands.map((asset) => (
               <RosterAssetCard key={asset.id} asset={asset} getAssetTypeLabel={getAssetTypeLabel} getAcquiredViaLabel={getAcquiredViaLabel} getTrendIcon={getTrendIcon} />
             ))}
           </CardContent>
