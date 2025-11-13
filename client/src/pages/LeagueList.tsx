@@ -23,7 +23,11 @@ export default function LeagueList() {
     onSuccess: (data) => {
       toast.success("Erfolgreich der Liga beigetreten!");
       setJoinCode("");
-      setLocation(`/league/${data.leagueId}`);
+      const path =
+        data.leagueType === "challenge"
+          ? `/challenge/${data.leagueId}`
+          : `/league/${data.leagueId}`;
+      setLocation(path);
     },
     onError: (error) => {
       toast.error(error.message || "Fehler beim Beitreten");
@@ -131,11 +135,16 @@ export default function LeagueList() {
                   const userTeam = league.teams?.find((t: any) => t.userId === user?.id);
                   const isCommissioner = league.commissionerId === user?.id;
 
+                  const targetPath =
+                    league.leagueType === "challenge"
+                      ? `/challenge/${league.id}`
+                      : `/league/${league.id}`;
+
                   return (
                     <Card
                       key={league.id}
                       className="bg-card border-border hover:border-primary/50 transition-colors cursor-pointer"
-                      onClick={() => setLocation(`/league/${league.id}`)}
+                      onClick={() => setLocation(targetPath)}
                     >
                       <CardContent className="p-6">
                         <div className="flex items-start justify-between">

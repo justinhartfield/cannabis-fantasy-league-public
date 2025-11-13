@@ -63,7 +63,11 @@ export default function CreateLeague() {
     try {
       const result = await createLeague.mutateAsync(formData);
       toast.success("Liga erfolgreich erstellt!");
-      setLocation(`/league/${result.leagueId}`);
+      const destination =
+        (result.leagueType || formData.leagueType) === "challenge"
+          ? `/challenge/${result.leagueId}`
+          : `/league/${result.leagueId}`;
+      setLocation(destination);
     } catch (error: any) {
       toast.error(error.message || "Fehler beim Erstellen der Liga");
     }

@@ -101,6 +101,7 @@ export const leagueRouter = router({
         return {
           success: true,
           leagueId: leagueId,
+          leagueType: input.leagueType,
         };
       } catch (error) {
         console.error("[LeagueRouter] Error creating league:", error);
@@ -351,6 +352,7 @@ export const leagueRouter = router({
         return {
           success: true,
           leagueId: league.id,
+          leagueType: league.leagueType,
         };
       } catch (error) {
         console.error("[LeagueRouter] Error joining league by code:", error);

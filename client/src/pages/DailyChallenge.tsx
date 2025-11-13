@@ -3,7 +3,7 @@ import { useParams, useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LiveIndicator } from "@/components/LiveIndicator";
 import { ComparisonBar } from "@/components/ComparisonBar";
@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getLoginUrl } from "@/const";
+import { toast } from "sonner";
 
 interface TeamScore {
   teamId: number;
@@ -45,6 +46,7 @@ export default function DailyChallenge() {
   const challengeId = parseInt(id || "0", 10);
 
   const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
+  const [isCalculating, setIsCalculating] = useState(false);
 
   const {
     data: league,
@@ -61,6 +63,7 @@ export default function DailyChallenge() {
   const {
     data: weekScores,
     isLoading: scoresLoading,
+    refetch: refetchScores,
   } = trpc.scoring.getLeagueWeekScores.useQuery(
     {
       leagueId: challengeId,
@@ -88,7 +91,44 @@ export default function DailyChallenge() {
     enabled: !!isAuthenticated,
   });
 
+  const {
+    data: teamLineup,
+    isLoading: teamLineupLoading,
+  } = trpc.lineup.getWeeklyLineup.useQuery(
+    {
+      teamId: selectedTeamId || 0,
+      year: currentYear,
+      week: currentWeek,
+    },
+    {
+      enabled: !!selectedTeamId,
+    }
+  );
+
+  const calculateScoresMutation = trpc.scoring.calculateLeagueWeek.useMutation({
+    onSuccess: () => {
+      toast.success("Scores calculated successfully!");
+      refetchScores();
+      setIsCalculating(false);
+    },
+    onError: (error) => {
+      toast.error(`Failed to calculate scores: ${error.message}`);
+      setIsCalculating(false);
+    },
+  });
+
   const [redirecting, setRedirecting] = useState(false);
+
+  const isAdmin = user?.role === "admin";
+
+  const handleCalculateScores = () => {
+    setIsCalculating(true);
+    calculateScoresMutation.mutate({
+      leagueId: challengeId,
+      year: currentYear,
+      week: currentWeek,
+    });
+  };
 
   // Auth guard
   useEffect(() => {
@@ -134,6 +174,11 @@ export default function DailyChallenge() {
   const scoreDiff =
     leader && challenger ? (leader.points || 0) - (challenger.points || 0) : 0;
 
+  const selectedTeam = useMemo(
+    () => sortedScores.find((team) => team.teamId === selectedTeamId) || null,
+    [sortedScores, selectedTeamId]
+  );
+
   const topPerformers = useMemo<
     { name: string; type: string; total: number; breakdown: any }[]
   >(() => {
@@ -176,6 +221,11 @@ export default function DailyChallenge() {
       )
       .slice(0, 4);
   }, [userLeagues, challengeId]);
+
+  const normalizedLineup = useMemo(
+    () => normalizeLineup(teamLineup),
+    [teamLineup]
+  );
 
   if (
     !challengeId ||
@@ -336,28 +386,148 @@ export default function DailyChallenge() {
           ))}
         </div>
 
-        {/* Team Selector */}
-        <Card className="border-border/50 bg-card/80">
-          <CardContent className="p-4">
-            <div className="flex flex-wrap gap-2">
-              {sortedScores.map((team) => (
+        {/* Leaderboard */}
+        <Card className="border-border/50 bg-card/80 slide-in-bottom">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-foreground">
+                <Trophy className="w-5 h-5 text-primary" />
+                Leaderboard
+              </CardTitle>
+              {isAdmin && (
                 <Button
-                  key={team.teamId}
-                  variant={selectedTeamId === team.teamId ? "default" : "outline"}
-                  className={cn(
-                    "rounded-full",
-                    selectedTeamId === team.teamId
-                      ? "gradient-primary text-white border-0"
-                      : "border-border/50"
-                  )}
-                  onClick={() => setSelectedTeamId(team.teamId)}
+                  variant="outline"
+                  size="sm"
+                  className="border-border/50"
+                  onClick={handleCalculateScores}
+                  disabled={isCalculating || calculateScoresMutation.isPending}
                 >
-                  {team.teamName}
+                  {isCalculating || calculateScoresMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Calc...
+                    </>
+                  ) : (
+                    "Calculate Scores"
+                  )}
                 </Button>
-              ))}
+              )}
             </div>
+            <CardDescription>
+              Woche {currentWeek} • {currentYear}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {sortedScores.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Keine Scores verfügbar.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {sortedScores.map((team: TeamScore) => (
+                  <button
+                    key={team.teamId}
+                    onClick={() => setSelectedTeamId(team.teamId)}
+                    className={cn(
+                      "w-full p-3 rounded-lg border transition-all text-left card-hover-lift",
+                      selectedTeamId === team.teamId
+                        ? "bg-primary/10 border-primary glow-primary"
+                        : "bg-card/60 border-border/50 hover:border-primary/30"
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={cn(
+                            "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg",
+                            team.rank === 1
+                              ? "rank-gold text-white"
+                              : team.rank === 2
+                              ? "rank-silver text-white"
+                              : team.rank === 3
+                              ? "rank-bronze text-white"
+                              : "bg-muted text-muted-foreground"
+                          )}
+                        >
+                          {team.rank}
+                        </div>
+                        <div>
+                          <div
+                            className={cn(
+                              "font-semibold truncate",
+                              team.rank === 1 ? "text-gradient-primary" : "text-foreground"
+                            )}
+                          >
+                            {team.teamName}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Punkte
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-foreground">
+                          {team.points?.toFixed(1) ?? "0.0"}
+                        </div>
+                        <div className="text-xs text-muted-foreground uppercase">
+                          Total
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
+
+        {/* Team Lineup */}
+        {selectedTeam && (
+          <Card className="border-border/50 bg-card/80 slide-in-bottom">
+            <CardHeader>
+              <CardTitle className="text-foreground">
+                Team Lineup
+              </CardTitle>
+              <CardDescription>{selectedTeam.teamName}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {teamLineupLoading ? (
+                <div className="flex items-center justify-center py-8 text-muted-foreground">
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  Lädt Lineup...
+                </div>
+              ) : normalizedLineup.length > 0 ? (
+                <div className="grid gap-3 md:grid-cols-2">
+                  {normalizedLineup.map((slot) => (
+                    <div
+                      key={slot.position}
+                      className="p-3 rounded-lg border border-border/40 bg-card/70"
+                    >
+                      <div className="text-xs uppercase text-muted-foreground">
+                        {slot.position}
+                      </div>
+                      <div className="text-sm font-semibold text-foreground mt-1">
+                        {slot.assetName || "Noch nicht gesetzt"}
+                      </div>
+                      <div className="text-xs text-muted-foreground capitalize">
+                        {slot.assetType?.replace(/_/g, " ") || "—"}
+                      </div>
+                      {typeof slot.points === "number" && (
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Punkte: {slot.points.toFixed(1)}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-6">
+                  Kein Lineup eingereicht.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Top Performers */}
         {topPerformers.length > 0 && (
@@ -415,6 +585,11 @@ export default function DailyChallenge() {
                       : challenge.status === "draft"
                       ? "Upcoming"
                       : "Final";
+                  const challengeDate =
+                    challenge.updatedAt || challenge.createdAt || null;
+                  const formattedDate = challengeDate
+                    ? new Date(challengeDate).toLocaleDateString()
+                    : "—";
 
                   return (
                     <div
@@ -427,7 +602,7 @@ export default function DailyChallenge() {
                           {status}
                         </Badge>
                         <span className="text-xs text-muted-foreground">
-                          {new Date(challenge.updatedAt || challenge.createdAt).toLocaleDateString()}
+                          {formattedDate}
                         </span>
                       </div>
                       <div className="text-lg font-semibold text-foreground">
@@ -490,6 +665,46 @@ export default function DailyChallenge() {
       </main>
     </div>
   );
+}
+
+interface LineupSlot {
+  position: string;
+  assetType?: string | null;
+  assetId?: number | null;
+  assetName?: string | null;
+  points?: number | null;
+  locked?: boolean;
+}
+
+function normalizeLineup(lineup: any): LineupSlot[] {
+  if (!lineup) return [];
+
+  const convert = (slots: any[]): LineupSlot[] =>
+    slots.map((slot) => ({
+      position: slot.position,
+      assetType: slot.assetType ?? null,
+      assetId: slot.assetId ?? null,
+      assetName: slot.assetName ?? null,
+      points:
+        typeof slot.points === "number"
+          ? slot.points
+          : typeof slot.totalPoints === "number"
+          ? slot.totalPoints
+          : null,
+      locked: slot.locked ?? false,
+    }));
+
+  if (Array.isArray(lineup)) {
+    return convert(lineup);
+  }
+
+  if (typeof lineup === "object") {
+    if (Array.isArray(lineup.lineup)) {
+      return convert(lineup.lineup);
+    }
+  }
+
+  return [];
 }
 
 function TeamScoreBlock({

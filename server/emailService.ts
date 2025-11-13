@@ -578,7 +578,7 @@ export async function sendDailyChallengeReminder(params: {
   leagueName: string;
   leagueId: number;
 }): Promise<boolean> {
-  const lineupUrl = `${APP_URL}/league/${params.leagueId}/lineup`;
+  const lineupUrl = `${APP_URL}/challenge/${params.leagueId}`;
   
   const html = `
 <!DOCTYPE html>
