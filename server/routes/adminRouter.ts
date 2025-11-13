@@ -102,6 +102,36 @@ export const adminRouter = router({
   }),
 
   /**
+   * Trigger products sync
+   */
+  syncProducts: protectedProcedure.mutation(async ({ ctx }) => {
+    if (ctx.user.role !== 'admin') {
+      throw new Error('Unauthorized: Admin access required');
+    }
+
+    const syncService = getDataSyncServiceV2();
+    
+    try {
+      // Run sync in background (don't await)
+      syncService.syncProducts().catch(err => {
+        console.error('[Admin] Products sync background error:', err);
+      });
+      
+      return {
+        success: true,
+        message: 'Products sync started successfully',
+      };
+    } catch (error) {
+      console.error('[Admin] Failed to start products sync:', error);
+      return {
+        success: false,
+        message: 'Failed to start products sync',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }),
+
+  /**
    * Trigger full sync (all data sources)
    */
   syncAll: protectedProcedure.mutation(async ({ ctx }) => {

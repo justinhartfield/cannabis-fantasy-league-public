@@ -70,6 +70,19 @@ export default function Admin() {
     },
   });
 
+  const syncProducts = trpc.admin.syncProducts.useMutation({
+    onSuccess: () => {
+      toast.success("Products sync started successfully!");
+      setTimeout(() => {
+        refetchJobs();
+        refetchStats();
+      }, 1000);
+    },
+    onError: (error) => {
+      toast.error(`Failed to start products sync: ${error.message}`);
+    },
+  });
+
   const syncAll = trpc.admin.syncAll.useMutation({
     onSuccess: () => {
       toast.success("Full data sync started successfully!");
@@ -213,7 +226,7 @@ export default function Admin() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                 <Button
                   onClick={() => syncStrains.mutate()}
                   disabled={syncStrains.isPending}
@@ -267,6 +280,25 @@ export default function Admin() {
                     <>
                       <RefreshCw className="w-4 h-4 mr-2" />
                       Sync Manufacturers
+                    </>
+                  )}
+                </Button>
+
+                <Button
+                  onClick={() => syncProducts.mutate()}
+                  disabled={syncProducts.isPending}
+                  variant="outline"
+                  className="w-full"
+                >
+                  {syncProducts.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Starting...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Sync Products
                     </>
                   )}
                 </Button>

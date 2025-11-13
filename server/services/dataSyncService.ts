@@ -6,7 +6,7 @@
 
 import { getDb } from '../db';
 import { getMetabaseClient } from '../metabase';
-import { cannabisStrains, brands, manufacturers, pharmacies } from '../../drizzle/schema';
+import { cannabisStrains, brands, manufacturers, pharmacies, strains } from '../../drizzle/schema';
 import { eq } from 'drizzle-orm';
 import { createSyncJob, SyncLogger } from './syncLogger';
 
@@ -264,6 +264,92 @@ export class DataSyncServiceV2 {
   }
 
   /**
+   * Sync pharmaceutical products (strains table)
+   */
+  async syncProducts(): Promise<void> {
+    const logger = await createSyncJob('sync-products');
+    
+    try {
+      await logger.updateJobStatus('running');
+      await logger.info('Starting products sync...');
+      
+      const metabase = getMetabaseClient();
+      const productsData = await metabase.fetchStrains();
+      await logger.info(`Fetched ${productsData.length} products from Metabase`);
+      await logger.updateJobStatus('running', undefined, { total: productsData.length });
+      
+      let synced = 0;
+      let errors = 0;
+
+      for (const product of productsData) {
+        try {
+          const db = await getDb();
+          if (!db) throw new Error('Database not available');
+          
+          // Convert price from euros to cents
+          const avgPriceCents = Math.round(product.avg_price * 100);
+          const minPriceCents = Math.round(product.min_price * 100);
+          const maxPriceCents = Math.round(product.max_price * 100);
+          
+          await db.insert(strains)
+            .values({
+              name: product.name,
+              manufacturerName: product.manufacturer,
+              favoriteCount: product.favorite_count,
+              pharmacyCount: product.pharmacy_count,
+              avgPriceCents,
+              minPriceCents,
+              maxPriceCents,
+              priceCategory: product.price_category,
+              thcContent: product.thc_content,
+              cbdContent: product.cbd_content,
+            })
+            .onConflictDoUpdate({
+              target: strains.name,
+              set: {
+                manufacturerName: product.manufacturer,
+                favoriteCount: product.favorite_count,
+                pharmacyCount: product.pharmacy_count,
+                avgPriceCents,
+                minPriceCents,
+                maxPriceCents,
+                priceCategory: product.price_category,
+                thcContent: product.thc_content,
+                cbdContent: product.cbd_content,
+                updatedAt: new Date().toISOString(),
+              },
+            });
+
+          synced++;
+          
+          if (synced % 100 === 0) {
+            await logger.info(`Progress: ${synced}/${productsData.length} products synced`);
+            await logger.updateJobStatus('running', undefined, { processed: synced });
+          }
+        } catch (error) {
+          errors++;
+          await logger.error(`Failed to sync product: ${product.name}`, {
+            error: error instanceof Error ? error.message : String(error),
+            product: product.name,
+          });
+        }
+      }
+
+      await logger.updateJobStatus('running', undefined, { processed: synced });
+      await logger.info(`Sync complete: ${synced} synced, ${errors} errors`);
+      await logger.updateJobStatus('completed', `Successfully synced ${synced} products with ${errors} errors`);
+      
+    } catch (error) {
+      await logger.error('Products sync failed', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      await logger.updateJobStatus('failed', error instanceof Error ? error.message : 'Unknown error');
+      throw error;
+    }
+  }
+
+  /**
    * Sync all data sources
    */
   async syncAll(): Promise<void> {
@@ -276,6 +362,7 @@ export class DataSyncServiceV2 {
       await this.syncManufacturers();
       await this.syncBrands();
       await this.syncStrains();
+      await this.syncProducts();
       
       await logger.info('Full data sync completed successfully');
       await logger.updateJobStatus('completed', 'All data sources synced successfully');
