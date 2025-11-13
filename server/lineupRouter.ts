@@ -2,7 +2,7 @@ import { z } from "zod";
 import { eq, and } from "drizzle-orm";
 import { protectedProcedure, router } from "./_core/trpc";
 import { getDb } from "./db";
-import { weeklyLineups, rosters, manufacturers, cannabisStrains, strains, pharmacies } from "../drizzle/schema";
+import { weeklyLineups, rosters, manufacturers, cannabisStrains, strains, pharmacies, brands } from "../drizzle/schema";
 
 /**
  * Lineup Router
@@ -68,6 +68,7 @@ export const lineupRouter = router({
             { position: "PRD2", assetType: "product" as const, assetId: null, assetName: null, points: 0, locked: false },
             { position: "PHM1", assetType: "pharmacy" as const, assetId: null, assetName: null, points: 0, locked: false },
             { position: "PHM2", assetType: "pharmacy" as const, assetId: null, assetName: null, points: 0, locked: false },
+            { position: "BRD1", assetType: "brand" as const, assetId: null, assetName: null, points: 0, locked: false },
             { position: "FLEX", assetType: null, assetId: null, assetName: null, points: 0, locked: false },
           ],
         };
@@ -94,6 +95,10 @@ export const lineupRouter = router({
             const [phm] = await db.select().from(pharmacies).where(eq(pharmacies.id, assetId)).limit(1);
             return phm?.name || null;
           }
+          case "brand": {
+            const [brand] = await db.select().from(brands).where(eq(brands.id, assetId)).limit(1);
+            return brand?.name || null;
+          }
           default:
             return null;
         }
@@ -109,6 +114,7 @@ export const lineupRouter = router({
         { position: "PRD2", assetType: "product" as const, assetId: lineup.prd2Id, points: 0 },
         { position: "PHM1", assetType: "pharmacy" as const, assetId: lineup.phm1Id, points: 0 },
         { position: "PHM2", assetType: "pharmacy" as const, assetId: lineup.phm2Id, points: 0 },
+        { position: "BRD1", assetType: "brand" as const, assetId: lineup.brd1Id, points: 0 },
         { position: "FLEX", assetType: lineup.flexType, assetId: lineup.flexId, points: 0 },
       ].map(async (slot) => ({
         ...slot,
