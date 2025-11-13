@@ -357,6 +357,41 @@ class WebSocketManager {
       timestamp: Date.now(),
     });
   }
+
+  // Challenge-specific Events
+  notifyChallengeScoreUpdate(challengeId: number, data: {
+    challengeId: number;
+    year: number;
+    week: number;
+    scores: Array<{ teamId: number; teamName: string; points: number }>;
+    updateTime: string;
+  }) {
+    this.broadcastToLeague(challengeId, {
+      type: 'challenge_score_update',
+      ...data,
+      timestamp: Date.now(),
+    });
+  }
+
+  notifyChallengeFinalized(challengeId: number, data: {
+    challengeId: number;
+    year: number;
+    week: number;
+    scores: Array<{ teamId: number; teamName: string; points: number }>;
+    winner: {
+      teamId: number;
+      teamName: string;
+      userId: number;
+      points: number;
+    };
+    finalizedAt: string;
+  }) {
+    this.broadcastToLeague(challengeId, {
+      type: 'challenge_finalized',
+      ...data,
+      timestamp: Date.now(),
+    });
+  }
 }
 
 export const wsManager = new WebSocketManager();

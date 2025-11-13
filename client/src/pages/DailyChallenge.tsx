@@ -17,10 +17,13 @@ import {
   Flame,
   UserCircle,
   Sparkles,
+  RefreshCw,
+  Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getLoginUrl } from "@/const";
 import { toast } from "sonner";
+import { useWebSocket } from "@/hooks/useWebSocket";
 
 interface TeamScore {
   teamId: number;
@@ -47,6 +50,10 @@ export default function DailyChallenge() {
 
   const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
+  const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
+  const [winner, setWinner] = useState<{ teamId: number; teamName: string; points: number } | null>(null);
+  const [nextUpdateTime, setNextUpdateTime] = useState<Date | null>(null);
+  const [timeUntilUpdate, setTimeUntilUpdate] = useState<string>("");
 
   const {
     data: league,
@@ -117,9 +124,107 @@ export default function DailyChallenge() {
     },
   });
 
+  const createRematchMutation = trpc.league.createRematchChallenge.useMutation({
+    onSuccess: (data) => {
+      toast.success("Rematch challenge created!");
+      setLocation(`/challenge/${data.leagueId}`);
+    },
+    onError: (error) => {
+      toast.error(`Failed to create rematch: ${error.message}`);
+    },
+  });
+
+  const { data: rematchInfo } = trpc.league.getChallengeRematchInfo.useQuery(
+    { challengeId: challengeId },
+    { enabled: !!challengeId && league?.status === 'complete' && isAuthenticated }
+  );
+
   const [redirecting, setRedirecting] = useState(false);
 
   const isAdmin = user?.role === "admin";
+
+  // Get user's team ID for WebSocket
+  const userTeamId = useMemo(() => {
+    if (!league?.teams || !user?.id) return undefined;
+    const team = league.teams.find((t: any) => t.userId === user.id);
+    return team?.id;
+  }, [league, user]);
+
+  // WebSocket connection for real-time updates
+  const { isConnected } = useWebSocket({
+    userId: user?.id || 0,
+    leagueId: challengeId,
+    teamId: userTeamId,
+    onMessage: (message) => {
+      if (message.type === 'challenge_score_update') {
+        setLastUpdateTime(new Date(message.updateTime));
+        refetchScores();
+        toast.info("Scores updated!");
+      } else if (message.type === 'challenge_finalized') {
+        setWinner(message.winner);
+        setLastUpdateTime(new Date(message.finalizedAt));
+        refetchScores();
+        toast.success(`Challenge complete! Winner: ${message.winner.teamName}`);
+      }
+    },
+    autoConnect: !!challengeId && !!user?.id,
+  });
+
+  // Calculate next update time (top of next hour)
+  useEffect(() => {
+    const updateNextUpdateTime = () => {
+      const now = new Date();
+      const nextHour = new Date(now);
+      nextHour.setHours(now.getHours() + 1, 0, 0, 0);
+      setNextUpdateTime(nextHour);
+    };
+
+    updateNextUpdateTime();
+    const interval = setInterval(updateNextUpdateTime, 60000); // Update every minute
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Update countdown timer
+  useEffect(() => {
+    if (!nextUpdateTime) return;
+
+    const updateCountdown = () => {
+      const now = new Date();
+      const diff = nextUpdateTime.getTime() - now.getTime();
+      
+      if (diff <= 0) {
+        setTimeUntilUpdate("Updating...");
+        return;
+      }
+
+      const minutes = Math.floor(diff / 60000);
+      const seconds = Math.floor((diff % 60000) / 1000);
+      setTimeUntilUpdate(`${minutes}:${seconds.toString().padStart(2, '0')}`);
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+
+    return () => clearInterval(interval);
+  }, [nextUpdateTime]);
+
+  // Calculate scores on page load as fallback
+  useEffect(() => {
+    if (league && league.leagueType === 'challenge' && league.status === 'active' && !isCalculating) {
+      // Trigger score calculation on load to ensure accuracy
+      const challengeDate = new Date(league.createdAt);
+      const now = new Date();
+      // Only calculate if challenge was created today
+      if (challengeDate.toDateString() === now.toDateString()) {
+        calculateScoresMutation.mutate({
+          leagueId: challengeId,
+          year: currentYear,
+          week: currentWeek,
+        });
+      }
+    }
+  }, [league, challengeId, currentYear, currentWeek]);
 
   const handleCalculateScores = () => {
     setIsCalculating(true);
@@ -128,6 +233,11 @@ export default function DailyChallenge() {
       year: currentYear,
       week: currentWeek,
     });
+  };
+
+  const handleRematch = () => {
+    if (!challengeId) return;
+    createRematchMutation.mutate({ originalChallengeId: challengeId });
   };
 
   // Auth guard
@@ -168,6 +278,13 @@ export default function DailyChallenge() {
       }))
       .sort((a, b) => (b.points || 0) - (a.points || 0));
   }, [weekScores]);
+
+  // Check for winner when challenge is complete (after sortedScores is defined)
+  useEffect(() => {
+    if (league?.status === 'complete' && sortedScores.length > 0 && !winner) {
+      setWinner(sortedScores[0]);
+    }
+  }, [league, sortedScores, winner]);
 
   const leader = sortedScores[0];
   const challenger = sortedScores[1];
@@ -292,6 +409,83 @@ export default function DailyChallenge() {
       </header>
 
       <main className="container mx-auto px-4 py-8 space-y-6">
+        {/* Challenge Complete Banner */}
+        {league?.status === 'complete' && winner && (
+          <Card className="gradient-card border-border/50 glow-primary slide-in-bottom">
+            <CardContent className="p-6">
+              <div className="text-center space-y-4">
+                <div className="flex justify-center">
+                  <Trophy className="w-16 h-16 text-yellow-500" />
+                </div>
+                <div>
+                  <h2 className="text-3xl font-bold text-gradient-primary mb-2">
+                    Challenge Complete!
+                  </h2>
+                  <p className="text-xl text-foreground mb-1">
+                    Winner: <span className="font-bold text-gradient-primary">{winner.teamName}</span>
+                  </p>
+                  <p className="text-muted-foreground">
+                    Final Score: {winner.points.toFixed(1)} points
+                  </p>
+                </div>
+                {rematchInfo?.opponent && (
+                  <div className="pt-4">
+                    <Button
+                      onClick={handleRematch}
+                      disabled={createRematchMutation.isPending}
+                      className="gradient-primary"
+                      size="lg"
+                    >
+                      {createRematchMutation.isPending ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Creating Rematch...
+                        </>
+                      ) : (
+                        <>
+                          <Trophy className="w-4 h-4 mr-2" />
+                          Rematch {rematchInfo.opponent.userName || rematchInfo.opponent.teamName}
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Update Status Indicator */}
+        {league?.status === 'active' && (
+          <Card className="border-border/50 bg-card/80">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {isConnected ? (
+                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                  ) : (
+                    <div className="w-2 h-2 rounded-full bg-gray-500" />
+                  )}
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      {isConnected ? 'Live Updates Connected' : 'Connecting...'}
+                    </p>
+                    {lastUpdateTime && (
+                      <p className="text-xs text-muted-foreground">
+                        Last updated: {lastUpdateTime.toLocaleTimeString()}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Clock className="w-4 h-4" />
+                  <span>Next update in: {timeUntilUpdate || 'Calculating...'}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Hero Scoreboard */}
         <Card className="gradient-card border-border/50 glow-primary slide-in-bottom">
           <CardContent className="p-6">

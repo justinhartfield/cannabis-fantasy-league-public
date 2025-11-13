@@ -3,6 +3,7 @@ import { getDb } from './db';
 import { leagues, teams, users } from '../drizzle/schema';
 import { eq, and } from 'drizzle-orm';
 import { sendDailyChallengeReminder } from './emailService';
+import { challengeScoreScheduler } from './challengeScoreScheduler';
 
 /**
  * Daily Challenge Scheduler
@@ -173,6 +174,10 @@ export function initDailyChallengeScheduler() {
   console.log('[DailyChallengeScheduler] Scheduled:');
   console.log('  - Daily challenge creation: 8:00 AM CET (7:00 AM UTC)');
   console.log('  - Reminder emails: 4:20 PM CET (3:20 PM UTC)');
+
+  // Initialize challenge score scheduler (uses setInterval, no external cron)
+  challengeScoreScheduler.start();
+  console.log('[DailyChallengeScheduler] Challenge score scheduler started');
 }
 
 export default {

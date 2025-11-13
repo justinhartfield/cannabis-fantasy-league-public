@@ -759,4 +759,226 @@ export const leagueRouter = router({
         });
       }
     }),
+
+  /**
+   * Get rematch info for a completed challenge
+   */
+  getChallengeRematchInfo: protectedProcedure
+    .input(z.object({ challengeId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Database not available",
+        });
+      }
+
+      try {
+        // Get challenge
+        const [challenge] = await db
+          .select()
+          .from(leagues)
+          .where(and(
+            eq(leagues.id, input.challengeId),
+            eq(leagues.leagueType, 'challenge')
+          ))
+          .limit(1);
+
+        if (!challenge) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Challenge not found",
+          });
+        }
+
+        // Get teams
+        const challengeTeams = await db
+          .select({
+            id: teams.id,
+            name: teams.name,
+            userId: teams.userId,
+            userName: users.name,
+          })
+          .from(teams)
+          .leftJoin(users, eq(teams.userId, users.id))
+          .where(eq(teams.leagueId, input.challengeId));
+
+        if (challengeTeams.length !== 2) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Challenge must have exactly 2 teams",
+          });
+        }
+
+        // Get final scores
+        const year = new Date(challenge.createdAt).getFullYear();
+        const week = Math.ceil((new Date(challenge.createdAt).getTime() - new Date(year, 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000));
+
+        const scores = await Promise.all(
+          challengeTeams.map(async (team) => {
+            const [score] = await db
+              .select()
+              .from(teams)
+              .where(eq(teams.id, team.id))
+              .limit(1);
+            // Note: We'll get actual scores from weeklyTeamScores if needed
+            return {
+              teamId: team.id,
+              teamName: team.name,
+              userId: team.userId,
+              userName: team.userName,
+            };
+          })
+        );
+
+        // Find opponent (the other team)
+        const opponent = challengeTeams.find(t => t.userId !== ctx.user.id);
+
+        return {
+          challengeId: challenge.id,
+          challengeName: challenge.name,
+          opponent: opponent ? {
+            teamId: opponent.id,
+            teamName: opponent.name,
+            userId: opponent.userId,
+            userName: opponent.userName,
+          } : null,
+          myTeam: challengeTeams.find(t => t.userId === ctx.user.id) ? {
+            teamId: challengeTeams.find(t => t.userId === ctx.user.id)!.id,
+            teamName: challengeTeams.find(t => t.userId === ctx.user.id)!.name,
+          } : null,
+          challengeDate: challenge.createdAt,
+          status: challenge.status,
+        };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        console.error("[LeagueRouter] Error fetching rematch info:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to fetch rematch info",
+        });
+      }
+    }),
+
+  /**
+   * Create a rematch challenge with the same opponent
+   */
+  createRematchChallenge: protectedProcedure
+    .input(z.object({ originalChallengeId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Database not available",
+        });
+      }
+
+      try {
+        // Get original challenge
+        const [originalChallenge] = await db
+          .select()
+          .from(leagues)
+          .where(and(
+            eq(leagues.id, input.originalChallengeId),
+            eq(leagues.leagueType, 'challenge')
+          ))
+          .limit(1);
+
+        if (!originalChallenge) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Original challenge not found",
+          });
+        }
+
+        // Get teams from original challenge
+        const originalTeams = await db
+          .select()
+          .from(teams)
+          .where(eq(teams.leagueId, input.originalChallengeId));
+
+        if (originalTeams.length !== 2) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Original challenge must have exactly 2 teams",
+          });
+        }
+
+        // Verify user is one of the participants
+        const userTeam = originalTeams.find(t => t.userId === ctx.user.id);
+        if (!userTeam) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "You are not a participant in this challenge",
+          });
+        }
+
+        // Generate unique league code
+        let leagueCode = generateLeagueCode();
+        let codeExists = true;
+        
+        while (codeExists) {
+          const existing = await db.select().from(leagues).where(eq(leagues.leagueCode, leagueCode)).limit(1);
+          if (existing.length === 0) {
+            codeExists = false;
+          } else {
+            leagueCode = generateLeagueCode();
+          }
+        }
+
+        // Generate challenge name for today
+        const date = new Date();
+        const dateStr = date.toISOString().split('T')[0];
+        const challengeName = `Daily Challenge - ${dateStr}`;
+
+        const currentYear = date.getFullYear();
+        const currentWeek = Math.ceil((Date.now() - new Date(currentYear, 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000));
+
+        // Create new challenge
+        const [newChallenge] = await db
+          .insert(leagues)
+          .values({
+            name: challengeName,
+            leagueCode: leagueCode,
+            commissionerUserId: ctx.user.id,
+            teamCount: 2,
+            draftType: 'none',
+            scoringType: 'standard',
+            playoffTeams: 0,
+            seasonYear: currentYear,
+            currentWeek: currentWeek,
+            status: 'active',
+            leagueType: 'challenge',
+            draftStarted: 1,
+            draftCompleted: 1,
+          })
+          .returning({ id: leagues.id });
+
+        // Create teams for both participants
+        for (const team of originalTeams) {
+          await db.insert(teams).values({
+            leagueId: newChallenge.id,
+            userId: team.userId,
+            name: team.name,
+          });
+        }
+
+        console.log(`[LeagueRouter] Created rematch challenge ${newChallenge.id} from challenge ${input.originalChallengeId}`);
+
+        return {
+          success: true,
+          leagueId: newChallenge.id,
+          leagueType: 'challenge',
+        };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        console.error("[LeagueRouter] Error creating rematch challenge:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to create rematch challenge",
+        });
+      }
+    }),
 });
