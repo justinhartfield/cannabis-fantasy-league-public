@@ -477,3 +477,34 @@ export const weeklyTeamScores = pgTable("weeklyTeamScores", {
 (table) => [
 	unique("weekly_team_scores_team_week_unique").on(table.teamId, table.year, table.week),
 ]);
+
+
+// Admin Dashboard - Sync Jobs and Logs
+export const syncJobs = pgTable("syncJobs", {
+	id: serial("id").primaryKey(),
+	jobName: varchar("job_name", { length: 255 }).notNull(),
+	status: varchar("status", { length: 50 }).default('pending').notNull(),
+	details: text("details"),
+	startedAt: timestamp("started_at", { mode: 'string', withTimezone: true }),
+	completedAt: timestamp("completed_at", { mode: 'string', withTimezone: true }),
+	processedCount: integer("processed_count").default(0),
+	totalCount: integer("total_count").default(0),
+	createdAt: timestamp("created_at", { mode: 'string', withTimezone: true }).defaultNow().notNull(),
+},
+(table) => [
+	index("sync_jobs_status_idx").on(table.status),
+	index("sync_jobs_created_at_idx").on(table.createdAt),
+]);
+
+export const syncLogs = pgTable("syncLogs", {
+	id: serial("id").primaryKey(),
+	jobId: integer("job_id").references(() => syncJobs.id).notNull(),
+	level: varchar("level", { length: 50 }).notNull(),
+	message: text("message").notNull(),
+	metadata: json("metadata"),
+	timestamp: timestamp("timestamp", { mode: 'string', withTimezone: true }).defaultNow().notNull(),
+},
+(table) => [
+	index("sync_logs_job_id_idx").on(table.jobId),
+	index("sync_logs_timestamp_idx").on(table.timestamp),
+]);
