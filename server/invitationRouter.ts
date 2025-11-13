@@ -321,10 +321,18 @@ export const invitationRouter = router({
         args: [input.token],
       });
 
+      // Get league type for redirect
+      const leagueResult = await db
+        .select()
+        .from(leagues)
+        .where(eq(leagues.id, invitation.leagueId))
+        .limit(1);
+
       return {
         success: true,
         teamId: teamResult.insertId,
         leagueId: invitation.leagueId,
+        leagueType: leagueResult[0]?.leagueType || 'season',
         userId: userId,
         message: 'Successfully joined the league!',
       };

@@ -33,7 +33,10 @@ export default function AcceptInvitation() {
   const acceptMutation = trpc.invitation.acceptInvitation.useMutation({
     onSuccess: (data) => {
       toast.success('Successfully joined the league!');
-      setLocation(`/leagues/${data.leagueId}`);
+      const path = data.leagueType === 'challenge'
+        ? `/challenge/${data.leagueId}`
+        : `/league/${data.leagueId}`;
+      setLocation(path);
     },
     onError: (error) => {
       toast.error(error.message);

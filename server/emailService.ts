@@ -217,8 +217,12 @@ export async function sendDraftStartingNotification(params: {
   leagueName: string;
   draftTime: Date;
   leagueId: number;
+  leagueType?: 'season' | 'challenge';
 }): Promise<boolean> {
-  const draftUrl = `${APP_URL}/league/${params.leagueId}/draft`;
+  // Drafts are only for season leagues, but handle challenge case gracefully
+  const draftUrl = params.leagueType === 'challenge'
+    ? `${APP_URL}/challenge/${params.leagueId}`
+    : `${APP_URL}/league/${params.leagueId}/draft`;
   
   const html = `
 <!DOCTYPE html>
@@ -340,8 +344,11 @@ export async function sendWeeklyScoringNotification(params: {
   opponentScore: number;
   won: boolean;
   leagueId: number;
+  leagueType?: 'season' | 'challenge';
 }): Promise<boolean> {
-  const leagueUrl = `${APP_URL}/league/${params.leagueId}`;
+  const leagueUrl = params.leagueType === 'challenge'
+    ? `${APP_URL}/challenge/${params.leagueId}`
+    : `${APP_URL}/league/${params.leagueId}`;
   const result = params.won ? '🎉 Victory!' : '😔 Defeat';
   const resultColor = params.won ? '#10b981' : '#ef4444';
   

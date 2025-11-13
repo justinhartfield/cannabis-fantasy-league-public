@@ -215,8 +215,12 @@ export default function Dashboard() {
             </Card>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {myLeagues?.map((league) => (
-                <Link key={league.id} href={`/league/${league.id}`}>
+              {myLeagues?.map((league) => {
+                const leaguePath = league.leagueType === 'challenge' 
+                  ? `/challenge/${league.id}` 
+                  : `/league/${league.id}`;
+                return (
+                <Link key={league.id} href={leaguePath}>
                   <Card className="gradient-card border-border/50 card-hover-lift cursor-pointer h-full">
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between mb-3">
@@ -294,7 +298,8 @@ export default function Dashboard() {
                     </CardContent>
                   </Card>
                 </Link>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
