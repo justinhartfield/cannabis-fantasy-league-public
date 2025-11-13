@@ -293,6 +293,7 @@ export class DataSyncServiceV2 {
           
           await db.insert(strains)
             .values({
+              metabaseId: product.metabaseId,
               name: product.name,
               manufacturerName: product.manufacturer,
               favoriteCount: product.favorite_count,
@@ -305,7 +306,7 @@ export class DataSyncServiceV2 {
               cbdContent: product.cbd_content,
             })
             .onConflictDoUpdate({
-              target: strains.name,
+              target: strains.metabaseId,
               set: {
                 manufacturerName: product.manufacturer,
                 favoriteCount: product.favorite_count,

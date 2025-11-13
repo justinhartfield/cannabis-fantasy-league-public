@@ -29,6 +29,7 @@ interface ManufacturerData {
 }
 
 interface StrainData {
+  metabaseId: string;
   name: string;
   manufacturer: string;
   favorite_count: number;
@@ -229,6 +230,7 @@ export class MetabaseClient {
           }
 
           return {
+            metabaseId: row[0] || '',
             name,
             manufacturer,
             favorite_count: favoriteCount,
