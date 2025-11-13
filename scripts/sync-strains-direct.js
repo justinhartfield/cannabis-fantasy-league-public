@@ -10,8 +10,8 @@ import { eq, sql } from 'drizzle-orm';
 const { Pool } = pg;
 
 // Metabase configuration
-const METABASE_URL = 'https://metabase.weed.de';
-const CANNABIS_STRAIN_TABLE_ID = 34; // Cannabis strains table ID
+const METABASE_URL = process.env.METABASE_URL || 'https://bi.weed.de';
+const CANNABIS_STRAIN_TABLE_ID = 16; // Cannabis strains table ID
 
 async function fetchStrainsFromMetabase() {
   console.log('📡 Fetching strains from Metabase...');
