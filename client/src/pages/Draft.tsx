@@ -1,7 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getLoginUrl } from "@/const";
@@ -112,11 +111,11 @@ export default function Draft() {
         refetchRoster();
         refetchAllPicks();
         // Invalidate available players queries to remove drafted player
-        queryClient.invalidateQueries({ queryKey: [['draft', 'getAvailableManufacturers']] });
-        queryClient.invalidateQueries({ queryKey: [['draft', 'getAvailableCannabisStrains']] });
-        queryClient.invalidateQueries({ queryKey: [['draft', 'getAvailableProducts']] });
-        queryClient.invalidateQueries({ queryKey: [['draft', 'getAvailablePharmacies']] });
-        queryClient.invalidateQueries({ queryKey: [['draft', 'getAvailableBrands']] });
+        utils.draft.getAvailableManufacturers.invalidate();
+        utils.draft.getAvailableCannabisStrains.invalidate();
+        utils.draft.getAvailableProducts.invalidate();
+        utils.draft.getAvailablePharmacies.invalidate();
+        utils.draft.getAvailableBrands.invalidate();
       } else if (message.type === 'next_pick') {
         setCurrentTurnTeamId(message.teamId);
         setCurrentTurnTeamName(message.teamName);
@@ -188,17 +187,17 @@ export default function Draft() {
     },
   });
 
-  const queryClient = useQueryClient();
+  const utils = trpc.useUtils();
 
   const makeDraftPickMutation = trpc.draft.makeDraftPick.useMutation({
     onSuccess: () => {
       toast.success("Draft Pick erfolgreich!");
       // Invalidate all available players queries to remove drafted player
-      queryClient.invalidateQueries({ queryKey: [['draft', 'getAvailableManufacturers']] });
-      queryClient.invalidateQueries({ queryKey: [['draft', 'getAvailableCannabisStrains']] });
-      queryClient.invalidateQueries({ queryKey: [['draft', 'getAvailableProducts']] });
-      queryClient.invalidateQueries({ queryKey: [['draft', 'getAvailablePharmacies']] });
-      queryClient.invalidateQueries({ queryKey: [['draft', 'getAvailableBrands']] });
+      utils.draft.getAvailableManufacturers.invalidate();
+      utils.draft.getAvailableCannabisStrains.invalidate();
+      utils.draft.getAvailableProducts.invalidate();
+      utils.draft.getAvailablePharmacies.invalidate();
+      utils.draft.getAvailableBrands.invalidate();
     },
     onError: (error) => {
       toast.error(`Draft Pick fehlgeschlagen: ${error.message}`);
