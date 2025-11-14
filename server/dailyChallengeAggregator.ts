@@ -12,6 +12,12 @@ import {
   calculatePharmacyScore,
   calculateBrandScore,
 } from './dailyChallengeScoringEngine';
+import {
+  manufacturerDailyChallengeStats,
+  strainDailyChallengeStats,
+  pharmacyDailyChallengeStats,
+  brandDailyChallengeStats,
+} from '../drizzle/dailyChallengeSchema';
 
 interface OrderRecord {
   ID: string;
@@ -138,7 +144,7 @@ export class DailyChallengeAggregator {
 
       // Upsert stats
       await db
-        .insert(db.schema.manufacturerDailyChallengeStats)
+        .insert(manufacturerDailyChallengeStats)
         .values({
           manufacturerId: manufacturer.id,
           statDate: dateString,
@@ -152,8 +158,8 @@ export class DailyChallengeAggregator {
         })
         .onConflictDoUpdate({
           target: [
-            db.schema.manufacturerDailyChallengeStats.manufacturerId,
-            db.schema.manufacturerDailyChallengeStats.statDate,
+            manufacturerDailyChallengeStats.manufacturerId,
+            manufacturerDailyChallengeStats.statDate,
           ],
           set: {
             salesVolumeGrams: data.salesVolumeGrams,
@@ -209,7 +215,7 @@ export class DailyChallengeAggregator {
       const scoring = calculateStrainScore(data, rank);
 
       await db
-        .insert(db.schema.strainDailyChallengeStats)
+        .insert(strainDailyChallengeStats)
         .values({
           strainId: strain.id,
           statDate: dateString,
@@ -221,7 +227,7 @@ export class DailyChallengeAggregator {
           updatedAt: new Date(),
         })
         .onConflictDoUpdate({
-          target: [db.schema.strainDailyChallengeStats.strainId, db.schema.strainDailyChallengeStats.statDate],
+          target: [strainDailyChallengeStats.strainId, strainDailyChallengeStats.statDate],
           set: {
             salesVolumeGrams: data.salesVolumeGrams,
             orderCount: data.orderCount,
@@ -273,7 +279,7 @@ export class DailyChallengeAggregator {
       const scoring = calculatePharmacyScore(data, rank);
 
       await db
-        .insert(db.schema.pharmacyDailyChallengeStats)
+        .insert(pharmacyDailyChallengeStats)
         .values({
           pharmacyId: pharmacy.id,
           statDate: dateString,
@@ -285,7 +291,7 @@ export class DailyChallengeAggregator {
           updatedAt: new Date(),
         })
         .onConflictDoUpdate({
-          target: [db.schema.pharmacyDailyChallengeStats.pharmacyId, db.schema.pharmacyDailyChallengeStats.statDate],
+          target: [pharmacyDailyChallengeStats.pharmacyId, pharmacyDailyChallengeStats.statDate],
           set: {
             orderCount: data.orderCount,
             revenueCents: data.revenueCents,
@@ -345,7 +351,7 @@ export class DailyChallengeAggregator {
       }, rank);
 
       await db
-        .insert(db.schema.brandDailyChallengeStats)
+        .insert(brandDailyChallengeStats)
         .values({
           brandId: brand.id,
           statDate: dateString,
@@ -363,7 +369,7 @@ export class DailyChallengeAggregator {
           updatedAt: new Date(),
         })
         .onConflictDoUpdate({
-          target: [db.schema.brandDailyChallengeStats.brandId, db.schema.brandDailyChallengeStats.statDate],
+          target: [brandDailyChallengeStats.brandId, brandDailyChallengeStats.statDate],
           set: {
             totalRatings: brandData.totalRatings,
             averageRating: brandData.averageRating.toString(),
