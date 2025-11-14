@@ -777,53 +777,6 @@ export default function DailyChallenge() {
           </CardContent>
         </Card>
 
-        {/* Team Lineup */}
-        {selectedTeam && (
-          <Card className="border-border/50 bg-card/80 slide-in-bottom">
-            <CardHeader>
-              <CardTitle className="text-foreground">
-                Team Lineup
-              </CardTitle>
-              <CardDescription>{selectedTeam.teamName}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {teamLineupLoading ? (
-                <div className="flex items-center justify-center py-8 text-muted-foreground">
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  Lädt Lineup...
-                </div>
-              ) : normalizedLineup.length > 0 ? (
-                <div className="grid gap-3 md:grid-cols-2">
-                  {normalizedLineup.map((slot) => (
-                    <div
-                      key={slot.position}
-                      className="p-3 rounded-lg border border-border/40 bg-card/70"
-                    >
-                      <div className="text-xs uppercase text-muted-foreground">
-                        {slot.position}
-                      </div>
-                      <div className="text-sm font-semibold text-foreground mt-1">
-                        {slot.assetName || "Noch nicht gesetzt"}
-                      </div>
-                      <div className="text-xs text-muted-foreground capitalize">
-                        {slot.assetType?.replace(/_/g, " ") || "—"}
-                      </div>
-                      {typeof slot.points === "number" && (
-                        <div className="text-xs text-muted-foreground mt-1">
-                          Punkte: {slot.points.toFixed(1)}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-6">
-                  Kein Lineup eingereicht.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        )}
 
         {/* Top Performers */}
         {topPerformers.length > 0 && (
