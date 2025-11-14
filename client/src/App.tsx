@@ -3,7 +3,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
-import { ThemeProvider } from "./contexts/ThemeContext";
 import Dashboard from "./pages/Dashboard";
 import LeagueList from "./pages/LeagueList";
 import LeagueDetail from "./pages/LeagueDetail";
@@ -19,6 +18,7 @@ import AcceptInvitation from "./pages/AcceptInvitation";
 import Login from "./pages/Login";
 import Admin from "./pages/Admin";
 import DailyChallenge from "./pages/DailyChallenge";
+import { useEffect } from "react";
 
 
 function Router() {
@@ -47,20 +47,16 @@ function Router() {
   );
 }
 
-function App() {
+export default function App() {
+  useEffect(() => {
+    document.documentElement.classList.add("dark");
+  }, []);
   return (
     <ErrorBoundary>
-      <ThemeProvider
-        defaultTheme="dark"
-        switchable
-      >
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
-      </ThemeProvider>
+      <TooltipProvider>
+        <Router />
+        <Toaster />
+      </TooltipProvider>
     </ErrorBoundary>
   );
 }
-
-export default App;
