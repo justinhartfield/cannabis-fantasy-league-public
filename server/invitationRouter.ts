@@ -133,7 +133,7 @@ export const invitationRouter = router({
           email: input.email,
           token: token,
           invitedBy: ctx.user.id,
-          expiresAt: expiresAt,
+          expiresAt: expiresAt.toISOString(),
           status: "pending",
           createdAt: new Date().toISOString(),
         })
