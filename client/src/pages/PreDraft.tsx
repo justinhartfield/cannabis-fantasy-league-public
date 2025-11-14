@@ -101,7 +101,7 @@ export default function PreDraft() {
       <div className="mb-6">
         <Button
           variant="ghost"
-          onClick={() => setLocation(`/league/${leagueId}`)}
+          onClick={() => window.history.back()}
           className="mb-4"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />

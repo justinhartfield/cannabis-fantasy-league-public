@@ -276,7 +276,7 @@ export default function Draft() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setLocation(`/league/${leagueId}`)}
+                onClick={() => window.history.back()}
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Zurück zur Liga

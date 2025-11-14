@@ -15,7 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { trpc } from "@/lib/trpc";
 import { Trophy, ArrowLeft, Loader2, Calendar, UserCircle, Settings } from "lucide-react";
 import { useState } from "react";
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { getLoginUrl } from "@/const";
 
@@ -79,10 +79,8 @@ export default function CreateLeague() {
       <header className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" asChild>
-              <Link href="/dashboard">
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
+            <Button variant="ghost" size="icon" onClick={() => window.history.back()}>
+              <ArrowLeft className="w-5 h-5" />
             </Button>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -452,8 +450,8 @@ export default function CreateLeague() {
 
           {/* Submit Button */}
           <div className="flex gap-3">
-            <Button type="button" variant="outline" className="flex-1" asChild>
-              <Link href="/dashboard">Abbrechen</Link>
+            <Button type="button" variant="outline" className="flex-1" onClick={() => window.history.back()}>
+              Abbrechen
             </Button>
             <Button
               type="submit"

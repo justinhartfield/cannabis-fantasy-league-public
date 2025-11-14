@@ -455,7 +455,7 @@ export default function DailyChallenge() {
       <header className="sticky top-0 z-10 border-b border-border/50 bg-card/80 backdrop-blur-lg">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => setLocation("/dashboard")}>
+            <Button variant="ghost" size="icon" onClick={() => window.history.back()}>
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div>

@@ -119,7 +119,7 @@ export default function Lineup() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setLocation(`/league/${leagueId}`)}
+                onClick={() => window.history.back()}
                 className="text-muted-foreground hover:text-foreground"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />

@@ -63,10 +63,8 @@ export default function LeagueList() {
       <header className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" asChild>
-              <Link href="/dashboard">
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
+            <Button variant="ghost" size="icon" onClick={() => window.history.back()}>
+              <ArrowLeft className="w-5 h-5" />
             </Button>
             <div className="flex items-center gap-3 flex-1">
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
