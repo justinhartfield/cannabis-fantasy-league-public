@@ -231,4 +231,38 @@ export const dataSyncRouter = router({
       },
     };
   }),
+
+  /**
+   * Aggregate daily stats for a specific date
+   * Admin only
+   */
+  aggregateDailyStats: protectedProcedure
+    .input(z.object({
+      statDate: z.string().optional(), // Format: YYYY-MM-DD, defaults to today
+    }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'admin') {
+        throw new Error('Unauthorized: Admin access required');
+      }
+
+      const { dailyStatsAggregator } = await import('./dailyStatsAggregator-v2');
+      
+      try {
+        const statDate = input.statDate || new Date().toISOString().split('T')[0];
+        await dailyStatsAggregator.aggregateForDate(statDate);
+        return {
+          success: true,
+          message: `Daily stats aggregated successfully for ${statDate}`,
+          statDate,
+        };
+      } catch (error) {
+        console.error('[DataSync API] Daily stats aggregation failed:', error);
+        return {
+          success: false,
+          message: 'Daily stats aggregation failed',
+          error: error instanceof Error ? error.message : 'Unknown error',
+        };
+      }
+    }),
 });
+

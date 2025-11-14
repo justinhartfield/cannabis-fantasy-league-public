@@ -257,9 +257,11 @@ export default function DailyChallenge() {
 
   const handleCalculateScores = () => {
     setIsCalculating(true);
+    // Don't pass statDate - let the backend use the challenge creation date
+    // This ensures we calculate scores for the date when stats were recorded
     calculateChallengeDayMutation.mutate({
       challengeId,
-      statDate: statDate || new Date().toISOString().split('T')[0],
+      statDate: statDate || '', // Use the challenge's stat date, not today
     });
   };
 

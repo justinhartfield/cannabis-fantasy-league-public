@@ -30,6 +30,12 @@ import {
   dailyTeamScores,
   dailyScoringBreakdowns,
 } from '../drizzle/schema';
+import {
+  manufacturerDailyChallengeStats,
+  strainDailyChallengeStats,
+  pharmacyDailyChallengeStats,
+  brandDailyChallengeStats,
+} from '../drizzle/dailyChallengeSchema';
 import { eq, and } from 'drizzle-orm';
 import { wsManager } from './websocket';
 import { getOrCreateLineup } from './utils/autoLineup';
@@ -1035,12 +1041,13 @@ async function scoreManufacturer(manufacturerId: number, scope: ScoreScope): Pro
       ))
       .limit(1);
   } else {
+    // Daily challenge: use daily challenge stats with pre-calculated points
     stats = await db
       .select()
-      .from(manufacturerDailyStats)
+      .from(manufacturerDailyChallengeStats)
       .where(and(
-        eq(manufacturerDailyStats.manufacturerId, manufacturerId),
-        eq(manufacturerDailyStats.statDate, scope.statDate)
+        eq(manufacturerDailyChallengeStats.manufacturerId, manufacturerId),
+        eq(manufacturerDailyChallengeStats.statDate, scope.statDate)
       ))
       .limit(1);
   }
@@ -1052,13 +1059,27 @@ async function scoreManufacturer(manufacturerId: number, scope: ScoreScope): Pro
 
   const statRecord = stats[0];
 
-  return calculateManufacturerPoints({
-    salesVolumeGrams: statRecord.salesVolumeGrams,
-    growthRatePercent: statRecord.growthRatePercent,
-    marketShareRank: statRecord.marketShareRank,
-    rankChange: statRecord.rankChange,
-    productCount: statRecord.productCount,
-  });
+  // For weekly scoring, calculate points using formula
+  if (scope.type === 'weekly') {
+    return calculateManufacturerPoints({
+      salesVolumeGrams: statRecord.salesVolumeGrams,
+      growthRatePercent: statRecord.growthRatePercent,
+      marketShareRank: statRecord.marketShareRank,
+      rankChange: statRecord.rankChange,
+      productCount: statRecord.productCount,
+    });
+  }
+
+  // For daily challenges, return pre-calculated points
+  return {
+    points: statRecord.totalPoints,
+    breakdown: {
+      salesVolumeGrams: statRecord.salesVolumeGrams,
+      orderCount: statRecord.orderCount,
+      revenueCents: statRecord.revenueCents,
+      rank: statRecord.rank,
+    }
+  };
 }
 
 /**
@@ -1085,13 +1106,14 @@ async function scoreCannabisStrain(cannabisStrainId: number, scope: ScoreScope):
       )
       .limit(1);
   } else {
+    // Daily challenge: use daily challenge stats with pre-calculated points
     stats = await db
       .select()
-      .from(cannabisStrainDailyStats)
+      .from(strainDailyChallengeStats)
       .where(
         and(
-          eq(cannabisStrainDailyStats.cannabisStrainId, cannabisStrainId),
-          eq(cannabisStrainDailyStats.statDate, scope.statDate)
+          eq(strainDailyChallengeStats.strainId, cannabisStrainId),
+          eq(strainDailyChallengeStats.statDate, scope.statDate)
         )
       )
       .limit(1);
@@ -1118,27 +1140,33 @@ async function scoreCannabisStrain(cannabisStrainId: number, scope: ScoreScope):
 
   const statRecord = stats[0];
   
-  const result = calculateCannabisStrainPoints({
-    totalFavorites: statRecord.totalFavorites,
-    pharmacyCount: statRecord.pharmacyCount,
-    productCount: statRecord.productCount,
-    avgPriceChange: statRecord.priceChange,
-    marketPenetration: statRecord.marketPenetration,
-  });
-
+  // For weekly scoring, calculate points using formula
   if (scope.type === 'weekly') {
+    const result = calculateCannabisStrainPoints({
+      totalFavorites: statRecord.totalFavorites,
+      pharmacyCount: statRecord.pharmacyCount,
+      productCount: statRecord.productCount,
+      avgPriceChange: statRecord.priceChange,
+      marketPenetration: statRecord.marketPenetration,
+    });
+
     await db
       .update(cannabisStrainWeeklyStats)
       .set({ totalPoints: result.points })
       .where(eq(cannabisStrainWeeklyStats.id, statRecord.id));
-  } else {
-    await db
-      .update(cannabisStrainDailyStats)
-      .set({ totalPoints: result.points, updatedAt: new Date().toISOString() })
-      .where(eq(cannabisStrainDailyStats.id, statRecord.id));
+
+    return result;
   }
 
-  return result;
+  // For daily challenges, return pre-calculated points
+  return {
+    points: statRecord.totalPoints,
+    breakdown: {
+      salesVolumeGrams: statRecord.salesVolumeGrams,
+      orderCount: statRecord.orderCount,
+      rank: statRecord.rank,
+    }
+  };
 }
 
 /**
@@ -1208,10 +1236,10 @@ async function scorePharmacy(pharmacyId: number, scope: ScoreScope): Promise<{ p
         .limit(1)
     : await db
         .select()
-        .from(pharmacyDailyStats)
+        .from(pharmacyDailyChallengeStats)
         .where(and(
-          eq(pharmacyDailyStats.pharmacyId, pharmacyId),
-          eq(pharmacyDailyStats.statDate, scope.statDate)
+          eq(pharmacyDailyChallengeStats.pharmacyId, pharmacyId),
+          eq(pharmacyDailyChallengeStats.statDate, scope.statDate)
         ))
         .limit(1);
 
@@ -1222,15 +1250,28 @@ async function scorePharmacy(pharmacyId: number, scope: ScoreScope): Promise<{ p
 
   const statRecord = stats[0];
 
-  return calculatePharmacyPoints({
-    revenueCents: statRecord.revenueCents,
-    orderCount: statRecord.orderCount,
-    avgOrderSizeGrams: statRecord.avgOrderSizeGrams,
-    customerRetentionRate: statRecord.customerRetentionRate,
-    productVariety: statRecord.productVariety,
-    appUsageRate: statRecord.appUsageRate,
-    growthRatePercent: statRecord.growthRatePercent,
-  });
+  // For weekly scoring, calculate points using formula
+  if (scope.type === 'weekly') {
+    return calculatePharmacyPoints({
+      revenueCents: statRecord.revenueCents,
+      orderCount: statRecord.orderCount,
+      avgOrderSizeGrams: statRecord.avgOrderSizeGrams,
+      customerRetentionRate: statRecord.customerRetentionRate,
+      productVariety: statRecord.productVariety,
+      appUsageRate: statRecord.appUsageRate,
+      growthRatePercent: statRecord.growthRatePercent,
+    });
+  }
+
+  // For daily challenges, return pre-calculated points
+  return {
+    points: statRecord.totalPoints,
+    breakdown: {
+      orderCount: statRecord.orderCount,
+      revenueCents: statRecord.revenueCents,
+      rank: statRecord.rank,
+    }
+  };
 }
 
 /**
@@ -1254,10 +1295,10 @@ async function scoreBrand(brandId: number, scope: ScoreScope): Promise<{ points:
         .limit(1)
     : await db
         .select()
-        .from(brandDailyStats)
+        .from(brandDailyChallengeStats)
         .where(and(
-          eq(brandDailyStats.brandId, brandId),
-          eq(brandDailyStats.statDate, scope.statDate)
+          eq(brandDailyChallengeStats.brandId, brandId),
+          eq(brandDailyChallengeStats.statDate, scope.statDate)
         ))
         .limit(1);
 
@@ -1268,16 +1309,29 @@ async function scoreBrand(brandId: number, scope: ScoreScope): Promise<{ points:
 
   const statRecord = stats[0];
 
-  return calculateBrandPoints({
-    favorites: statRecord.favorites,
-    favoriteGrowth: statRecord.favoriteGrowth,
-    views: statRecord.views,
-    viewGrowth: statRecord.viewGrowth,
-    comments: statRecord.comments,
-    commentGrowth: statRecord.commentGrowth,
-    affiliateClicks: statRecord.affiliateClicks,
-    clickGrowth: statRecord.clickGrowth,
-    engagementRate: statRecord.engagementRate,
-    sentimentScore: statRecord.sentimentScore,
-  });
+  // For weekly scoring, calculate points using formula
+  if (scope.type === 'weekly') {
+    return calculateBrandPoints({
+      favorites: statRecord.favorites,
+      favoriteGrowth: statRecord.favoriteGrowth,
+      views: statRecord.views,
+      viewGrowth: statRecord.viewGrowth,
+      comments: statRecord.comments,
+      commentGrowth: statRecord.commentGrowth,
+      affiliateClicks: statRecord.affiliateClicks,
+      clickGrowth: statRecord.clickGrowth,
+      engagementRate: statRecord.engagementRate,
+      sentimentScore: statRecord.sentimentScore,
+    });
+  }
+
+  // For daily challenges, return pre-calculated points
+  return {
+    points: statRecord.totalPoints,
+    breakdown: {
+      salesVolumeGrams: statRecord.salesVolumeGrams,
+      orderCount: statRecord.orderCount,
+      rank: statRecord.rank,
+    }
+  };
 }

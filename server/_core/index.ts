@@ -12,6 +12,7 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { scoringScheduler } from "../scoringScheduler";
 import { initDailyChallengeScheduler } from "../dailyChallengeScheduler";
+import { getDailyStatsScheduler } from "../dailyStatsScheduler";
 import { wsManager } from "../websocket";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -83,6 +84,11 @@ async function startServer() {
     // Start daily challenge scheduler
     initDailyChallengeScheduler();
     console.log('[DailyChallenge] Scheduler started');
+    
+    // Start daily stats aggregation scheduler
+    const dailyStatsScheduler = getDailyStatsScheduler();
+    dailyStatsScheduler.start();
+    console.log('[DailyStats] Scheduler started');
   });
 }
 

@@ -667,3 +667,6 @@ export const syncLogs = pgTable("syncLogs", {
 	index("sync_logs_job_id_idx").on(table.jobId),
 	index("sync_logs_timestamp_idx").on(table.timestamp),
 ]);
+
+// Daily Challenge Stats Tables
+export * from './dailyChallengeSchema';

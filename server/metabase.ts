@@ -97,7 +97,7 @@ export class MetabaseClient {
   }
 
   /**
-   * Execute a Metabase dataset query
+   * Execute a Metabase dataset query (MBQL format)
    */
   private async executeQuery<T = any>(query: any): Promise<T[]> {
     try {
@@ -112,6 +112,80 @@ export class MetabaseClient {
       console.error('[Metabase] Query failed:', error);
       throw error;
     }
+  }
+
+  /**
+   * Execute a native MongoDB query
+   * @param nativeQuery - MongoDB query string (e.g., "db.getCollection('Prescription').find({})")
+   * @returns Array of result rows
+   */
+  async executeNativeQuery<T = any>(nativeQuery: string): Promise<T[]> {
+    try {
+      console.log(`[Metabase] Executing native query: ${nativeQuery.substring(0, 100)}...`);
+      
+      const response = await this.axiosInstance.post('/api/dataset', {
+        database: 2, // Weed.de Prod DB
+        type: 'native',
+        native: {
+          query: nativeQuery,
+        },
+      });
+
+      const rows = response.data.data.rows || [];
+      console.log(`[Metabase] Native query returned ${rows.length} rows`);
+      return rows;
+    } catch (error) {
+      console.error('[Metabase] Native query failed:', error);
+      if (axios.isAxiosError(error) && error.response) {
+        console.error('[Metabase] Error response:', error.response.data);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Execute a saved question/card by ID
+   * @param cardId - The Metabase card/question ID
+   * @param parameters - Optional parameters for the card
+   * @returns Array of result objects
+   */
+  async executeCardQuery(cardId: number, parameters?: Record<string, any>): Promise<any[]> {
+    try {
+      console.log(`[Metabase] Executing card ${cardId}...`);
+      
+      const response = await this.axiosInstance.post(`/api/card/${cardId}/query`, parameters || {});
+      const rows = response.data.data?.rows || [];
+      const cols = response.data.data?.cols || [];
+
+      // Convert rows array to objects using column names
+      const results = rows.map((row: any[]) => {
+        const obj: Record<string, any> = {};
+        cols.forEach((col: any, index: number) => {
+          obj[col.display_name || col.name] = row[index];
+        });
+        return obj;
+      });
+
+      console.log(`[Metabase] Card ${cardId} returned ${results.length} rows`);
+      return results;
+    } catch (error) {
+      console.error(`[Metabase] Card query failed:`, error);
+      if (axios.isAxiosError(error) && error.response) {
+        console.error('[Metabase] Error response:', error.response.data);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Execute a MongoDB aggregation pipeline
+   * @param collection - Collection name (e.g., "Prescription")
+   * @param pipeline - MongoDB aggregation pipeline array
+   * @returns Array of aggregated results
+   */
+  async executeAggregation<T = any>(collection: string, pipeline: any[]): Promise<T[]> {
+    const query = `db.getCollection("${collection}").aggregate(${JSON.stringify(pipeline)})`;
+    return this.executeNativeQuery<T>(query);
   }
 
   /**
