@@ -674,6 +674,17 @@ export async function calculateDailyChallengeScores(challengeId: number, statDat
 
   const statDateString = targetDate.toISOString().split('T')[0];
 
+  // Automatically aggregate daily stats if they don't exist yet
+  console.log(`[calculateDailyChallengeScores] Checking if daily stats exist for ${statDateString}...`);
+  const { dailyChallengeAggregator } = await import('./dailyChallengeAggregator');
+  try {
+    await dailyChallengeAggregator.aggregateForDate(statDateString);
+    console.log(`[calculateDailyChallengeScores] Daily stats aggregated successfully for ${statDateString}`);
+  } catch (error) {
+    console.error(`[calculateDailyChallengeScores] Failed to aggregate daily stats:`, error);
+    // Continue anyway - maybe stats already exist
+  }
+
   const challengeTeams = await db
     .select()
     .from(teams)
