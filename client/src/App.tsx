@@ -19,6 +19,7 @@ import Login from "./pages/Login";
 import Admin from "./pages/Admin";
 import DailyChallenge from "./pages/DailyChallenge";
 import { useEffect } from "react";
+import { Navigation } from "./components/Navigation";
 
 
 function Router() {
@@ -54,6 +55,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <TooltipProvider>
+        <Navigation />
         <Router />
         <Toaster />
       </TooltipProvider>
