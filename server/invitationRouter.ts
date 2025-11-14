@@ -135,6 +135,7 @@ export const invitationRouter = router({
           invitedBy: ctx.user.id,
           expiresAt: expiresAt,
           status: "pending",
+          createdAt: new Date().toISOString(),
         })
         .returning({ id: invitations.id });
       
