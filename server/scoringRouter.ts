@@ -22,6 +22,7 @@ import {
 } from '../drizzle/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { sql } from 'drizzle-orm';
+import { TRPCError } from '@trpc/server';
 
 export const scoringRouter = router({
   /**
@@ -359,46 +360,88 @@ export const scoringRouter = router({
       challengeId: z.number(),
       statDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) {
-        throw new Error('Database not available');
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Database not available',
+        });
       }
 
-      const leagueTeams = await db
-        .select()
-        .from(teams)
-        .where(eq(teams.leagueId, input.challengeId));
-
-      const teamScores = [];
-      for (const team of leagueTeams) {
-        const scores = await db
+      try {
+        // Verify user has access to this challenge (owns a team or is admin)
+        const userTeams = await db
           .select()
-          .from(dailyTeamScores)
+          .from(teams)
           .where(and(
-            eq(dailyTeamScores.teamId, team.id),
-            eq(dailyTeamScores.challengeId, input.challengeId),
-            eq(dailyTeamScores.statDate, input.statDate as any) // Cast to ensure type compatibility
+            eq(teams.leagueId, input.challengeId),
+            eq(teams.userId, ctx.user.id)
           ))
           .limit(1);
 
-        if (scores.length > 0) {
-          teamScores.push({
-            teamId: team.id,
-            teamName: team.name,
-            points: scores[0].totalPoints,
-            ...scores[0],
-          });
-        } else {
-          teamScores.push({
-            teamId: team.id,
-            teamName: team.name,
-            points: 0,
+        if (userTeams.length === 0 && ctx.user.role !== 'admin') {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'You do not have access to this challenge',
           });
         }
-      }
 
-      return teamScores;
+        const leagueTeams = await db
+          .select()
+          .from(teams)
+          .where(eq(teams.leagueId, input.challengeId));
+
+        const teamScores = [];
+        for (const team of leagueTeams) {
+          try {
+            const scores = await db
+              .select()
+              .from(dailyTeamScores)
+              .where(and(
+                eq(dailyTeamScores.teamId, team.id),
+                eq(dailyTeamScores.challengeId, input.challengeId),
+                eq(dailyTeamScores.statDate, input.statDate)
+              ))
+              .limit(1);
+
+            if (scores.length > 0) {
+              teamScores.push({
+                teamId: team.id,
+                teamName: team.name,
+                points: scores[0].totalPoints,
+                ...scores[0],
+              });
+            } else {
+              teamScores.push({
+                teamId: team.id,
+                teamName: team.name,
+                points: 0,
+              });
+            }
+          } catch (error) {
+            console.error(`[Scoring API] Error fetching score for team ${team.id}:`, error);
+            // Continue with other teams even if one fails
+            teamScores.push({
+              teamId: team.id,
+              teamName: team.name,
+              points: 0,
+            });
+          }
+        }
+
+        return teamScores;
+      } catch (error) {
+        if (error instanceof TRPCError) {
+          throw error;
+        }
+        console.error('[Scoring API] Error in getChallengeDayScores:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to fetch challenge day scores',
+          cause: error,
+        });
+      }
     }),
 
   /**
@@ -410,96 +453,145 @@ export const scoringRouter = router({
       teamId: z.number(),
       statDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) {
-        throw new Error('Database not available');
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Database not available',
+        });
       }
 
-      const scores = await db
-        .select()
-        .from(dailyTeamScores)
-        .where(and(
-          eq(dailyTeamScores.teamId, input.teamId),
-          eq(dailyTeamScores.challengeId, input.challengeId),
-          eq(dailyTeamScores.statDate, input.statDate as any) // Cast to ensure type compatibility
-        ))
-        .limit(1);
+      try {
+        // Verify user has access to this challenge (owns a team or is admin)
+        const userTeams = await db
+          .select()
+          .from(teams)
+          .where(and(
+            eq(teams.leagueId, input.challengeId),
+            eq(teams.userId, ctx.user.id)
+          ))
+          .limit(1);
 
-      if (scores.length === 0) {
-        return null;
-      }
-
-      const score = scores[0];
-
-      const breakdowns = await db
-        .select()
-        .from(dailyScoringBreakdowns)
-        .where(eq(dailyScoringBreakdowns.dailyTeamScoreId, score.id));
-
-      const manufacturerIds: number[] = [];
-      const strainIds: number[] = [];
-      const productIds: number[] = [];
-      const pharmacyIds: number[] = [];
-      const brandIds: number[] = [];
-
-      breakdowns.forEach((bd) => {
-        if (bd.assetType === 'manufacturer') {
-          manufacturerIds.push(bd.assetId);
-        } else if (bd.assetType === 'cannabis_strain') {
-          strainIds.push(bd.assetId);
-        } else if (bd.assetType === 'product') {
-          productIds.push(bd.assetId);
-        } else if (bd.assetType === 'pharmacy') {
-          pharmacyIds.push(bd.assetId);
-        } else if (bd.assetType === 'brand') {
-          brandIds.push(bd.assetId);
+        if (userTeams.length === 0 && ctx.user.role !== 'admin') {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'You do not have access to this challenge',
+          });
         }
-      });
 
-      const [manufacturerNames, strainNames, productNames, pharmacyNames, brandNames] = await Promise.all([
-        manufacturerIds.length > 0
-          ? db.select({ id: manufacturers.id, name: manufacturers.name })
-              .from(manufacturers)
-              .where(inArray(manufacturers.id, manufacturerIds))
-          : [],
-        strainIds.length > 0
-          ? db.select({ id: cannabisStrains.id, name: cannabisStrains.name })
-              .from(cannabisStrains)
-              .where(inArray(cannabisStrains.id, strainIds))
-          : [],
-        productIds.length > 0
-          ? db.select({ id: strains.id, name: strains.name })
-              .from(strains)
-              .where(inArray(strains.id, productIds))
-          : [],
-        pharmacyIds.length > 0
-          ? db.select({ id: pharmacies.id, name: pharmacies.name })
-              .from(pharmacies)
-              .where(inArray(pharmacies.id, pharmacyIds))
-          : [],
-        brandIds.length > 0
-          ? db.select({ id: brands.id, name: brands.name })
-              .from(brands)
-              .where(inArray(brands.id, brandIds))
-          : [],
-      ]);
+        // Verify the team belongs to this challenge
+        const team = await db
+          .select()
+          .from(teams)
+          .where(and(
+            eq(teams.id, input.teamId),
+            eq(teams.leagueId, input.challengeId)
+          ))
+          .limit(1);
 
-      const nameMap = new Map<number, string>();
-      manufacturerNames.forEach((m) => nameMap.set(m.id, m.name));
-      strainNames.forEach((s) => nameMap.set(s.id, s.name));
-      productNames.forEach((p) => nameMap.set(p.id, p.name));
-      pharmacyNames.forEach((p) => nameMap.set(p.id, p.name));
-      brandNames.forEach((b) => nameMap.set(b.id, b.name));
+        if (team.length === 0) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Team not found in this challenge',
+          });
+        }
 
-      const enrichedBreakdowns = breakdowns.map((bd) => ({
-        ...bd,
-        assetName: nameMap.get(bd.assetId) || null,
-      }));
+        const scores = await db
+          .select()
+          .from(dailyTeamScores)
+          .where(and(
+            eq(dailyTeamScores.teamId, input.teamId),
+            eq(dailyTeamScores.challengeId, input.challengeId),
+            eq(dailyTeamScores.statDate, input.statDate)
+          ))
+          .limit(1);
 
-      return {
-        score,
-        breakdowns: enrichedBreakdowns,
-      };
+        if (scores.length === 0) {
+          return null;
+        }
+
+        const score = scores[0];
+
+        const breakdowns = await db
+          .select()
+          .from(dailyScoringBreakdowns)
+          .where(eq(dailyScoringBreakdowns.dailyTeamScoreId, score.id));
+
+        const manufacturerIds: number[] = [];
+        const strainIds: number[] = [];
+        const productIds: number[] = [];
+        const pharmacyIds: number[] = [];
+        const brandIds: number[] = [];
+
+        breakdowns.forEach((bd) => {
+          if (bd.assetType === 'manufacturer') {
+            manufacturerIds.push(bd.assetId);
+          } else if (bd.assetType === 'cannabis_strain') {
+            strainIds.push(bd.assetId);
+          } else if (bd.assetType === 'product') {
+            productIds.push(bd.assetId);
+          } else if (bd.assetType === 'pharmacy') {
+            pharmacyIds.push(bd.assetId);
+          } else if (bd.assetType === 'brand') {
+            brandIds.push(bd.assetId);
+          }
+        });
+
+        const [manufacturerNames, strainNames, productNames, pharmacyNames, brandNames] = await Promise.all([
+          manufacturerIds.length > 0
+            ? db.select({ id: manufacturers.id, name: manufacturers.name })
+                .from(manufacturers)
+                .where(inArray(manufacturers.id, manufacturerIds))
+            : [],
+          strainIds.length > 0
+            ? db.select({ id: cannabisStrains.id, name: cannabisStrains.name })
+                .from(cannabisStrains)
+                .where(inArray(cannabisStrains.id, strainIds))
+            : [],
+          productIds.length > 0
+            ? db.select({ id: strains.id, name: strains.name })
+                .from(strains)
+                .where(inArray(strains.id, productIds))
+            : [],
+          pharmacyIds.length > 0
+            ? db.select({ id: pharmacies.id, name: pharmacies.name })
+                .from(pharmacies)
+                .where(inArray(pharmacies.id, pharmacyIds))
+            : [],
+          brandIds.length > 0
+            ? db.select({ id: brands.id, name: brands.name })
+                .from(brands)
+                .where(inArray(brands.id, brandIds))
+            : [],
+        ]);
+
+        const nameMap = new Map<number, string>();
+        manufacturerNames.forEach((m) => nameMap.set(m.id, m.name));
+        strainNames.forEach((s) => nameMap.set(s.id, s.name));
+        productNames.forEach((p) => nameMap.set(p.id, p.name));
+        pharmacyNames.forEach((p) => nameMap.set(p.id, p.name));
+        brandNames.forEach((b) => nameMap.set(b.id, b.name));
+
+        const enrichedBreakdowns = breakdowns.map((bd) => ({
+          ...bd,
+          assetName: nameMap.get(bd.assetId) || null,
+        }));
+
+        return {
+          score,
+          breakdowns: enrichedBreakdowns,
+        };
+      } catch (error) {
+        if (error instanceof TRPCError) {
+          throw error;
+        }
+        console.error('[Scoring API] Error in getChallengeDayBreakdown:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to fetch challenge day breakdown',
+          cause: error,
+        });
+      }
     }),
 });

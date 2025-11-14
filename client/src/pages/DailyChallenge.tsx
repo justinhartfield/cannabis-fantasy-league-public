@@ -246,9 +246,10 @@ export default function DailyChallenge() {
     return () => clearInterval(interval);
   }, [nextUpdateTime]);
 
-  // Calculate scores on page load as fallback
+  // Calculate scores on page load as fallback (admin only)
   useEffect(() => {
     if (
+      isAdmin &&
       league &&
       league.leagueType === 'challenge' &&
       league.status === 'active' &&
@@ -261,7 +262,7 @@ export default function DailyChallenge() {
         statDate,
       });
     }
-  }, [league, challengeId, statDate, isTodayChallenge, isCalculating]);
+  }, [isAdmin, league, challengeId, statDate, isTodayChallenge, isCalculating]);
 
   const handleCalculateScores = () => {
     setIsCalculating(true);
