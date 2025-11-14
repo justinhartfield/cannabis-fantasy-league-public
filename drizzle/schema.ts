@@ -493,6 +493,24 @@ export const teams = pgTable("teams", {
 	unique("league_user_idx").on(table.leagueId, table.userId),
 ]);
 
+export const invitations = pgTable("invitations", {
+	id: serial().notNull(),
+	leagueId: integer().notNull(),
+	email: varchar({ length: 255 }).notNull(),
+	token: varchar({ length: 255 }).notNull(),
+	invitedBy: integer().notNull(),
+	status: varchar({ length: 20 }).default('pending').notNull(),
+	expiresAt: timestamp({ mode: 'string', withTimezone: true }).notNull(),
+	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
+	acceptedAt: timestamp({ mode: 'string', withTimezone: true }),
+},
+(table) => [
+	index("invitations_token_idx").on(table.token),
+	index("invitations_league_idx").on(table.leagueId),
+	index("invitations_email_idx").on(table.email),
+	unique("invitations_token_unique").on(table.token),
+]);
+
 export const trades = pgTable("trades", {
 	id: serial().notNull(),
 	leagueId: integer().notNull(),

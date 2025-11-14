@@ -43,7 +43,9 @@ export async function calculateNextPick(leagueId: number): Promise<{
   // Calculate team index based on draft type
   let teamIndex: number;
   
-  if (league.draftType === "snake") {
+  const isSnakeDraft = league.draftType === "snake" && teamCount > 2;
+
+  if (isSnakeDraft) {
     // Snake draft: odd rounds go forward, even rounds go backward
     if (currentRound % 2 === 1) {
       // Odd round: 1, 2, 3, 4...
