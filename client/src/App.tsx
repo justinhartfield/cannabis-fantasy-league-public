@@ -18,6 +18,8 @@ import AcceptInvitation from "./pages/AcceptInvitation";
 import Login from "./pages/Login";
 import Admin from "./pages/Admin";
 import DailyChallenge from "./pages/DailyChallenge";
+import PredictionStreak from "./pages/PredictionStreak";
+import PredictionLeaderboard from "./pages/PredictionLeaderboard";
 import { useEffect } from "react";
 import { Navigation } from "./components/Navigation";
 
@@ -38,6 +40,8 @@ function Router() {
       <Route path={"/league/:id/lineup"} component={Lineup} />
       <Route path={"/league/:id/scoring"} component={Scoring} />
       <Route path={"/challenge/:id"} component={DailyChallenge} />
+      <Route path={"/prediction-streak"} component={PredictionStreak} />
+      <Route path={"/prediction-leaderboard"} component={PredictionLeaderboard} />
       <Route path={"/invitations/:token"} component={AcceptInvitation} />
       <Route path={"/admin"} component={Admin} />
 
