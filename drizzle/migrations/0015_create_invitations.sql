@@ -15,6 +15,18 @@ CREATE INDEX IF NOT EXISTS "invitations_token_idx" ON "invitations" ("token");
 CREATE INDEX IF NOT EXISTS "invitations_league_idx" ON "invitations" ("leagueId");
 CREATE INDEX IF NOT EXISTS "invitations_email_idx" ON "invitations" ("email");
 
+-- Add PRIMARY KEY to leagues.id if it doesn't exist
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'leagues_pkey' 
+        AND conrelid = 'leagues'::regclass
+    ) THEN
+        ALTER TABLE "leagues" ADD PRIMARY KEY ("id");
+    END IF;
+END $$;
+
 ALTER TABLE "invitations"
 	ADD CONSTRAINT "invitations_league_fk"
 	FOREIGN KEY ("leagueId") REFERENCES "leagues" ("id") ON DELETE CASCADE;
