@@ -2,7 +2,7 @@ import { z } from "zod";
 import { router, protectedProcedure, publicProcedure } from "./_core/trpc";
 import { getDb } from "./db";
 import { leagues, teams, users, invitations } from "../drizzle/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import crypto from "crypto";
 import { sendLeagueInvitation, sendWelcomeEmail } from "./emailService";
@@ -86,15 +86,17 @@ export const invitationRouter = router({
       }
 
       // Check if email is already invited or a member
-      const existingInvitation = await db.query.invitations?.findFirst({
-        where: (invitations: any, { and, eq }: any) => and(
+      const existingInvitation = await db
+        .select()
+        .from(invitations)
+        .where(and(
           eq(invitations.leagueId, input.leagueId),
           eq(invitations.email, input.email),
           eq(invitations.status, 'pending')
-        ),
-      });
+        ))
+        .limit(1);
 
-      if (existingInvitation) {
+      if (existingInvitation.length > 0) {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'User already has a pending invitation' });
       }
 
@@ -125,11 +127,13 @@ export const invitationRouter = router({
       const expiresAt = getExpirationDate();
 
       // Create invitation
-      const [result] = await db.execute({
-        sql: `INSERT INTO invitations (leagueId, email, token, invitedBy, expiresAt) 
-              VALUES (?, ?, ?, ?, ?)`,
-        args: [input.leagueId, input.email, token, ctx.user.id, expiresAt],
-      });
+      const insertResult = await db.execute(sql`
+        INSERT INTO "invitations" ("leagueId", "email", "token", "invitedBy", "expiresAt")
+        VALUES (${input.leagueId}, ${input.email}, ${token}, ${ctx.user.id}, ${expiresAt})
+        RETURNING "id"
+      `);
+
+      const invitationId = insertResult.rows?.[0]?.id;
 
       // Send invitation email
       const recipientName = input.recipientName || input.email.split('@')[0];
@@ -144,7 +148,7 @@ export const invitationRouter = router({
 
       return {
         success: true,
-        invitationId: result.insertId,
+        invitationId,
         message: `Invitation sent to ${input.email}`,
       };
     }),
@@ -162,27 +166,28 @@ export const invitationRouter = router({
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
       }
 
-      const [invitation] = await db.execute({
-        sql: `SELECT i.*, l.name as leagueName, u.username as inviterName, u.email as inviterEmail
-              FROM invitations i
-              JOIN leagues l ON i.leagueId = l.id
-              JOIN users u ON i.invitedBy = u.id
-              WHERE i.token = ?`,
-        args: [input.token],
-      }) as any;
+      const invitationResult = await db.execute(sql`
+        SELECT i.*, l."name" as "leagueName", u."name" as "inviterName", u."email" as "inviterEmail"
+        FROM "invitations" i
+        JOIN "leagues" l ON i."leagueId" = l."id"
+        JOIN "users" u ON i."invitedBy" = u."id"
+        WHERE i."token" = ${input.token}
+        LIMIT 1
+      `);
 
-      if (!invitation || invitation.rows.length === 0) {
+      if (!invitationResult.rows || invitationResult.rows.length === 0) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Invitation not found' });
       }
 
-      const inv = invitation.rows[0];
+      const inv = invitationResult.rows[0];
 
       // Check if expired
       if (new Date(inv.expiresAt) < new Date()) {
-        await db.execute({
-          sql: `UPDATE invitations SET status = 'expired' WHERE token = ?`,
-          args: [input.token],
-        });
+        await db.execute(sql`
+          UPDATE "invitations"
+          SET "status" = 'expired'
+          WHERE "token" = ${input.token}
+        `);
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'Invitation has expired' });
       }
 
@@ -221,12 +226,14 @@ export const invitationRouter = router({
       }
 
       // Get invitation
-      const [invitationResult] = await db.execute({
-        sql: `SELECT * FROM invitations WHERE token = ?`,
-        args: [input.token],
-      }) as any;
+      const invitationResult = await db.execute(sql`
+        SELECT *
+        FROM "invitations"
+        WHERE "token" = ${input.token}
+        LIMIT 1
+      `) as any;
 
-      if (!invitationResult || invitationResult.rows.length === 0) {
+      if (!invitationResult.rows || invitationResult.rows.length === 0) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Invitation not found' });
       }
 
@@ -234,10 +241,11 @@ export const invitationRouter = router({
 
       // Check if expired
       if (new Date(invitation.expiresAt) < new Date()) {
-        await db.execute({
-          sql: `UPDATE invitations SET status = 'expired' WHERE token = ?`,
-          args: [input.token],
-        });
+        await db.execute(sql`
+          UPDATE "invitations"
+          SET "status" = 'expired'
+          WHERE "token" = ${input.token}
+        `);
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'Invitation has expired' });
       }
 
@@ -279,12 +287,13 @@ export const invitationRouter = router({
         }
 
         // Create new user (password should be hashed in production)
-        const [userResult] = await db.execute({
-          sql: `INSERT INTO users (email, username, password) VALUES (?, ?, ?)`,
-          args: [invitation.email, input.username, input.password], // TODO: Hash password
-        }) as any;
+        const userInsert = await db.execute(sql`
+          INSERT INTO "users" ("email", "username", "password")
+          VALUES (${invitation.email}, ${input.username}, ${input.password})
+          RETURNING "id"
+        `) as any;
 
-        userId = userResult.insertId;
+        userId = userInsert.rows?.[0]?.id;
 
         // Send welcome email
         await sendWelcomeEmail({
@@ -313,13 +322,14 @@ export const invitationRouter = router({
         userId: userId,
         name: input.teamName,
         draftPosition: 0, // Will be set during draft
-      });
+      }).returning({ id: teams.id });
 
       // Update invitation status
-      await db.execute({
-        sql: `UPDATE invitations SET status = 'accepted', acceptedAt = NOW() WHERE token = ?`,
-        args: [input.token],
-      });
+      await db.execute(sql`
+        UPDATE "invitations"
+        SET "status" = 'accepted', "acceptedAt" = NOW()
+        WHERE "token" = ${input.token}
+      `);
 
       // Get league type for redirect
       const leagueResult = await db
@@ -330,7 +340,7 @@ export const invitationRouter = router({
 
       return {
         success: true,
-        teamId: teamResult.insertId,
+        teamId: teamResult?.id,
         leagueId: invitation.leagueId,
         leagueType: leagueResult[0]?.leagueType || 'season',
         userId: userId,
@@ -351,10 +361,11 @@ export const invitationRouter = router({
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
       }
 
-      await db.execute({
-        sql: `UPDATE invitations SET status = 'declined' WHERE token = ? AND status = 'pending'`,
-        args: [input.token],
-      });
+      await db.execute(sql`
+        UPDATE "invitations"
+        SET "status" = 'declined'
+        WHERE "token" = ${input.token} AND "status" = 'pending'
+      `);
 
       return {
         success: true,
@@ -391,16 +402,15 @@ export const invitationRouter = router({
       }
 
       // Get invitations
-      const [result] = await db.execute({
-        sql: `SELECT i.*, u.username as inviterName
-              FROM invitations i
-              JOIN users u ON i.invitedBy = u.id
-              WHERE i.leagueId = ?
-              ORDER BY i.createdAt DESC`,
-        args: [input.leagueId],
-      }) as any;
+      const invitationList = await db.execute(sql`
+        SELECT i.*, u."name" as "inviterName"
+        FROM "invitations" i
+        JOIN "users" u ON i."invitedBy" = u."id"
+        WHERE i."leagueId" = ${input.leagueId}
+        ORDER BY i."createdAt" DESC
+      `) as any;
 
-      return result.rows || [];
+      return invitationList.rows || [];
     }),
 
   /**
@@ -417,15 +427,15 @@ export const invitationRouter = router({
       }
 
       // Get invitation
-      const [invitationResult] = await db.execute({
-        sql: `SELECT i.*, l.name as leagueName
-              FROM invitations i
-              JOIN leagues l ON i.leagueId = l.id
-              WHERE i.id = ?`,
-        args: [input.invitationId],
-      }) as any;
+      const invitationResult = await db.execute(sql`
+        SELECT i.*, l."name" as "leagueName"
+        FROM "invitations" i
+        JOIN "leagues" l ON i."leagueId" = l."id"
+        WHERE i."id" = ${input.invitationId}
+        LIMIT 1
+      `) as any;
 
-      if (!invitationResult || invitationResult.rows.length === 0) {
+      if (!invitationResult.rows || invitationResult.rows.length === 0) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Invitation not found' });
       }
 
@@ -449,10 +459,11 @@ export const invitationRouter = router({
 
       // Update expiration date
       const newExpiresAt = getExpirationDate();
-      await db.execute({
-        sql: `UPDATE invitations SET expiresAt = ? WHERE id = ?`,
-        args: [newExpiresAt, input.invitationId],
-      });
+      await db.execute(sql`
+        UPDATE "invitations"
+        SET "expiresAt" = ${newExpiresAt}
+        WHERE "id" = ${input.invitationId}
+      `);
 
       // Resend email
       await sendLeagueInvitation({
@@ -484,12 +495,14 @@ export const invitationRouter = router({
       }
 
       // Get invitation
-      const [invitationResult] = await db.execute({
-        sql: `SELECT * FROM invitations WHERE id = ?`,
-        args: [input.invitationId],
-      }) as any;
+      const invitationResult = await db.execute(sql`
+        SELECT *
+        FROM "invitations"
+        WHERE "id" = ${input.invitationId}
+        LIMIT 1
+      `) as any;
 
-      if (!invitationResult || invitationResult.rows.length === 0) {
+      if (!invitationResult.rows || invitationResult.rows.length === 0) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Invitation not found' });
       }
 
@@ -507,10 +520,9 @@ export const invitationRouter = router({
       }
 
       // Delete invitation
-      await db.execute({
-        sql: `DELETE FROM invitations WHERE id = ?`,
-        args: [input.invitationId],
-      });
+      await db.execute(sql`
+        DELETE FROM "invitations" WHERE "id" = ${input.invitationId}
+      `);
 
       return {
         success: true,
