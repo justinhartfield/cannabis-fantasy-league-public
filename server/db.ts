@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { InsertUser, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
+import * as schema from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 let _client: ReturnType<typeof postgres> | null = null;
@@ -14,7 +15,7 @@ export async function getDb() {
       _client = postgres(process.env.DATABASE_URL, {
         ssl: 'require'
       });
-      _db = drizzle(_client);
+      _db = drizzle(_client, { schema });
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
