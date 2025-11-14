@@ -90,13 +90,19 @@ export default function DailyChallenge() {
   const {
     data: dayScores,
     isLoading: scoresLoading,
+    isError: scoresError,
+    error: scoresErrorDetails,
     refetch: refetchScores,
   } = trpc.scoring.getChallengeDayScores.useQuery(
     {
       challengeId,
       statDate: statDate || '',
     },
-    { enabled: !!league && !!statDate }
+    { 
+      enabled: !!league && !!statDate,
+      retry: 3,
+      retryDelay: 1000,
+    }
   );
 
   const {
@@ -246,23 +252,8 @@ export default function DailyChallenge() {
     return () => clearInterval(interval);
   }, [nextUpdateTime]);
 
-  // Calculate scores on page load as fallback (admin only)
-  useEffect(() => {
-    if (
-      isAdmin &&
-      league &&
-      league.leagueType === 'challenge' &&
-      league.status === 'active' &&
-      !isCalculating &&
-      statDate &&
-      isTodayChallenge
-    ) {
-      calculateChallengeDayMutation.mutate({
-        challengeId,
-        statDate,
-      });
-    }
-  }, [isAdmin, league, challengeId, statDate, isTodayChallenge, isCalculating]);
+  // Auto-calculation removed - scores are now calculated by the backend scheduler
+  // Admin users can still manually trigger calculation using the "Calculate Scores" button
 
   const handleCalculateScores = () => {
     setIsCalculating(true);

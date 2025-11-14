@@ -57,21 +57,28 @@ class ChallengeScoreScheduler {
     const currentMinute = now.getMinutes();
     const currentDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
 
+    // Log every 15 minutes for monitoring
+    if (currentMinute % 15 === 0) {
+      console.log(`[ChallengeScoreScheduler] Health check at ${now.toISOString()} - Hour: ${currentHour}, Minute: ${currentMinute}`);
+    }
+
     // Check for hourly update (at :00 minutes)
     if (currentMinute === 0 && currentHour !== this.lastUpdateHour) {
+      console.log(`[ChallengeScoreScheduler] Triggering hourly update at ${now.toISOString()}`);
       this.lastUpdateHour = currentHour;
       await this.updateHourlyScores();
     }
 
     // Check for midnight finalization (00:00)
     if (currentHour === 0 && currentMinute === 0 && currentDate !== this.lastFinalizationDate) {
+      console.log(`[ChallengeScoreScheduler] Triggering midnight finalization at ${now.toISOString()}`);
       this.lastFinalizationDate = currentDate;
       await this.finalizeChallenges();
     }
   }
 
   /**
-   * Update scores for active challenges created today
+   * Update scores for ALL active challenges
    */
   private async updateHourlyScores() {
     console.log('[ChallengeScoreScheduler] Running hourly score update...');
@@ -83,26 +90,14 @@ class ChallengeScoreScheduler {
     }
 
     try {
-      const now = new Date();
-      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const todayEnd = new Date(todayStart);
-      todayEnd.setDate(todayEnd.getDate() + 1);
-
-      // Find all active challenges created today
-      // Note: Using SQL comparison since drizzle-orm date comparisons can be tricky
-      const allChallenges = await db
+      // Find ALL active challenges (not just today's)
+      const activeChallenges = await db
         .select()
         .from(leagues)
         .where(and(
           eq(leagues.leagueType, 'challenge'),
           eq(leagues.status, 'active')
         ));
-
-      // Filter challenges created today
-      const activeChallenges = allChallenges.filter(challenge => {
-        const createdAt = new Date(challenge.createdAt);
-        return createdAt >= todayStart && createdAt < todayEnd;
-      });
 
       console.log(`[ChallengeScoreScheduler] Found ${activeChallenges.length} active challenges to update`);
 
@@ -113,7 +108,15 @@ class ChallengeScoreScheduler {
           const statDateObj = new Date(statDateString);
           const statYear = statDateObj.getFullYear();
           const statWeek = this.getWeekNumber(statDateObj);
+          
           await calculateDailyChallengeScores(challenge.id, statDateString);
+
+          // Broadcast WebSocket update
+          wsManager.notifyChallengeScoreUpdate(challenge.id, {
+            challengeId: challenge.id,
+            statDate: statDateString,
+            updateTime: new Date().toISOString(),
+          });
 
           console.log(`[ChallengeScoreScheduler] Updated challenge ${challenge.id}`);
         } catch (error) {
