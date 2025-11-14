@@ -37,7 +37,7 @@ export class DailyChallengeAggregator {
     try {
       console.log(`[DailyChallengeAggregator] Starting aggregation for ${dateString}...`);
 
-      const db = getDb();
+      const db = await getDb();
 
       // Fetch orders from Metabase
       const orders = await this.fetchOrdersForDate(dateString);
