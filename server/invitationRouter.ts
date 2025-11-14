@@ -89,17 +89,15 @@ export const invitationRouter = router({
       }
 
       // Check if email is already invited or a member
-      const existingInvitation = await db
-        .select()
-        .from(invitations)
-        .where(and(
-          eq(invitations.leagueId, input.leagueId),
-          eq(invitations.email, input.email),
-          eq(invitations.status, 'pending')
-        ))
-        .limit(1);
+      const existingInvitationResult = await db.execute(sql`
+        SELECT id FROM "invitations"
+        WHERE "leagueId" = ${input.leagueId}
+        AND "email" = ${input.email}
+        AND "status" = 'pending'
+        LIMIT 1
+      `);
 
-      if (existingInvitation.length > 0) {
+      if (existingInvitationResult.rows.length > 0) {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'User already has a pending invitation' });
       }
 
