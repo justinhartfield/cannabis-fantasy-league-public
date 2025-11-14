@@ -20,8 +20,7 @@ import {
   dailyTeamScores,
   dailyScoringBreakdowns,
 } from '../drizzle/schema';
-import { eq, and, inArray } from 'drizzle-orm';
-import { sql } from 'drizzle-orm';
+import { eq, and, inArray, sql } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 
 export const scoringRouter = router({
@@ -414,7 +413,7 @@ export const scoringRouter = router({
               .where(and(
                 eq(dailyTeamScores.teamId, team.id),
                 eq(dailyTeamScores.challengeId, input.challengeId),
-                eq(dailyTeamScores.statDate, input.statDate)
+                sql`${dailyTeamScores.statDate} = ${input.statDate}::date`
               ))
               .limit(1);
 
@@ -434,14 +433,22 @@ export const scoringRouter = router({
               });
             }
           } catch (error: any) {
+            // Try to extract underlying PostgreSQL error
+            const pgError = error?.cause || error;
+            const errorCode = pgError?.code;
+            const errorDetail = pgError?.detail || pgError?.message || error?.message;
+            
             console.error(`[Scoring API] Error fetching score for team ${team.id}:`, {
               error: error?.message || String(error),
               stack: error?.stack,
               name: error?.name,
-              code: error?.code,
+              code: errorCode,
+              detail: errorDetail,
+              cause: error?.cause,
               challengeId: input.challengeId,
               teamId: team.id,
               statDate: input.statDate,
+              allProps: Object.keys(error || {}),
             });
             // Continue with other teams even if one fails
             teamScores.push({
@@ -547,22 +554,31 @@ export const scoringRouter = router({
             .where(and(
               eq(dailyTeamScores.teamId, input.teamId),
               eq(dailyTeamScores.challengeId, input.challengeId),
-              eq(dailyTeamScores.statDate, input.statDate)
+              sql`${dailyTeamScores.statDate} = ${input.statDate}::date`
             ))
             .limit(1);
         } catch (error: any) {
+          // Try to extract underlying PostgreSQL error
+          const pgError = error?.cause || error;
+          const errorCode = pgError?.code;
+          const errorDetail = pgError?.detail || pgError?.message || error?.message;
+          
           console.error('[Scoring API] Error fetching daily team scores:', {
             error: error?.message || String(error),
             stack: error?.stack,
             name: error?.name,
-            code: error?.code,
+            code: errorCode,
+            detail: errorDetail,
+            cause: error?.cause,
             challengeId: input.challengeId,
             teamId: input.teamId,
             statDate: input.statDate,
+            // Log all error properties to help debug
+            allProps: Object.keys(error || {}),
           });
           throw new TRPCError({
             code: 'INTERNAL_SERVER_ERROR',
-            message: `Database query failed: ${error?.message || 'Unknown error'}`,
+            message: `Database query failed: ${errorDetail || error?.message || 'Unknown error'}`,
             cause: error,
           });
         }
