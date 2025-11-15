@@ -248,6 +248,7 @@ export default function DraftBoard({
                           assetType="manufacturer"
                           assetId={mfg.id}
                           assetName={mfg.name}
+                          imageUrl={mfg.logoUrl}
                           stats={[{ label: "Produkte", value: mfg.productCount }]}
                           isMyTurn={isMyTurn}
                           isInMyRoster={myRoster.some(r => r.assetType === "manufacturer" && r.assetId === mfg.id)}
@@ -270,6 +271,7 @@ export default function DraftBoard({
                           assetType="cannabis_strain"
                           assetId={strain.id}
                           assetName={strain.name}
+                          imageUrl={strain.imageUrl}
                           stats={[
                             { label: "Typ", value: strain.type },
                             { label: "Effects", value: Array.isArray(strain.effects) ? strain.effects.slice(0, 2).join(", ") : (strain.effects || "N/A") },
@@ -321,6 +323,7 @@ export default function DraftBoard({
                           assetType="brand"
                           assetId={brand.id}
                           assetName={brand.name}
+                          imageUrl={brand.logoUrl}
                           stats={[
                             { label: "Favorites", value: brand.totalFavorites || 0 },
                             { label: "Views", value: brand.totalViews || 0 },
@@ -346,6 +349,7 @@ export default function DraftBoard({
                           assetType="pharmacy"
                           assetId={phm.id}
                           assetName={phm.name}
+                          imageUrl={phm.logoUrl}
                           stats={[{ label: "Stadt", value: phm.city }]}
                           isMyTurn={isMyTurn}
                           isInMyRoster={myRoster.some(r => r.assetType === "pharmacy" && r.assetId === phm.id)}

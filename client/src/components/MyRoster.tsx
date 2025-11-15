@@ -9,6 +9,7 @@ interface RosterItem {
   assetType: AssetType;
   assetId: number;
   name: string;
+  imageUrl?: string | null;
 }
 
 interface MyRosterProps {
@@ -114,7 +115,16 @@ export function MyRoster({ roster, teamName }: MyRosterProps) {
               key={`${item.assetId}-${idx}`}
               className="flex items-center gap-2 text-xs"
             >
-              <CheckCircle2 className="w-3 h-3 text-green-500 shrink-0" />
+              {item.imageUrl ? (
+                <img 
+                  src={item.imageUrl} 
+                  alt={item.name}
+                  className="w-5 h-5 object-contain rounded"
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                />
+              ) : (
+                <CheckCircle2 className="w-3 h-3 text-green-500 shrink-0" />
+              )}
               <span className="text-muted-foreground truncate">{item.name}</span>
             </div>
           ))}

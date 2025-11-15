@@ -9,6 +9,7 @@ interface DraftAssetCardProps {
   assetType: AssetType;
   assetId: number;
   assetName: string;
+  imageUrl?: string | null;
   stats: Array<{ label: string; value: string | number }>;
   isMyTurn: boolean;
   isDrafted?: boolean;
@@ -30,6 +31,7 @@ export function DraftAssetCard({
   assetType,
   assetId,
   assetName,
+  imageUrl,
   stats,
   isMyTurn,
   isDrafted = false,
@@ -165,7 +167,16 @@ export function DraftAssetCard({
       <div className="flex items-center justify-between gap-4">
         {/* Asset Info */}
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          {getIcon()}
+          {imageUrl ? (
+            <img 
+              src={imageUrl} 
+              alt={assetName}
+              className="w-10 h-10 object-contain rounded-md"
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            />
+          ) : (
+            getIcon()
+          )}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <p className="font-bold text-foreground truncate">{assetName}</p>

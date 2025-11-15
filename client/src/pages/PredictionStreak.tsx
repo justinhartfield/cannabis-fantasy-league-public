@@ -189,6 +189,16 @@ export default function PredictionStreak() {
                         } ${matchupsData.hasSubmitted ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
                       >
                         <div className="text-center">
+                          {matchup.entityAImage && (
+                            <div className="flex justify-center mb-3">
+                              <img 
+                                src={matchup.entityAImage} 
+                                alt={matchup.entityAName}
+                                className="w-16 h-16 object-contain rounded-lg"
+                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                              />
+                            </div>
+                          )}
                           <h4 className="font-bold text-lg mb-2">{matchup.entityAName}</h4>
                           <p className="text-sm text-muted-foreground capitalize">
                             {matchup.entityType}
@@ -210,6 +220,16 @@ export default function PredictionStreak() {
                         } ${matchupsData.hasSubmitted ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
                       >
                         <div className="text-center">
+                          {matchup.entityBImage && (
+                            <div className="flex justify-center mb-3">
+                              <img 
+                                src={matchup.entityBImage} 
+                                alt={matchup.entityBName}
+                                className="w-16 h-16 object-contain rounded-lg"
+                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                              />
+                            </div>
+                          )}
                           <h4 className="font-bold text-lg mb-2">{matchup.entityBName}</h4>
                           <p className="text-sm text-muted-foreground capitalize">
                             {matchup.entityType}

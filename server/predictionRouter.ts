@@ -5,6 +5,10 @@ import {
   dailyMatchups, 
   userPredictions, 
   users,
+  manufacturers,
+  brands,
+  pharmacies,
+  cannabisStrains,
 } from "../drizzle/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 
@@ -60,10 +64,22 @@ export const predictionRouter = router({
       predictions.map(p => [p.matchupId, p])
     );
 
-    const matchupsWithPredictions = matchups.map(matchup => ({
-      ...matchup,
-      userPrediction: predictionMap.get(matchup.id) || null,
-    }));
+    // Fetch images for all entities
+    const { getEntityImage } = await import('./entityImageHelper');
+    const matchupsWithPredictions = await Promise.all(
+      matchups.map(async (matchup) => {
+        const [entityAImage, entityBImage] = await Promise.all([
+          getEntityImage(matchup.entityType, matchup.entityAId),
+          getEntityImage(matchup.entityType, matchup.entityBId),
+        ]);
+        return {
+          ...matchup,
+          entityAImage,
+          entityBImage,
+          userPrediction: predictionMap.get(matchup.id) || null,
+        };
+      })
+    );
 
     return {
       matchups: matchupsWithPredictions,
