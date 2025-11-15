@@ -12,7 +12,7 @@ import {
   brandDailyStats,
   pharmacyDailyStats,
 } from '../drizzle/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, isNotNull, sql } from 'drizzle-orm';
 
 interface EntityData {
   id: number;
@@ -78,6 +78,13 @@ export async function generateDailyMatchups(): Promise<void> {
   }
 }
 
+function hasNonEmptyUrl(column: any) {
+  return and(
+    isNotNull(column),
+    sql`btrim(${column}) <> ''`
+  );
+}
+
 async function generateManufacturerMatchups(count: number): Promise<MatchupPair[]> {
   const db = await getDb();
   if (!db) return [];
@@ -97,7 +104,10 @@ async function generateManufacturerMatchups(count: number): Promise<MatchupPair[
       manufacturerDailyStats,
       eq(manufacturers.id, manufacturerDailyStats.manufacturerId)
     )
-    .where(eq(manufacturerDailyStats.statDate, yesterdayStr))
+    .where(and(
+      eq(manufacturerDailyStats.statDate, yesterdayStr),
+      hasNonEmptyUrl(manufacturers.logoUrl)
+    ))
     .orderBy(desc(manufacturerDailyStats.totalPoints))
     .limit(20);
 
@@ -111,6 +121,7 @@ async function generateManufacturerMatchups(count: number): Promise<MatchupPair[
         name: manufacturers.name,
       })
       .from(manufacturers)
+      .where(hasNonEmptyUrl(manufacturers.logoUrl))
       .limit(100);
     
     if (allManufacturers.length < count * 2) {
@@ -119,6 +130,10 @@ async function generateManufacturerMatchups(count: number): Promise<MatchupPair[
     }
     
     entitiesToUse = allManufacturers.map(m => ({ ...m, points: 0 }));
+  }
+
+  if (entitiesToUse.length < count * 2) {
+    console.warn(`[PredictionService] Only ${entitiesToUse.length} manufacturers have images; generating ${Math.floor(entitiesToUse.length / 2)} matchups`);
   }
 
   const shuffled = entitiesToUse.sort(() => Math.random() - 0.5);
@@ -163,7 +178,10 @@ async function generateStrainMatchups(count: number): Promise<MatchupPair[]> {
       cannabisStrainDailyStats,
       eq(cannabisStrains.id, cannabisStrainDailyStats.cannabisStrainId)
     )
-    .where(eq(cannabisStrainDailyStats.statDate, yesterdayStr))
+    .where(and(
+      eq(cannabisStrainDailyStats.statDate, yesterdayStr),
+      hasNonEmptyUrl(cannabisStrains.imageUrl)
+    ))
     .orderBy(desc(cannabisStrainDailyStats.totalPoints))
     .limit(20);
 
@@ -177,6 +195,7 @@ async function generateStrainMatchups(count: number): Promise<MatchupPair[]> {
         name: cannabisStrains.name,
       })
       .from(cannabisStrains)
+      .where(hasNonEmptyUrl(cannabisStrains.imageUrl))
       .limit(100);
     
     if (allStrains.length < count * 2) {
@@ -185,6 +204,10 @@ async function generateStrainMatchups(count: number): Promise<MatchupPair[]> {
     }
     
     entitiesToUse = allStrains.map(s => ({ ...s, points: 0 }));
+  }
+
+  if (entitiesToUse.length < count * 2) {
+    console.warn(`[PredictionService] Only ${entitiesToUse.length} strains have images; generating ${Math.floor(entitiesToUse.length / 2)} matchups`);
   }
 
   const shuffled = entitiesToUse.sort(() => Math.random() - 0.5);
@@ -229,7 +252,10 @@ async function generateBrandMatchups(count: number): Promise<MatchupPair[]> {
       brandDailyStats,
       eq(brands.id, brandDailyStats.brandId)
     )
-    .where(eq(brandDailyStats.statDate, yesterdayStr))
+    .where(and(
+      eq(brandDailyStats.statDate, yesterdayStr),
+      hasNonEmptyUrl(brands.logoUrl)
+    ))
     .orderBy(desc(brandDailyStats.totalPoints))
     .limit(20);
 
@@ -243,6 +269,7 @@ async function generateBrandMatchups(count: number): Promise<MatchupPair[]> {
         name: brands.name,
       })
       .from(brands)
+      .where(hasNonEmptyUrl(brands.logoUrl))
       .limit(100);
     
     if (allBrands.length < count * 2) {
@@ -251,6 +278,10 @@ async function generateBrandMatchups(count: number): Promise<MatchupPair[]> {
     }
     
     entitiesToUse = allBrands.map(b => ({ ...b, points: 0 }));
+  }
+
+  if (entitiesToUse.length < count * 2) {
+    console.warn(`[PredictionService] Only ${entitiesToUse.length} brands have images; generating ${Math.floor(entitiesToUse.length / 2)} matchups`);
   }
 
   const shuffled = entitiesToUse.sort(() => Math.random() - 0.5);
@@ -295,7 +326,10 @@ async function generatePharmacyMatchups(count: number): Promise<MatchupPair[]> {
       pharmacyDailyStats,
       eq(pharmacies.id, pharmacyDailyStats.pharmacyId)
     )
-    .where(eq(pharmacyDailyStats.statDate, yesterdayStr))
+    .where(and(
+      eq(pharmacyDailyStats.statDate, yesterdayStr),
+      hasNonEmptyUrl(pharmacies.logoUrl)
+    ))
     .orderBy(desc(pharmacyDailyStats.totalPoints))
     .limit(20);
 
@@ -309,6 +343,7 @@ async function generatePharmacyMatchups(count: number): Promise<MatchupPair[]> {
         name: pharmacies.name,
       })
       .from(pharmacies)
+      .where(hasNonEmptyUrl(pharmacies.logoUrl))
       .limit(100);
     
     if (allPharmacies.length < count * 2) {
@@ -317,6 +352,10 @@ async function generatePharmacyMatchups(count: number): Promise<MatchupPair[]> {
     }
     
     entitiesToUse = allPharmacies.map(p => ({ ...p, points: 0 }));
+  }
+
+  if (entitiesToUse.length < count * 2) {
+    console.warn(`[PredictionService] Only ${entitiesToUse.length} pharmacies have images; generating ${Math.floor(entitiesToUse.length / 2)} matchups`);
   }
 
   const shuffled = entitiesToUse.sort(() => Math.random() - 0.5);
