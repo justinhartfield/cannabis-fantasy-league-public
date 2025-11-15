@@ -257,7 +257,7 @@ function buildBrandDailyBreakdown(statRecord: BrandDailyStat): BreakdownResult {
   const bayesianAverage = Number(statRecord.bayesianAverage ?? 0);
   const rank = statRecord.rank ?? 0;
 
-  const scoreParts = calculateDailyBrandBrandScore(
+  const scoreParts = calculateDailyBrandScore(
     {
       totalRatings,
       averageRating,
