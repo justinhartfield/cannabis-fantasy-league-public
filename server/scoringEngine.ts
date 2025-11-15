@@ -47,6 +47,257 @@ import {
   calculateBrandScore as calculateDailyBrandScore,
 } from './dailyChallengeScoringEngine';
 
+type BreakdownComponent = {
+  category: string;
+  value: number | string;
+  formula: string;
+  points: number;
+};
+
+type BreakdownBonus = {
+  type: string;
+  condition: string;
+  points: number;
+};
+
+type BreakdownDetail = {
+  components: BreakdownComponent[];
+  bonuses: BreakdownBonus[];
+  penalties: BreakdownBonus[];
+  subtotal: number;
+  total: number;
+};
+
+type BreakdownResult = {
+  points: number;
+  breakdown: BreakdownDetail;
+};
+
+const eurosFromCents = (cents: number): string => (cents / 100).toFixed(2);
+
+function finalizeDailyBreakdown(
+  components: BreakdownComponent[],
+  bonuses: BreakdownBonus[],
+  penalties: BreakdownBonus[] = [],
+  storedTotal?: number | null,
+  computedTotal?: number
+): BreakdownResult {
+  const targetTotal =
+    typeof storedTotal === 'number'
+      ? storedTotal
+      : typeof computedTotal === 'number'
+        ? computedTotal
+        : 0;
+
+  let subtotal = components.reduce((sum, component) => sum + component.points, 0);
+  const bonusTotal = bonuses.reduce((sum, bonus) => sum + bonus.points, 0);
+  const penaltyTotal = penalties.reduce((sum, penalty) => sum + penalty.points, 0);
+  let total = subtotal + bonusTotal + penaltyTotal;
+
+  if (total !== targetTotal) {
+    const adjustment = targetTotal - total;
+    components.push({
+      category: 'Score Sync Adjustment',
+      value: adjustment,
+      formula: 'Align with stored score',
+      points: adjustment,
+    });
+    subtotal += adjustment;
+    total += adjustment;
+  }
+
+  return {
+    points: targetTotal,
+    breakdown: {
+      components,
+      bonuses,
+      penalties,
+      subtotal,
+      total,
+    },
+  };
+}
+
+type ManufacturerDailyStat = typeof manufacturerDailyChallengeStats.$inferSelect;
+type StrainDailyStat = typeof strainDailyChallengeStats.$inferSelect;
+type PharmacyDailyStat = typeof pharmacyDailyChallengeStats.$inferSelect;
+type BrandDailyStat = typeof brandDailyChallengeStats.$inferSelect;
+
+function buildManufacturerDailyBreakdown(statRecord: ManufacturerDailyStat): BreakdownResult {
+  const salesVolumeGrams = statRecord.salesVolumeGrams ?? 0;
+  const orderCount = statRecord.orderCount ?? 0;
+  const revenueCents = statRecord.revenueCents ?? 0;
+  const rank = statRecord.rank ?? 0;
+
+  const scoreParts = calculateDailyManufacturerScore(
+    {
+      salesVolumeGrams,
+      orderCount,
+      revenueCents,
+    },
+    rank
+  );
+
+  const components: BreakdownComponent[] = [
+    {
+      category: 'Sales Volume',
+      value: salesVolumeGrams,
+      formula: `${salesVolumeGrams}g ÷ 10`,
+      points: scoreParts.salesVolumePoints,
+    },
+    {
+      category: 'Order Count',
+      value: orderCount,
+      formula: `${orderCount} orders × 5`,
+      points: scoreParts.orderCountPoints,
+    },
+    {
+      category: 'Revenue',
+      value: `€${eurosFromCents(revenueCents)}`,
+      formula: `€${eurosFromCents(revenueCents)} ÷ 10`,
+      points: scoreParts.revenuePoints,
+    },
+  ];
+
+  const bonuses: BreakdownBonus[] = [];
+  if (scoreParts.rankBonusPoints) {
+    bonuses.push({
+      type: 'Top Seller Bonus',
+      condition: rank === 1 ? 'Rank #1' : `Rank #${rank}`,
+      points: scoreParts.rankBonusPoints,
+    });
+  }
+
+  return finalizeDailyBreakdown(components, bonuses, [], statRecord.totalPoints, scoreParts.totalPoints);
+}
+
+function buildStrainDailyBreakdown(statRecord: StrainDailyStat): BreakdownResult {
+  const salesVolumeGrams = statRecord.salesVolumeGrams ?? 0;
+  const orderCount = statRecord.orderCount ?? 0;
+  const rank = statRecord.rank ?? 0;
+
+  const scoreParts = calculateDailyStrainScore(
+    {
+      salesVolumeGrams,
+      orderCount,
+    },
+    rank
+  );
+
+  const components: BreakdownComponent[] = [
+    {
+      category: 'Sales Volume',
+      value: salesVolumeGrams,
+      formula: `${salesVolumeGrams}g ÷ 10`,
+      points: scoreParts.salesVolumePoints,
+    },
+    {
+      category: 'Order Count',
+      value: orderCount,
+      formula: `${orderCount} orders × 5`,
+      points: scoreParts.orderCountPoints,
+    },
+  ];
+
+  const bonuses: BreakdownBonus[] = [];
+  if (scoreParts.rankBonusPoints) {
+    bonuses.push({
+      type: 'Popularity Bonus',
+      condition: rank === 1 ? 'Rank #1' : `Rank #${rank}`,
+      points: scoreParts.rankBonusPoints,
+    });
+  }
+
+  return finalizeDailyBreakdown(components, bonuses, [], statRecord.totalPoints, scoreParts.totalPoints);
+}
+
+function buildPharmacyDailyBreakdown(statRecord: PharmacyDailyStat): BreakdownResult {
+  const orderCount = statRecord.orderCount ?? 0;
+  const revenueCents = statRecord.revenueCents ?? 0;
+  const rank = statRecord.rank ?? 0;
+
+  const scoreParts = calculateDailyPharmacyScore(
+    {
+      orderCount,
+      revenueCents,
+    },
+    rank
+  );
+
+  const components: BreakdownComponent[] = [
+    {
+      category: 'Order Count',
+      value: orderCount,
+      formula: `${orderCount} orders × 10`,
+      points: scoreParts.orderCountPoints,
+    },
+    {
+      category: 'Revenue',
+      value: `€${eurosFromCents(revenueCents)}`,
+      formula: `€${eurosFromCents(revenueCents)} ÷ 10`,
+      points: scoreParts.revenuePoints,
+    },
+  ];
+
+  const bonuses: BreakdownBonus[] = [];
+  if (scoreParts.rankBonusPoints) {
+    bonuses.push({
+      type: 'Top Pharmacy Bonus',
+      condition: rank === 1 ? 'Rank #1' : `Rank #${rank}`,
+      points: scoreParts.rankBonusPoints,
+    });
+  }
+
+  return finalizeDailyBreakdown(components, bonuses, [], statRecord.totalPoints, scoreParts.totalPoints);
+}
+
+function buildBrandDailyBreakdown(statRecord: BrandDailyStat): BreakdownResult {
+  const totalRatings = statRecord.totalRatings ?? 0;
+  const averageRating = Number(statRecord.averageRating ?? 0);
+  const bayesianAverage = Number(statRecord.bayesianAverage ?? 0);
+  const rank = statRecord.rank ?? 0;
+
+  const scoreParts = calculateDailyBrandBrandScore(
+    {
+      totalRatings,
+      averageRating,
+      bayesianAverage,
+      veryGoodCount: statRecord.veryGoodCount ?? 0,
+      goodCount: statRecord.goodCount ?? 0,
+      acceptableCount: statRecord.acceptableCount ?? 0,
+      badCount: statRecord.badCount ?? 0,
+      veryBadCount: statRecord.veryBadCount ?? 0,
+    },
+    rank
+  );
+
+  const components: BreakdownComponent[] = [
+    {
+      category: 'Rating Volume',
+      value: totalRatings,
+      formula: `${totalRatings} ratings × 10`,
+      points: scoreParts.ratingCountPoints ?? 0,
+    },
+    {
+      category: 'Rating Quality',
+      value: bayesianAverage.toFixed(2),
+      formula: `Bayesian avg ${bayesianAverage.toFixed(2)} × 20`,
+      points: scoreParts.ratingQualityPoints ?? 0,
+    },
+  ];
+
+  const bonuses: BreakdownBonus[] = [];
+  if (scoreParts.rankBonusPoints) {
+    bonuses.push({
+      type: 'Top Brand Bonus',
+      condition: rank === 1 ? 'Rank #1' : `Rank #${rank}`,
+      points: scoreParts.rankBonusPoints,
+    });
+  }
+
+  return finalizeDailyBreakdown(components, bonuses, [], statRecord.totalPoints, scoreParts.totalPoints);
+}
+
 // ============================================================================
 // SCORING FORMULAS
 // ============================================================================
