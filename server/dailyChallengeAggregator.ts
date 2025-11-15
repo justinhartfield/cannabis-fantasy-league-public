@@ -163,16 +163,16 @@ export class DailyChallengeAggregator {
     await this.log(
       'info',
       'First 3 order dates sample',
-      allOrders.slice(0, 3).map((o: any) => o.OrderDate),
+      allOrders.slice(0, 3).map((o: any) => ({ OrderDate: o.OrderDate, UpdatedAt: o.UpdatedAt })),
       logger
     );
     const filtered = allOrders.filter((order: any) => {
-      if (!order.OrderDate) return false;
-      const orderDate = new Date(order.OrderDate);
+      if (!order.UpdatedAt) return false;
+      const updatedDate = new Date(order.UpdatedAt);
       return (
-        orderDate.getFullYear() === targetDate.getFullYear() &&
-        orderDate.getMonth() === targetDate.getMonth() &&
-        orderDate.getDate() === targetDate.getDate()
+        updatedDate.getFullYear() === targetDate.getFullYear() &&
+        updatedDate.getMonth() === targetDate.getMonth() &&
+        updatedDate.getDate() === targetDate.getDate()
       );
     });
 
