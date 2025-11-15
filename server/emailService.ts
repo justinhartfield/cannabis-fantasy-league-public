@@ -47,6 +47,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
       Subject: options.subject,
       HtmlBody: options.html,
       TextBody: options.text || options.html.replace(/<[^>]*>/g, ''), // Strip HTML for text version
+      MessageStream: 'outbound', // Required by Postmark for transactional emails
     };
 
     await client.sendEmail(msg);
