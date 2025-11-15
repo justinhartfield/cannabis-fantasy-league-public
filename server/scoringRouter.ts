@@ -241,6 +241,15 @@ export const scoringRouter = router({
         }
       });
 
+      // Debug: Log the IDs we're looking up
+      console.log('[getTeamBreakdown] Looking up names for:', {
+        manufacturerIds,
+        strainIds,
+        productIds,
+        pharmacyIds,
+        brandIds,
+      });
+
       // Fetch names in parallel
       const [manufacturerNames, strainNames, productNames, pharmacyNames, brandNames] = await Promise.all([
         manufacturerIds.length > 0
@@ -270,6 +279,15 @@ export const scoringRouter = router({
           : [],
       ]);
 
+      // Debug: Log what we found
+      console.log('[getTeamBreakdown] Found names:', {
+        manufacturerNames: manufacturerNames.map(m => ({ id: m.id, name: m.name })),
+        strainNames: strainNames.map(s => ({ id: s.id, name: s.name })),
+        productNames: productNames.map(p => ({ id: p.id, name: p.name })),
+        pharmacyNames: pharmacyNames.map(p => ({ id: p.id, name: p.name })),
+        brandNames: brandNames.map(b => ({ id: b.id, name: b.name })),
+      });
+
       // Create lookup maps
       const nameMap = new Map<number, string>();
       manufacturerNames.forEach((m) => nameMap.set(m.id, m.name));
@@ -279,10 +297,15 @@ export const scoringRouter = router({
       brandNames.forEach((b) => nameMap.set(b.id, b.name));
 
       // Enrich breakdowns with asset names
-      const enrichedBreakdowns = breakdowns.map((bd) => ({
-        ...bd,
-        assetName: nameMap.get(bd.assetId) || null,
-      }));
+      const enrichedBreakdowns = breakdowns.map((bd) => {
+        const name = nameMap.get(bd.assetId);
+        // If name not found, create a descriptive fallback
+        const fallbackName = name || `${bd.position} (ID: ${bd.assetId})`;
+        return {
+          ...bd,
+          assetName: fallbackName,
+        };
+      });
 
       return {
         score,
