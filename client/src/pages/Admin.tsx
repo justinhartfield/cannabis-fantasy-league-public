@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
-import { Database, RefreshCw, Loader2, CheckCircle, XCircle, Eye, Calendar } from "lucide-react";
+import { Database, RefreshCw, Loader2, CheckCircle, XCircle, Eye, Calendar, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
@@ -14,17 +14,20 @@ export default function Admin() {
   const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
   const [weekYear, setWeekYear] = useState<number>(2025);
   const [weekNumber, setWeekNumber] = useState<number>(1);
+  const [dailyStatDate, setDailyStatDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [positionWindow, setPositionWindow] = useState<7 | 30>(7);
+  const isAdminUser = isAuthenticated && user?.role === 'admin';
 
   // Queries
   const { data: stats, refetch: refetchStats } = trpc.admin.getDashboardStats.useQuery(undefined, {
-    enabled: isAuthenticated && user?.role === 'admin',
+    enabled: isAdminUser,
     refetchInterval: 5000, // Auto-refresh every 5 seconds
   });
   
   const { data: jobs, refetch: refetchJobs } = trpc.admin.getSyncJobs.useQuery(
     { limit: 20 },
     {
-      enabled: isAuthenticated && user?.role === 'admin',
+      enabled: isAdminUser,
       refetchInterval: 5000, // Auto-refresh every 5 seconds
     }
   );
@@ -32,6 +35,26 @@ export default function Admin() {
   const { data: logs } = trpc.admin.getJobLogs.useQuery(
     { jobId: selectedJobId! },
     { enabled: selectedJobId !== null }
+  );
+
+  const {
+    data: dailyChallengeSummary,
+    refetch: refetchDailySummary,
+    isFetching: summaryLoading,
+  } = trpc.admin.getDailyChallengeStatsSummary.useQuery(undefined, {
+    enabled: isAdminUser,
+  });
+
+  const {
+    data: positionAverages,
+    refetch: refetchPositionAverages,
+    isFetching: positionAveragesLoading,
+  } = trpc.admin.getDailyChallengePositionAverages.useQuery(
+    { windowDays: positionWindow },
+    {
+      enabled: isAdminUser,
+      keepPreviousData: true,
+    }
   );
 
   // Mutations
@@ -84,6 +107,21 @@ export default function Admin() {
     },
     onError: (error) => {
       toast.error(`Failed to start products sync: ${error.message}`);
+    },
+  });
+
+  const syncDailyChallengeStats = trpc.admin.syncDailyChallengeStats.useMutation({
+    onSuccess: (data) => {
+      toast.success(data.message || "Daily challenge stats sync started!");
+      setTimeout(() => {
+        refetchJobs();
+        refetchStats();
+        refetchDailySummary();
+        refetchPositionAverages();
+      }, 1000);
+    },
+    onError: (error) => {
+      toast.error(`Failed to sync daily challenge stats: ${error.message}`);
     },
   });
 
@@ -401,6 +439,178 @@ export default function Admin() {
                 <p className="text-xs text-muted-foreground">
                   This will populate manufacturerWeeklyStats, cannabisStrainWeeklyStats, pharmacyWeeklyStats, and brandWeeklyStats tables with data for the specified week.
                 </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Daily Challenge Stats */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="w-5 h-5" />
+                Daily Challenge Stats
+              </CardTitle>
+              <CardDescription>
+                Aggregate Metabase orders into daily challenge tables for a specific stat date.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1 space-y-2">
+                  <Label htmlFor="daily-stat-date">Stat Date</Label>
+                  <Input
+                    id="daily-stat-date"
+                    type="date"
+                    value={dailyStatDate}
+                    max={new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setDailyStatDate(e.target.value)}
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    onClick={() => syncDailyChallengeStats.mutate({ statDate: dailyStatDate })}
+                    disabled={syncDailyChallengeStats.isPending}
+                    className="w-full md:w-auto"
+                  >
+                    {syncDailyChallengeStats.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Syncing...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Sync Daily Stats
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {['manufacturers', 'strains', 'pharmacies', 'brands'].map((key) => {
+                  const labelMap: Record<string, string> = {
+                    manufacturers: 'Manufacturers',
+                    strains: 'Products',
+                    pharmacies: 'Pharmacies',
+                    brands: 'Brands',
+                  };
+                  const summary = (dailyChallengeSummary as any)?.[key];
+                  return (
+                    <div
+                      key={key}
+                      className="rounded-lg border border-border/50 bg-card/60 p-4"
+                    >
+                      <p className="text-sm text-muted-foreground">{labelMap[key]}</p>
+                      {summaryLoading ? (
+                        <p className="text-lg font-semibold mt-2">Loading...</p>
+                      ) : (
+                        <>
+                          <p className="text-2xl font-bold mt-1">
+                            {summary?.latestStatDate ? new Date(summary.latestStatDate).toLocaleDateString() : '—'}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Records: {summary?.records ?? 0}
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Historical Position Averages */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Historical Position Averages</CardTitle>
+              <CardDescription>
+                Average points per lineup slot over the last {positionWindow} days.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col md:flex-row md:items-end gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="position-window">Window</Label>
+                  <select
+                    id="position-window"
+                    className="border border-border rounded-md bg-background px-3 py-2 text-sm"
+                    value={positionWindow}
+                    onChange={(e) => setPositionWindow(Number(e.target.value) as 7 | 30)}
+                    disabled={!isAdminUser}
+                  >
+                    <option value={7}>Last 7 days</option>
+                    <option value={30}>Last 30 days</option>
+                  </select>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {positionAveragesLoading ? (
+                    <span>Loading range...</span>
+                  ) : positionAverages ? (
+                    <span>
+                      {positionAverages.range.startDate} → {positionAverages.range.endDate} • Entries:{" "}
+                      {positionAverages.sampleSize}
+                    </span>
+                  ) : (
+                    <span>No data</span>
+                  )}
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-muted-foreground border-b">
+                      <th className="py-2 font-medium">Position</th>
+                      <th className="py-2 font-medium">Avg Points</th>
+                      <th className="py-2 font-medium">Slots</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      { key: 'manufacturer', label: 'Manufacturers', slots: ['mfg1', 'mfg2'] },
+                      { key: 'cannabisStrain', label: 'Cannabis Strains', slots: ['cstr1', 'cstr2'] },
+                      { key: 'product', label: 'Products', slots: ['prd1', 'prd2'] },
+                      { key: 'pharmacy', label: 'Pharmacies', slots: ['phm1', 'phm2'] },
+                      { key: 'brand', label: 'Brands', slots: ['brd1'] },
+                      { key: 'flex', label: 'Flex', slots: ['flex'] },
+                    ].map((row) => {
+                      const data = (positionAverages as any)?.positions?.[row.key];
+                      return (
+                        <tr key={row.key} className="border-b last:border-0">
+                          <td className="py-3 font-medium">{row.label}</td>
+                          <td className="py-3">
+                            {positionAveragesLoading ? (
+                              <span className="text-muted-foreground">Loading...</span>
+                            ) : (
+                              <span className="font-semibold">
+                                {data?.avg !== null && data?.avg !== undefined ? data.avg.toFixed(2) : '—'}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3 text-muted-foreground">
+                            {positionAveragesLoading || !data ? (
+                              '—'
+                            ) : (
+                              <div className="flex flex-wrap gap-2">
+                                {row.slots.map((slot) => (
+                                  <span
+                                    key={slot}
+                                    className="rounded-full border border-border/60 px-3 py-1 text-xs bg-card/60"
+                                  >
+                                    {slot.toUpperCase()}:{" "}
+                                    {data.slots?.[slot] !== null && data.slots?.[slot] !== undefined
+                                      ? data.slots[slot].toFixed(2)
+                                      : '—'}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </CardContent>
           </Card>

@@ -6,9 +6,16 @@
 import { router, protectedProcedure } from '../_core/trpc';
 import { getDataSyncServiceV2 } from '../services/dataSyncService';
 import { getDb } from '../db';
-import { syncJobs, syncLogs, cannabisStrains, brands, manufacturers } from '../../drizzle/schema';
-import { eq, desc, sql } from 'drizzle-orm';
+import { syncJobs, syncLogs, cannabisStrains, brands, manufacturers, dailyTeamScores } from '../../drizzle/schema';
+import { eq, desc, sql, gte } from 'drizzle-orm';
 import { z } from 'zod';
+import { createSyncJob } from '../services/syncLogger';
+import {
+  manufacturerDailyChallengeStats,
+  strainDailyChallengeStats,
+  pharmacyDailyChallengeStats,
+  brandDailyChallengeStats,
+} from '../../drizzle/dailyChallengeSchema';
 
 export const adminRouter = router({
   /**
@@ -130,6 +137,57 @@ export const adminRouter = router({
           success: false,
           message: 'Failed to start daily stats sync',
           error: error instanceof Error ? error.message : 'Unknown error',
+        };
+      }
+    }),
+
+  /**
+   * Trigger daily challenge stats sync (Metabase order aggregation)
+   */
+  syncDailyChallengeStats: protectedProcedure
+    .input(z.object({
+      statDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    }).optional())
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'admin') {
+        throw new Error('Unauthorized: Admin access required');
+      }
+
+      const statDate = input?.statDate || new Date().toISOString().split('T')[0];
+      const logger = await createSyncJob('sync-daily-challenge');
+
+      try {
+        await logger.updateJobStatus('running', `Starting daily challenge sync for ${statDate}`);
+
+        const { dailyChallengeAggregator } = await import('../dailyChallengeAggregator');
+        const summary = await dailyChallengeAggregator.aggregateForDate(statDate, {
+          logger: {
+            info: (message, metadata) => logger.info(message, metadata),
+            warn: (message, metadata) => logger.warn(message, metadata),
+            error: (message, metadata) => logger.error(message, metadata),
+          },
+        });
+
+        await logger.info('Daily challenge stats sync complete', summary);
+        await logger.updateJobStatus('completed', `Daily challenge stats synced for ${statDate}`);
+
+        return {
+          success: true,
+          message: `Daily challenge stats sync started for ${statDate}`,
+          statDate,
+          summary,
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        await logger.error('Daily challenge stats sync failed', {
+          error: errorMessage,
+        });
+        await logger.updateJobStatus('failed', errorMessage);
+
+        return {
+          success: false,
+          message: 'Failed to start daily challenge stats sync',
+          error: errorMessage,
         };
       }
     }),
@@ -338,4 +396,156 @@ export const adminRouter = router({
       },
     };
   }),
+
+  /**
+   * Get latest stat dates for daily challenge data sources
+   */
+  getDailyChallengeStatsSummary: protectedProcedure.query(async ({ ctx }) => {
+    if (ctx.user.role !== 'admin') {
+      throw new Error('Unauthorized: Admin access required');
+    }
+
+    const db = await getDb();
+    if (!db) throw new Error('Database not available');
+
+    const defaultSummary = { latestStatDate: null, records: 0 };
+
+    const [manufacturerSummary, strainSummary, pharmacySummary, brandSummary] = await Promise.all([
+      db
+        .select({
+          latestStatDate: sql<string | null>`MAX(${manufacturerDailyChallengeStats.statDate})`,
+          records: sql<number>`COUNT(*)`,
+        })
+        .from(manufacturerDailyChallengeStats),
+      db
+        .select({
+          latestStatDate: sql<string | null>`MAX(${strainDailyChallengeStats.statDate})`,
+          records: sql<number>`COUNT(*)`,
+        })
+        .from(strainDailyChallengeStats),
+      db
+        .select({
+          latestStatDate: sql<string | null>`MAX(${pharmacyDailyChallengeStats.statDate})`,
+          records: sql<number>`COUNT(*)`,
+        })
+        .from(pharmacyDailyChallengeStats),
+      db
+        .select({
+          latestStatDate: sql<string | null>`MAX(${brandDailyChallengeStats.statDate})`,
+          records: sql<number>`COUNT(*)`,
+        })
+        .from(brandDailyChallengeStats),
+    ]);
+
+    return {
+      manufacturers: manufacturerSummary[0] ?? defaultSummary,
+      strains: strainSummary[0] ?? defaultSummary,
+      pharmacies: pharmacySummary[0] ?? defaultSummary,
+      brands: brandSummary[0] ?? defaultSummary,
+    };
+  }),
+
+  /**
+   * Get rolling averages for each daily challenge position
+   */
+  getDailyChallengePositionAverages: protectedProcedure
+    .input(z.object({
+      windowDays: z.number().min(1).max(90).default(7),
+    }).optional())
+    .query(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'admin') {
+        throw new Error('Unauthorized: Admin access required');
+      }
+
+      const db = await getDb();
+      if (!db) throw new Error('Database not available');
+
+      const windowDays = input?.windowDays ?? 7;
+      const endDate = new Date();
+      const startDate = new Date(endDate);
+      startDate.setDate(endDate.getDate() - (windowDays - 1));
+
+      const startDateStr = startDate.toISOString().split('T')[0];
+      const endDateStr = endDate.toISOString().split('T')[0];
+
+      const [averages] = await db
+        .select({
+          sampleSize: sql<number>`COUNT(*)`,
+          mfg1Avg: sql<number | null>`AVG(${dailyTeamScores.mfg1Points})`,
+          mfg2Avg: sql<number | null>`AVG(${dailyTeamScores.mfg2Points})`,
+          cstr1Avg: sql<number | null>`AVG(${dailyTeamScores.cstr1Points})`,
+          cstr2Avg: sql<number | null>`AVG(${dailyTeamScores.cstr2Points})`,
+          prd1Avg: sql<number | null>`AVG(${dailyTeamScores.prd1Points})`,
+          prd2Avg: sql<number | null>`AVG(${dailyTeamScores.prd2Points})`,
+          phm1Avg: sql<number | null>`AVG(${dailyTeamScores.phm1Points})`,
+          phm2Avg: sql<number | null>`AVG(${dailyTeamScores.phm2Points})`,
+          brd1Avg: sql<number | null>`AVG(${dailyTeamScores.brd1Points})`,
+          flexAvg: sql<number | null>`AVG(${dailyTeamScores.flexPoints})`,
+        })
+        .from(dailyTeamScores)
+        .where(gte(dailyTeamScores.statDate, startDateStr));
+
+      const average = (...values: Array<number | null | undefined>) => {
+        const valid = values
+          .map((value) => (value === null || value === undefined ? null : Number(value)))
+          .filter((value): value is number => typeof value === 'number' && !Number.isNaN(value));
+        if (valid.length === 0) return null;
+        const sum = valid.reduce((acc, value) => acc + value, 0);
+        return Number((sum / valid.length).toFixed(2));
+      };
+
+      const formatValue = (value: number | null | undefined) =>
+        value === null || value === undefined ? null : Number(Number(value).toFixed(2));
+
+      return {
+        windowDays,
+        range: {
+          startDate: startDateStr,
+          endDate: endDateStr,
+        },
+        sampleSize: Number(averages?.sampleSize || 0),
+        positions: {
+          manufacturer: {
+            avg: average(averages?.mfg1Avg, averages?.mfg2Avg),
+            slots: {
+              mfg1: formatValue(averages?.mfg1Avg),
+              mfg2: formatValue(averages?.mfg2Avg),
+            },
+          },
+          cannabisStrain: {
+            avg: average(averages?.cstr1Avg, averages?.cstr2Avg),
+            slots: {
+              cstr1: formatValue(averages?.cstr1Avg),
+              cstr2: formatValue(averages?.cstr2Avg),
+            },
+          },
+          product: {
+            avg: average(averages?.prd1Avg, averages?.prd2Avg),
+            slots: {
+              prd1: formatValue(averages?.prd1Avg),
+              prd2: formatValue(averages?.prd2Avg),
+            },
+          },
+          pharmacy: {
+            avg: average(averages?.phm1Avg, averages?.phm2Avg),
+            slots: {
+              phm1: formatValue(averages?.phm1Avg),
+              phm2: formatValue(averages?.phm2Avg),
+            },
+          },
+          brand: {
+            avg: formatValue(averages?.brd1Avg),
+            slots: {
+              brd1: formatValue(averages?.brd1Avg),
+            },
+          },
+          flex: {
+            avg: formatValue(averages?.flexAvg),
+            slots: {
+              flex: formatValue(averages?.flexAvg),
+            },
+          },
+        },
+      };
+    }),
 });

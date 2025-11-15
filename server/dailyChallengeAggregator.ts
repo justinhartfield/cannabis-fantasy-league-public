@@ -33,38 +33,112 @@ interface OrderRecord {
   Pharmacy: string;
 }
 
+type Database = NonNullable<Awaited<ReturnType<typeof getDb>>>;
+
+type AggregationLogger = {
+  info?: (message: string, metadata?: any) => Promise<void> | void;
+  warn?: (message: string, metadata?: any) => Promise<void> | void;
+  error?: (message: string, metadata?: any) => Promise<void> | void;
+};
+
+export type EntityAggregationSummary = {
+  processed: number;
+  skipped: number;
+};
+
+export type DailyChallengeAggregationSummary = {
+  statDate: string;
+  totalOrders: number;
+  manufacturers: EntityAggregationSummary;
+  strains: EntityAggregationSummary;
+  pharmacies: EntityAggregationSummary;
+  brands: EntityAggregationSummary;
+};
+
+type AggregationOptions = {
+  logger?: AggregationLogger;
+};
+
 export class DailyChallengeAggregator {
   private metabase = getMetabaseClient();
+
+  private async log(
+    level: 'info' | 'warn' | 'error',
+    message: string,
+    metadata?: Record<string, unknown> | unknown,
+    logger?: AggregationLogger
+  ) {
+    const prefix = '[DailyChallengeAggregator]';
+    const consoleArgs: [string, any] =
+      metadata === undefined ? [`${prefix} ${message}`, ''] : [`${prefix} ${message}`, metadata];
+
+    try {
+      const fn = logger?.[level];
+      if (fn) {
+        await fn(message, metadata);
+      }
+    } catch (err) {
+      console.error(`${prefix} Logger callback failed`, err);
+    }
+
+    if (level === 'error') {
+      console.error(...consoleArgs);
+    } else if (level === 'warn') {
+      console.warn(...consoleArgs);
+    } else {
+      console.log(...consoleArgs);
+    }
+  }
 
   /**
    * Aggregate daily challenge stats for a specific date
    */
-  async aggregateForDate(dateString: string) {
+  async aggregateForDate(dateString: string, options?: AggregationOptions): Promise<DailyChallengeAggregationSummary> {
+    const logger = options?.logger;
+
     try {
-      console.log(`[DailyChallengeAggregator] Starting aggregation for ${dateString}...`);
+      await this.log('info', `Starting aggregation for ${dateString}...`, undefined, logger);
 
       const db = await getDb();
-
-      // Fetch orders from Metabase
-      const orders = await this.fetchOrdersForDate(dateString);
-      console.log(`[DailyChallengeAggregator] Found ${orders.length} orders for ${dateString}`);
-
-      if (orders.length === 0) {
-        console.log(`[DailyChallengeAggregator] No orders found for ${dateString}, skipping`);
-        return;
+      if (!db) {
+        throw new Error('Database not available');
       }
 
-      // Aggregate and calculate scores for each entity type
-      await Promise.all([
-        this.aggregateManufacturers(db, dateString, orders),
-        this.aggregateStrains(db, dateString, orders),
-        this.aggregatePharmacies(db, dateString, orders),
-        this.aggregateBrands(db, dateString, orders),
+      const orders = await this.fetchOrdersForDate(dateString, logger);
+      await this.log('info', `Found ${orders.length} orders for ${dateString}`, undefined, logger);
+
+      const summary: DailyChallengeAggregationSummary = {
+        statDate: dateString,
+        totalOrders: orders.length,
+        manufacturers: { processed: 0, skipped: 0 },
+        strains: { processed: 0, skipped: 0 },
+        pharmacies: { processed: 0, skipped: 0 },
+        brands: { processed: 0, skipped: 0 },
+      };
+
+      if (orders.length === 0) {
+        await this.log('warn', `No orders found for ${dateString}, skipping`, undefined, logger);
+        return summary;
+      }
+
+      const [manufacturerResult, strainResult, pharmacyResult, brandResult] = await Promise.all([
+        this.aggregateManufacturers(db, dateString, orders, logger),
+        this.aggregateStrains(db, dateString, orders, logger),
+        this.aggregatePharmacies(db, dateString, orders, logger),
+        this.aggregateBrands(db, dateString, orders, logger),
       ]);
 
-      console.log(`[DailyChallengeAggregator] ✅ Aggregation complete for ${dateString}`);
+      summary.manufacturers = manufacturerResult;
+      summary.strains = strainResult;
+      summary.pharmacies = pharmacyResult;
+      summary.brands = brandResult;
+
+      await this.log('info', `✅ Aggregation complete for ${dateString}`, summary, logger);
+      return summary;
     } catch (error) {
-      console.error(`[DailyChallengeAggregator] Error aggregating stats for ${dateString}:`, error);
+      await this.log('error', `Error aggregating stats for ${dateString}`, {
+        error: error instanceof Error ? error.message : String(error),
+      }, logger);
       throw error;
     }
   }
@@ -72,16 +146,26 @@ export class DailyChallengeAggregator {
   /**
    * Fetch orders for a specific date from Metabase
    */
-  private async fetchOrdersForDate(dateString: string): Promise<OrderRecord[]> {
-    console.log(`[DailyChallengeAggregator] Fetching orders from Metabase...`);
+  private async fetchOrdersForDate(dateString: string, logger?: AggregationLogger): Promise<OrderRecord[]> {
+    await this.log('info', 'Fetching orders from Metabase...', undefined, logger);
 
     // Query Metabase question 1266 (TODAY Completed transactions with recent data)
     const allOrders = await this.metabase.executeCardQuery(1266);
 
     // Filter by date
     const targetDate = new Date(dateString);
-    console.log(`[DailyChallengeAggregator] Target date: ${targetDate.toISOString()}, year=${targetDate.getFullYear()}, month=${targetDate.getMonth()}, day=${targetDate.getDate()}`);
-    console.log(`[DailyChallengeAggregator] First 3 order dates:`, allOrders.slice(0, 3).map((o: any) => o.OrderDate));
+    await this.log(
+      'info',
+      `Target date: ${targetDate.toISOString()}, year=${targetDate.getFullYear()}, month=${targetDate.getMonth()}, day=${targetDate.getDate()}`,
+      undefined,
+      logger
+    );
+    await this.log(
+      'info',
+      'First 3 order dates sample',
+      allOrders.slice(0, 3).map((o: any) => o.OrderDate),
+      logger
+    );
     const filtered = allOrders.filter((order: any) => {
       if (!order.OrderDate) return false;
       const orderDate = new Date(order.OrderDate);
@@ -92,15 +176,20 @@ export class DailyChallengeAggregator {
       );
     });
 
-    console.log(`[DailyChallengeAggregator] Filtered to ${filtered.length} orders for ${dateString}`);
+    await this.log('info', `Filtered to ${filtered.length} orders for ${dateString}`, undefined, logger);
     return filtered as OrderRecord[];
   }
 
   /**
    * Aggregate manufacturer stats and calculate scores
    */
-  private async aggregateManufacturers(db: ReturnType<typeof getDb>, dateString: string, orders: OrderRecord[]): Promise<void> {
-    console.log(`[DailyChallengeAggregator] Aggregating manufacturers...`);
+  private async aggregateManufacturers(
+    db: Database,
+    dateString: string,
+    orders: OrderRecord[],
+    logger?: AggregationLogger
+  ): Promise<EntityAggregationSummary> {
+    await this.log('info', 'Aggregating manufacturers...', undefined, logger);
 
     // Group by manufacturer
     const stats = new Map<string, { salesVolumeGrams: number; orderCount: number; revenueCents: number }>();
@@ -119,12 +208,20 @@ export class DailyChallengeAggregator {
       stats.set(name, current);
     }
 
-    // Sort by sales volume to determine ranks
     const sorted = Array.from(stats.entries()).sort((a, b) => b[1].salesVolumeGrams - a[1].salesVolumeGrams);
-    console.log(`[DailyChallengeAggregator] Found ${stats.size} unique manufacturers in orders`);
-    console.log(`[DailyChallengeAggregator] Top 3 manufacturers:`, Array.from(stats.entries()).slice(0, 3).map(([name, data]) => ({ name, ...data })));
+    await this.log('info', `Found ${stats.size} unique manufacturers in orders`, undefined, logger);
+    await this.log(
+      'info',
+      'Top 3 manufacturers',
+      Array.from(stats.entries())
+        .slice(0, 3)
+        .map(([name, data]) => ({ name, ...data })),
+      logger
+    );
 
-    // Save to database with calculated scores
+    let processed = 0;
+    let skipped = 0;
+
     for (let i = 0; i < sorted.length; i++) {
       const [name, data] = sorted[i];
       const rank = i + 1;
@@ -135,7 +232,8 @@ export class DailyChallengeAggregator {
       });
 
       if (!manufacturer) {
-        console.log(`[DailyChallengeAggregator] Manufacturer not found: ${name}`);
+        skipped += 1;
+        await this.log('warn', `Manufacturer not found: ${name}`, undefined, logger);
         continue;
       }
 
@@ -171,17 +269,29 @@ export class DailyChallengeAggregator {
           },
         });
 
-      console.log(
-        `[DailyChallengeAggregator] ${name}: ${data.salesVolumeGrams}g, ${data.orderCount} orders, ${scoring.totalPoints} pts (rank #${rank})`
+      processed += 1;
+
+      await this.log(
+        'info',
+        `${name}: ${data.salesVolumeGrams}g, ${data.orderCount} orders, ${scoring.totalPoints} pts (rank #${rank})`,
+        undefined,
+        logger
       );
     }
+
+    return { processed, skipped };
   }
 
   /**
    * Aggregate strain stats and calculate scores
    */
-  private async aggregateStrains(db: ReturnType<typeof getDb>, dateString: string, orders: OrderRecord[]): Promise<void> {
-    console.log(`[DailyChallengeAggregator] Aggregating strains...`);
+  private async aggregateStrains(
+    db: Database,
+    dateString: string,
+    orders: OrderRecord[],
+    logger?: AggregationLogger
+  ): Promise<EntityAggregationSummary> {
+    await this.log('info', 'Aggregating strains...', undefined, logger);
 
     const stats = new Map<string, { salesVolumeGrams: number; orderCount: number }>();
 
@@ -199,6 +309,9 @@ export class DailyChallengeAggregator {
 
     const sorted = Array.from(stats.entries()).sort((a, b) => b[1].salesVolumeGrams - a[1].salesVolumeGrams);
 
+    let processed = 0;
+    let skipped = 0;
+
     for (let i = 0; i < sorted.length; i++) {
       const [name, data] = sorted[i];
       const rank = i + 1;
@@ -208,7 +321,8 @@ export class DailyChallengeAggregator {
       });
 
       if (!strain) {
-        console.log(`[DailyChallengeAggregator] Strain not found: ${name}`);
+        skipped += 1;
+        await this.log('warn', `Strain not found: ${name}`, undefined, logger);
         continue;
       }
 
@@ -237,15 +351,28 @@ export class DailyChallengeAggregator {
           },
         });
 
-      console.log(`[DailyChallengeAggregator] ${name}: ${data.salesVolumeGrams}g, ${scoring.totalPoints} pts (rank #${rank})`);
+      processed += 1;
+      await this.log(
+        'info',
+        `${name}: ${data.salesVolumeGrams}g, ${scoring.totalPoints} pts (rank #${rank})`,
+        undefined,
+        logger
+      );
     }
+
+    return { processed, skipped };
   }
 
   /**
    * Aggregate pharmacy stats and calculate scores
    */
-  private async aggregatePharmacies(db: ReturnType<typeof getDb>, dateString: string, orders: OrderRecord[]): Promise<void> {
-    console.log(`[DailyChallengeAggregator] Aggregating pharmacies...`);
+  private async aggregatePharmacies(
+    db: Database,
+    dateString: string,
+    orders: OrderRecord[],
+    logger?: AggregationLogger
+  ): Promise<EntityAggregationSummary> {
+    await this.log('info', 'Aggregating pharmacies...', undefined, logger);
 
     const stats = new Map<string, { orderCount: number; revenueCents: number }>();
 
@@ -263,6 +390,9 @@ export class DailyChallengeAggregator {
 
     const sorted = Array.from(stats.entries()).sort((a, b) => b[1].revenueCents - a[1].revenueCents);
 
+    let processed = 0;
+    let skipped = 0;
+
     for (let i = 0; i < sorted.length; i++) {
       const [name, data] = sorted[i];
       const rank = i + 1;
@@ -272,7 +402,8 @@ export class DailyChallengeAggregator {
       });
 
       if (!pharmacy) {
-        console.log(`[DailyChallengeAggregator] Pharmacy not found: ${name}`);
+        skipped += 1;
+        await this.log('warn', `Pharmacy not found: ${name}`, undefined, logger);
         continue;
       }
 
@@ -301,15 +432,28 @@ export class DailyChallengeAggregator {
           },
         });
 
-      console.log(`[DailyChallengeAggregator] ${name}: ${data.orderCount} orders, ${scoring.totalPoints} pts (rank #${rank})`);
+      processed += 1;
+      await this.log(
+        'info',
+        `${name}: ${data.orderCount} orders, ${scoring.totalPoints} pts (rank #${rank})`,
+        undefined,
+        logger
+      );
     }
+
+    return { processed, skipped };
   }
 
   /**
    * Aggregate brand stats and calculate scores
    */
-  private async aggregateBrands(db: ReturnType<typeof getDb>, dateString: string, orders: OrderRecord[]): Promise<void> {
-    console.log(`[DailyChallengeAggregator] Aggregating brands from ratings data...`);
+  private async aggregateBrands(
+    db: Database,
+    dateString: string,
+    _orders: OrderRecord[],
+    logger?: AggregationLogger
+  ): Promise<EntityAggregationSummary> {
+    await this.log('info', 'Aggregating brands from ratings data...', undefined, logger);
 
     // Brands use ratings data, not order data
     // Fetch from Metabase question that aggregates brand ratings
@@ -317,14 +461,17 @@ export class DailyChallengeAggregator {
     const ratingsData = await this.fetchBrandRatings();
     
     if (!ratingsData || ratingsData.length === 0) {
-      console.log(`[DailyChallengeAggregator] No brand ratings data found`);
-      return;
+      await this.log('warn', 'No brand ratings data found', undefined, logger);
+      return { processed: 0, skipped: 0 };
     }
 
     // Sort by total ratings (engagement) to determine rank
     const sorted = ratingsData
       .filter(b => b.totalRatings > 0) // Only include brands with ratings
       .sort((a, b) => b.totalRatings - a.totalRatings);
+
+    let processed = 0;
+    let skipped = 0;
 
     for (let i = 0; i < sorted.length; i++) {
       const brandData = sorted[i];
@@ -335,7 +482,8 @@ export class DailyChallengeAggregator {
       });
 
       if (!brand) {
-        console.log(`[DailyChallengeAggregator] Brand not found in DB: ${brandData.name}`);
+        skipped += 1;
+        await this.log('warn', `Brand not found in DB: ${brandData.name}`, undefined, logger);
         continue;
       }
 
@@ -385,8 +533,16 @@ export class DailyChallengeAggregator {
           },
         });
 
-      console.log(`[DailyChallengeAggregator] ${brandData.name}: ${brandData.totalRatings} ratings, avg ${brandData.averageRating}, ${scoring.totalPoints} pts (rank #${rank})`);
+      processed += 1;
+      await this.log(
+        'info',
+        `${brandData.name}: ${brandData.totalRatings} ratings, avg ${brandData.averageRating}, ${scoring.totalPoints} pts (rank #${rank})`,
+        undefined,
+        logger
+      );
     }
+
+    return { processed, skipped };
   }
 
   /**

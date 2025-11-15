@@ -40,6 +40,12 @@ import { eq, and } from 'drizzle-orm';
 import { wsManager } from './websocket';
 import { getOrCreateLineup } from './utils/autoLineup';
 import { calculateBrandPoints } from './brandScoring';
+import {
+  calculateManufacturerScore as calculateDailyManufacturerScore,
+  calculateStrainScore as calculateDailyStrainScore,
+  calculatePharmacyScore as calculateDailyPharmacyScore,
+  calculateBrandScore as calculateDailyBrandScore,
+} from './dailyChallengeScoringEngine';
 
 // ============================================================================
 // SCORING FORMULAS
@@ -1153,29 +1159,31 @@ async function scoreCannabisStrain(cannabisStrainId: number, scope: ScoreScope):
   
   // For weekly scoring, calculate points using formula
   if (scope.type === 'weekly') {
+    const weeklyStat = statRecord as typeof cannabisStrainWeeklyStats.$inferSelect;
     const result = calculateCannabisStrainPoints({
-      totalFavorites: statRecord.totalFavorites,
-      pharmacyCount: statRecord.pharmacyCount,
-      productCount: statRecord.productCount,
-      avgPriceChange: statRecord.priceChange,
-      marketPenetration: statRecord.marketPenetration,
+      totalFavorites: weeklyStat.totalFavorites,
+      pharmacyCount: weeklyStat.pharmacyCount,
+      productCount: weeklyStat.productCount,
+      avgPriceChange: weeklyStat.priceChange,
+      marketPenetration: weeklyStat.marketPenetration,
     });
 
     await db
       .update(cannabisStrainWeeklyStats)
       .set({ totalPoints: result.points })
-      .where(eq(cannabisStrainWeeklyStats.id, statRecord.id));
+      .where(eq(cannabisStrainWeeklyStats.id, weeklyStat.id));
 
     return result;
   }
 
   // For daily challenges, return pre-calculated points
+  const dailyStat = statRecord as typeof strainDailyChallengeStats.$inferSelect;
   return {
-    points: statRecord.totalPoints,
+    points: dailyStat.totalPoints,
     breakdown: {
-      salesVolumeGrams: statRecord.salesVolumeGrams,
-      orderCount: statRecord.orderCount,
-      rank: statRecord.rank,
+      salesVolumeGrams: dailyStat.salesVolumeGrams,
+      orderCount: dailyStat.orderCount,
+      rank: dailyStat.rank,
     }
   };
 }
@@ -1201,10 +1209,10 @@ async function scoreProduct(productId: number, scope: ScoreScope): Promise<{ poi
         .limit(1)
     : await db
         .select()
-        .from(strainDailyStats)
+        .from(strainDailyChallengeStats)
         .where(and(
-          eq(strainDailyStats.strainId, productId),
-          eq(strainDailyStats.statDate, scope.statDate)
+          eq(strainDailyChallengeStats.strainId, productId),
+          eq(strainDailyChallengeStats.statDate, scope.statDate)
         ))
         .limit(1);
 
@@ -1215,15 +1223,29 @@ async function scoreProduct(productId: number, scope: ScoreScope): Promise<{ poi
 
   const statRecord = stats[0];
 
-  return calculateStrainPoints({
-    favoriteCount: statRecord.favoriteCount,
-    favoriteGrowth: statRecord.favoriteGrowth,
-    pharmacyCount: statRecord.pharmacyCount,
-    pharmacyExpansion: statRecord.pharmacyExpansion,
-    avgPriceCents: statRecord.avgPriceCents,
-    priceStability: statRecord.priceStability,
-    orderVolumeGrams: statRecord.orderVolumeGrams,
-  });
+  if (scope.type === 'weekly') {
+    const weeklyStat = statRecord as typeof strainWeeklyStats.$inferSelect;
+    return calculateStrainPoints({
+      favoriteCount: weeklyStat.favoriteCount,
+      favoriteGrowth: weeklyStat.favoriteGrowth,
+      pharmacyCount: weeklyStat.pharmacyCount,
+      pharmacyExpansion: weeklyStat.pharmacyExpansion,
+      avgPriceCents: weeklyStat.avgPriceCents,
+      priceStability: weeklyStat.priceStability,
+      orderVolumeGrams: weeklyStat.orderVolumeGrams,
+    });
+  }
+
+  const dailyStat = statRecord as typeof strainDailyChallengeStats.$inferSelect;
+
+  return {
+    points: dailyStat.totalPoints,
+    breakdown: {
+      salesVolumeGrams: dailyStat.salesVolumeGrams,
+      orderCount: dailyStat.orderCount,
+      rank: dailyStat.rank,
+    },
+  };
 }
 
 /**
@@ -1263,24 +1285,26 @@ async function scorePharmacy(pharmacyId: number, scope: ScoreScope): Promise<{ p
 
   // For weekly scoring, calculate points using formula
   if (scope.type === 'weekly') {
+    const weeklyStat = statRecord as typeof pharmacyWeeklyStats.$inferSelect;
     return calculatePharmacyPoints({
-      revenueCents: statRecord.revenueCents,
-      orderCount: statRecord.orderCount,
-      avgOrderSizeGrams: statRecord.avgOrderSizeGrams,
-      customerRetentionRate: statRecord.customerRetentionRate,
-      productVariety: statRecord.productVariety,
-      appUsageRate: statRecord.appUsageRate,
-      growthRatePercent: statRecord.growthRatePercent,
+      revenueCents: weeklyStat.revenueCents,
+      orderCount: weeklyStat.orderCount,
+      avgOrderSizeGrams: weeklyStat.avgOrderSizeGrams,
+      customerRetentionRate: weeklyStat.customerRetentionRate,
+      productVariety: weeklyStat.productVariety,
+      appUsageRate: weeklyStat.appUsageRate,
+      growthRatePercent: weeklyStat.growthRatePercent,
     });
   }
 
   // For daily challenges, return pre-calculated points
+  const dailyStat = statRecord as typeof pharmacyDailyChallengeStats.$inferSelect;
   return {
-    points: statRecord.totalPoints,
+    points: dailyStat.totalPoints,
     breakdown: {
-      orderCount: statRecord.orderCount,
-      revenueCents: statRecord.revenueCents,
-      rank: statRecord.rank,
+      orderCount: dailyStat.orderCount,
+      revenueCents: dailyStat.revenueCents,
+      rank: dailyStat.rank,
     }
   };
 }
@@ -1322,28 +1346,30 @@ async function scoreBrand(brandId: number, scope: ScoreScope): Promise<{ points:
 
   // For weekly scoring, calculate points using formula
   if (scope.type === 'weekly') {
+    const weeklyStat = statRecord as typeof brandWeeklyStats.$inferSelect;
     return calculateBrandPoints({
-      favorites: statRecord.favorites,
-      favoriteGrowth: statRecord.favoriteGrowth,
-      views: statRecord.views,
-      viewGrowth: statRecord.viewGrowth,
-      comments: statRecord.comments,
-      commentGrowth: statRecord.commentGrowth,
-      affiliateClicks: statRecord.affiliateClicks,
-      clickGrowth: statRecord.clickGrowth,
-      engagementRate: statRecord.engagementRate,
-      sentimentScore: statRecord.sentimentScore,
+      favorites: weeklyStat.favorites,
+      favoriteGrowth: weeklyStat.favoriteGrowth,
+      views: weeklyStat.views,
+      viewGrowth: weeklyStat.viewGrowth,
+      comments: weeklyStat.comments,
+      commentGrowth: weeklyStat.commentGrowth,
+      affiliateClicks: weeklyStat.affiliateClicks,
+      clickGrowth: weeklyStat.clickGrowth,
+      engagementRate: weeklyStat.engagementRate,
+      sentimentScore: weeklyStat.sentimentScore,
     });
   }
 
   // For daily challenges, return pre-calculated points based on ratings
+  const dailyStat = statRecord as typeof brandDailyChallengeStats.$inferSelect;
   return {
-    points: statRecord.totalPoints,
+    points: dailyStat.totalPoints,
     breakdown: {
-      totalRatings: statRecord.totalRatings,
-      averageRating: statRecord.averageRating,
-      bayesianAverage: statRecord.bayesianAverage,
-      rank: statRecord.rank,
+      totalRatings: dailyStat.totalRatings,
+      averageRating: dailyStat.averageRating,
+      bayesianAverage: dailyStat.bayesianAverage,
+      rank: dailyStat.rank,
     }
   };
 }
