@@ -534,6 +534,8 @@ export const users = pgTable("users", {
 	email: varchar({ length: 320 }),
 	loginMethod: varchar({ length: 64 }),
 	role: varchar({ length: 50 }).default('user').notNull(),
+	currentPredictionStreak: integer().default(0).notNull(),
+	longestPredictionStreak: integer().default(0).notNull(),
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	lastSignedIn: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
@@ -670,3 +672,41 @@ export const syncLogs = pgTable("syncLogs", {
 
 // Daily Challenge Stats Tables
 export * from './dailyChallengeSchema';
+
+// ============================================================================
+// PREDICTION STREAK TABLES
+// ============================================================================
+
+export const dailyMatchups = pgTable("dailyMatchups", {
+	id: serial().notNull(),
+	matchupDate: date({ mode: 'string' }).notNull(),
+	entityType: varchar({ length: 50 }).notNull(),
+	entityAId: integer().notNull(),
+	entityBId: integer().notNull(),
+	entityAName: varchar({ length: 255 }).notNull(),
+	entityBName: varchar({ length: 255 }).notNull(),
+	winnerId: integer(),
+	entityAPoints: integer(),
+	entityBPoints: integer(),
+	isScored: integer().default(0).notNull(),
+	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
+},
+(table) => [
+	index("matchup_date_idx").on(table.matchupDate),
+	index("matchup_scored_idx").on(table.isScored),
+	unique("matchup_unique").on(table.matchupDate, table.entityAId, table.entityBId),
+]);
+
+export const userPredictions = pgTable("userPredictions", {
+	id: serial().notNull(),
+	userId: integer().notNull(),
+	matchupId: integer().notNull(),
+	predictedWinnerId: integer().notNull(),
+	isCorrect: integer(),
+	submittedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
+},
+(table) => [
+	index("user_matchup_idx").on(table.userId, table.matchupId),
+	index("user_predictions_date_idx").on(table.submittedAt),
+	unique("user_matchup_unique").on(table.userId, table.matchupId),
+]);

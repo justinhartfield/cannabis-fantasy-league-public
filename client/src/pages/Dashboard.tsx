@@ -163,6 +163,47 @@ export default function Dashboard() {
           </Card>
         </div>
 
+        {/* Prediction Streak Game Mode */}
+        <section className="mb-8">
+          <div className="mb-4">
+            <h3 className="text-xl font-bold text-foreground mb-2">
+              Daily Prediction Streak
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Test your cannabis market knowledge with daily head-to-head predictions
+            </p>
+          </div>
+          
+          <Link href="/prediction-streak">
+            <Card className="gradient-card border-border/50 card-hover-lift cursor-pointer overflow-hidden">
+              <div className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                      <Zap className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-bold text-foreground">
+                        Play Today's Matchups
+                      </h4>
+                      <p className="text-sm text-muted-foreground">
+                        Current Streak: {user?.currentPredictionStreak || 0} 🔥 | 
+                        Best: {user?.longestPredictionStreak || 0}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-2xl font-bold text-gradient-primary">
+                      7
+                    </span>
+                    <p className="text-xs text-muted-foreground">matchups daily</p>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </Link>
+        </section>
+
         {/* My Leagues */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">

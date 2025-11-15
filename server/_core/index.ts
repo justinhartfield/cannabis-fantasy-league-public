@@ -12,6 +12,7 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { scoringScheduler } from "../scoringScheduler";
 import { initDailyChallengeScheduler } from "../dailyChallengeScheduler";
+import { initPredictionScheduler } from "../predictionScheduler";
 import { getDailyStatsScheduler } from "../dailyStatsScheduler";
 import { wsManager } from "../websocket";
 
@@ -89,6 +90,10 @@ async function startServer() {
     const dailyStatsScheduler = getDailyStatsScheduler();
     dailyStatsScheduler.start();
     console.log('[DailyStats] Scheduler started');
+    
+    // Start prediction scheduler
+    initPredictionScheduler();
+    console.log('[Prediction] Scheduler started');
   });
 }
 
