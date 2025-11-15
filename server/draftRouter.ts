@@ -334,7 +334,7 @@ export const draftRouter = router({
       return available.map((product) => ({
         id: product.id,
         name: product.name,
-        manufacturer: product.manufacturer || "Unknown",
+        manufacturer: product.manufacturerName || "Unknown",
         thcContent: product.thcContent || 0,
         cbdContent: product.cbdContent || 0,
         favoriteCount: product.favoriteCount || 0,
