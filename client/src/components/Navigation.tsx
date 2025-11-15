@@ -25,7 +25,7 @@ export function Navigation() {
           {/* Left side - Home link */}
           <Link href="/">
             <a className="flex items-center gap-2 text-foreground hover:text-primary transition-colors">
-              <img src="/cfl-logo.png" alt="Cannabis Fantasy League" className="h-8 w-auto" />
+              <img src="/src/cfl-logo.png" alt="Cannabis Fantasy League" className="h-8 w-auto" />
             </a>
           </Link>
 
