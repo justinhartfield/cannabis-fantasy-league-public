@@ -204,7 +204,7 @@ export class DailyChallengeAggregator {
       if (!name) continue;
 
       const quantity = order.Quantity || 0;
-      const revenue = (order.TotalPrice || 0) * 100; // Convert to cents
+      const revenue = Math.round((order.TotalPrice || 0) * 100); // Convert to cents
 
       const current = stats.get(name) || { salesVolumeGrams: 0, orderCount: 0, revenueCents: 0 };
       current.salesVolumeGrams += quantity;
@@ -465,7 +465,7 @@ export class DailyChallengeAggregator {
       const name = order.PharmacyName;
       if (!name) continue;
 
-      const revenue = (order.TotalPrice || 0) * 100;
+      const revenue = Math.round((order.TotalPrice || 0) * 100);
 
       const current = stats.get(name) || { orderCount: 0, revenueCents: 0 };
       current.orderCount += 1;
