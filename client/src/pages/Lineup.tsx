@@ -183,7 +183,9 @@ export default function Lineup() {
           <TabsContent value="scoring">
             {scoringData && scoringData.breakdowns && scoringData.breakdowns.length > 0 ? (
               <div className="grid gap-4 md:gap-6">
-                {scoringData.breakdowns.map((breakdown: any, index: number) => (
+                {scoringData.breakdowns
+                  .filter((breakdown: any) => breakdown.assetId !== null && breakdown.assetId !== undefined)
+                  .map((breakdown: any, index: number) => (
                   <ScoringBreakdown
                     key={index}
                     data={{

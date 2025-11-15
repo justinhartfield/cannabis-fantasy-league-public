@@ -867,7 +867,9 @@ export default function DailyChallenge() {
               Scoring Breakdown
             </h3>
             <div className="grid gap-4">
-              {breakdown.breakdowns.map((item: any, index: number) => (
+              {breakdown.breakdowns
+                .filter((item: any) => item.assetId !== null)
+                .map((item: any, index: number) => (
                 <div key={`${item.assetId}-${index}`}>
                   <ScoringBreakdown
                     data={{
