@@ -5,8 +5,12 @@ import { eq } from "drizzle-orm";
 
 export async function getEntityImage(entityType: string, entityId: number): Promise<string | null> {
   const db = await getDb();
-  if (!db) return null;
+  if (!db) {
+    console.log('[EntityImageHelper] Database not available');
+    return null;
+  }
 
+  console.log(`[EntityImageHelper] Fetching image for ${entityType} ID ${entityId}`);
   try {
     switch (entityType) {
       case 'manufacturer': {
@@ -15,6 +19,7 @@ export async function getEntityImage(entityType: string, entityId: number): Prom
           .from(manufacturers)
           .where(eq(manufacturers.id, entityId))
           .limit(1);
+        console.log(`[EntityImageHelper] Manufacturer ${entityId} result:`, result[0]);
         return result[0]?.logoUrl || null;
       }
       case 'brand': {
@@ -39,6 +44,7 @@ export async function getEntityImage(entityType: string, entityId: number): Prom
           .from(cannabisStrains)
           .where(eq(cannabisStrains.id, entityId))
           .limit(1);
+        console.log(`[EntityImageHelper] Strain ${entityId} result:`, result[0]);
         return result[0]?.imageUrl || null;
       }
       default:
