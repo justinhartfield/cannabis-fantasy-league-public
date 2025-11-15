@@ -172,12 +172,12 @@ export class DailyChallengeAggregator {
       logger
     );
     const filtered = allOrders.filter((order: any) => {
-      if (!order.UpdatedAt) return false;
-      const updatedDate = new Date(order.UpdatedAt);
+      if (!order.OrderDate) return false;
+      const orderDate = new Date(order.OrderDate);
       return (
-        updatedDate.getFullYear() === targetDate.getFullYear() &&
-        updatedDate.getMonth() === targetDate.getMonth() &&
-        updatedDate.getDate() === targetDate.getDate()
+        orderDate.getFullYear() === targetDate.getFullYear() &&
+        orderDate.getMonth() === targetDate.getMonth() &&
+        orderDate.getDate() === targetDate.getDate()
       );
     });
 

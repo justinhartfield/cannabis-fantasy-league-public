@@ -136,9 +136,9 @@ export default function DraftBoard({
           ? a.name.localeCompare(b.name)
           : b.name.localeCompare(a.name);
       } else {
-        // Sort by yesterday's points (default)
-        const aValue = a.yesterdayPoints ?? 0;
-        const bValue = b.yesterdayPoints ?? 0;
+        // Sort by yesterday's points (default), use today's points as fallback
+        const aValue = a.yesterdayPoints ?? a.todayPoints ?? 0;
+        const bValue = b.yesterdayPoints ?? b.todayPoints ?? 0;
         return sortOrder === "asc" ? aValue - bValue : bValue - aValue;
       }
     });
