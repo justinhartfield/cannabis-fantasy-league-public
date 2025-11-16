@@ -5,6 +5,51 @@
  */
 
 import { router, protectedProcedure } from './_core/trpc';
+
+// ============================================================================
+// In-Memory Score Cache
+// ============================================================================
+// Simple in-memory cache for challenge scores to dramatically improve performance
+// Cache TTL is 5 minutes - scores are recalculated hourly by background job
+
+interface ScoreCache {
+  scores: any[];
+  timestamp: number;
+}
+
+const challengeScoreCache = new Map<string, ScoreCache>();
+const SCORE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+function getCachedScores(challengeId: number, statDate: string): any[] | null {
+  const cacheKey = `${challengeId}-${statDate}`;
+  const cached = challengeScoreCache.get(cacheKey);
+  
+  if (cached && Date.now() - cached.timestamp < SCORE_CACHE_TTL) {
+    console.log(`[ScoreCache] Cache HIT for ${cacheKey}`);
+    return cached.scores;
+  }
+  
+  console.log(`[ScoreCache] Cache MISS for ${cacheKey}`);
+  return null;
+}
+
+function setCachedScores(challengeId: number, statDate: string, scores: any[]): void {
+  const cacheKey = `${challengeId}-${statDate}`;
+  challengeScoreCache.set(cacheKey, {
+    scores,
+    timestamp: Date.now()
+  });
+  console.log(`[ScoreCache] Cached scores for ${cacheKey}`);
+}
+
+function invalidateCachedScores(challengeId: number, statDate: string): void {
+  const cacheKey = `${challengeId}-${statDate}`;
+  challengeScoreCache.delete(cacheKey);
+  console.log(`[ScoreCache] Invalidated cache for ${cacheKey}`);
+}
+
+// ============================================================================
+
 import {
   calculateWeeklyScores,
   calculateTeamScore,
@@ -88,6 +133,10 @@ export const scoringRouter = router({
 
       try {
         await calculateDailyChallengeScores(input.challengeId, input.statDate);
+        
+        // Invalidate cache after recalculation to ensure fresh data
+        invalidateCachedScores(input.challengeId, input.statDate);
+        
         return {
           success: true,
           message: `Scores calculated for challenge ${input.challengeId} (${input.statDate})`,
@@ -401,6 +450,12 @@ export const scoringRouter = router({
       statDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     }))
     .query(async ({ ctx, input }) => {
+      // Check cache first for instant response
+      const cachedScores = getCachedScores(input.challengeId, input.statDate);
+      if (cachedScores) {
+        return cachedScores;
+      }
+
       const db = await getDb();
       if (!db) {
         throw new TRPCError({
@@ -511,6 +566,9 @@ export const scoringRouter = router({
           }
         }
 
+        // Cache the results before returning for future requests
+        setCachedScores(input.challengeId, input.statDate, teamScores);
+        
         return teamScores;
       } catch (error: any) {
         if (error instanceof TRPCError) {
