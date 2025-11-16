@@ -66,6 +66,7 @@ import {
   weeklyTeamScores, 
   scoringBreakdowns, 
   teams,
+  users,
   manufacturers,
   cannabisStrains,
   strains,
