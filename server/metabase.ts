@@ -146,14 +146,17 @@ export class MetabaseClient {
   /**
    * Execute a saved question/card by ID
    * @param cardId - The Metabase card/question ID
-   * @param parameters - Optional parameters for the card
+   * @param parameters - Optional parameters for the card (e.g., { date: '2025-11-16' })
    * @returns Array of result objects
    */
   async executeCardQuery(cardId: number, parameters?: Record<string, any>): Promise<any[]> {
     try {
-      console.log(`[Metabase] Executing card ${cardId}...`);
+      const hasParams = parameters && Object.keys(parameters).length > 0;
+      console.log(`[Metabase] Executing card ${cardId}${hasParams ? ' with parameters' : ''}...`, hasParams ? parameters : '');
       
-      const response = await this.axiosInstance.post(`/api/card/${cardId}/query`, parameters || {});
+      // Format parameters for Metabase API if provided
+      const requestBody = hasParams ? { parameters } : {};
+      const response = await this.axiosInstance.post(`/api/card/${cardId}/query`, requestBody);
       const rows = response.data.data?.rows || [];
       const cols = response.data.data?.cols || [];
 

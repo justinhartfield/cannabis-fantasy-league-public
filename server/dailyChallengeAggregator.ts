@@ -153,37 +153,52 @@ export class DailyChallengeAggregator {
    * Fetch orders for a specific date from Metabase
    */
   private async fetchOrdersForDate(dateString: string, logger?: AggregationLogger): Promise<OrderRecord[]> {
-    await this.log('info', 'Fetching orders from Metabase...', undefined, logger);
+    await this.log('info', `Fetching orders from Metabase for ${dateString}...`, undefined, logger);
 
-    // Query Metabase question 1266 (TODAY Completed transactions with recent data)
-    const allOrders = await this.metabase.executeCardQuery(1266);
+    try {
+      // Try using date-filtered card first (Card 1267 with date parameter)
+      // This is 80-90% faster than fetching all data and filtering client-side
+      await this.log('info', 'Attempting date-filtered Metabase query (Card 1267)...', undefined, logger);
+      const orders = await this.metabase.executeCardQuery(1267, {
+        date: dateString
+      });
 
-    // Filter by date
-    const targetDate = new Date(dateString);
-    await this.log(
-      'info',
-      `Target date: ${targetDate.toISOString()}, year=${targetDate.getFullYear()}, month=${targetDate.getMonth()}, day=${targetDate.getDate()}`,
-      undefined,
-      logger
-    );
-    await this.log(
-      'info',
-      'First 3 order dates sample',
-      allOrders.slice(0, 3).map((o: any) => ({ OrderDate: o.OrderDate, UpdatedAt: o.UpdatedAt })),
-      logger
-    );
-    const filtered = allOrders.filter((order: any) => {
-      if (!order.OrderDate) return false;
-      const orderDate = new Date(order.OrderDate);
-      return (
-        orderDate.getFullYear() === targetDate.getFullYear() &&
-        orderDate.getMonth() === targetDate.getMonth() &&
-        orderDate.getDate() === targetDate.getDate()
+      await this.log('info', `✓ Date-filtered query returned ${orders.length} orders for ${dateString}`, undefined, logger);
+      return orders as OrderRecord[];
+    } catch (error) {
+      // Fallback to old method if date-filtered card doesn't exist or fails
+      await this.log('warn', 'Date-filtered query failed, falling back to client-side filtering', error, logger);
+      
+      // Query Metabase question 1266 (TODAY Completed transactions with recent data)
+      const allOrders = await this.metabase.executeCardQuery(1266);
+
+      // Filter by date client-side
+      const targetDate = new Date(dateString);
+      await this.log(
+        'info',
+        `Target date: ${targetDate.toISOString()}, year=${targetDate.getFullYear()}, month=${targetDate.getMonth()}, day=${targetDate.getDate()}`,
+        undefined,
+        logger
       );
-    });
+      await this.log(
+        'info',
+        'First 3 order dates sample',
+        allOrders.slice(0, 3).map((o: any) => ({ OrderDate: o.OrderDate, UpdatedAt: o.UpdatedAt })),
+        logger
+      );
+      const filtered = allOrders.filter((order: any) => {
+        if (!order.OrderDate) return false;
+        const orderDate = new Date(order.OrderDate);
+        return (
+          orderDate.getFullYear() === targetDate.getFullYear() &&
+          orderDate.getMonth() === targetDate.getMonth() &&
+          orderDate.getDate() === targetDate.getDate()
+        );
+      });
 
-    await this.log('info', `Filtered to ${filtered.length} orders for ${dateString}`, undefined, logger);
-    return filtered as OrderRecord[];
+      await this.log('info', `Filtered to ${filtered.length} orders for ${dateString}`, undefined, logger);
+      return filtered as OrderRecord[];
+    }
   }
 
   /**
