@@ -144,37 +144,7 @@ export function DraftPicksGrid({ picks, currentPickNumber }: DraftPicksGridProps
                     </div>
                   </div>
 
-                  {/* Stats */}
-                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
-                    <div>
-                      {pick.lastWeekPoints !== null ? (
-                        <>
-                          <div className="text-lg font-bold text-foreground">
-                            {pick.lastWeekPoints}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            Letzte Woche
-                          </div>
-                        </>
-                      ) : (
-                        <div className="text-xs text-muted-foreground">
-                          Keine Stats
-                        </div>
-                      )}
-                    </div>
-                    
-                    {pick.trendPercent !== null && (
-                      <div className={cn(
-                        "flex items-center gap-1 text-xs font-medium",
-                        pick.trendPercent > 5 ? "text-green-500" : 
-                        pick.trendPercent < -5 ? "text-red-500" : 
-                        "text-muted-foreground"
-                      )}>
-                        {getTrendIcon(pick.trendPercent)}
-                        <span>{pick.trendPercent > 0 ? "+" : ""}{pick.trendPercent.toFixed(1)}%</span>
-                      </div>
-                    )}
-                  </div>
+
                 </div>
               </div>
             );
