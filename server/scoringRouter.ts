@@ -440,8 +440,14 @@ export const scoringRouter = router({
         }
 
         const leagueTeams = await db
-          .select()
+          .select({
+            teamId: teams.id,
+            teamName: teams.name,
+            userName: users.name,
+            userAvatarUrl: users.avatarUrl,
+          })
           .from(teams)
+          .leftJoin(users, eq(teams.userId, users.id))
           .where(eq(teams.leagueId, input.challengeId));
 
         const teamScores = [];
@@ -451,7 +457,7 @@ export const scoringRouter = router({
               .select()
               .from(dailyTeamScores)
               .where(and(
-                eq(dailyTeamScores.teamId, team.id),
+                eq(dailyTeamScores.teamId, team.teamId),
                 eq(dailyTeamScores.challengeId, input.challengeId),
                 sql`${dailyTeamScores.statDate} = ${input.statDate}::date`
               ))
@@ -460,15 +466,19 @@ export const scoringRouter = router({
             if (scores.length > 0) {
               const { teamId: _, ...scoreData } = scores[0];
               teamScores.push({
-                teamId: team.id,
-                teamName: team.name,
+                teamId: team.teamId,
+                teamName: team.teamName,
+                userName: team.userName,
+                userAvatarUrl: team.userAvatarUrl,
                 points: scores[0].totalPoints,
                 ...scoreData,
               });
             } else {
               teamScores.push({
-                teamId: team.id,
-                teamName: team.name,
+                teamId: team.teamId,
+                teamName: team.teamName,
+                userName: team.userName,
+                userAvatarUrl: team.userAvatarUrl,
                 points: 0,
               });
             }
@@ -486,14 +496,16 @@ export const scoringRouter = router({
               detail: errorDetail,
               cause: error?.cause,
               challengeId: input.challengeId,
-              teamId: team.id,
+              teamId: team.teamId,
               statDate: input.statDate,
               allProps: Object.keys(error || {}),
             });
             // Continue with other teams even if one fails
             teamScores.push({
-              teamId: team.id,
-              teamName: team.name,
+              teamId: team.teamId,
+              teamName: team.teamName,
+              userName: team.userName,
+              userAvatarUrl: team.userAvatarUrl,
               points: 0,
             });
           }

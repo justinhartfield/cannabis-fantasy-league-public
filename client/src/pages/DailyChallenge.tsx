@@ -293,6 +293,8 @@ export default function DailyChallenge() {
         teamId: score.teamId,
         teamName: score.teamName,
         points: score.points || 0,
+        userAvatarUrl: score.userAvatarUrl,
+        userName: score.userName,
       }));
     }
 
