@@ -851,6 +851,7 @@ export const draftRouter = router({
       // Process each pick to get asset name and stats
       const enrichedPicks = await Promise.all(picks.map(async (pick) => {
         let assetName = "Unknown";
+        let imageUrl: string | null = null;
         let lastWeekPoints: number | null = null;
         let trendPercent: number | null = null;
 
@@ -858,6 +859,7 @@ export const draftRouter = router({
         if (pick.assetType === 'manufacturer') {
           const [asset] = await db.select().from(manufacturers).where(eq(manufacturers.id, pick.assetId)).limit(1);
           assetName = asset?.name || "Unknown";
+          imageUrl = asset?.logoUrl || null;
 
           // Fetch last week stats
           const [lastWeekStat] = await db
@@ -891,6 +893,7 @@ export const draftRouter = router({
         } else if (pick.assetType === 'cannabis_strain') {
           const [asset] = await db.select().from(cannabisStrains).where(eq(cannabisStrains.id, pick.assetId)).limit(1);
           assetName = asset?.name || "Unknown";
+          imageUrl = asset?.imageUrl || null;
 
           const [lastWeekStat] = await db
             .select()
@@ -953,6 +956,7 @@ export const draftRouter = router({
         } else if (pick.assetType === 'pharmacy') {
           const [asset] = await db.select().from(pharmacies).where(eq(pharmacies.id, pick.assetId)).limit(1);
           assetName = asset?.name || "Unknown";
+          imageUrl = asset?.logoUrl || null;
 
           const [lastWeekStat] = await db
             .select()
@@ -984,6 +988,7 @@ export const draftRouter = router({
         } else if (pick.assetType === 'brand') {
           const [asset] = await db.select().from(brands).where(eq(brands.id, pick.assetId)).limit(1);
           assetName = asset?.name || "Unknown";
+          imageUrl = asset?.logoUrl || null;
 
           const [lastWeekStat] = await db
             .select()
@@ -1022,6 +1027,7 @@ export const draftRouter = router({
           assetType: pick.assetType,
           assetId: pick.assetId,
           assetName,
+          imageUrl,
           lastWeekPoints,
           trendPercent,
           pickTime: pick.pickTime,

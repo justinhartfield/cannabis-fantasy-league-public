@@ -11,6 +11,7 @@ interface DraftPick {
   assetType: string;
   assetId: number;
   assetName: string;
+  imageUrl?: string | null;
   lastWeekPoints: number | null;
   trendPercent: number | null;
   pickTime: string;
@@ -133,7 +134,19 @@ export function DraftPicksGrid({ picks, currentPickNumber }: DraftPicksGridProps
                 {/* Asset Info */}
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-lg">{emoji}</span>
+                    {pick.imageUrl ? (
+                      <img 
+                        src={pick.imageUrl} 
+                        alt={pick.assetName}
+                        className="w-8 h-8 rounded object-cover flex-shrink-0"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          const emojiSpan = e.currentTarget.nextElementSibling as HTMLElement;
+                          if (emojiSpan) emojiSpan.style.display = 'inline';
+                        }}
+                      />
+                    ) : null}
+                    <span className="text-lg flex-shrink-0" style={{ display: pick.imageUrl ? 'none' : 'inline' }}>{emoji}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-foreground truncate">
                         {pick.assetName}

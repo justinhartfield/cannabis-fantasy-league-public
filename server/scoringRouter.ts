@@ -682,38 +682,39 @@ export const scoringRouter = router({
 
         const [manufacturerNames, strainNames, productNames, pharmacyNames, brandNames] = await Promise.all([
           manufacturerIds.size > 0
-            ? db.select({ id: manufacturers.id, name: manufacturers.name })
+            ? db.select({ id: manufacturers.id, name: manufacturers.name, imageUrl: manufacturers.logoUrl })
                 .from(manufacturers)
                 .where(inArray(manufacturers.id, Array.from(manufacturerIds)))
             : [],
           strainIds.size > 0
-            ? db.select({ id: cannabisStrains.id, name: cannabisStrains.name })
+            ? db.select({ id: cannabisStrains.id, name: cannabisStrains.name, imageUrl: cannabisStrains.imageUrl })
                 .from(cannabisStrains)
                 .where(inArray(cannabisStrains.id, Array.from(strainIds)))
             : [],
           productIds.size > 0
-            ? db.select({ id: strains.id, name: strains.name })
+            ? db.select({ id: strains.id, name: strains.name, imageUrl: sql<string | null>`NULL` })
                 .from(strains)
                 .where(inArray(strains.id, Array.from(productIds)))
             : [],
           pharmacyIds.size > 0
-            ? db.select({ id: pharmacies.id, name: pharmacies.name })
+            ? db.select({ id: pharmacies.id, name: pharmacies.name, imageUrl: pharmacies.logoUrl })
                 .from(pharmacies)
                 .where(inArray(pharmacies.id, Array.from(pharmacyIds)))
             : [],
           brandIds.size > 0
-            ? db.select({ id: brands.id, name: brands.name })
+            ? db.select({ id: brands.id, name: brands.name, imageUrl: brands.logoUrl })
                 .from(brands)
                 .where(inArray(brands.id, Array.from(brandIds)))
             : [],
         ]);
 
         const nameMap = new Map<number, string>();
-        manufacturerNames.forEach((m) => nameMap.set(m.id, m.name));
-        strainNames.forEach((s) => nameMap.set(s.id, s.name));
-        productNames.forEach((p) => nameMap.set(p.id, p.name));
-        pharmacyNames.forEach((p) => nameMap.set(p.id, p.name));
-        brandNames.forEach((b) => nameMap.set(b.id, b.name));
+        const imageMap = new Map<number, string | null>();
+        manufacturerNames.forEach((m) => { nameMap.set(m.id, m.name); imageMap.set(m.id, m.imageUrl); });
+        strainNames.forEach((s) => { nameMap.set(s.id, s.name); imageMap.set(s.id, s.imageUrl); });
+        productNames.forEach((p) => { nameMap.set(p.id, p.name); imageMap.set(p.id, p.imageUrl); });
+        pharmacyNames.forEach((p) => { nameMap.set(p.id, p.name); imageMap.set(p.id, p.imageUrl); });
+        brandNames.forEach((b) => { nameMap.set(b.id, b.name); imageMap.set(b.id, b.imageUrl); });
 
         lineupSlots.forEach((slot) => {
           if (slot.assetId) {
@@ -724,6 +725,7 @@ export const scoringRouter = router({
         const enrichedBreakdowns = rawBreakdowns.map((bd) => ({
           ...bd,
           assetName: nameMap.get(bd.assetId) || null,
+          imageUrl: imageMap.get(bd.assetId) || null,
           breakdown: normalizeDailyBreakdownPayload(bd),
           source: 'stats' as const,
           hasStats: true,

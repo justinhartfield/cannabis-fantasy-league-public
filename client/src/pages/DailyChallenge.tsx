@@ -349,7 +349,7 @@ export default function DailyChallenge() {
   );
 
   const topPerformers = useMemo<
-    { name: string; type: string; total: number; breakdown: any }[]
+    { name: string; type: string; total: number; breakdown: any; imageUrl?: string | null }[]
   >(() => {
     if (!breakdown || !breakdown.breakdowns) {
       return [];
@@ -360,6 +360,7 @@ export default function DailyChallenge() {
           type: item.assetType,
           total: item.totalPoints || 0,
           breakdown: item.breakdown,
+          imageUrl: item.imageUrl || null,
         }))
         .sort((a: { total: number }, b: { total: number }) => b.total - a.total)
         .slice(0, 3);
@@ -752,6 +753,56 @@ export default function DailyChallenge() {
           </CardContent>
         </Card>
 
+
+        {/* Top Performers */}
+        {topPerformers.length > 0 && (
+          <div>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+              Game Leaders
+            </h3>
+            <div className="grid md:grid-cols-3 gap-4">
+              {topPerformers.map((performer, index) => (
+                <Card
+                  key={`${performer.name}-${index}`}
+                  className="gradient-card border-border/40 card-hover-lift slide-in-bottom"
+                  style={{ animationDelay: `${index * 0.1}s` }}
+                >
+                  <CardContent className="p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Badge>#{index + 1}</Badge>
+                      <TrendIndicator value={performer.total} showPercentage={false} />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {performer.imageUrl && (
+                        <img 
+                          src={performer.imageUrl} 
+                          alt={performer.name}
+                          className="w-12 h-12 rounded-lg object-cover flex-shrink-0 border-2 border-border"
+                          onError={(e) => e.currentTarget.style.display = 'none'}
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-lg font-bold text-foreground truncate">
+                          {performer.name}
+                        </div>
+                        <div className="text-xs text-muted-foreground uppercase">
+                          {performer.type}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {performer.breakdown?.components?.length || 0} Komponenten
+                    </div>
+                    <div className="text-3xl font-bold text-gradient-secondary">
+                      {performer.total.toFixed(1)}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
         {recentChallenges.length > 0 && (
           <Card className="border-border/50 bg-card/70 slide-in-bottom">
             <CardContent className="p-4 space-y-4">
@@ -827,6 +878,7 @@ export default function DailyChallenge() {
                       assetName:
                         item.assetName || `Unknown ${item.assetType}`,
                       assetType: item.assetType,
+                      imageUrl: item.imageUrl || null,
                       components: item.breakdown?.components || [],
                       bonuses: item.breakdown?.bonuses || [],
                       penalties: item.breakdown?.penalties || [],

@@ -30,6 +30,7 @@ interface ScoringPenalty {
 interface ScoringBreakdownData {
   assetName: string;
   assetType: "manufacturer" | "cannabis_strain" | "product" | "pharmacy" | "brand";
+  imageUrl?: string | null;
   components: ScoringComponent[];
   bonuses: ScoringBonus[];
   penalties: ScoringPenalty[];
@@ -97,16 +98,26 @@ export default function ScoringBreakdown({
     <Card className="bg-card border-border">
       <CardHeader>
         <div className="flex items-start justify-between">
-          <div>
-            <CardTitle className="text-card-foreground flex items-center gap-2">
-              <BarChart3 className="w-5 h-5" />
-              {data.assetName}
-            </CardTitle>
-            <CardDescription className="text-muted-foreground mt-1">
-              <Badge variant="outline" className={getAssetTypeColor(data.assetType)}>
-                {getAssetTypeLabel(data.assetType)}
-              </Badge>
-            </CardDescription>
+          <div className="flex items-center gap-3 flex-1">
+            {data.imageUrl && (
+              <img 
+                src={data.imageUrl} 
+                alt={data.assetName}
+                className="w-12 h-12 rounded-lg object-cover flex-shrink-0 border-2 border-border"
+                onError={(e) => e.currentTarget.style.display = 'none'}
+              />
+            )}
+            <div>
+              <CardTitle className="text-card-foreground flex items-center gap-2">
+                {!data.imageUrl && <BarChart3 className="w-5 h-5" />}
+                {data.assetName}
+              </CardTitle>
+              <CardDescription className="text-muted-foreground mt-1">
+                <Badge variant="outline" className={getAssetTypeColor(data.assetType)}>
+                  {getAssetTypeLabel(data.assetType)}
+                </Badge>
+              </CardDescription>
+            </div>
           </div>
           <div className="text-right">
             <div className="text-3xl font-bold text-foreground">{data.total}</div>
