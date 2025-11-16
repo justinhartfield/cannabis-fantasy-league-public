@@ -115,13 +115,20 @@ class DraftTimerManager {
       
       await makeAutoPick(leagueId, teamId);
 
-      // Notify all clients
-      wsManager.notifyAutoPick(leagueId, {
-        teamId,
-        pickNumber: this.timers.get(leagueId)?.pickNumber || 0,
-      });
+      // Check if draft is complete
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      
+      const [league] = await db
+        .select()
+        .from(leagues)
+        .where(eq(leagues.id, leagueId))
+        .limit(1);
 
-      // Timer for next pick will be started by the makeDraftPick mutation
+      // Start timer for next pick if draft is not complete
+      if (league && !league.draftCompleted) {
+        await this.startTimer(leagueId);
+      }
     } catch (error) {
       console.error("[DraftTimer] Error handling time expired:", error);
       // Notify clients of error

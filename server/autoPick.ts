@@ -1,6 +1,6 @@
 import { getDb } from "./db";
-import { manufacturers, cannabisStrains, strains, pharmacies, rosters, teams, draftPicks } from "../drizzle/schema";
-import { eq, and, notInArray, inArray, sql } from "drizzle-orm";
+import { manufacturers, cannabisStrains, strains, pharmacies, brands, rosters, teams, draftPicks, leagues } from "../drizzle/schema";
+import { eq, and, notInArray, inArray, sql, desc } from "drizzle-orm";
 import { advanceDraftPick, calculateNextPick } from "./draftLogic";
 import { wsManager } from "./websocket";
 
@@ -27,6 +27,7 @@ export async function makeAutoPick(leagueId: number, teamId: number): Promise<vo
     cannabis_strain: 0,
     product: 0,
     pharmacy: 0,
+    brand: 0,
   };
 
   for (const item of teamRoster) {
@@ -77,7 +78,7 @@ export async function makeAutoPick(leagueId: number, teamId: number): Promise<vo
       .select()
       .from(manufacturers)
       .where(draftedIds.length > 0 ? notInArray(manufacturers.id, draftedIds) : undefined)
-      .orderBy(sql`${manufacturers.productCount} DESC`)
+      .orderBy(desc(manufacturers.productCount))
       .limit(1);
 
     if (available.length > 0) {
@@ -88,7 +89,7 @@ export async function makeAutoPick(leagueId: number, teamId: number): Promise<vo
       .select()
       .from(cannabisStrains)
       .where(draftedIds.length > 0 ? notInArray(cannabisStrains.id, draftedIds) : undefined)
-      .orderBy(cannabisStrains.name)
+      .orderBy(desc(cannabisStrains.pharmaceuticalProductCount))
       .limit(1);
 
     if (available.length > 0) {
@@ -99,7 +100,7 @@ export async function makeAutoPick(leagueId: number, teamId: number): Promise<vo
       .select()
       .from(strains)
       .where(draftedIds.length > 0 ? notInArray(strains.id, draftedIds) : undefined)
-      .orderBy(strains.name)
+      .orderBy(desc(strains.pharmacyCount), desc(strains.favoriteCount))
       .limit(1);
 
     if (available.length > 0) {
@@ -110,7 +111,18 @@ export async function makeAutoPick(leagueId: number, teamId: number): Promise<vo
       .select()
       .from(pharmacies)
       .where(draftedIds.length > 0 ? notInArray(pharmacies.id, draftedIds) : undefined)
-      .orderBy(pharmacies.name)
+      .orderBy(desc(pharmacies.productCount), desc(pharmacies.weeklyRevenueCents))
+      .limit(1);
+
+    if (available.length > 0) {
+      pickedAsset = { id: available[0].id, name: available[0].name };
+    }
+  } else if (targetPosition === "brand") {
+    const available = await db
+      .select()
+      .from(brands)
+      .where(draftedIds.length > 0 ? notInArray(brands.id, draftedIds) : undefined)
+      .orderBy(desc(brands.totalFavorites), desc(brands.affiliateClicks))
       .limit(1);
 
     if (available.length > 0) {
