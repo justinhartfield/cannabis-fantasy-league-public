@@ -175,7 +175,7 @@ export default function DraftBoard({
         </CardHeader>
         <CardContent>
           {/* Roster Needs */}
-          <div className="grid grid-cols-6 gap-2 mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mb-4">
             <div className="text-center p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
               <Building2 className="w-4 h-4 mx-auto mb-1 text-blue-500" />
               <p className="text-xs text-muted-foreground">Hersteller</p>
@@ -220,11 +220,12 @@ export default function DraftBoard({
               />
             </div>
             {/* Sorting Controls */}
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Button
                 variant={sortBy === "name" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setSortBy("name")}
+                className="w-full sm:w-auto"
               >
                 Nach Name
               </Button>
@@ -232,6 +233,7 @@ export default function DraftBoard({
                 variant={sortBy === "stats" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setSortBy("stats")}
+                className="w-full sm:w-auto"
               >
                 Nach Stats
               </Button>
@@ -239,6 +241,7 @@ export default function DraftBoard({
                 variant="outline"
                 size="sm"
                 onClick={toggleSort}
+                className="w-full sm:w-auto"
               >
                 <ArrowUpDown className="w-4 h-4 mr-1" />
                 {sortOrder === "asc" ? "Aufsteigend" : "Absteigend"}
@@ -255,13 +258,13 @@ export default function DraftBoard({
         </CardHeader>
         <CardContent>
           <Tabs value={selectedCategory} onValueChange={(v) => setSelectedCategory(v as any)}>
-            <TabsList className="grid grid-cols-6 w-full">
-              <TabsTrigger value="all">Alle</TabsTrigger>
-              <TabsTrigger value="manufacturer">Hersteller</TabsTrigger>
-              <TabsTrigger value="cannabis_strain">Strains</TabsTrigger>
-              <TabsTrigger value="product">Produkte</TabsTrigger>
-              <TabsTrigger value="pharmacy">Apotheken</TabsTrigger>
-              <TabsTrigger value="brand">Brands</TabsTrigger>
+            <TabsList className="w-full inline-flex overflow-x-auto">
+              <TabsTrigger value="all" className="flex-shrink-0">Alle</TabsTrigger>
+              <TabsTrigger value="manufacturer" className="flex-shrink-0">Hersteller</TabsTrigger>
+              <TabsTrigger value="cannabis_strain" className="flex-shrink-0">Strains</TabsTrigger>
+              <TabsTrigger value="product" className="flex-shrink-0">Produkte</TabsTrigger>
+              <TabsTrigger value="pharmacy" className="flex-shrink-0">Apotheken</TabsTrigger>
+              <TabsTrigger value="brand" className="flex-shrink-0">Brands</TabsTrigger>
             </TabsList>
 
             <TabsContent value="all" className="space-y-2 mt-4">

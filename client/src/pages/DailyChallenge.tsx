@@ -588,8 +588,8 @@ export default function DailyChallenge() {
         {/* Hero Scoreboard */}
         <Card className="gradient-card border-border/50 glow-primary slide-in-bottom">
           <CardContent className="p-6">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-              <div className="flex-1 flex items-center justify-between gap-6">
+            <div className="flex flex-col gap-6">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
                 {leader ? (
                   <TeamScoreBlock
                     name={leader.teamName}
@@ -602,11 +602,11 @@ export default function DailyChallenge() {
                   <EmptyTeamBlock />
                 )}
 
-                <div className="text-center">
+                <div className="text-center w-full md:w-auto">
                   <div className="text-sm uppercase text-muted-foreground">
                     Scoreboard
                   </div>
-                  <div className="text-4xl font-bold text-foreground mt-1">
+                  <div className="text-3xl sm:text-4xl font-bold text-foreground mt-1">
                     {leader?.points?.toFixed(1) ?? "0.0"}{" "}
                     <span className="text-2xl text-muted-foreground">–</span>{" "}
                     {challenger?.points?.toFixed(1) ?? "0.0"}
@@ -772,7 +772,7 @@ export default function DailyChallenge() {
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Game Leaders
             </h3>
-            <div className="grid md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {topPerformers.map((performer, index) => (
                 <Card
                   key={`${performer.name}-${index}`}
@@ -824,7 +824,7 @@ export default function DailyChallenge() {
                 </h3>
                 <Badge variant="outline">{recentChallenges.length}</Badge>
               </div>
-              <div className="grid md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {recentChallenges.map((challenge: ChallengeSummary, index) => {
                   const status =
                     challenge.status === "active"
@@ -980,9 +980,9 @@ function TeamScoreBlock({
       <div className="text-xs uppercase text-muted-foreground mb-2">Team</div>
       <div className="flex items-center gap-2 mb-1">
         <TeamAvatar avatarUrl={avatarUrl} teamName={name || "Team"} userName={userName} size="md" />
-        <div className="text-xl font-bold text-foreground truncate">{name || "Team"}</div>
+        <div className="text-lg sm:text-xl font-bold text-foreground truncate">{name || "Team"}</div>
       </div>
-      <div className="text-4xl font-bold text-gradient-primary mt-3">
+      <div className="text-3xl sm:text-4xl font-bold text-gradient-primary mt-3">
         {score?.toFixed(1) ?? "0.0"}
       </div>
     </div>

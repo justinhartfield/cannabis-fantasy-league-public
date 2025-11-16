@@ -164,9 +164,9 @@ export function DraftAssetCard({
       "p-4 rounded-lg border transition-all duration-300",
       getCardStyle()
     )}>
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         {/* Asset Info */}
-        <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className="flex items-center gap-3 flex-1 min-w-0 w-full sm:w-auto">
           {imageUrl ? (
             <img 
               src={imageUrl} 
@@ -203,7 +203,7 @@ export function DraftAssetCard({
           onClick={() => onDraft(assetType, assetId, assetName)}
           disabled={buttonConfig.disabled}
           className={cn(
-            "shrink-0",
+            "shrink-0 w-full sm:w-auto",
             urgency === "critical" && "animate-pulse"
           )}
         >

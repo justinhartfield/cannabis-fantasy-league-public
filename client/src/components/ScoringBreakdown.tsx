@@ -97,8 +97,8 @@ export default function ScoringBreakdown({
   return (
     <Card className="bg-card border-border">
       <CardHeader>
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3 flex-1">
+        <div className="flex flex-col sm:flex-row items-start sm:items-start justify-between gap-4">
+          <div className="flex items-center gap-3 flex-1 w-full sm:w-auto">
             {data.imageUrl && (
               <img 
                 src={data.imageUrl} 
@@ -119,7 +119,7 @@ export default function ScoringBreakdown({
               </CardDescription>
             </div>
           </div>
-          <div className="text-right">
+          <div className="text-left sm:text-right w-full sm:w-auto">
             <div className="text-3xl font-bold text-foreground">{data.total}</div>
             <div className="text-sm text-muted-foreground">Punkte</div>
           </div>
@@ -133,9 +133,9 @@ export default function ScoringBreakdown({
             {data.components.map((component, idx) => (
               <div
                 key={idx}
-                className="flex items-center justify-between p-2 rounded-md bg-muted/50"
+                className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 rounded-md bg-muted/50 gap-2"
               >
-                <div className="flex-1">
+                <div className="flex-1 w-full sm:w-auto">
                   <div className="text-sm font-medium text-foreground mb-1">
                     {component.category}
                   </div>
@@ -143,7 +143,7 @@ export default function ScoringBreakdown({
                     {component.value} × {component.formula} = {component.points} pts
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="text-left sm:text-right w-full sm:w-auto">
                   <div className="text-lg font-bold text-foreground">
                     {component.points}
                   </div>
@@ -165,7 +165,7 @@ export default function ScoringBreakdown({
               {data.bonuses.map((bonus, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center justify-between p-2 rounded-md bg-green-500/5 border border-green-500/20"
+                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 rounded-md bg-green-500/5 border border-green-500/20 gap-2"
                 >
                   <div>
                     <div className="text-sm font-medium text-foreground">
@@ -195,7 +195,7 @@ export default function ScoringBreakdown({
               {data.penalties.map((penalty, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center justify-between p-2 rounded-md bg-red-500/5 border border-red-500/20"
+                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 rounded-md bg-red-500/5 border border-red-500/20 gap-2"
                 >
                   <div>
                     <div className="text-sm font-medium text-foreground">
