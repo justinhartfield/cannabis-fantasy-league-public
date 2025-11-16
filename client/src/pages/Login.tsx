@@ -3,6 +3,7 @@ import { useLocation } from 'wouter';
 import { APP_LOGO, APP_TITLE } from '@/const';
 import { Button } from '@/components/ui/button';
 import { Leaf } from 'lucide-react';
+import { trpc } from '@/lib/trpc';
 
 /**
  * Login Page - Weed.de 2026 Reskin
@@ -14,6 +15,7 @@ export default function Login() {
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const utils = trpc.useUtils();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,6 +43,12 @@ export default function Login() {
       }
 
       const data = await response.json();
+      
+      // Invalidate the auth.me query to force a refetch with the new cookie
+      await utils.auth.me.invalidate();
+      
+      // Small delay to ensure the cookie is set and query is invalidated
+      await new Promise(resolve => setTimeout(resolve, 100));
       
       // Redirect to the page they were trying to access, or home
       const redirectTo = new URLSearchParams(window.location.search).get('redirect') || '/';
