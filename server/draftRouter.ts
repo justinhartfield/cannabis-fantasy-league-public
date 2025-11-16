@@ -168,14 +168,21 @@ export const draftRouter = router({
       console.log('[getAvailableManufacturers] Team IDs in league:', teamIds);
 
       // Get available manufacturers
-      let query = db.select().from(manufacturers);
-
+      // Build where conditions
+      const conditions = [];
+      
       if (draftedIds.length > 0) {
-        query = query.where(notInArray(manufacturers.id, draftedIds)) as any;
+        conditions.push(notInArray(manufacturers.id, draftedIds));
       }
-
+      
       if (input.search) {
-        query = query.where(sql`${manufacturers.name} ILIKE ${`%${input.search}%`}`) as any;
+        conditions.push(sql`${manufacturers.name} ILIKE ${`%${input.search}%`}`);
+      }
+      
+      let query = db.select().from(manufacturers);
+      
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions)) as any;
       }
 
       const available = await query.limit(input.limit);
@@ -240,14 +247,21 @@ export const draftRouter = router({
       const draftedIds = draftedStrains.map((r) => r.assetId);
 
       // Get available cannabis strains
-      let query = db.select().from(cannabisStrains);
-
+      // Build where conditions
+      const conditions = [];
+      
       if (draftedIds.length > 0) {
-        query = query.where(notInArray(cannabisStrains.id, draftedIds)) as any;
+        conditions.push(notInArray(cannabisStrains.id, draftedIds));
       }
-
+      
       if (input.search) {
-        query = query.where(sql`${cannabisStrains.name} ILIKE ${`%${input.search}%`}`) as any;
+        conditions.push(sql`${cannabisStrains.name} ILIKE ${`%${input.search}%`}`);
+      }
+      
+      let query = db.select().from(cannabisStrains);
+      
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions)) as any;
       }
 
       const available = await query.limit(input.limit);
@@ -322,17 +336,25 @@ export const draftRouter = router({
       const draftedIds = draftedProducts.map((r) => r.assetId);
       
       console.log('[getAvailableProducts] Drafted IDs:', draftedIds);
+      console.log('[getAvailableProducts] Drafted IDs types:', draftedIds.map(id => typeof id));
       console.log('[getAvailableProducts] Team IDs in league:', teamIds);
 
       // Get available products
-      let query = db.select().from(strains);
-
+      // Build where conditions
+      const conditions = [];
+      
       if (draftedIds.length > 0) {
-        query = query.where(notInArray(strains.id, draftedIds)) as any;
+        conditions.push(notInArray(strains.id, draftedIds));
       }
-
+      
       if (input.search) {
-        query = query.where(sql`${strains.name} ILIKE ${`%${input.search}%`}`) as any;
+        conditions.push(sql`${strains.name} ILIKE ${`%${input.search}%`}`);
+      }
+      
+      let query = db.select().from(strains);
+      
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions)) as any;
       }
 
       const available = await query.limit(input.limit);
@@ -416,14 +438,21 @@ export const draftRouter = router({
       const draftedIds = draftedPharmacies.map((r) => r.assetId);
 
       // Get available pharmacies
-      let query = db.select().from(pharmacies);
-
+      // Build where conditions
+      const conditions = [];
+      
       if (draftedIds.length > 0) {
-        query = query.where(notInArray(pharmacies.id, draftedIds)) as any;
+        conditions.push(notInArray(pharmacies.id, draftedIds));
       }
-
+      
       if (input.search) {
-        query = query.where(sql`${pharmacies.name} ILIKE ${`%${input.search}%`}`) as any;
+        conditions.push(sql`${pharmacies.name} ILIKE ${`%${input.search}%`}`);
+      }
+      
+      let query = db.select().from(pharmacies);
+      
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions)) as any;
       }
 
       const available = await query.limit(input.limit);
@@ -488,14 +517,21 @@ export const draftRouter = router({
       const draftedIds = draftedBrands.map((r) => r.assetId);
 
       // Get available brands
-      let query = db.select().from(brands);
-
+      // Build where conditions
+      const conditions = [];
+      
       if (draftedIds.length > 0) {
-        query = query.where(notInArray(brands.id, draftedIds)) as any;
+        conditions.push(notInArray(brands.id, draftedIds));
       }
-
+      
       if (input.search) {
-        query = query.where(sql`${brands.name} ILIKE ${`%${input.search}%`}`) as any;
+        conditions.push(sql`${brands.name} ILIKE ${`%${input.search}%`}`);
+      }
+      
+      let query = db.select().from(brands);
+      
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions)) as any;
       }
 
       const available = await query.limit(input.limit);
