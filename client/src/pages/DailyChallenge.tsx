@@ -66,6 +66,27 @@ export default function DailyChallenge() {
   const [showCoinFlip, setShowCoinFlip] = useState(false);
   const [coinFlipWinner, setCoinFlipWinner] = useState<{ teamId: number; teamName: string } | null>(null);
 
+  // Cache scores in localStorage for instant display on page load
+  const SCORE_CACHE_KEY = `challenge-${challengeId}-scores`;
+  const [cachedScores, setCachedScores] = useState<any[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem(SCORE_CACHE_KEY);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          // Check if cache is less than 1 hour old
+          if (Date.now() - parsed.timestamp < 3600000) {
+            console.log('[ScoreCache] Loaded cached scores from localStorage');
+            return parsed.scores;
+          }
+        }
+      } catch (e) {
+        console.error('[ScoreCache] Failed to parse cached scores', e);
+      }
+    }
+    return [];
+  });
+
   const {
     data: league,
     isLoading: leagueLoading,
@@ -255,6 +276,24 @@ export default function DailyChallenge() {
     return () => clearInterval(interval);
   }, [nextUpdateTime]);
 
+  // Update cache when new scores arrive
+  useEffect(() => {
+    if (dayScores && dayScores.length > 0) {
+      setCachedScores(dayScores);
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(SCORE_CACHE_KEY, JSON.stringify({
+            scores: dayScores,
+            timestamp: Date.now()
+          }));
+          console.log('[ScoreCache] Updated cached scores in localStorage');
+        } catch (e) {
+          console.error('[ScoreCache] Failed to cache scores', e);
+        }
+      }
+    }
+  }, [dayScores, SCORE_CACHE_KEY]);
+
   // Auto-calculation removed - scores are now calculated by the backend scheduler
   // Admin users can still manually trigger calculation using the "Calculate Scores" button
 
@@ -288,6 +327,7 @@ export default function DailyChallenge() {
 
   // Redirect non-challenges back to league detail
   const baseTeamScores: TeamScore[] = useMemo(() => {
+    // Prefer real scores from API
     if (dayScores && dayScores.length > 0) {
       return dayScores.map((score) => ({
         teamId: score.teamId,
@@ -298,6 +338,19 @@ export default function DailyChallenge() {
       }));
     }
 
+    // Fall back to cached scores for instant display
+    if (cachedScores && cachedScores.length > 0) {
+      console.log('[ScoreCache] Using cached scores for display');
+      return cachedScores.map((score) => ({
+        teamId: score.teamId,
+        teamName: score.teamName,
+        points: score.points || 0,
+        userAvatarUrl: score.userAvatarUrl,
+        userName: score.userName,
+      }));
+    }
+
+    // Finally fall back to empty teams from league data
     if (league?.teams && league.teams.length > 0) {
       return league.teams.map((team, index) => ({
         teamId: team.id,
@@ -309,7 +362,7 @@ export default function DailyChallenge() {
     }
 
     return [];
-  }, [dayScores, league]);
+  }, [dayScores, cachedScores, league]);
 
   const sortedScores: TeamScore[] = useMemo(() => {
     if (baseTeamScores.length === 0) return [];

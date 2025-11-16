@@ -960,14 +960,17 @@ export async function calculateDailyChallengeScores(challengeId: number, statDat
   console.log(`[calculateDailyChallengeScores] Found ${challengeTeams.length} teams in challenge ${challengeId}`);
   console.log(`[calculateDailyChallengeScores] Using stat date: ${statDateString}`);
   
-  for (const team of challengeTeams) {
-    try {
-      console.log(`[calculateDailyChallengeScores] Processing team ${team.id} (${team.name})`);
-      await calculateTeamDailyScore(team.id, challengeId, statDateString);
-    } catch (error) {
-      console.error(`[Scoring] Error calculating daily score for team ${team.id}:`, error);
-    }
-  }
+  // Calculate scores for all teams in parallel for better performance
+  await Promise.all(
+    challengeTeams.map(async (team) => {
+      try {
+        console.log(`[calculateDailyChallengeScores] Processing team ${team.id} (${team.name})`);
+        await calculateTeamDailyScore(team.id, challengeId, statDateString);
+      } catch (error) {
+        console.error(`[Scoring] Error calculating daily score for team ${team.id}:`, error);
+      }
+    })
+  );
 
   const scores = await db
     .select({
