@@ -328,6 +328,42 @@ export const pharmacies = pgTable("pharmacies", {
 (table) => [
 	index("pharmacies_name_idx").on(table.name),
 	unique("pharmacies_name_unique").on(table.name),
+	]);
+
+export const products = pgTable("products", {
+	id: serial().notNull(),
+	name: varchar({ length: 500 }).notNull(),
+	slug: varchar({ length: 500 }),
+	manufacturerId: integer(),
+	brandId: integer(),
+	strainId: integer(),
+	thcPercentage: varchar({ length: 50 }),
+	cbdPercentage: varchar({ length: 50 }),
+	productCode: varchar({ length: 100 }),
+	imageUrl: varchar({ length: 500 }),
+	description: text(),
+	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
+	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
+},
+(table) => [
+	index("products_name_idx").on(table.name),
+	unique("products_name_unique").on(table.name),
+]);
+
+export const productDailyStats = pgTable("productDailyStats", {
+	id: serial().notNull(),
+	productId: integer().notNull(),
+	statDate: date({ mode: 'string' }).notNull(),
+	salesVolumeGrams: integer().default(0).notNull(),
+	orderCount: integer().default(0).notNull(),
+	revenueCents: integer().default(0).notNull(),
+	totalPoints: integer().default(0).notNull(),
+	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
+	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
+},
+(table) => [
+	index("product_daily_date_idx").on(table.statDate),
+	unique("product_daily_unique").on(table.productId, table.statDate),
 ]);
 
 export const pharmacyWeeklyStats = pgTable("pharmacyWeeklyStats", {

@@ -15,6 +15,13 @@
       "when": 1763277870950,
       "tag": "0001_odd_catseye",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1763313321359,
+      "tag": "0002_yielding_colossus",
+      "breakpoints": true
     }
   ]
 }
