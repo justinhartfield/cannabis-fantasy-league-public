@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
+import { APP_LOGO, APP_TITLE } from '@/const';
+import { Button } from '@/components/ui/button';
+import { Leaf } from 'lucide-react';
 
 /**
- * Mock Login Page
+ * Login Page - Weed.de 2026 Reskin
  * 
- * Simple authentication for development/testing.
- * In production, this would integrate with a real OAuth provider.
+ * Bold, welcoming login experience with Weed.de branding
  */
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -50,24 +52,38 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
-      <div className="max-w-md w-full">
-        {/* Logo & Title */}
-        <div className="text-center mb-8">
-          <div className="inline-block p-4 bg-green-500/10 rounded-2xl mb-4">
-            <svg className="w-16 h-16 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-            </svg>
+    <div className="min-h-screen flex items-center justify-center bg-weed-cream dark:bg-weed-burgundy pattern-dots p-4">
+      <div className="w-full max-w-md">
+        <div className="bg-white dark:bg-weed-purple rounded-2xl shadow-2xl p-8 space-y-8">
+          {/* Logo and Title */}
+          <div className="text-center space-y-4">
+            <div className="flex justify-center">
+              <div className="relative">
+                <img
+                  src={APP_LOGO}
+                  alt={APP_TITLE}
+                  className="h-24 w-24 rounded-2xl object-cover shadow-lg ring-4 ring-weed-green"
+                />
+                <div className="absolute -bottom-2 -right-2 bg-weed-green rounded-full p-2 shadow-lg">
+                  <Leaf className="h-6 w-6 text-black" />
+                </div>
+              </div>
+            </div>
+            <h1 className="headline-primary text-4xl text-weed-coral">
+              {APP_TITLE}
+            </h1>
+            <p className="body-text text-muted-foreground dark:text-white/70">
+              Welcome back! Sign in to continue your journey.
+            </p>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Cannabis Fantasy League</h1>
-          <p className="text-gray-400">Sign in to continue</p>
-        </div>
 
-        {/* Login Form */}
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 border border-gray-700">
+          {/* Login Form */}
           <form onSubmit={handleLogin} className="space-y-6">
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-300 mb-2">
+              <label 
+                htmlFor="username" 
+                className="block text-sm font-semibold text-foreground dark:text-white mb-2 uppercase tracking-wide"
+              >
                 Username
               </label>
               <input
@@ -75,22 +91,23 @@ export default function Login() {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                className="w-full px-4 py-3 bg-background dark:bg-weed-burgundy border-2 border-input dark:border-white/20 rounded-lg text-foreground dark:text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-weed-green focus:border-transparent transition-all"
                 placeholder="Enter your username"
                 disabled={loading}
               />
             </div>
 
             {error && (
-              <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-3 text-red-400 text-sm">
+              <div className="bg-destructive/10 border-2 border-destructive/50 rounded-lg p-3 text-destructive text-sm font-medium">
                 {error}
               </div>
             )}
 
-            <button
+            <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+              size="lg"
+              className="w-full"
             >
               {loading ? (
                 <>
@@ -103,20 +120,20 @@ export default function Login() {
               ) : (
                 'Sign In'
               )}
-            </button>
+            </Button>
           </form>
 
           {/* Dev Note */}
-          <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-            <p className="text-xs text-blue-400">
-              <strong>Development Mode:</strong> Enter any username to create a test account.
+          <div className="p-4 bg-weed-green/10 border-2 border-weed-green/30 rounded-lg">
+            <p className="text-xs text-weed-burgundy dark:text-weed-green font-medium">
+              <strong className="uppercase tracking-wide">Development Mode:</strong> Enter any username to create a test account.
             </p>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="text-center mt-6 text-gray-500 text-sm">
-          <p>First fantasy league for medical cannabis in Germany 🇩🇪</p>
+        <div className="text-center mt-6 text-muted-foreground dark:text-white/60 text-sm">
+          <p className="font-medium">First fantasy league for medical cannabis in Germany 🇩🇪</p>
         </div>
       </div>
     </div>

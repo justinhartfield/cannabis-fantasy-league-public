@@ -43,76 +43,76 @@
 }
 
 :root {
-  /* Sports App Theme - Light Mode (fallback) */
-  --primary: #FF2D55; /* Pink/Red primary */
-  --primary-foreground: #FFFFFF;
-  --secondary: #00D9FF; /* Cyan/Teal secondary */
-  --secondary-foreground: #0A0E27;
-  --sidebar-primary: #FF2D55;
+  /* Weed.de 2026 Theme - Light Mode */
+  --primary: #A3FF12; /* Bright Green - Primary CTAs */
+  --primary-foreground: #000000;
+  --secondary: #FF5C47; /* Coral/Orange - Headlines & Accents */
+  --secondary-foreground: #FFFFFF;
+  --sidebar-primary: #FF5C47;
   --sidebar-primary-foreground: #FFFFFF;
-  --chart-1: #FF2D55;
-  --chart-2: #00D9FF;
-  --chart-3: #A855F7; /* Purple accent */
-  --chart-4: #10B981; /* Green for positive */
-  --chart-5: #F59E0B; /* Amber for neutral */
-  --radius: 0.75rem;
-  --background: #F5F5F7;
-  --foreground: #1A1F37;
+  --chart-1: #A3FF12; /* Bright Green */
+  --chart-2: #FF5C47; /* Coral */
+  --chart-3: #FF69B4; /* Hot Pink */
+  --chart-4: #3D1A4A; /* Deep Purple */
+  --chart-5: #4A1A1A; /* Burgundy */
+  --radius: 1rem; /* Increased for more rounded corners */
+  --background: #F5F5DC; /* Cream/Beige */
+  --foreground: #000000;
   --card: #FFFFFF;
-  --card-foreground: #1A1F37;
+  --card-foreground: #000000;
   --popover: #FFFFFF;
-  --popover-foreground: #1A1F37;
+  --popover-foreground: #000000;
   --muted: #E5E7EB;
   --muted-foreground: #6B7280;
-  --accent: #00D9FF;
-  --accent-foreground: #0A0E27;
+  --accent: #FF5C47; /* Coral accent */
+  --accent-foreground: #FFFFFF;
   --destructive: #EF4444;
   --destructive-foreground: #FFFFFF;
   --border: #E5E7EB;
   --input: #E5E7EB;
-  --ring: #FF2D55;
+  --ring: #A3FF12; /* Bright Green focus ring */
   --sidebar: #FFFFFF;
-  --sidebar-foreground: #1A1F37;
+  --sidebar-foreground: #000000;
   --sidebar-accent: #F3F4F6;
-  --sidebar-accent-foreground: #1A1F37;
+  --sidebar-accent-foreground: #000000;
   --sidebar-border: #E5E7EB;
-  --sidebar-ring: #FF2D55;
+  --sidebar-ring: #A3FF12;
 }
 
 .dark {
-  /* Sports App Theme - Dark Mode (Primary) */
-  --primary: #FF2D55; /* Pink/Red primary */
-  --primary-foreground: #FFFFFF;
-  --secondary: #00D9FF; /* Cyan/Teal secondary */
-  --secondary-foreground: #0A0E27;
-  --sidebar-primary: #FF2D55;
+  /* Weed.de 2026 Theme - Dark Mode */
+  --primary: #A3FF12; /* Bright Green */
+  --primary-foreground: #000000;
+  --secondary: #FF5C47; /* Coral/Orange */
+  --secondary-foreground: #FFFFFF;
+  --sidebar-primary: #FF5C47;
   --sidebar-primary-foreground: #FFFFFF;
-  --background: #0A0E27; /* Deep dark almost black */
+  --background: #4A1A1A; /* Deep Burgundy */
   --foreground: #FFFFFF;
-  --card: #1A1F37; /* Dark navy cards */
+  --card: #3D1A4A; /* Deep Purple cards */
   --card-foreground: #FFFFFF;
-  --popover: #252B45; /* Slightly lighter for popovers */
+  --popover: #3D1A4A;
   --popover-foreground: #FFFFFF;
-  --muted: #252B45;
+  --muted: #3D1A4A;
   --muted-foreground: #9CA3AF;
-  --accent: #00D9FF; /* Teal accent */
-  --accent-foreground: #0A0E27;
+  --accent: #FF5C47; /* Coral accent */
+  --accent-foreground: #FFFFFF;
   --destructive: #EF4444;
   --destructive-foreground: #FFFFFF;
   --border: rgba(255, 255, 255, 0.1);
   --input: rgba(255, 255, 255, 0.1);
-  --ring: #FF2D55;
-  --chart-1: #FF2D55; /* Pink */
-  --chart-2: #00D9FF; /* Teal */
-  --chart-3: #A855F7; /* Purple */
-  --chart-4: #10B981; /* Green */
-  --chart-5: #F59E0B; /* Amber */
-  --sidebar: #13151E;
+  --ring: #A3FF12;
+  --chart-1: #A3FF12; /* Bright Green */
+  --chart-2: #FF5C47; /* Coral */
+  --chart-3: #FF69B4; /* Hot Pink */
+  --chart-4: #3D1A4A; /* Deep Purple */
+  --chart-5: #4A1A1A; /* Burgundy */
+  --sidebar: #3D1A4A;
   --sidebar-foreground: #FFFFFF;
-  --sidebar-accent: #1A1F37;
+  --sidebar-accent: #4A1A1A;
   --sidebar-accent-foreground: #FFFFFF;
   --sidebar-border: rgba(255, 255, 255, 0.1);
-  --sidebar-ring: #FF2D55;
+  --sidebar-ring: #A3FF12;
 }
 
 @layer base {
@@ -177,39 +177,128 @@
     }
   }
 
-  /* Sports App Specific Utilities */
+  /* Weed.de 2026 Typography Styles */
+  .headline-primary {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    line-height: 1.1;
+  }
+
+  .headline-secondary {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.015em;
+    line-height: 1.2;
+  }
+
+  .headline-tertiary {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    line-height: 1.3;
+  }
+
+  /* Body text remains clean sans-serif */
+  .body-text {
+    font-family: system-ui, -apple-system, sans-serif;
+    font-weight: 400;
+    line-height: 1.6;
+  }
+
+  /* Weed.de Specific Utilities */
   .gradient-primary {
-    background: linear-gradient(135deg, #FF2D55 0%, #F91D62 100%);
+    background: linear-gradient(135deg, #A3FF12 0%, #7ACC00 100%);
   }
 
   .gradient-secondary {
-    background: linear-gradient(135deg, #00D9FF 0%, #5FEDD1 100%);
+    background: linear-gradient(135deg, #FF5C47 0%, #FF3D2E 100%);
   }
 
   .gradient-purple {
-    background: linear-gradient(135deg, #A855F7 0%, #C084FC 100%);
+    background: linear-gradient(135deg, #3D1A4A 0%, #5A2870 100%);
   }
 
   .gradient-dark {
-    background: linear-gradient(180deg, #0A0E27 0%, #13151E 100%);
+    background: linear-gradient(180deg, #4A1A1A 0%, #3D1A4A 100%);
   }
 
   .gradient-card {
-    background: linear-gradient(135deg, #1A1F37 0%, #252B45 100%);
+    background: linear-gradient(135deg, #3D1A4A 0%, #4A1A1A 100%);
   }
 
   .text-gradient-primary {
-    background: linear-gradient(135deg, #FF2D55 0%, #F91D62 100%);
+    background: linear-gradient(135deg, #A3FF12 0%, #7ACC00 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
   .text-gradient-secondary {
-    background: linear-gradient(135deg, #00D9FF 0%, #5FEDD1 100%);
+    background: linear-gradient(135deg, #FF5C47 0%, #FF3D2E 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+  }
+
+  /* Color blocking utilities */
+  .bg-weed-green {
+    background-color: #A3FF12;
+  }
+
+  .bg-weed-coral {
+    background-color: #FF5C47;
+  }
+
+  .bg-weed-burgundy {
+    background-color: #4A1A1A;
+  }
+
+  .bg-weed-purple {
+    background-color: #3D1A4A;
+  }
+
+  .bg-weed-pink {
+    background-color: #FF69B4;
+  }
+
+  .bg-weed-cream {
+    background-color: #F5F5DC;
+  }
+
+  /* Text color utilities */
+  .text-weed-green {
+    color: #A3FF12;
+  }
+
+  .text-weed-coral {
+    color: #FF5C47;
+  }
+
+  .text-weed-burgundy {
+    color: #4A1A1A;
+  }
+
+  .text-weed-purple {
+    color: #3D1A4A;
+  }
+
+  .text-weed-pink {
+    color: #FF69B4;
+  }
+
+  /* Background patterns */
+  .pattern-dots {
+    background-image: radial-gradient(circle, rgba(163, 255, 18, 0.1) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  .pattern-grid {
+    background-image: linear-gradient(rgba(255, 92, 71, 0.1) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(255, 92, 71, 0.1) 1px, transparent 1px);
+    background-size: 40px 40px;
   }
 
   /* Live indicator pulse */
@@ -284,11 +373,11 @@
 
   /* Glow effect for important elements */
   .glow-primary {
-    box-shadow: 0 0 20px rgba(255, 45, 85, 0.5);
+    box-shadow: 0 0 20px rgba(163, 255, 18, 0.5);
   }
 
   .glow-secondary {
-    box-shadow: 0 0 20px rgba(0, 217, 255, 0.5);
+    box-shadow: 0 0 20px rgba(255, 92, 71, 0.5);
   }
 
   /* Winner celebration animation */
@@ -337,7 +426,7 @@
     left: -100%;
     width: 100%;
     height: 2px;
-    background: linear-gradient(90deg, transparent, #FF2D55, transparent);
+    background: linear-gradient(90deg, transparent, #A3FF12, transparent);
     animation: live-border 2s linear infinite;
   }
 
@@ -426,7 +515,7 @@
 
   /* Glass morphism effect */
   .glass-effect {
-    background: rgba(26, 31, 55, 0.7);
+    background: rgba(61, 26, 74, 0.7);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.1);
   }

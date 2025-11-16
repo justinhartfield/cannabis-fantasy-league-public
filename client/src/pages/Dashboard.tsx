@@ -38,7 +38,7 @@ export default function Dashboard() {
   const hasLeagues = seasonLeagues.length > 0;
 
   return (
-    <div className="min-h-screen gradient-dark">
+    <div className="min-h-screen">
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         {/* Platform Statistics */}
@@ -85,20 +85,20 @@ export default function Dashboard() {
         {/* Quick Actions */}
         <div className="grid md:grid-cols-2 gap-4 mb-8">
           <Link href="/league/create">
-            <Card className="gradient-card border-border/50 card-hover-lift cursor-pointer h-full">
+            <Card className="bg-weed-coral border-0 card-hover-lift cursor-pointer h-full">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-foreground flex items-center gap-2 mb-2">
-                      <Calendar className="w-5 h-5 text-[#FF2D55]" />
+                    <CardTitle className="text-white flex items-center gap-2 mb-2">
+                      <Calendar className="w-5 h-5 text-white" />
                       Create New League
                     </CardTitle>
-                    <CardDescription className="text-muted-foreground">
+                    <CardDescription className="text-white/80">
                       Start a season-long fantasy experience
                     </CardDescription>
                   </div>
-                  <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center">
-                    <Plus className="w-6 h-6 text-white" />
+                  <div className="w-12 h-12 rounded-xl bg-weed-green flex items-center justify-center">
+                    <Plus className="w-6 h-6 text-black" />
                   </div>
                 </div>
               </CardHeader>
@@ -106,20 +106,20 @@ export default function Dashboard() {
           </Link>
 
           <Link href="/league/create?type=challenge">
-            <Card className="gradient-card border-border/50 card-hover-lift cursor-pointer h-full">
+            <Card className="bg-weed-purple border-0 card-hover-lift cursor-pointer h-full">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-foreground flex items-center gap-2 mb-2">
-                      <Zap className="w-5 h-5 text-[#00D9FF]" />
+                    <CardTitle className="text-white flex items-center gap-2 mb-2">
+                      <Zap className="w-5 h-5 text-weed-green" />
                       Daily Challenge
                     </CardTitle>
-                    <CardDescription className="text-muted-foreground">
+                    <CardDescription className="text-white/80">
                       24-hour head-to-head battles
                     </CardDescription>
                   </div>
-                  <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center">
-                    <Plus className="w-6 h-6 text-white" />
+                  <div className="w-12 h-12 rounded-xl bg-weed-green flex items-center justify-center">
+                    <Plus className="w-6 h-6 text-black" />
                   </div>
                 </div>
               </CardHeader>
@@ -139,28 +139,28 @@ export default function Dashboard() {
           </div>
           
           <Link href="/prediction-streak">
-            <Card className="gradient-card border-border/50 card-hover-lift cursor-pointer overflow-hidden">
+            <Card className="bg-weed-pink border-0 card-hover-lift cursor-pointer overflow-hidden">
               <div className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                      <Zap className="w-6 h-6 text-white" />
+                    <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center">
+                      <Zap className="w-6 h-6 text-weed-pink" />
                     </div>
                     <div>
-                      <h4 className="text-lg font-bold text-foreground">
+                      <h4 className="text-lg font-bold text-white">
                         Play Today's Matchups
                       </h4>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-white/80">
                         Current Streak: {user?.currentPredictionStreak || 0} 🔥 | 
                         Best: {user?.longestPredictionStreak || 0}
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <span className="text-2xl font-bold text-gradient-primary">
+                    <span className="text-2xl font-bold text-white">
                       7
                     </span>
-                    <p className="text-xs text-muted-foreground">matchups daily</p>
+                    <p className="text-xs text-white/80">matchups daily</p>
                   </div>
                 </div>
               </div>
