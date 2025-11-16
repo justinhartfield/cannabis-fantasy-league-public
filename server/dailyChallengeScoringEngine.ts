@@ -48,8 +48,13 @@ export function calculateManufacturerScore(
   // Revenue: 1 point per €10 revenue (1000 cents)
   const revenuePoints = Math.floor(revenueCents / 1000);
 
-  // Top Seller Bonus: +50 points for #1 manufacturer
-  const rankBonusPoints = rank === 1 ? 50 : 0;
+  // Tiered Rank Bonuses for top 10 manufacturers
+  let rankBonusPoints = 0;
+  if (rank === 1) rankBonusPoints = 50;
+  else if (rank === 2) rankBonusPoints = 30;
+  else if (rank === 3) rankBonusPoints = 20;
+  else if (rank >= 4 && rank <= 5) rankBonusPoints = 15;
+  else if (rank >= 6 && rank <= 10) rankBonusPoints = 10;
 
   const totalPoints = salesVolumePoints + orderCountPoints + revenuePoints + rankBonusPoints;
 
@@ -79,8 +84,13 @@ export function calculateStrainScore(
   // Order Count: 10 points per order (2x multiplier)
   const orderCountPoints = orderCount * 10;
 
-  // Popularity Bonus: +40 points for #1 strain
-  const rankBonusPoints = rank === 1 ? 40 : 0;
+  // Tiered Rank Bonuses for top 10 strains
+  let rankBonusPoints = 0;
+  if (rank === 1) rankBonusPoints = 40;
+  else if (rank === 2) rankBonusPoints = 25;
+  else if (rank === 3) rankBonusPoints = 15;
+  else if (rank >= 4 && rank <= 5) rankBonusPoints = 10;
+  else if (rank >= 6 && rank <= 10) rankBonusPoints = 5;
 
   const totalPoints = salesVolumePoints + orderCountPoints + rankBonusPoints;
 
@@ -111,8 +121,13 @@ export function calculateProductScore(
   // Order Count: 15 points per order (3x multiplier)
   const orderCountPoints = orderCount * 15;
 
-  // Top Product Bonus: +50 points for #1 product
-  const rankBonusPoints = rank === 1 ? 50 : 0;
+  // Tiered Rank Bonuses for top 10 products
+  let rankBonusPoints = 0;
+  if (rank === 1) rankBonusPoints = 50;
+  else if (rank === 2) rankBonusPoints = 30;
+  else if (rank === 3) rankBonusPoints = 20;
+  else if (rank >= 4 && rank <= 5) rankBonusPoints = 15;
+  else if (rank >= 6 && rank <= 10) rankBonusPoints = 10;
 
   const totalPoints = salesVolumePoints + orderCountPoints + rankBonusPoints;
 
@@ -141,8 +156,13 @@ export function calculatePharmacyScore(
   // Revenue: 1 point per €10 revenue (1000 cents)
   const revenuePoints = Math.floor(revenueCents / 1000);
 
-  // Top Pharmacy Bonus: +40 points for #1 pharmacy
-  const rankBonusPoints = rank === 1 ? 40 : 0;
+  // Tiered Rank Bonuses for top 10 pharmacies
+  let rankBonusPoints = 0;
+  if (rank === 1) rankBonusPoints = 40;
+  else if (rank === 2) rankBonusPoints = 25;
+  else if (rank === 3) rankBonusPoints = 15;
+  else if (rank >= 4 && rank <= 5) rankBonusPoints = 10;
+  else if (rank >= 6 && rank <= 10) rankBonusPoints = 5;
 
   const totalPoints = orderCountPoints + revenuePoints + rankBonusPoints;
 
@@ -174,8 +194,13 @@ export function calculateBrandScore(
   // Rating Quality: 20 points per star (based on Bayesian average to prevent gaming)
   const ratingQualityPoints = Math.floor(bayesianAverage * 20);
 
-  // Top Brand Bonus: +50 points for #1 brand by ratings
-  const rankBonusPoints = rank === 1 ? 50 : 0;
+  // Tiered Rank Bonuses for top 10 brands
+  let rankBonusPoints = 0;
+  if (rank === 1) rankBonusPoints = 50;
+  else if (rank === 2) rankBonusPoints = 30;
+  else if (rank === 3) rankBonusPoints = 20;
+  else if (rank >= 4 && rank <= 5) rankBonusPoints = 15;
+  else if (rank >= 6 && rank <= 10) rankBonusPoints = 10;
 
   const totalPoints = ratingCountPoints + ratingQualityPoints + rankBonusPoints;
 
