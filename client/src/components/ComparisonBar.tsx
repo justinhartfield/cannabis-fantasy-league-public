@@ -28,7 +28,7 @@ export function ComparisonBar({
   return (
     <div className={cn("w-full", className)}>
       {/* Labels and Values */}
-      <div className="flex items-center justify-between mb-2 text-sm">
+      <div className="flex items-center justify-between mb-2 text-xs sm:text-sm">
         <div className="flex items-center gap-2">
           {leftLabel && <span className="text-muted-foreground">{leftLabel}</span>}
           <span className="font-bold text-foreground">{leftValue}</span>
