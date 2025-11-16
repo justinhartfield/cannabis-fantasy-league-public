@@ -464,13 +464,13 @@ export const scoringRouter = router({
               .limit(1);
 
             if (scores.length > 0) {
-              const { teamId: _, ...scoreData } = scores[0];
+              const { teamId: _, totalPoints, ...scoreData } = scores[0];
               teamScores.push({
                 teamId: team.teamId,
                 teamName: team.teamName,
                 userName: team.userName,
                 userAvatarUrl: team.userAvatarUrl,
-                points: scores[0].totalPoints,
+                points: totalPoints,
                 ...scoreData,
               });
             } else {
