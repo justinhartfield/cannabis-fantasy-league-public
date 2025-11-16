@@ -627,6 +627,9 @@ export default function DailyChallenge() {
                         Last updated: {lastUpdateTime.toLocaleTimeString()}
                       </p>
                     )}
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Scores update automatically every hour
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
