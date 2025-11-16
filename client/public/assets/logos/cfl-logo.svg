@@ -1,0 +1,26 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Circle -->
+  <circle cx="100" cy="100" r="95" fill="#A3FF12"/>
+  
+  <!-- Cannabis Leaf Icon -->
+  <g transform="translate(100, 100)">
+    <!-- Center leaf -->
+    <path d="M 0,-40 Q 5,-30 5,-20 L 5,20 Q 5,30 0,35 Q -5,30 -5,20 L -5,-20 Q -5,-30 0,-40 Z" fill="#000000"/>
+    
+    <!-- Left leaves -->
+    <path d="M -5,-25 Q -15,-30 -25,-28 Q -30,-25 -28,-20 Q -20,-18 -10,-20 Z" fill="#000000"/>
+    <path d="M -8,-10 Q -20,-15 -30,-12 Q -35,-8 -32,-3 Q -22,-2 -12,-5 Z" fill="#000000"/>
+    <path d="M -10,5 Q -22,0 -32,5 Q -36,10 -32,15 Q -20,14 -12,10 Z" fill="#000000"/>
+    
+    <!-- Right leaves -->
+    <path d="M 5,-25 Q 15,-30 25,-28 Q 30,-25 28,-20 Q 20,-18 10,-20 Z" fill="#000000"/>
+    <path d="M 8,-10 Q 20,-15 30,-12 Q 35,-8 32,-3 Q 22,-2 12,-5 Z" fill="#000000"/>
+    <path d="M 10,5 Q 22,0 32,5 Q 36,10 32,15 Q 20,14 12,10 Z" fill="#000000"/>
+    
+    <!-- Stem -->
+    <rect x="-2" y="35" width="4" height="15" rx="2" fill="#000000"/>
+  </g>
+  
+  <!-- Text: CFL -->
+  <text x="100" y="165" font-family="'Oswald', sans-serif" font-size="32" font-weight="700" fill="#000000" text-anchor="middle">CFL</text>
+</svg>
