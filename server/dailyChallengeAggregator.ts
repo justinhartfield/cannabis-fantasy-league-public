@@ -9,6 +9,7 @@ import { getMetabaseClient } from './metabase';
 import {
   calculateManufacturerScore,
   calculateStrainScore,
+  calculateProductScore,
   calculatePharmacyScore,
   calculateBrandScore,
 } from './dailyChallengeScoringEngine';
@@ -452,7 +453,7 @@ export class DailyChallengeAggregator {
         continue;
       }
 
-      const scoring = calculateStrainScore({ salesVolumeGrams, orderCount }, rank);
+      const scoring = calculateProductScore({ salesVolumeGrams, orderCount }, rank);
 
       await db
         .insert(productDailyChallengeStats)

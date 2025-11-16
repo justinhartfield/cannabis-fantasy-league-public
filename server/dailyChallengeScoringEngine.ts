@@ -64,6 +64,7 @@ export function calculateManufacturerScore(
 
 /**
  * Calculate strain daily challenge score
+ * Strains get a 2x multiplier to balance against manufacturers
  */
 export function calculateStrainScore(
   stats: DailyChallengeStats,
@@ -72,14 +73,46 @@ export function calculateStrainScore(
   const salesVolumeGrams = stats.salesVolumeGrams || 0;
   const orderCount = stats.orderCount || 0;
 
-  // Sales Volume: 1 point per 10g sold
-  const salesVolumePoints = Math.floor(salesVolumeGrams / 10);
+  // Sales Volume: 2 points per 10g sold (2x multiplier)
+  const salesVolumePoints = Math.floor(salesVolumeGrams / 10) * 2;
 
-  // Order Count: 5 points per order
-  const orderCountPoints = orderCount * 5;
+  // Order Count: 10 points per order (2x multiplier)
+  const orderCountPoints = orderCount * 10;
 
-  // Popularity Bonus: +30 points for #1 strain
-  const rankBonusPoints = rank === 1 ? 30 : 0;
+  // Popularity Bonus: +40 points for #1 strain
+  const rankBonusPoints = rank === 1 ? 40 : 0;
+
+  const totalPoints = salesVolumePoints + orderCountPoints + rankBonusPoints;
+
+  return {
+    salesVolumePoints,
+    orderCountPoints,
+    revenuePoints: 0,
+    rankBonusPoints,
+    totalPoints,
+  };
+}
+
+/**
+ * Calculate product daily challenge score
+ * Products get a 3x multiplier to balance against manufacturers
+ * (Products typically have lower individual sales than aggregated strains)
+ */
+export function calculateProductScore(
+  stats: DailyChallengeStats,
+  rank: number = 0
+): ScoringBreakdown {
+  const salesVolumeGrams = stats.salesVolumeGrams || 0;
+  const orderCount = stats.orderCount || 0;
+
+  // Sales Volume: 3 points per 10g sold (3x multiplier)
+  const salesVolumePoints = Math.floor(salesVolumeGrams / 10) * 3;
+
+  // Order Count: 15 points per order (3x multiplier)
+  const orderCountPoints = orderCount * 15;
+
+  // Top Product Bonus: +50 points for #1 product
+  const rankBonusPoints = rank === 1 ? 50 : 0;
 
   const totalPoints = salesVolumePoints + orderCountPoints + rankBonusPoints;
 
