@@ -837,28 +837,55 @@ export default function DailyChallenge() {
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
               Scoring Breakdown
             </h3>
-            <div className="grid gap-4">
-              {breakdown.breakdowns
-                .filter((item: any) => item.assetId !== null)
-                .map((item: any, index: number) => (
-                <div key={`${item.assetId}-${index}`}>
-                  <ScoringBreakdown
-                    data={{
-                      assetName:
-                        item.assetName || `Unknown ${item.assetType}`,
-                      assetType: item.assetType,
-                      imageUrl: item.imageUrl || null,
-                      components: item.breakdown?.components || [],
-                      bonuses: item.breakdown?.bonuses || [],
-                      penalties: item.breakdown?.penalties || [],
-                      subtotal: item.breakdown?.subtotal || 0,
-                      total: item.totalPoints || 0,
-                    }}
-                    leagueAverage={item.leagueAverage}
-                    weeklyTrend={item.weeklyTrend}
-                  />
-                </div>
-              ))}
+            <div className="space-y-6">
+              {/* Group assets by type and display in 2-column grid */}
+              {(() => {
+                const filteredBreakdowns = breakdown.breakdowns.filter((item: any) => item.assetId !== null);
+                const groupedByType: Record<string, any[]> = {
+                  manufacturer: [],
+                  pharmacy: [],
+                  cannabis_strain: [],
+                  product: [],
+                  brand: [],
+                };
+
+                // Group assets by type
+                filteredBreakdowns.forEach((item: any) => {
+                  const type = item.assetType;
+                  if (groupedByType[type]) {
+                    groupedByType[type].push(item);
+                  }
+                });
+
+                // Render each group in a 2-column grid
+                return Object.entries(groupedByType).map(([assetType, items]) => {
+                  if (items.length === 0) return null;
+                  
+                  return (
+                    <div key={assetType} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {items.map((item: any, index: number) => (
+                        <div key={`${item.assetId}-${index}`}>
+                          <ScoringBreakdown
+                            data={{
+                              assetName:
+                                item.assetName || `Unknown ${item.assetType}`,
+                              assetType: item.assetType,
+                              imageUrl: item.imageUrl || null,
+                              components: item.breakdown?.components || [],
+                              bonuses: item.breakdown?.bonuses || [],
+                              penalties: item.breakdown?.penalties || [],
+                              subtotal: item.breakdown?.subtotal || 0,
+                              total: item.totalPoints || 0,
+                            }}
+                            leagueAverage={item.leagueAverage}
+                            weeklyTrend={item.weeklyTrend}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  );
+                });
+              })()}
             </div>
           </div>
         ) : (
