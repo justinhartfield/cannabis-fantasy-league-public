@@ -612,6 +612,22 @@ export default function DailyChallenge() {
                   <Clock className="w-4 h-4" />
                   <span>Next update in: {timeUntilUpdate || 'Calculating...'}</span>
                 </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-border/50 mt-2"
+                  onClick={handleCalculateScores}
+                  disabled={isCalculating || calculateChallengeDayMutation.isPending}
+                >
+                  {isCalculating || calculateChallengeDayMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    "Update Scores Now"
+                  )}
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -688,28 +704,10 @@ export default function DailyChallenge() {
         {/* Leaderboard */}
         <Card className="border-border/50 bg-card/80 slide-in-bottom">
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-foreground">
-                <Trophy className="w-5 h-5 text-primary" />
-                Leaderboard
-              </CardTitle>
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-border/50"
-                onClick={handleCalculateScores}
-                disabled={isCalculating || calculateChallengeDayMutation.isPending}
-              >
-                {isCalculating || calculateChallengeDayMutation.isPending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Updating...
-                  </>
-                ) : (
-                  "Update Scores Now"
-                )}
-              </Button>
-            </div>
+            <CardTitle className="flex items-center gap-2 text-foreground">
+              <Trophy className="w-5 h-5 text-primary" />
+              Leaderboard
+            </CardTitle>
             <CardDescription>
               Woche {currentWeek} • {currentYear}
             </CardDescription>
