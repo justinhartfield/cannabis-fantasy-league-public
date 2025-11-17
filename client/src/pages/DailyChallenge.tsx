@@ -426,31 +426,7 @@ export default function DailyChallenge() {
         .slice(0, 3);
   }, [breakdown]);
 
-  const recentChallenges = useMemo<ChallengeSummary[]>(() => {
-    if (!userLeagues) return [];
-    return userLeagues
-      .filter(
-        (item: any) =>
-          item.leagueType === "challenge" && item.id !== challengeId
-      )
-      .map(
-        (item: any): ChallengeSummary => ({
-          id: item.id,
-          name: item.name,
-          status: item.status,
-          currentWeek: item.currentWeek,
-          seasonYear: item.seasonYear,
-          updatedAt: item.updatedAt,
-          createdAt: item.createdAt,
-        })
-      )
-      .sort(
-        (a, b) =>
-          new Date(b.updatedAt || b.createdAt || Date.now()).getTime() -
-          new Date(a.updatedAt || a.createdAt || Date.now()).getTime()
-      )
-      .slice(0, 4);
-  }, [userLeagues, challengeId]);
+
 
   const normalizedLineup = useMemo(
     () => normalizeLineup(teamLineup),
@@ -853,64 +829,7 @@ export default function DailyChallenge() {
           </div>
         )}
 
-        {recentChallenges.length > 0 && (
-          <Card className="border-border/50 bg-card/70 slide-in-bottom">
-            <CardContent className="p-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                  Recent Challenges
-                </h3>
-                <Badge variant="outline">{recentChallenges.length}</Badge>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {recentChallenges.map((challenge: ChallengeSummary, index) => {
-                  const status =
-                    challenge.status === "active"
-                      ? "Live"
-                      : challenge.status === "draft"
-                      ? "Upcoming"
-                      : "Final";
-                  const challengeDate =
-                    challenge.updatedAt || challenge.createdAt || null;
-                  const formattedDate = challengeDate
-                    ? new Date(challengeDate).toLocaleDateString()
-                    : "—";
 
-                  return (
-                    <div
-                      key={challenge.id}
-                      className="rounded-xl border border-border/40 bg-card/70 p-4 card-hover-lift slide-in-bottom"
-                      style={{ animationDelay: `${index * 0.08}s` }}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <Badge variant="outline" className="uppercase text-xs">
-                          {status}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {formattedDate}
-                        </span>
-                      </div>
-                      <div className="text-lg font-semibold text-foreground">
-                        {challenge.name}
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Week {challenge.currentWeek} • {challenge.seasonYear}
-                      </p>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="mt-3 text-primary hover:text-primary/80 hover:bg-primary/10"
-                        onClick={() => setLocation(`/challenge/${challenge.id}`)}
-                      >
-                        View Challenge
-                      </Button>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Detailed Breakdown */}
         {selectedTeamId && breakdown?.breakdowns?.length ? (
