@@ -862,7 +862,7 @@ export default function DailyChallenge() {
                   if (items.length === 0) return null;
                   
                   return (
-                    <div key={assetType} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div key={assetType} className="grid grid-cols-2 gap-4">
                       {items.map((item: any, index: number) => (
                         <div key={`${item.assetId}-${index}`}>
                           <ScoringBreakdown
