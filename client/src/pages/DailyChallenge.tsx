@@ -12,7 +12,7 @@ import ScoringBreakdown from "@/components/ScoringBreakdown";
 import { StatBadge } from "@/components/StatBadge";
 import { TrendIndicator } from "@/components/TrendIndicator";
 import { CoinFlip } from "@/components/CoinFlip";
-import { TopPerformerCard } from "@/components/TopPerformerCard";
+
 import {
   Loader2,
   ArrowLeft,
@@ -707,25 +707,7 @@ export default function DailyChallenge() {
           </CardContent>
         </Card>
 
-        {/* Game Leaders */}
-        {topPerformers.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {topPerformers.map((performer, index) => (
-              <div
-                key={performer.name}
-                className="slide-in-bottom"
-                style={{ animationDelay: `${index * 0.08}s` }}
-              >
-                <TopPerformerCard
-                  performer={performer}
-                  icon={Flame}
-                  label={`Top Performer #${index + 1}`}
-                  variant={index === 0 ? "primary" : index === 1 ? "secondary" : "purple"}
-                />
-              </div>
-            ))}
-          </div>
-        )}
+
 
         {/* Leaderboard */}
         <Card className="border-border/50 bg-card/80 slide-in-bottom">
