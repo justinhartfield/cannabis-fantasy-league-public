@@ -335,8 +335,97 @@ export default function Draft() {
       {/* Draft Board */}
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Draft Picks Grid - Full width on mobile, 3 cols on desktop */}
-          <div className="lg:col-span-3 order-2 lg:order-1">
+          {/* Mobile: Draft Clock first */}
+          <div className="lg:hidden order-1">
+            {timerSeconds !== null && currentTurnTeamName && (
+              <DraftClock
+                pickNumber={currentPickNumber}
+                round={currentRound}
+                teamName={currentTurnTeamName}
+                isYourTurn={isMyTurn}
+                timeLimit={timeLimit}
+                remainingTime={timerSeconds}
+                isPaused={isPaused}
+                onTimerExpired={() => {
+                  toast.warning('Time expired! Auto-pick will be triggered.');
+                }}
+              />
+            )}
+          </div>
+
+          {/* Mobile: Verfügbare Spieler second */}
+          <div className="lg:hidden order-2">
+            <DraftBoard
+              leagueId={leagueId}
+              currentPick={currentPick}
+              isMyTurn={isMyTurn}
+              myRoster={roster.map((r: any) => ({
+                assetType: r.assetType,
+                assetId: r.assetId,
+                name: r.name || "Unknown",
+              }))}
+              remainingTime={timerSeconds}
+              onDraftPick={handleDraftPick}
+            />
+          </div>
+
+          {/* Mobile: My Roster (Player's Team) third */}
+          <div className="lg:hidden order-3">
+            <MyRoster 
+              roster={roster.map((r: any) => ({
+                assetType: r.assetType,
+                assetId: r.assetId,
+                name: r.name || "Unknown",
+              }))}
+              teamName={myTeam.name || "My Team"}
+            />
+          </div>
+
+          {/* Mobile: Recent Picks fourth */}
+          <div className="lg:hidden order-4">
+            <div className="bg-card border border-border rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-foreground mb-4">
+                📄 Recent Picks
+              </h3>
+              {recentPicks.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  No picks yet
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {recentPicks.map((pick, index) => (
+                    <div
+                      key={`${pick.pickNumber}-${index}`}
+                      className="p-3 bg-muted/50 rounded-lg border border-border"
+                    >
+                      <div className="flex items-start justify-between mb-1">
+                        <span className="text-xs font-medium text-muted-foreground">
+                          Pick #{pick.pickNumber}
+                        </span>
+                      </div>
+                      <p className="text-sm font-medium text-foreground mb-1">
+                        {pick.assetName}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {pick.teamName}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Mobile: Draft Picks Grid fifth */}
+          <div className="lg:hidden order-5">
+            <DraftPicksGrid 
+              picks={allPicks}
+              currentPickNumber={currentPickNumber}
+            />
+          </div>
+
+          {/* Desktop: Draft Picks Grid + Draft Board - 3 cols on desktop */}
+          <div className="hidden lg:block lg:col-span-3 lg:order-1">
             <div className="space-y-6">
               <DraftPicksGrid 
                 picks={allPicks}
@@ -357,8 +446,8 @@ export default function Draft() {
             </div>
           </div>
 
-          {/* Sidebar - Full width on mobile, 1 col on desktop */}
-          <div className="lg:col-span-1 order-1 lg:order-2 space-y-6">
+          {/* Desktop: Sidebar - 1 col on desktop */}
+          <div className="hidden lg:block lg:col-span-1 lg:order-2 space-y-6">
             {/* Draft Clock */}
             {timerSeconds !== null && currentTurnTeamName && (
               <DraftClock
