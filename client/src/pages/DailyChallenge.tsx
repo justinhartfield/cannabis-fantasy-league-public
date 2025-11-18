@@ -441,7 +441,7 @@ export default function DailyChallenge() {
     (selectedTeamId && breakdownLoading)
   ) {
     return (
-      <div className="min-h-screen gradient-dark flex items-center justify-center">
+      <div className="min-h-screen bg-weed-cream flex items-center justify-center">
         <Loader2 className="w-10 h-10 animate-spin text-primary" />
       </div>
     );
@@ -449,7 +449,7 @@ export default function DailyChallenge() {
 
   if (leagueError || !league) {
     return (
-      <div className="min-h-screen gradient-dark flex items-center justify-center">
+      <div className="min-h-screen bg-weed-cream flex items-center justify-center">
         <div className="text-center space-y-4">
           <Trophy className="w-12 h-12 text-muted-foreground mx-auto" />
           <div>
@@ -471,7 +471,7 @@ export default function DailyChallenge() {
   const isLive = league.status === "active";
 
   return (
-    <div className="min-h-screen gradient-dark">
+    <div className="min-h-screen bg-weed-cream pattern-dots relative">
       {/* Coin Flip Overlay */}
       {showCoinFlip && league?.teams && league.teams.length >= 2 && (
         <CoinFlip
@@ -481,19 +481,21 @@ export default function DailyChallenge() {
         />
       )}
 
-      <header className="sticky top-0 z-10 border-b border-border/50 bg-card/80 backdrop-blur-lg">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+      <header className="sticky top-0 z-20 border-b-4 border-weed-green bg-white/90 backdrop-blur-lg shadow-lg">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between relative">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => window.history.back()}>
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-gradient-primary">
-                {league.name}
-              </h1>
-              <p className="text-muted-foreground text-sm">
-                Daily Challenge • {challengeDateLabel}
-              </p>
+              <div>
+                <h1 className="headline-secondary text-2xl text-weed-coral">
+                  {league.name}
+                </h1>
+                <p className="text-muted-foreground text-sm">
+                  Daily Challenge • {challengeDateLabel}
+                </p>
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -505,10 +507,10 @@ export default function DailyChallenge() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 space-y-6">
+      <main className="container mx-auto px-4 py-8 space-y-6 relative z-10">
         {/* Draft In Progress Banner */}
         {(league?.status === 'draft' || (league?.draftStarted === 1 && league?.draftCompleted === 0)) && league.teams?.length === 2 && (
-          <Card className="gradient-card border-primary/50 glow-primary slide-in-bottom">
+          <Card className="bg-weed-purple border-0 shadow-xl slide-in-bottom">
             <CardContent className="p-6">
               <div className="text-center space-y-4">
                 <div className="flex justify-center">
@@ -517,7 +519,7 @@ export default function DailyChallenge() {
                   </div>
                 </div>
                 <div>
-                  <h2 className="text-3xl font-bold text-gradient-primary mb-2">
+                  <h2 className="headline-primary text-3xl text-weed-green mb-2">
                     🎯 DRAFT IN PROGRESS
                   </h2>
                   <p className="text-muted-foreground mb-4">
@@ -539,20 +541,20 @@ export default function DailyChallenge() {
 
         {/* Challenge Complete Banner */}
         {league?.status === 'complete' && winner && (
-          <Card className="gradient-card border-border/50 glow-primary slide-in-bottom">
+          <Card className="bg-weed-green border-0 shadow-xl slide-in-bottom">
             <CardContent className="p-6">
               <div className="text-center space-y-4">
                 <div className="flex justify-center">
                   <Trophy className="w-16 h-16 text-yellow-500" />
                 </div>
                 <div>
-                  <h2 className="text-3xl font-bold text-gradient-primary mb-2">
+                  <h2 className="headline-primary text-3xl text-weed-green mb-2">
                     Challenge Complete!
                   </h2>
-                  <p className="text-xl text-foreground mb-1">
-                    Winner: <span className="font-bold text-gradient-primary">{winner.teamName}</span>
+                  <p className="text-xl text-black mb-1">
+                    Winner: <span className="font-bold text-weed-coral">{winner.teamName}</span>
                   </p>
-                  <p className="text-muted-foreground">
+                  <p className="text-black/70">
                     Final Score: {winner.points.toFixed(1)} points
                   </p>
                 </div>
@@ -585,7 +587,7 @@ export default function DailyChallenge() {
 
         {/* Update Status Indicator */}
         {league?.status === 'active' && (
-          <Card className="border-border/50 bg-card/80">
+          <Card className="bg-white border-2 border-weed-green/30 shadow-lg">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -702,9 +704,9 @@ export default function DailyChallenge() {
 
 
         {/* Leaderboard */}
-        <Card className="border-border/50 bg-card/80 slide-in-bottom">
+        <Card className="bg-white border-0 shadow-xl slide-in-bottom">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-foreground">
+            <CardTitle className="headline-secondary flex items-center gap-2 text-foreground">
               <Trophy className="w-5 h-5 text-primary" />
               Leaderboard
             </CardTitle>
@@ -765,7 +767,7 @@ export default function DailyChallenge() {
                         <div className="text-2xl font-bold text-foreground">
                           {team.points?.toFixed(1) ?? "0.0"}
                         </div>
-                        <div className="text-xs text-muted-foreground uppercase">
+                        <div className="text-xs text-white/80 uppercase">
                           Total
                         </div>
                       </div>
@@ -781,19 +783,23 @@ export default function DailyChallenge() {
         {/* Top Performers */}
         {topPerformers.length > 0 && (
           <div>
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+            <h3 className="headline-secondary text-lg text-foreground uppercase tracking-wider mb-3">
               Game Leaders
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {topPerformers.map((performer, index) => (
                 <Card
                   key={`${performer.name}-${index}`}
-                  className="gradient-card border-border/40 card-hover-lift slide-in-bottom"
+                  className={`${
+                    index === 0 ? 'bg-weed-green' :
+                    index === 1 ? 'bg-weed-coral' :
+                    'bg-weed-purple'
+                  } border-0 shadow-xl card-hover-lift slide-in-bottom relative overflow-hidden`}
                   style={{ animationDelay: `${index * 0.1}s` }}
                 >
-                  <CardContent className="p-4 space-y-2">
+                  <CardContent className="p-4 space-y-2 relative z-10">
                     <div className="flex items-center justify-between">
-                      <Badge>#{index + 1}</Badge>
+                      <Badge className="bg-white/20 text-white border-0">#{index + 1}</Badge>
                       <TrendIndicator value={performer.total} showPercentage={false} />
                     </div>
                     <div className="flex items-center gap-3">
@@ -806,20 +812,21 @@ export default function DailyChallenge() {
                         />
                       )}
                       <div className="flex-1 min-w-0">
-                        <div className="text-lg font-bold text-foreground truncate">
+                        <div className="text-lg font-bold text-white truncate">
                           {performer.name}
                         </div>
-                        <div className="text-xs text-muted-foreground uppercase">
+                        <div className="text-xs text-white/80 uppercase">
                           {performer.type}
                         </div>
                       </div>
                     </div>
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-sm text-white/90">
                       {performer.breakdown?.components?.length || 0} Komponenten
                     </div>
-                    <div className="text-3xl font-bold text-gradient-secondary">
+                    <div className="headline-primary text-3xl text-white">
                       {performer.total.toFixed(1)}
                     </div>
+
                   </CardContent>
                 </Card>
               ))}
@@ -887,7 +894,7 @@ export default function DailyChallenge() {
             </div>
           </div>
         ) : (
-          <Card className="border-border/50 bg-card/80">
+          <Card className="bg-white border-2 border-weed-green/30 shadow-lg">
             <CardContent className="py-12 text-center text-muted-foreground">
               <Trophy className="w-10 h-10 mx-auto mb-3 opacity-70" />
               <p>Wähle ein Team, um die Scoring-Details zu sehen.</p>
