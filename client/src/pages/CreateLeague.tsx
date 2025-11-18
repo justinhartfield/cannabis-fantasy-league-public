@@ -15,21 +15,14 @@ import { Switch } from "@/components/ui/switch";
 import { trpc } from "@/lib/trpc";
 import { Trophy, ArrowLeft, Loader2, Calendar, UserCircle, Settings } from "lucide-react";
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 import { getLoginUrl } from "@/const";
 
 export default function CreateLeague() {
-  const [location, setLocation] = useLocation();
+  const [, setLocation] = useLocation();
   const { user, loading: authLoading, isAuthenticated } = useAuth();
   const createLeague = trpc.league.create.useMutation();
-
-  // Parse query parameter to preset leagueType
-  const getInitialLeagueType = (): "season" | "challenge" => {
-    const searchParams = new URLSearchParams(window.location.search);
-    const type = searchParams.get("type");
-    return type === "challenge" ? "challenge" : "season";
-  };
 
   const [formData, setFormData] = useState({
     name: "",
@@ -42,7 +35,7 @@ export default function CreateLeague() {
     tradeDeadlineWeek: 13,
     playoffTeams: 6,
     isPublic: false,
-    leagueType: getInitialLeagueType(),
+    leagueType: "season" as "season" | "challenge",
   });
 
   // Redirect to login if not authenticated
@@ -67,52 +60,35 @@ export default function CreateLeague() {
       return;
     }
 
-    if (formData.name.trim().length < 3) {
-      toast.error("Liga-Name muss mindestens 3 Zeichen lang sein");
-      return;
-    }
-
     try {
       const result = await createLeague.mutateAsync(formData);
       toast.success("Liga erfolgreich erstellt!");
-      const destination =
-        (result.leagueType || formData.leagueType) === "challenge"
-          ? `/challenge/${result.leagueId}`
-          : `/league/${result.leagueId}`;
-      setLocation(destination);
+      setLocation(`/league/${result.leagueId}`);
     } catch (error: any) {
       toast.error(error.message || "Fehler beim Erstellen der Liga");
     }
   };
 
   return (
-    <div className="min-h-screen bg-weed-cream relative">
-      {/* Background Pattern */}
-      <div className="fixed inset-0 pattern-dots opacity-30 pointer-events-none"></div>
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b-4 border-weed-green bg-white shadow-lg relative z-10">
+      <header className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={() => window.history.back()}>
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" asChild>
+              <Link href="/dashboard">
                 <ArrowLeft className="w-5 h-5" />
-              </Button>
-              <div className="flex items-center gap-3">
-                <img src="https://framerusercontent.com/images/DPZRbKFGVJYTZGxHxKNNHYDMc.gif" alt="Trophy" className="w-12 h-12" />
-                <div>
-                  <h1 className="headline-primary uppercase text-foreground">Neue Liga erstellen</h1>
-                  <p className="text-sm text-muted-foreground">
-                    {formData.leagueType === "season" ? "Saison-Modus" : "Daily Challenge"}
-                  </p>
-                </div>
+              </Link>
+            </Button>
+            <div className="flex items-center gap-3">
+              <img src="https://framerusercontent.com/images/DPZRbKFGVJYTZGxHxKNNHYDMc.gif" alt="Trophy" className="w-12 h-12 object-contain" />
+              <div>
+                <h1 className="text-xl font-bold text-foreground headline-primary">Neue Liga erstellen</h1>
+                <p className="text-sm text-muted-foreground">
+                  {formData.leagueType === "season" ? "Saison-Modus" : "Daily Challenge"}
+                </p>
               </div>
             </div>
-            {/* Wayfinder Character */}
-            <img 
-              src="https://framerusercontent.com/images/NbcObVXzQHvPqgg7j0Lqz8Oc.gif" 
-              alt="Wayfinder World" 
-              className="w-20 h-20 object-contain"
-            />
           </div>
         </div>
       </header>
@@ -121,10 +97,10 @@ export default function CreateLeague() {
       <main className="container mx-auto px-4 py-8 max-w-3xl">
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Basic Information */}
-          <Card className="bg-white border-2 border-weed-green shadow-xl">
+          <Card className="bg-card border-border">
             <CardHeader>
-              <CardTitle className="headline-secondary text-foreground flex items-center gap-2 uppercase">
-                <Settings className="w-5 h-5 text-weed-green" />
+              <CardTitle className="text-card-foreground flex items-center gap-2">
+                <Settings className="w-5 h-5" />
                 Grundeinstellungen
               </CardTitle>
               <CardDescription className="text-muted-foreground">
@@ -141,8 +117,8 @@ export default function CreateLeague() {
                     onClick={() => setFormData({ ...formData, leagueType: "season" })}
                     className={`p-4 rounded-lg border-2 transition-all ${
                       formData.leagueType === "season"
-                        ? "border-weed-green bg-weed-green/10"
-                        : "border-gray-300 hover:border-weed-green/50"
+                        ? "border-primary bg-primary/10"
+                        : "border-border hover:border-primary/50"
                     }`}
                   >
                     <div className="flex flex-col items-center gap-2">
@@ -158,8 +134,8 @@ export default function CreateLeague() {
                     onClick={() => setFormData({ ...formData, leagueType: "challenge" })}
                     className={`p-4 rounded-lg border-2 transition-all ${
                       formData.leagueType === "challenge"
-                        ? "border-weed-green bg-weed-green/10"
-                        : "border-gray-300 hover:border-weed-green/50"
+                        ? "border-primary bg-primary/10"
+                        : "border-border hover:border-primary/50"
                     }`}
                   >
                     <div className="flex flex-col items-center gap-2">
@@ -174,13 +150,12 @@ export default function CreateLeague() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="name">Liga-Name * (mindestens 3 Zeichen)</Label>
+                <Label htmlFor="name">Liga-Name *</Label>
                 <Input
                   id="name"
                   placeholder="z.B. Cannabis Champions 2025"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  minLength={3}
                   required
                 />
               </div>
@@ -254,10 +229,10 @@ export default function CreateLeague() {
           </Card>
 
           {/* Roster Structure Info */}
-          <Card className="bg-white border-2 border-weed-green shadow-xl">
+          <Card className="bg-card border-border">
             <CardHeader>
-              <CardTitle className="headline-secondary text-foreground flex items-center gap-2 uppercase">
-                <UserCircle className="w-5 h-5 text-weed-green" />
+              <CardTitle className="text-card-foreground flex items-center gap-2">
+                <UserCircle className="w-5 h-5" />
                 Roster-Struktur
               </CardTitle>
               <CardDescription className="text-muted-foreground">
@@ -316,9 +291,9 @@ export default function CreateLeague() {
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 p-2 rounded-md bg-weed-green/5 border border-weed-green/20">
-                  <div className="w-8 h-8 rounded bg-weed-green/10 flex items-center justify-center">
-                    <span className="text-xs font-bold text-weed-green">1×</span>
+                <div className="flex items-center gap-2 p-2 rounded-md bg-primary/5 border border-primary/20">
+                  <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center">
+                    <span className="text-xs font-bold text-primary">1×</span>
                   </div>
                   <div>
                     <div className="text-sm font-medium">FLEX Position</div>
@@ -334,10 +309,10 @@ export default function CreateLeague() {
 
           {/* Draft Settings - Season Only */}
           {formData.leagueType === "season" && (
-            <Card className="bg-white border-2 border-weed-green shadow-xl">
+            <Card className="bg-card border-border">
             <CardHeader>
-              <CardTitle className="headline-secondary text-foreground flex items-center gap-2 uppercase">
-                <Calendar className="w-5 h-5 text-weed-green" />
+              <CardTitle className="text-card-foreground flex items-center gap-2">
+                <Calendar className="w-5 h-5" />
                 Draft-Einstellungen
               </CardTitle>
               <CardDescription className="text-muted-foreground">
@@ -363,10 +338,10 @@ export default function CreateLeague() {
 
           {/* League Rules - Season Only */}
           {formData.leagueType === "season" && (
-            <Card className="bg-white border-2 border-weed-green shadow-xl">
+            <Card className="bg-card border-border">
             <CardHeader>
-              <CardTitle className="headline-secondary text-foreground flex items-center gap-2 uppercase">
-                <UserCircle className="w-5 h-5 text-weed-green" />
+              <CardTitle className="text-card-foreground flex items-center gap-2">
+                <UserCircle className="w-5 h-5" />
                 Liga-Regeln
               </CardTitle>
               <CardDescription className="text-muted-foreground">
@@ -471,12 +446,12 @@ export default function CreateLeague() {
 
           {/* Submit Button */}
           <div className="flex gap-3">
-            <Button type="button" variant="outline" className="flex-1 border-2 border-weed-coral text-weed-coral hover:bg-weed-coral hover:text-white" onClick={() => window.history.back()}>
-              Abbrechen
+            <Button type="button" variant="outline" className="flex-1" asChild>
+              <Link href="/dashboard">Abbrechen</Link>
             </Button>
             <Button
               type="submit"
-              className="flex-1 bg-weed-green text-black hover:bg-weed-green/90 font-bold uppercase"
+              className="flex-1"
               disabled={createLeague.isPending || !formData.name.trim()}
             >
               {createLeague.isPending ? (
