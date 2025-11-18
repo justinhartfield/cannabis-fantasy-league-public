@@ -249,15 +249,13 @@ export async function calculateStreakDays(
     const tableName = tableMap[entityType];
     const idField = `${entityType}Id`;
     
-    // Query last 30 days of ranks
-    const query = `
-      SELECT "statDate", rank FROM "${tableName}"
-      WHERE "${idField}" = $1 AND "statDate" < $2
+    // Query last 30 days of ranks using sql tagged template
+    const result = await db.execute(sql`
+      SELECT "statDate", rank FROM ${sql.identifier(tableName)}
+      WHERE ${sql.identifier(idField)} = ${entityId} AND "statDate" < ${currentDate}
       ORDER BY "statDate" DESC
       LIMIT 30
-    `;
-    
-    const result = await db.execute(query, [entityId, currentDate]);
+    `);
     
     if (!result || !result.rows) return 1; // First day in top 10
     
