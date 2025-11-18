@@ -48,7 +48,7 @@ export default function Dashboard() {
     {
       label: "Manufacturers",
       value: stats?.manufacturerCount || 0,
-      character: "/assets/illustrations/World_Sticker_Alpha.gif",
+      character: "/assets/illustrations/Goddess_Sticker_Alpha.gif",
       bgColor: "bg-weed-coral",
       textColor: "text-white"
     },
@@ -76,7 +76,7 @@ export default function Dashboard() {
     {
       label: "Brands",
       value: stats?.brandCount || 0,
-      character: "/assets/illustrations/World_Sticker_Alpha.gif",
+      character: "/assets/illustrations/Bud-Inspector_Sticker_Alpha.gif",
       bgColor: "bg-weed-burgundy",
       textColor: "text-white"
     }
@@ -170,7 +170,7 @@ export default function Dashboard() {
                     Start Now →
                   </Button>
                   <img
-                    src="/assets/illustrations/World_Sticker_Alpha.gif"
+                    src="/assets/illustrations/Heart_Sticker_Alpha.gif"
                     alt=""
                     className="w-24 h-24 group-hover:scale-110 group-hover:rotate-12 transition-transform duration-300"
                   />
@@ -285,9 +285,9 @@ export default function Dashboard() {
                       <Trophy className="w-12 h-12 text-black" />
                     </div>
                     <img
-                      src="/assets/illustrations/World_Sticker_Alpha.gif"
+                      src="/assets/illustrations/Cloud_Sticker_Alpha.gif"
                       alt=""
-                      className="absolute -top-4 -right-4 w-16 h-16"
+                      className="w-16 h-16 opacity-50"
                     />
                   </div>
                   <div>
@@ -320,10 +320,10 @@ export default function Dashboard() {
               {myLeagues?.filter(league => league.leagueType !== 'challenge').map((league, index) => {
                 // Assign rotating Wayfinder characters to leagues
                 const characters = [
-                  "/assets/illustrations/World_Sticker_Alpha.gif",
-                  "/assets/illustrations/Ice-Cream_Sticker_Alpha.gif",
-                  "/assets/illustrations/Pancake_Sticker_Alpha.gif",
-                  "/assets/illustrations/Pillow_Sticker_Alpha.gif"
+                  "/assets/illustrations/Heart_Sticker_Alpha.gif",
+                  "/assets/illustrations/Cloud_Sticker_Alpha.gif",
+                  "/assets/illustrations/Flower_Sticker_Alpha.gif",
+                  "/assets/illustrations/Family_Flower_Sticker_Alpha.gif"
                 ];
                 const characterIndex = index % characters.length;
                 
@@ -358,10 +358,10 @@ export default function Dashboard() {
             <div className="grid gap-4">
               {myLeagues.filter(l => l.leagueType === 'challenge').map((league, index) => {
                 const characters = [
-                  "/assets/illustrations/Pillow_Sticker_Alpha.gif",
-                  "/assets/illustrations/World_Sticker_Alpha.gif",
-                  "/assets/illustrations/Ice-Cream_Sticker_Alpha.gif",
-                  "/assets/illustrations/Pancake_Sticker_Alpha.gif"
+                  "/assets/illustrations/Bud-Inspector_Sticker_Alpha.gif",
+                  "/assets/illustrations/Goddess_Sticker_Alpha.gif",
+                  "/assets/illustrations/Flower_Sticker_Alpha.gif",
+                  "/assets/illustrations/Cloud_Sticker_Alpha.gif"
                 ];
                 const characterIndex = index % characters.length;
                 
