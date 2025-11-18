@@ -216,7 +216,7 @@ export default function Draft() {
 
   if (authLoading || leagueLoading || teamLoading || rosterLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-weed-cream flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
@@ -224,7 +224,7 @@ export default function Draft() {
 
   if (!league || !myTeam) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-weed-cream flex items-center justify-center">
         <div className="text-center space-y-4">
           <h2 className="text-2xl font-bold text-foreground">Liga oder Team nicht gefunden</h2>
           <Button onClick={() => setLocation("/dashboard")}>
@@ -257,7 +257,7 @@ export default function Draft() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-weed-cream pattern-dots relative">
       {/* Draft Complete Dialog */}
       <Dialog open={showDraftCompleteDialog} onOpenChange={setShowDraftCompleteDialog}>
         <DialogContent className="sm:max-w-md">
@@ -283,7 +283,7 @@ export default function Draft() {
       </Dialog>
 
       {/* Header */}
-      <div className="border-b border-border bg-card">
+      <div className="border-b-4 border-weed-green bg-white/90 backdrop-blur-lg shadow-lg relative z-20">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -296,8 +296,8 @@ export default function Draft() {
                 Zurück zur Liga
               </Button>
               <div>
-                <h1 className="text-2xl font-bold text-foreground">{league.name}</h1>
-                <p className="text-sm text-muted-foreground">
+                <h1 className="headline-secondary text-2xl text-weed-coral">{league.name}</h1>
+                <p className="text-sm text-muted-foreground font-medium">
                   Draft - {myTeam.name}
                 </p>
               </div>
@@ -305,23 +305,23 @@ export default function Draft() {
             <div className="flex items-center gap-4">
               {/* Timer Display */}
               {timerSeconds !== null && !isNaN(timerSeconds) && timerSeconds >= 0 && (
-                <div className="flex items-center gap-2 px-4 py-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-                  <span className="text-sm font-medium text-yellow-600 dark:text-yellow-400">
+                <div className="flex items-center gap-2 px-4 py-2 bg-weed-purple/20 border-2 border-weed-purple rounded-lg shadow-md">
+                  <span className="text-sm font-bold text-weed-purple">
                     ⏱️ {Math.floor(timerSeconds / 60)}:{String(timerSeconds % 60).padStart(2, '0')}
                   </span>
                 </div>
               )}
               {/* Turn Indicator */}
               {currentTurnTeamName && (
-                <div className={`px-4 py-2 rounded-lg border ${
+                <div className={`px-4 py-2 rounded-lg border-2 shadow-md ${
                   isMyTurn 
-                    ? 'bg-green-500/10 border-green-500/20' 
-                    : 'bg-blue-500/10 border-blue-500/20'
+                    ? 'bg-weed-green border-weed-green' 
+                    : 'bg-weed-coral/20 border-weed-coral'
                 }`}>
-                  <span className={`text-sm font-medium ${
+                  <span className={`text-sm font-bold ${
                     isMyTurn 
-                      ? 'text-green-600 dark:text-green-400' 
-                      : 'text-blue-600 dark:text-blue-400'
+                      ? 'text-black' 
+                      : 'text-weed-coral'
                   }`}>
                     {isMyTurn ? '🎯 Dein Zug!' : `${currentTurnTeamName} ist dran`}
                   </span>
@@ -333,7 +333,7 @@ export default function Draft() {
       </div>
 
       {/* Draft Board */}
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Mobile: Draft Clock first */}
           <div className="lg:hidden order-1">
@@ -383,8 +383,8 @@ export default function Draft() {
 
           {/* Mobile: Recent Picks fourth */}
           <div className="lg:hidden order-4">
-            <div className="bg-card border border-border rounded-lg p-4">
-              <h3 className="text-lg font-semibold text-foreground mb-4">
+            <div className="bg-white border-0 shadow-xl rounded-lg p-4">
+              <h3 className="headline-secondary text-lg text-foreground mb-4">
                 📄 Recent Picks
               </h3>
               {recentPicks.length === 0 ? (
@@ -396,7 +396,7 @@ export default function Draft() {
                   {recentPicks.map((pick, index) => (
                     <div
                       key={`${pick.pickNumber}-${index}`}
-                      className="p-3 bg-muted/50 rounded-lg border border-border"
+                      className="p-3 bg-weed-cream rounded-lg border-2 border-weed-green/30"
                     >
                       <div className="flex items-start justify-between mb-1">
                         <span className="text-xs font-medium text-muted-foreground">
@@ -475,8 +475,8 @@ export default function Draft() {
             />
 
             {/* Recent Picks */}
-            <div className="bg-card border border-border rounded-lg p-4">
-              <h3 className="text-lg font-semibold text-foreground mb-4">
+            <div className="bg-white border-0 shadow-xl rounded-lg p-4">
+              <h3 className="headline-secondary text-lg text-foreground mb-4">
                 📄 Recent Picks
               </h3>
               {recentPicks.length === 0 ? (
@@ -488,7 +488,7 @@ export default function Draft() {
                   {recentPicks.map((pick, index) => (
                     <div
                       key={`${pick.pickNumber}-${index}`}
-                      className="p-3 bg-muted/50 rounded-lg border border-border"
+                      className="p-3 bg-weed-cream rounded-lg border-2 border-weed-green/30"
                     >
                       <div className="flex items-start justify-between mb-1">
                         <span className="text-xs font-medium text-muted-foreground">
