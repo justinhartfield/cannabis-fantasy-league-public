@@ -386,3 +386,6 @@ export class DailyChallengeAggregatorV2 {
     };
   }
 }
+
+// Singleton instance for easy import
+export const dailyChallengeAggregatorV2 = new DailyChallengeAggregatorV2();
