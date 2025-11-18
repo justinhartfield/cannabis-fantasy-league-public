@@ -337,6 +337,7 @@ export default function DraftBoard({
                           assetType="product"
                           assetId={product.id}
                           assetName={product.name}
+                          imageUrl={product.imageUrl}
                           stats={[
                             ...buildDailyScoreStats(product),
                             { label: "Hersteller", value: product.manufacturer },
@@ -426,6 +427,7 @@ export default function DraftBoard({
                     assetType="manufacturer"
                     assetId={mfg.id}
                     assetName={mfg.name}
+                    imageUrl={mfg.logoUrl}
                     stats={[
                       ...buildDailyScoreStats(mfg),
                       { label: "Produkte", value: mfg.productCount },
@@ -449,6 +451,7 @@ export default function DraftBoard({
                   assetType="cannabis_strain"
                   assetId={strain.id}
                   assetName={strain.name}
+                  imageUrl={strain.imageUrl}
                   stats={[
                     ...buildDailyScoreStats(strain),
                     { label: "Typ", value: strain.type },
@@ -475,6 +478,7 @@ export default function DraftBoard({
                     assetType="product"
                     assetId={product.id}
                     assetName={product.name}
+                    imageUrl={product.imageUrl}
                     stats={[
                       ...buildDailyScoreStats(product),
                       { label: "Hersteller", value: product.manufacturer },
@@ -502,6 +506,7 @@ export default function DraftBoard({
                     assetType="pharmacy"
                     assetId={phm.id}
                     assetName={phm.name}
+                    imageUrl={phm.logoUrl}
                     stats={[
                       ...buildDailyScoreStats(phm),
                       { label: "Stadt", value: phm.city },
@@ -527,6 +532,7 @@ export default function DraftBoard({
                     assetType="brand"
                     assetId={brand.id}
                     assetName={brand.name}
+                    imageUrl={brand.logoUrl}
                     stats={[
                       ...buildDailyScoreStats(brand),
                       { label: "Favorites", value: brand.totalFavorites || 0 },
