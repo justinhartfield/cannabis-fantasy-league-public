@@ -794,39 +794,52 @@ export default function DailyChallenge() {
                     index === 0 ? 'bg-weed-green' :
                     index === 1 ? 'bg-weed-coral' :
                     'bg-weed-purple'
-                  } border-0 shadow-xl card-hover-lift slide-in-bottom relative overflow-hidden`}
+                  } border-0 shadow-xl card-hover-lift slide-in-bottom relative overflow-hidden h-[280px]`}
                   style={{ animationDelay: `${index * 0.1}s` }}
                 >
-                  <CardContent className="p-4 space-y-2 relative z-10">
-                    <div className="flex items-center justify-between">
-                      <Badge className="bg-white/20 text-white border-0">#{index + 1}</Badge>
-                      <TrendIndicator value={performer.total} showPercentage={false} />
-                    </div>
-                    <div className="flex items-center gap-3">
-                      {performer.imageUrl && (
-                        <img 
-                          src={performer.imageUrl} 
-                          alt={performer.name}
-                          className="w-12 h-12 rounded-lg object-cover flex-shrink-0 border-2 border-border"
-                          onError={(e) => e.currentTarget.style.display = 'none'}
-                        />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="text-lg font-bold text-white truncate">
-                          {performer.name}
-                        </div>
-                        <div className="text-xs text-white/80 uppercase">
-                          {performer.type}
-                        </div>
+                  {/* Prominent Thumbnail Image - Takes up top half */}
+                  {performer.imageUrl ? (
+                    <div className="h-[140px] w-full bg-white/10 relative overflow-hidden">
+                      <img 
+                        src={performer.imageUrl} 
+                        alt={performer.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.parentElement!.style.display = 'none';
+                        }}
+                      />
+                      <div className="absolute top-2 left-2">
+                        <Badge className="bg-black/60 text-white border-0 backdrop-blur-sm">#{index + 1}</Badge>
+                      </div>
+                      <div className="absolute top-2 right-2">
+                        <TrendIndicator value={performer.total} showPercentage={false} />
                       </div>
                     </div>
-                    <div className="text-sm text-white/90">
-                      {performer.breakdown?.components?.length || 0} Komponenten
+                  ) : (
+                    <div className="h-[140px] w-full bg-white/10 flex items-center justify-center">
+                      <Badge className="bg-black/60 text-white border-0 backdrop-blur-sm text-4xl px-4 py-2">#{index + 1}</Badge>
                     </div>
-                    <div className="headline-primary text-3xl text-white">
-                      {performer.total.toFixed(1)}
+                  )}
+                  
+                  {/* Content - Bottom half */}
+                  <CardContent className="p-4 space-y-2 relative z-10">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-lg font-bold text-white truncate">
+                        {performer.name}
+                      </div>
+                      <div className="text-xs text-white/80 uppercase">
+                        {performer.type}
+                      </div>
                     </div>
-
+                    <div className="flex items-end justify-between">
+                      <div className="text-sm text-white/90">
+                        {performer.breakdown?.components?.length || 0} Komponenten
+                      </div>
+                      <div className="headline-primary text-3xl text-white">
+                        {performer.total.toFixed(1)}
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
