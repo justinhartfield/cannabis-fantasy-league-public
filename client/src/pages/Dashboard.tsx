@@ -139,7 +139,7 @@ export default function Dashboard() {
                   <input
                     type="text"
                     placeholder="Enter your invite code"
-                    className="flex-1 px-4 py-3 rounded-lg border-2 border-black/20 focus:border-black focus:outline-none text-black placeholder:text-black/50"
+                    className="flex-1 px-4 py-3 rounded-lg border-2 border-black/20 focus:border-black focus:outline-none text-black placeholder:text-black/50 bg-white"
                   />
                   <Button className="bg-black text-white hover:bg-black/90 px-6">
                     Join
@@ -196,7 +196,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <div className="flex items-center gap-3 mb-1">
-                <img src="https://framerusercontent.com/images/DPZRbKFGVJYTZGxHxKNNHYDMc.gif" alt="Trophy" className="w-12 h-12" />
+                <img src="https://framerusercontent.com/images/DPZRbKFGVJYTZGxHxKNNHYDMc.gif" alt="Trophy" className="w-12 h-12 object-contain" />
                 <h3 className="text-2xl font-bold text-foreground headline-primary">My Leagues</h3>
               </div>
               <p className="text-sm text-muted-foreground mt-1">
