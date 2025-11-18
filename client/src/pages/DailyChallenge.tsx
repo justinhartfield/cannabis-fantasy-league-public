@@ -487,8 +487,9 @@ export default function DailyChallenge() {
             <Button variant="ghost" size="icon" onClick={() => window.history.back()}>
               <ArrowLeft className="w-5 h-5" />
             </Button>
-            <div>
-              <h1 className="text-2xl font-bold text-gradient-primary">
+            <div className="flex items-center gap-3">
+              <img src="https://framerusercontent.com/images/Zt2gCKVC0Bxr6yzxVFyJqOQrSU.gif" alt="Challenge" className="w-12 h-12" />
+              <h1 className="text-2xl font-bold text-gradient-primary headline-primary">
                 {league.name}
               </h1>
               <p className="text-muted-foreground text-sm">
@@ -517,7 +518,7 @@ export default function DailyChallenge() {
                   </div>
                 </div>
                 <div>
-                  <h2 className="text-3xl font-bold text-gradient-primary mb-2">
+                  <h2 className="text-3xl font-bold text-gradient-primary mb-2 headline-primary">
                     🎯 DRAFT IN PROGRESS
                   </h2>
                   <p className="text-muted-foreground mb-4">
@@ -545,8 +546,9 @@ export default function DailyChallenge() {
                 <div className="flex justify-center">
                   <Trophy className="w-16 h-16 text-yellow-500" />
                 </div>
-                <div>
-                  <h2 className="text-3xl font-bold text-gradient-primary mb-2">
+                <div className="flex items-center gap-3 justify-center">
+                  <img src="https://framerusercontent.com/images/DPZRbKFGVJYTZGxHxKNNHYDMc.gif" alt="Trophy" className="w-16 h-16" />
+                  <h2 className="text-3xl font-bold text-gradient-primary mb-2 headline-primary">
                     Challenge Complete!
                   </h2>
                   <p className="text-xl text-foreground mb-1">

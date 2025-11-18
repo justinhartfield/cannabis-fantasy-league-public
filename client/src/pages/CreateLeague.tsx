@@ -98,11 +98,9 @@ export default function CreateLeague() {
                 <ArrowLeft className="w-5 h-5" />
               </Button>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-weed-green/10 flex items-center justify-center">
-                  <Trophy className="w-6 h-6 text-weed-green" />
-                </div>
+                <img src="https://framerusercontent.com/images/DPZRbKFGVJYTZGxHxKNNHYDMc.gif" alt="Trophy" className="w-12 h-12" />
                 <div>
-                  <h1 className="headline-secondary uppercase text-foreground">Neue Liga erstellen</h1>
+                  <h1 className="headline-primary uppercase text-foreground">Neue Liga erstellen</h1>
                   <p className="text-sm text-muted-foreground">
                     {formData.leagueType === "season" ? "Saison-Modus" : "Daily Challenge"}
                   </p>
@@ -111,7 +109,7 @@ export default function CreateLeague() {
             </div>
             {/* Wayfinder Character */}
             <img 
-              src="/src/assets/wayfinder/wayfinder-world.gif" 
+              src="https://framerusercontent.com/images/NbcObVXzQHvPqgg7j0Lqz8Oc.gif" 
               alt="Wayfinder World" 
               className="w-20 h-20 object-contain"
             />

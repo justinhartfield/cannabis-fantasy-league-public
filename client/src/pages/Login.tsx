@@ -60,7 +60,10 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-weed-cream dark:bg-weed-burgundy pattern-dots p-4">
+    <div className="min-h-screen flex items-center justify-center bg-weed-cream dark:bg-weed-burgundy pattern-dots p-4 relative">
+      {/* Floating Wayfinder Characters */}
+      <img src="https://framerusercontent.com/images/NbcObVXzQHvPqgg7j0Lqz8Oc.gif" alt="Wayfinder" className="absolute top-10 left-10 w-24 h-24 opacity-80 hidden md:block" />
+      <img src="https://framerusercontent.com/images/PZMqPnSPRfHqoqnWJwL4sDKY.gif" alt="Wayfinder" className="absolute bottom-10 right-10 w-24 h-24 opacity-80 hidden md:block" />
       <div className="w-full max-w-md">
         <div className="bg-white dark:bg-weed-purple rounded-2xl shadow-2xl p-8 space-y-8">
           {/* Logo and Title */}

@@ -109,13 +109,16 @@ export default function PreDraft() {
         </Button>
 
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">
-              🎯 Draft Setup
-            </h1>
-            <p className="text-muted-foreground">
-              {league.name}
-            </p>
+          <div className="flex items-center gap-3">
+            <img src="https://framerusercontent.com/images/DPZRbKFGVJYTZGxHxKNNHYDMc.gif" alt="Trophy" className="w-14 h-14" />
+            <div>
+              <h1 className="text-3xl font-bold text-foreground mb-2 headline-primary">
+                Draft Setup
+              </h1>
+              <p className="text-muted-foreground">
+                {league.name}
+              </p>
+            </div>
           </div>
           {isCommissioner && (
             <Badge variant="default" className="text-sm">
@@ -133,7 +136,7 @@ export default function PreDraft() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 headline-secondary">
                     <Trophy className="w-5 h-5" />
                     Draft Order
                   </CardTitle>

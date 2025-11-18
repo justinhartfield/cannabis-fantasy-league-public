@@ -153,7 +153,7 @@ export default function Dashboard() {
         {/* Prediction Streak Game Mode */}
         <section className="mb-8">
           <div className="mb-4">
-            <h3 className="text-xl font-bold text-foreground mb-2">
+            <h3 className="text-xl font-bold text-foreground mb-2 headline-primary">
               Daily Prediction Streak
             </h3>
             <p className="text-sm text-muted-foreground">
@@ -195,7 +195,10 @@ export default function Dashboard() {
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-2xl font-bold text-foreground">My Leagues</h3>
+              <div className="flex items-center gap-3 mb-1">
+                <img src="https://framerusercontent.com/images/DPZRbKFGVJYTZGxHxKNNHYDMc.gif" alt="Trophy" className="w-12 h-12" />
+                <h3 className="text-2xl font-bold text-foreground headline-primary">My Leagues</h3>
+              </div>
               <p className="text-sm text-muted-foreground mt-1">
                 {hasLeagues ? `${seasonLeagues.length} active ${seasonLeagues.length === 1 ? 'league' : 'leagues'}` : "Get started with your first league"}
               </p>
@@ -255,7 +258,10 @@ export default function Dashboard() {
         <div>
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-2xl font-bold text-foreground">My Challenges</h3>
+              <div className="flex items-center gap-3 mb-1">
+                <img src="https://framerusercontent.com/images/Zt2gCKVC0Bxr6yzxVFyJqOQrSU.gif" alt="Lightning" className="w-12 h-12" />
+                <h3 className="text-2xl font-bold text-foreground headline-primary">My Challenges</h3>
+              </div>
               <p className="text-sm text-muted-foreground mt-1">Quick daily competitions</p>
             </div>
           </div>

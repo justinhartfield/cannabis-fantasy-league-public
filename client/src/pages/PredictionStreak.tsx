@@ -72,11 +72,9 @@ export default function PredictionStreak() {
       {/* Header */}
       <header className="mb-8">
         <div className="flex items-center gap-4 mb-4">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-            <Zap className="w-8 h-8 text-white" />
-          </div>
+          <img src="https://framerusercontent.com/images/Zt2gCKVC0Bxr6yzxVFyJqOQrSU.gif" alt="Lightning" className="w-16 h-16" />
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Prediction Streak</h1>
+            <h1 className="text-3xl font-bold text-foreground headline-primary">Prediction Streak</h1>
             <p className="text-muted-foreground">Pick the winners and build your streak</p>
           </div>
         </div>
@@ -128,7 +126,10 @@ export default function PredictionStreak() {
       {/* Yesterday's Results */}
       {resultsData && resultsData.results.length > 0 && (
         <section className="mb-8">
-          <h2 className="text-xl font-bold text-foreground mb-4">Yesterday's Results</h2>
+          <div className="flex items-center gap-3 mb-4">
+            <img src="https://framerusercontent.com/images/DPZRbKFGVJYTZGxHxKNNHYDMc.gif" alt="Trophy" className="w-10 h-10" />
+            <h2 className="text-xl font-bold text-foreground headline-primary">Yesterday's Results</h2>
+          </div>
           <Card className="p-4">
             <div className="flex items-center justify-between mb-4">
               <span className="text-sm text-muted-foreground">
