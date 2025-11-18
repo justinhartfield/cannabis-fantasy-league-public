@@ -9,6 +9,11 @@ import { getDb } from '../server/db';
 import { sql } from 'drizzle-orm';
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 async function runMigration() {
   console.log('='.repeat(80));
@@ -21,6 +26,10 @@ async function runMigration() {
   try {
     // Read migration SQL
     const migrationPath = path.join(__dirname, '../migrations/add_trend_scoring_fields.sql');
+    
+    if (!fs.existsSync(migrationPath)) {
+      throw new Error(`Migration file not found at: ${migrationPath}`);
+    }
     const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
 
     console.log('Step 1: Reading migration file...');
