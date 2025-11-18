@@ -38,10 +38,16 @@ async function runMigration() {
     console.log();
 
     // Split SQL into individual statements
-    const statements = migrationSQL
+    // Remove comments first, then split on semicolons
+    const cleanedSQL = migrationSQL
+      .split('\n')
+      .filter(line => !line.trim().startsWith('--'))
+      .join('\n');
+    
+    const statements = cleanedSQL
       .split(';')
       .map(s => s.trim())
-      .filter(s => s.length > 0 && !s.startsWith('--'));
+      .filter(s => s.length > 0);
 
     console.log(`Step 2: Executing ${statements.length} SQL statements...`);
     console.log();
