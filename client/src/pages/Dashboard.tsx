@@ -117,7 +117,7 @@ export default function Dashboard() {
         {/* Platform Statistics with Wayfinder Characters */}
         {stats && (stats.manufacturerCount > 0 || stats.cannabisStrainCount > 0 || stats.pharmacyCount > 0) && (
           <div className="mb-8">
-            <h3 className="headline-secondary text-xl mb-6 text-foreground dark:text-white">
+            <h3 className="headline-secondary text-xl mb-6 text-foreground">
               Platform Stats
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
@@ -211,10 +211,10 @@ export default function Dashboard() {
         {/* Prediction Streak with Pancake Character */}
         <section className="mb-8">
           <div className="mb-4">
-            <h3 className="headline-secondary text-2xl text-foreground dark:text-white mb-2">
+            <h3 className="headline-secondary text-2xl text-foreground mb-2">
               Daily Prediction Streak
             </h3>
-            <p className="text-sm text-muted-foreground dark:text-white/70">
+            <p className="text-sm text-muted-foreground">
               Test your cannabis market knowledge with daily head-to-head predictions
             </p>
           </div>
@@ -261,8 +261,8 @@ export default function Dashboard() {
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="headline-secondary text-2xl text-foreground dark:text-white">My Leagues</h3>
-              <p className="text-sm text-muted-foreground dark:text-white/70 mt-1">
+              <h3 className="headline-secondary text-2xl text-foreground">My Leagues</h3>
+              <p className="text-sm text-muted-foreground mt-1">
                 {hasLeagues ? `${seasonLeagues.length} active ${seasonLeagues.length === 1 ? 'league' : 'leagues'}` : "Get started with your first league"}
               </p>
             </div>
@@ -291,10 +291,10 @@ export default function Dashboard() {
                     />
                   </div>
                   <div>
-                    <h4 className="headline-secondary text-3xl text-foreground dark:text-white mb-3">
+                    <h4 className="headline-secondary text-3xl text-foreground mb-3">
                       Ready to Compete?
                     </h4>
-                    <p className="text-muted-foreground dark:text-white/70 mb-8">
+                    <p className="text-muted-foreground mb-8">
                       Create your first league or join an existing one to start your fantasy journey.
                     </p>
                     <div className="flex gap-3 justify-center flex-wrap">
@@ -349,9 +349,7 @@ export default function Dashboard() {
         <div>
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="headline-secondary text-2xl text-foreground dark:text-white">My Challenges</h3>
-              <p className="text-sm text-muted-foreground dark:text-white/70 mt-1">Quick daily competitions</p>
-            </div>
+              <h3 className="headline-secondary text-2xl text-foreground">My Cha              <p className="text-sm text-muted-foreground mt-1">Quick daily competitions</p>       </div>
           </div>
 
           {myLeagues && myLeagues.filter(l => l.leagueType === 'challenge').length > 0 ? (
@@ -393,8 +391,8 @@ export default function Dashboard() {
                       className="absolute -bottom-2 -right-2 w-12 h-12"
                     />
                   </div>
-                  <p className="text-foreground dark:text-white mb-2 font-bold">No Active Challenges</p>
-                  <p className="text-sm text-muted-foreground dark:text-white/70">
+                  <p className="text-foreground mb-2 font-bold">No Active Challenges</p>
+                  <p className="text-sm text-muted-foreground">
                     New daily challenges are created automatically at 8:00 AM
                   </p>
                 </div>
