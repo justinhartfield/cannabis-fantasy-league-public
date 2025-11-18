@@ -131,7 +131,7 @@ export default function PredictionStreak() {
             <Card className="p-4 bg-white border-2 border-weed-green shadow-xl">
               <div className="flex items-center gap-2 mb-1">
                 <Zap className="w-4 h-4 text-weed-coral" />
-                <span className="text-sm text-gray-700 font-semibold">Current Streak</span>
+                <span className="text-sm text-muted-foreground font-semibold">Current Streak</span>
               </div>
               <p className="text-3xl font-bold text-foreground">
                 {stats?.currentStreak || 0} 🔥
@@ -141,7 +141,7 @@ export default function PredictionStreak() {
             <Card className="p-4 bg-white border-2 border-weed-green shadow-xl">
               <div className="flex items-center gap-2 mb-1">
                 <Trophy className="w-4 h-4 text-yellow-500" />
-                <span className="text-sm text-gray-700 font-semibold">Best Streak</span>
+                <span className="text-sm text-muted-foreground font-semibold">Best Streak</span>
               </div>
               <p className="text-3xl font-bold text-foreground">
                 {stats?.longestStreak || 0}
@@ -151,7 +151,7 @@ export default function PredictionStreak() {
             <Card className="p-4 bg-white border-2 border-weed-green shadow-xl">
               <div className="flex items-center gap-2 mb-1">
                 <TrendingUp className="w-4 h-4 text-weed-green" />
-                <span className="text-sm text-gray-700 font-semibold">Accuracy</span>
+                <span className="text-sm text-muted-foreground font-semibold">Accuracy</span>
               </div>
               <p className="text-3xl font-bold text-foreground">
                 {stats?.accuracy || 0}%
@@ -161,7 +161,7 @@ export default function PredictionStreak() {
             <Card className="p-4 bg-white border-2 border-weed-green shadow-xl">
               <div className="flex items-center gap-2 mb-1">
                 <CheckCircle className="w-4 h-4 text-blue-500" />
-                <span className="text-sm text-gray-700 font-semibold">Total Correct</span>
+                <span className="text-sm text-muted-foreground font-semibold">Total Correct</span>
               </div>
               <p className="text-3xl font-bold text-foreground">
                 {stats?.correctPredictions || 0}/{stats?.totalPredictions || 0}
@@ -202,7 +202,7 @@ export default function PredictionStreak() {
                         {result.entityAName} vs {result.entityBName}
                       </span>
                     </div>
-                    <span className="text-xs text-gray-700 font-medium">
+                    <span className="text-xs text-muted-foreground font-medium">
                       Winner: {result.winnerId === result.entityAId ? result.entityAName : result.entityBName}
                     </span>
                   </div>
@@ -257,7 +257,7 @@ export default function PredictionStreak() {
                               </div>
                             )}
                             <h4 className="font-bold text-lg mb-2 text-foreground">{matchup.entityAName}</h4>
-                            <p className="text-sm text-gray-700 capitalize font-medium">
+                            <p className="text-sm text-muted-foreground capitalize font-medium">
                               {matchup.entityType}
                             </p>
                           </div>
@@ -288,7 +288,7 @@ export default function PredictionStreak() {
                               </div>
                             )}
                             <h4 className="font-bold text-lg mb-2 text-foreground">{matchup.entityBName}</h4>
-                            <p className="text-sm text-gray-700 capitalize font-medium">
+                            <p className="text-sm text-muted-foreground capitalize font-medium">
                               {matchup.entityType}
                             </p>
                           </div>
