@@ -7,7 +7,9 @@
  */
 
 import cron from 'node-cron';
-import { dailyChallengeAggregatorV2 } from './dailyChallengeAggregatorV2';
+import { DailyChallengeAggregatorV2 } from './dailyChallengeAggregatorV2';
+
+const dailyChallengeAggregatorV2 = new DailyChallengeAggregatorV2();
 
 export class DailyStatsScheduler {
   private cronJob: cron.ScheduledTask | null = null;
