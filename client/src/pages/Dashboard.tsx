@@ -127,6 +127,29 @@ export default function Dashboard() {
           </Link>
         </div>
 
+        {/* Invite Code CTA */}
+        <div className="mb-8">
+          <Card className="bg-gradient-to-r from-weed-green to-weed-coral border-0">
+            <CardContent className="py-6">
+              <div className="text-center">
+                <h3 className="text-2xl font-bold text-black mb-4">
+                  GOT INVITE CODE? ENTER IT HERE:
+                </h3>
+                <div className="max-w-md mx-auto flex gap-3">
+                  <input
+                    type="text"
+                    placeholder="Enter your invite code"
+                    className="flex-1 px-4 py-3 rounded-lg border-2 border-black/20 focus:border-black focus:outline-none text-black placeholder:text-black/50"
+                  />
+                  <Button className="bg-black text-white hover:bg-black/90 px-6">
+                    Join
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Prediction Streak Game Mode */}
         <section className="mb-8">
           <div className="mb-4">
