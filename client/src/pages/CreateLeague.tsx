@@ -67,6 +67,11 @@ export default function CreateLeague() {
       return;
     }
 
+    if (formData.name.trim().length < 3) {
+      toast.error("Liga-Name muss mindestens 3 Zeichen lang sein");
+      return;
+    }
+
     try {
       const result = await createLeague.mutateAsync(formData);
       toast.success("Liga erfolgreich erstellt!");
@@ -171,12 +176,13 @@ export default function CreateLeague() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="name">Liga-Name *</Label>
+                <Label htmlFor="name">Liga-Name * (mindestens 3 Zeichen)</Label>
                 <Input
                   id="name"
                   placeholder="z.B. Cannabis Champions 2025"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  minLength={3}
                   required
                 />
               </div>
