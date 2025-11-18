@@ -64,6 +64,7 @@ export type DailyChallengeAggregationSummary = {
   strains: EntityAggregationSummary;
   products: EntityAggregationSummary;
   pharmacies: EntityAggregationSummary;
+  brands: EntityAggregationSummary;
 };
 
 type AggregationOptions = {
@@ -356,15 +357,30 @@ export class DailyChallengeAggregatorV2 {
 
     const db = await getDb();
 
-    // Fetch orders from Metabase
-    const ordersQuery = `
-      db.OrderEntryDenormalisedCompleted.find({
-        "OrderDate": { "$gte": new Date("${dateString}T00:00:00Z"), "$lt": new Date("${dateString}T23:59:59Z") }
-      })
-    `;
-
-    const ordersResult = await this.metabase.executeQuery(ordersQuery);
-    const orders: OrderRecord[] = ordersResult?.data || [];
+    // Fetch orders from Metabase using Card 1267 (date-filtered)
+    await this.log('info', `Fetching orders from Metabase for ${dateString}...`, undefined, logger);
+    let orders: OrderRecord[] = [];
+    
+    try {
+      // Try date-filtered card first (Card 1267)
+      orders = await this.metabase.executeCardQuery(1267, { date: dateString }) as OrderRecord[];
+      await this.log('info', `✓ Date-filtered query returned ${orders.length} orders`, undefined, logger);
+    } catch (error) {
+      // Fallback to Card 1266 with client-side filtering
+      await this.log('warn', 'Date-filtered query failed, falling back to client-side filtering', error, logger);
+      const allOrders = await this.metabase.executeCardQuery(1266);
+      const targetDate = new Date(dateString);
+      orders = allOrders.filter((order: any) => {
+        if (!order.OrderDate) return false;
+        const orderDate = new Date(order.OrderDate);
+        return (
+          orderDate.getFullYear() === targetDate.getFullYear() &&
+          orderDate.getMonth() === targetDate.getMonth() &&
+          orderDate.getDate() === targetDate.getDate()
+        );
+      }) as OrderRecord[];
+      await this.log('info', `Filtered to ${orders.length} orders for ${dateString}`, undefined, logger);
+    }
 
     await this.log('info', `Fetched ${orders.length} orders for ${dateString}`, undefined, logger);
 
@@ -372,9 +388,11 @@ export class DailyChallengeAggregatorV2 {
     const manufacturers = await this.aggregateManufacturersWithTrends(db, dateString, orders, logger);
     const strains = await this.aggregateStrainsWithTrends(db, dateString, orders, logger);
     
-    // Products and pharmacies would follow similar pattern
+    // Products, pharmacies, and brands would follow similar pattern
+    // For now, return empty summaries
     const products = { processed: 0, skipped: 0 };
     const pharmacies = { processed: 0, skipped: 0 };
+    const brands = { processed: 0, skipped: 0 };
 
     return {
       statDate: dateString,
@@ -383,6 +401,7 @@ export class DailyChallengeAggregatorV2 {
       strains,
       products,
       pharmacies,
+      brands,
     };
   }
 }
