@@ -63,7 +63,7 @@
   --popover: #FFFFFF;
   --popover-foreground: #000000;
   --muted: #E5E7EB;
-  --muted-foreground: #6B7280;
+  --muted-foreground: #374151; /* Changed from #6B7280 to #374151 (gray-700) for better contrast on cream background */
   --accent: #FF5C47; /* Coral accent */
   --accent-foreground: #FFFFFF;
   --destructive: #EF4444;
