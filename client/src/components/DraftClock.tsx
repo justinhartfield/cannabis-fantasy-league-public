@@ -89,12 +89,12 @@ export function DraftClock({
   const colors = getColorScheme();
 
   return (
-    <Card className={`${colors.bg} border-2 ${colors.border} transition-colors duration-300`}>
+    <Card className="bg-weed-purple border-2 border-weed-green transition-colors duration-300">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold flex items-center gap-2">
-            <Clock className={`h-5 w-5 ${colors.text} ${urgency === "critical" ? "animate-pulse" : ""}`} />
-            <span className={colors.text}>Draft Clock</span>
+          <CardTitle className="headline-secondary text-lg font-semibold flex items-center gap-2 text-white">
+            <Clock className={`h-5 w-5 text-weed-green ${urgency === "critical" ? "animate-pulse" : ""}`} />
+            <span className="uppercase">Draft Clock</span>
           </CardTitle>
           {isPaused && (
             <Badge variant="outline" className="flex items-center gap-1">
@@ -108,11 +108,11 @@ export function DraftClock({
         {/* Current Pick Info */}
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm text-muted-foreground">Pick #{pickNumber}</p>
-            <p className="text-sm text-muted-foreground">Round {round}</p>
+            <p className="text-sm text-white/70">Pick #{pickNumber}</p>
+            <p className="text-sm text-white/70">Round {round}</p>
           </div>
           <div className="text-right">
-            <p className="text-sm font-medium">{teamName}</p>
+            <p className="text-sm font-medium text-white">{teamName}</p>
             {isYourTurn && (
               <Badge className={`${colors.badge} text-white`}>
                 Your Turn!
@@ -123,10 +123,10 @@ export function DraftClock({
 
         {/* Timer Display */}
         <div className="text-center">
-          <div className={`text-6xl font-bold ${colors.text} font-mono ${urgency === "critical" ? "animate-pulse" : ""}`}>
+          <div className="headline-primary text-6xl font-bold text-weed-green font-mono">
             {formatTime(displayTime)}
           </div>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-white/70 mt-1">
             {isPaused ? "Timer Paused" : "Time Remaining"}
           </p>
         </div>
@@ -138,7 +138,7 @@ export function DraftClock({
             className="h-3"
             indicatorClassName={colors.progress}
           />
-          <div className="flex justify-between text-xs text-muted-foreground">
+          <div className="flex justify-between text-xs text-white/70">
             <span>0:00</span>
             <span>{formatTime(timeLimit)}</span>
           </div>
@@ -166,7 +166,7 @@ export function DraftClock({
         {/* Auto-pick Notice */}
         {!isYourTurn && (
           <div className="text-center">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-white/80">
               Waiting for {teamName} to make their pick...
             </p>
           </div>

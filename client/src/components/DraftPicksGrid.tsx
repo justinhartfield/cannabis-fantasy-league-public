@@ -44,12 +44,12 @@ const ASSET_COLORS: Record<string, string> = {
 export function DraftPicksGrid({ picks, currentPickNumber }: DraftPicksGridProps) {
   if (picks.length === 0) {
     return (
-      <Card>
+      <Card className="bg-weed-purple border-2 border-weed-green">
         <CardHeader>
-          <CardTitle>Draft Board</CardTitle>
+          <CardTitle className="headline-secondary text-white uppercase">Draft Board</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground text-center py-8">
+          <p className="text-sm text-white/70 text-center py-8">
             Noch keine Picks
           </p>
         </CardContent>
@@ -102,11 +102,11 @@ export function DraftPicksGrid({ picks, currentPickNumber }: DraftPicksGridProps
   };
 
   return (
-    <Card>
+    <Card className="bg-weed-purple border-2 border-weed-green">
       <CardHeader>
-        <CardTitle className="flex items-center justify-between">
+        <CardTitle className="headline-secondary flex items-center justify-between text-white uppercase">
           <span>Draft Board</span>
-          <Badge variant="outline">{picks.length} Picks</Badge>
+          <Badge className="bg-weed-green text-black border-0">{picks.length} Picks</Badge>
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -121,9 +121,8 @@ export function DraftPicksGrid({ picks, currentPickNumber }: DraftPicksGridProps
               <div
                 key={`${pick.pickNumber}-${pick.assetId}`}
                 className={cn(
-                  "p-3 rounded-lg border transition-all duration-300",
-                  colorClass,
-                  isNewestPick && "ring-2 ring-primary glow-primary scale-105 slide-in-bottom"
+                  "p-3 rounded-lg border-2 transition-all duration-300 bg-white",
+                  isNewestPick ? "border-weed-green ring-2 ring-weed-green glow-primary scale-105 slide-in-bottom" : "border-white/20"
                 )}
               >
                 {/* Header: Pick Number & Badge */}
