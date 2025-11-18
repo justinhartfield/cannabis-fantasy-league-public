@@ -349,7 +349,9 @@ export default function Dashboard() {
         <div>
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="headline-secondary text-2xl text-foreground">My Cha              <p className="text-sm text-muted-foreground mt-1">Quick daily competitions</p>       </div>
+              <h3 className="headline-secondary text-2xl text-foreground">My Challenges</h3>
+              <p className="text-sm text-muted-foreground mt-1">Quick daily competitions</p>
+            </div>
           </div>
 
           {myLeagues && myLeagues.filter(l => l.leagueType === 'challenge').length > 0 ? (
