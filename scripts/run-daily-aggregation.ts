@@ -6,7 +6,7 @@
  * for all entity types (manufacturers, strains, products, pharmacies, brands).
  */
 
-import { dailyChallengeAggregator } from '../server/dailyChallengeAggregator';
+import { dailyChallengeAggregatorV2 } from '../server/dailyChallengeAggregatorV2';
 
 async function runAggregation() {
   console.log('='.repeat(60));
@@ -32,7 +32,7 @@ async function runAggregation() {
     console.log(`\n${'='.repeat(60)}`);
     console.log(`Aggregating Yesterday (${yesterdayString})`);
     console.log('='.repeat(60));
-    const yesterdaySummary = await dailyChallengeAggregator.aggregateForDate(yesterdayString);
+    const yesterdaySummary = await dailyChallengeAggregatorV2.aggregateForDate(yesterdayString);
     
     console.log('\n✅ Yesterday Summary:');
     console.log(`   - Manufacturers: ${yesterdaySummary.manufacturers.processed} processed, ${yesterdaySummary.manufacturers.skipped} skipped`);
@@ -45,7 +45,7 @@ async function runAggregation() {
     console.log(`\n${'='.repeat(60)}`);
     console.log(`Aggregating Today (${todayString})`);
     console.log('='.repeat(60));
-    const todaySummary = await dailyChallengeAggregator.aggregateForDate(todayString);
+    const todaySummary = await dailyChallengeAggregatorV2.aggregateForDate(todayString);
     
     console.log('\n✅ Today Summary:');
     console.log(`   - Manufacturers: ${todaySummary.manufacturers.processed} processed, ${todaySummary.manufacturers.skipped} skipped`);
