@@ -7,7 +7,7 @@
  */
 
 import cron from 'node-cron';
-import { dailyChallengeAggregator } from './dailyChallengeAggregator';
+import { dailyChallengeAggregatorV2 } from './dailyChallengeAggregatorV2';
 
 export class DailyStatsScheduler {
   private cronJob: cron.ScheduledTask | null = null;
@@ -47,7 +47,7 @@ export class DailyStatsScheduler {
       const todayStr = today.toISOString().split('T')[0];
       
       console.log(`[DailyStatsScheduler] Starting aggregation for today (${todayStr})...`);
-      await dailyChallengeAggregator.aggregateForDate(todayStr);
+      await dailyChallengeAggregatorV2.aggregateForDate(todayStr);
       console.log(`[DailyStatsScheduler] ✅ Today's aggregation complete`);
 
       // Also aggregate for yesterday to ensure it's finalized
@@ -56,7 +56,7 @@ export class DailyStatsScheduler {
       const yesterdayStr = yesterday.toISOString().split('T')[0];
       
       console.log(`[DailyStatsScheduler] Starting aggregation for yesterday (${yesterdayStr})...`);
-      await dailyChallengeAggregator.aggregateForDate(yesterdayStr);
+      await dailyChallengeAggregatorV2.aggregateForDate(yesterdayStr);
       console.log(`[DailyStatsScheduler] ✅ Yesterday's aggregation complete`);
     } catch (error) {
       console.error('[DailyStatsScheduler] ❌ Aggregation failed:', error);
@@ -70,7 +70,7 @@ export class DailyStatsScheduler {
     console.log(`[DailyStatsScheduler] Manual aggregation triggered for ${statDate}`);
     
     try {
-      await dailyChallengeAggregator.aggregateForDate(statDate);
+      await dailyChallengeAggregatorV2.aggregateForDate(statDate);
       console.log(`[DailyStatsScheduler] ✅ Manual aggregation complete for ${statDate}`);
     } catch (error) {
       console.error(`[DailyStatsScheduler] ❌ Manual aggregation failed for ${statDate}:`, error);
