@@ -442,8 +442,28 @@ async function scoreMatchup(matchup: any): Promise<void> {
         ))
         .limit(1);
 
-      entityAPoints = statsA[0]?.totalPoints || 0;
-      entityBPoints = statsB[0]?.totalPoints || 0;
+      if (!statsA[0]) {
+        console.warn(`[PredictionService] No stats found for manufacturer ${matchup.entityAName} (ID: ${matchup.entityAId}) on ${matchup.matchupDate}`);
+      }
+      if (!statsB[0]) {
+        console.warn(`[PredictionService] No stats found for manufacturer ${matchup.entityBName} (ID: ${matchup.entityBId}) on ${matchup.matchupDate}`);
+      }
+
+      // Calculate points from stats data (totalPoints is always 0 in daily stats)
+      if (statsA[0]) {
+        const sales = statsA[0].salesVolumeGrams || 0;
+        const products = statsA[0].productCount || 0;
+        const rank = statsA[0].marketShareRank || 999;
+        const rankBonus = rank <= 10 ? (11 - rank) * 5 : 0;
+        entityAPoints = Math.floor(sales / 10) + (products * 3) + rankBonus;
+      }
+      if (statsB[0]) {
+        const sales = statsB[0].salesVolumeGrams || 0;
+        const products = statsB[0].productCount || 0;
+        const rank = statsB[0].marketShareRank || 999;
+        const rankBonus = rank <= 10 ? (11 - rank) * 5 : 0;
+        entityBPoints = Math.floor(sales / 10) + (products * 3) + rankBonus;
+      }
     } 
     else if (matchup.entityType === 'strain') {
       const statsA = await db
@@ -464,8 +484,26 @@ async function scoreMatchup(matchup: any): Promise<void> {
         ))
         .limit(1);
 
-      entityAPoints = statsA[0]?.totalPoints || 0;
-      entityBPoints = statsB[0]?.totalPoints || 0;
+      if (!statsA[0]) {
+        console.warn(`[PredictionService] No stats found for strain ${matchup.entityAName} (ID: ${matchup.entityAId}) on ${matchup.matchupDate}`);
+      }
+      if (!statsB[0]) {
+        console.warn(`[PredictionService] No stats found for strain ${matchup.entityBName} (ID: ${matchup.entityBId}) on ${matchup.matchupDate}`);
+      }
+
+      // Calculate points from stats data (totalPoints is always 0 in daily stats)
+      if (statsA[0]) {
+        const favorites = statsA[0].totalFavorites || 0;
+        const pharmacies = statsA[0].pharmacyCount || 0;
+        const penetration = statsA[0].marketPenetration || 0;
+        entityAPoints = (favorites * 2) + (pharmacies * 5) + penetration;
+      }
+      if (statsB[0]) {
+        const favorites = statsB[0].totalFavorites || 0;
+        const pharmacies = statsB[0].pharmacyCount || 0;
+        const penetration = statsB[0].marketPenetration || 0;
+        entityBPoints = (favorites * 2) + (pharmacies * 5) + penetration;
+      }
     }
     else if (matchup.entityType === 'brand') {
       const statsA = await db
@@ -486,8 +524,28 @@ async function scoreMatchup(matchup: any): Promise<void> {
         ))
         .limit(1);
 
-      entityAPoints = statsA[0]?.totalPoints || 0;
-      entityBPoints = statsB[0]?.totalPoints || 0;
+      if (!statsA[0]) {
+        console.warn(`[PredictionService] No stats found for brand ${matchup.entityAName} (ID: ${matchup.entityAId}) on ${matchup.matchupDate}`);
+      }
+      if (!statsB[0]) {
+        console.warn(`[PredictionService] No stats found for brand ${matchup.entityBName} (ID: ${matchup.entityBId}) on ${matchup.matchupDate}`);
+      }
+
+      // Calculate points from stats data (totalPoints is always 0 in daily stats)
+      if (statsA[0]) {
+        const favorites = statsA[0].favorites || 0;
+        const views = statsA[0].views || 0;
+        const comments = statsA[0].comments || 0;
+        const clicks = statsA[0].affiliateClicks || 0;
+        entityAPoints = (favorites * 2) + Math.floor(views / 10) + (comments * 5) + (clicks * 3);
+      }
+      if (statsB[0]) {
+        const favorites = statsB[0].favorites || 0;
+        const views = statsB[0].views || 0;
+        const comments = statsB[0].comments || 0;
+        const clicks = statsB[0].affiliateClicks || 0;
+        entityBPoints = (favorites * 2) + Math.floor(views / 10) + (comments * 5) + (clicks * 3);
+      }
     }
     else if (matchup.entityType === 'pharmacy') {
       const statsA = await db
@@ -508,11 +566,37 @@ async function scoreMatchup(matchup: any): Promise<void> {
         ))
         .limit(1);
 
-      entityAPoints = statsA[0]?.totalPoints || 0;
-      entityBPoints = statsB[0]?.totalPoints || 0;
+      if (!statsA[0]) {
+        console.warn(`[PredictionService] No stats found for pharmacy ${matchup.entityAName} (ID: ${matchup.entityAId}) on ${matchup.matchupDate}`);
+      }
+      if (!statsB[0]) {
+        console.warn(`[PredictionService] No stats found for pharmacy ${matchup.entityBName} (ID: ${matchup.entityBId}) on ${matchup.matchupDate}`);
+      }
+
+      // Calculate points from stats data (totalPoints is always 0 in daily stats)
+      if (statsA[0]) {
+        const orders = statsA[0].orderCount || 0;
+        const revenue = statsA[0].revenueCents || 0;
+        const rating = statsA[0].customerRating || 0;
+        entityAPoints = (orders * 2) + Math.floor(revenue / 1000) + (rating * 10);
+      }
+      if (statsB[0]) {
+        const orders = statsB[0].orderCount || 0;
+        const revenue = statsB[0].revenueCents || 0;
+        const rating = statsB[0].customerRating || 0;
+        entityBPoints = (orders * 2) + Math.floor(revenue / 1000) + (rating * 10);
+      }
     }
 
-    const winnerId = entityAPoints >= entityBPoints 
+    // Check if we have valid stats data
+    if (entityAPoints === 0 && entityBPoints === 0) {
+      console.warn(`[PredictionService] No stats found for matchup ${matchup.id} on ${matchup.matchupDate}, skipping scoring`);
+      return; // Don't score matchups without data
+    }
+
+    // Determine winner - use strict > to avoid bias in ties
+    // In case of a tie with non-zero scores, Entity A wins (rare case)
+    const winnerId = entityAPoints > entityBPoints 
       ? matchup.entityAId 
       : matchup.entityBId;
 
