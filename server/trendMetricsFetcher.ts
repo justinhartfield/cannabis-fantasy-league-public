@@ -6,6 +6,8 @@
  */
 
 import { getMetabaseClient } from './metabase';
+import { getDb } from './db';
+import { sql } from 'drizzle-orm';
 
 export interface TrendMetricsData {
   entityId: string;
@@ -204,13 +206,12 @@ export async function getPreviousRank(
     const tableName = tableMap[entityType];
     const idField = `${entityType}Id`;
     
-    const query = `
-      SELECT rank FROM "${tableName}"
-      WHERE "${idField}" = $1 AND "statDate" = $2
+    // Use Drizzle's sql tagged template for parameterized queries
+    const result = await db.execute(sql`
+      SELECT rank FROM ${sql.identifier(tableName)}
+      WHERE ${sql.identifier(idField)} = ${entityId} AND "statDate" = ${previousDate}
       LIMIT 1
-    `;
-    
-    const result = await db.execute(query, [entityId, previousDate]);
+    `);
     
     if (result && result.rows && result.rows.length > 0) {
       return Number(result.rows[0].rank || 0);
