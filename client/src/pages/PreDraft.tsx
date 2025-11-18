@@ -87,7 +87,7 @@ export default function PreDraft() {
   if (!league) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <p className="text-center text-muted-foreground">League not found</p>
+        <p className="text-center text-gray-700">League not found</p>
       </div>
     );
   }
@@ -113,7 +113,7 @@ export default function PreDraft() {
             <h1 className="text-3xl font-bold text-foreground mb-2">
               🎯 Draft Setup
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-gray-700">
               {league.name}
             </p>
           </div>
@@ -167,7 +167,7 @@ export default function PreDraft() {
             </CardHeader>
             <CardContent>
               {!draftOrder || draftOrder.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">
+                <p className="text-sm text-gray-700 text-center py-8">
                   No teams in league yet
                 </p>
               ) : (
@@ -183,7 +183,7 @@ export default function PreDraft() {
                         </div>
                         <div>
                           <p className="font-medium text-foreground">{team.name}</p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs text-gray-700">
                             {team.userName || "Unknown User"}
                           </p>
                         </div>
@@ -225,11 +225,11 @@ export default function PreDraft() {
                           {order.map((team, idx) => (
                             <div
                               key={team.id}
-                              className="flex items-center gap-1 text-xs text-muted-foreground"
+                              className="flex items-center gap-1 text-xs text-gray-700"
                             >
                               <span>{team.name}</span>
                               {idx < order.length - 1 && (
-                                <span className="text-muted-foreground/50">→</span>
+                                <span className="text-gray-700/50">→</span>
                               )}
                             </div>
                           ))}
@@ -252,20 +252,20 @@ export default function PreDraft() {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center gap-2 text-sm">
-                <UserCircle className="w-4 h-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Teams:</span>
+                <UserCircle className="w-4 h-4 text-gray-700" />
+                <span className="text-gray-700">Teams:</span>
                 <span className="font-medium text-foreground">
                   {draftOrder?.length || 0}
                 </span>
               </div>
               <div className="flex items-center gap-2 text-sm">
-                <Trophy className="w-4 h-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Picks per team:</span>
+                <Trophy className="w-4 h-4 text-gray-700" />
+                <span className="text-gray-700">Picks per team:</span>
                 <span className="font-medium text-foreground">9</span>
               </div>
               <div className="flex items-center gap-2 text-sm">
-                <Calendar className="w-4 h-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Total picks:</span>
+                <Calendar className="w-4 h-4 text-gray-700" />
+                <span className="text-gray-700">Total picks:</span>
                 <span className="font-medium text-foreground">
                   {(draftOrder?.length || 0) * 9}
                 </span>
@@ -306,7 +306,7 @@ export default function PreDraft() {
                   )}
                 </Button>
                 {!hasOrder && (
-                  <p className="text-xs text-muted-foreground text-center mt-2">
+                  <p className="text-xs text-gray-700 text-center mt-2">
                     Click "Randomize" to set draft order
                   </p>
                 )}
