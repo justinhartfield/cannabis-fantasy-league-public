@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getLoginUrl } from "@/const";
 import LineupEditor from "@/components/LineupEditor";
-import ScoringBreakdown from "@/components/ScoringBreakdown";
+import ScoringBreakdown from "@/components/ScoringBreakdownV2";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useEffect } from "react";

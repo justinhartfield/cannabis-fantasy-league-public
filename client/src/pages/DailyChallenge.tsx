@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { LiveIndicator } from "@/components/LiveIndicator";
 import { ComparisonBar } from "@/components/ComparisonBar";
-import ScoringBreakdown from "@/components/ScoringBreakdown";
+import ScoringBreakdown from "@/components/ScoringBreakdownV2";
 import { StatBadge } from "@/components/StatBadge";
 import { TrendIndicator } from "@/components/TrendIndicator";
 import { CoinFlip } from "@/components/CoinFlip";

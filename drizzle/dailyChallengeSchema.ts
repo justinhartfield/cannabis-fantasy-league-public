@@ -1,6 +1,6 @@
 /**
  * Daily Challenge Stats Schema
- * Optimized for single-day performance tracking
+ * Optimized for single-day performance tracking with trend-based scoring
  */
 
 import { pgTable, serial, integer, date, timestamp, index, unique, decimal } from 'drizzle-orm/pg-core';
@@ -19,6 +19,12 @@ export const manufacturerDailyChallengeStats = pgTable("manufacturerDailyChallen
   revenueCents: integer().default(0).notNull(),
   totalPoints: integer().default(0).notNull(),
   rank: integer().default(0),
+  previousRank: integer().default(0),
+  trendMultiplier: decimal({ precision: 10, scale: 2 }).default('0'),
+  consistencyScore: integer().default(0),
+  velocityScore: integer().default(0),
+  streakDays: integer().default(0),
+  marketSharePercent: decimal({ precision: 5, scale: 2 }).default('0'),
   createdAt: timestamp({ withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp({ withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
@@ -35,6 +41,12 @@ export const strainDailyChallengeStats = pgTable("strainDailyChallengeStats", {
   orderCount: integer().default(0).notNull(),
   totalPoints: integer().default(0).notNull(),
   rank: integer().default(0),
+  previousRank: integer().default(0),
+  trendMultiplier: decimal({ precision: 10, scale: 2 }).default('0'),
+  consistencyScore: integer().default(0),
+  velocityScore: integer().default(0),
+  streakDays: integer().default(0),
+  marketSharePercent: decimal({ precision: 5, scale: 2 }).default('0'),
   createdAt: timestamp({ withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp({ withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
@@ -51,6 +63,12 @@ export const productDailyChallengeStats = pgTable("productDailyChallengeStats", 
   orderCount: integer().default(0).notNull(),
   totalPoints: integer().default(0).notNull(),
   rank: integer().default(0),
+  previousRank: integer().default(0),
+  trendMultiplier: decimal({ precision: 10, scale: 2 }).default('0'),
+  consistencyScore: integer().default(0),
+  velocityScore: integer().default(0),
+  streakDays: integer().default(0),
+  marketSharePercent: decimal({ precision: 5, scale: 2 }).default('0'),
   createdAt: timestamp({ withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp({ withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
@@ -67,6 +85,12 @@ export const pharmacyDailyChallengeStats = pgTable("pharmacyDailyChallengeStats"
   revenueCents: integer().default(0).notNull(),
   totalPoints: integer().default(0).notNull(),
   rank: integer().default(0),
+  previousRank: integer().default(0),
+  trendMultiplier: decimal({ precision: 10, scale: 2 }).default('0'),
+  consistencyScore: integer().default(0),
+  velocityScore: integer().default(0),
+  streakDays: integer().default(0),
+  marketSharePercent: decimal({ precision: 5, scale: 2 }).default('0'),
   createdAt: timestamp({ withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp({ withTimezone: true }).defaultNow().notNull(),
 }, (table) => [

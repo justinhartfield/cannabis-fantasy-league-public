@@ -1,6 +1,9 @@
 /**
  * Daily Challenge Scoring Engine
  * Optimized for single-day performance with simplified scoring rules
+ * 
+ * NOTE: This is the legacy scoring system. For the new trend-based system,
+ * see trendScoringEngine.ts
  */
 
 export interface DailyChallengeStats {
@@ -27,6 +30,16 @@ export interface ScoringBreakdown {
   rankBonusPoints: number;
   totalPoints: number;
 }
+
+// Re-export trend-based scoring for easy migration
+export { 
+  calculateManufacturerTrendScore,
+  calculateStrainTrendScore,
+  calculateProductTrendScore,
+  calculatePharmacyTrendScore,
+  type TrendScoringBreakdown,
+  type TrendScoringStats
+} from './trendScoringEngine';
 
 /**
  * Calculate manufacturer daily challenge score

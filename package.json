@@ -17,7 +17,10 @@
     "db:migrate:status": "node scripts/run-migration.js --status",
     "db:migrate:dry-run": "node scripts/run-migration.js --dry-run",
     "db:verify-strains": "node scripts/verify-strain-sync.js",
-    "sync:daily-stats": "tsx scripts/sync-daily-stats.ts"
+    "sync:daily-stats": "tsx scripts/sync-daily-stats.ts",
+    "trend:migrate": "tsx scripts/run-trend-migration.ts",
+    "trend:test": "tsx scripts/test-trend-scoring.ts",
+    "trend:compare": "tsx scripts/compare-scoring-systems.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.693.0",
