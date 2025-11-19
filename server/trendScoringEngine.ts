@@ -189,7 +189,7 @@ export function calculateManufacturerTrendScore(stats: TrendScoringStats): Trend
   
   // Trend momentum points
   const trendMultiplier =
-    typeof stats.trendMultiplier === 'number'
+    typeof stats.trendMultiplier === 'number' && stats.trendMultiplier > 0
       ? stats.trendMultiplier
       : calculateTrendMultiplier(stats.days1 ?? 0, stats.days7 ?? 0);
   const trendMomentumPoints = Math.floor(trendMultiplier * 20);
@@ -250,7 +250,7 @@ export function calculateStrainTrendScore(stats: TrendScoringStats): TrendScorin
   
   // Trend momentum points (lower multiplier than manufacturers)
   const trendMultiplier =
-    typeof stats.trendMultiplier === 'number'
+    typeof stats.trendMultiplier === 'number' && stats.trendMultiplier > 0
       ? stats.trendMultiplier
       : calculateTrendMultiplier(stats.days1 ?? 0, stats.days7 ?? 0);
   const trendMomentumPoints = Math.floor(trendMultiplier * 15);
@@ -311,7 +311,7 @@ export function calculateProductTrendScore(stats: TrendScoringStats): TrendScori
   
   // Trend momentum points (3x multiplier)
   const trendMultiplier =
-    typeof stats.trendMultiplier === 'number'
+    typeof stats.trendMultiplier === 'number' && stats.trendMultiplier > 0
       ? stats.trendMultiplier
       : calculateTrendMultiplier(stats.days1 ?? 0, stats.days7 ?? 0);
   const trendMomentumPoints = Math.floor(trendMultiplier * 25);
@@ -372,7 +372,7 @@ export function calculatePharmacyTrendScore(stats: TrendScoringStats): TrendScor
   
   // Trend momentum points
   const trendMultiplier =
-    typeof stats.trendMultiplier === 'number'
+    typeof stats.trendMultiplier === 'number' && stats.trendMultiplier > 0
       ? stats.trendMultiplier
       : calculateTrendMultiplier(stats.days1 ?? 0, stats.days7 ?? 0);
   const trendMomentumPoints = Math.floor(trendMultiplier * 20);
