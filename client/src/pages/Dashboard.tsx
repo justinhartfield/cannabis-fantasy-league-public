@@ -158,10 +158,10 @@ export default function Dashboard() {
 
         {/* Invite Code CTA */}
         <div className="mb-8">
-          <Card className="bg-white border-2 border-gray-200">
+          <Card className="bg-white border-2 border-weed-green">
             <CardContent className="py-6">
               <div className="text-center">
-                <h3 className="text-2xl font-bold text-black mb-4">
+                <h3 className="text-2xl font-bold text-weed-coral mb-4 headline-primary">
                   GOT INVITE CODE? ENTER IT HERE:
                 </h3>
                 <div className="max-w-md mx-auto flex gap-3">
@@ -172,12 +172,12 @@ export default function Dashboard() {
                     onChange={(e) => setInviteCode(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleJoinLeague()}
                     disabled={joiningLeague}
-                    className="flex-1 px-4 py-3 rounded-lg border-2 border-black/20 focus:border-black focus:outline-none text-black placeholder:text-black/50 bg-white disabled:opacity-50"
+                    className="flex-1 px-4 py-3 rounded-lg border-2 border-weed-green/30 focus:border-weed-green focus:outline-none text-black placeholder:text-black/50 bg-white disabled:opacity-50"
                   />
                   <Button 
                     onClick={handleJoinLeague}
                     disabled={joiningLeague}
-                    className="bg-black text-white hover:bg-black/90 px-6"
+                    className="bg-weed-green text-black hover:bg-weed-green/90 px-6 font-bold"
                   >
                     {joiningLeague ? "Joining..." : "Join"}
                   </Button>
