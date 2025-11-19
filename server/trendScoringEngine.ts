@@ -110,16 +110,44 @@ export function calculateVelocityScore(days1: number, days7: number, days14?: nu
 }
 
 /**
- * Calculate streak bonus for consecutive days in top 10
+ * Calculate progressive streak multiplier for consecutive days in top 10
+ * Returns a multiplier that increases with streak length
+ */
+export function calculateStreakMultiplier(streakDays: number): number {
+  if (streakDays < 2) return 1.0; // No streak bonus
+  
+  // Progressive streak tiers with increasing multipliers
+  if (streakDays >= 21) return 3.0;  // 🔥🔥🔥🔥🔥 God Mode: 3x multiplier
+  if (streakDays >= 14) return 2.0;  // 🔥🔥🔥🔥 Legendary: 2x multiplier
+  if (streakDays >= 7) return 1.5;   // 🔥🔥🔥 Unstoppable: 1.5x multiplier
+  if (streakDays >= 4) return 1.25;  // 🔥🔥 On Fire: 1.25x multiplier
+  return 1.1;                         // 🔥 Hot Streak: 1.1x multiplier (2-3 days)
+}
+
+/**
+ * Get streak tier name for display
+ */
+export function getStreakTierName(streakDays: number): string {
+  if (streakDays >= 21) return '🔥🔥🔥🔥🔥 God Mode';
+  if (streakDays >= 14) return '🔥🔥🔥🔥 Legendary';
+  if (streakDays >= 7) return '🔥🔥🔥 Unstoppable';
+  if (streakDays >= 4) return '🔥🔥 On Fire';
+  if (streakDays >= 2) return '🔥 Hot Streak';
+  return 'No Streak';
+}
+
+/**
+ * Calculate streak bonus points (legacy function, kept for compatibility)
  */
 export function calculateStreakBonus(streakDays: number): number {
   if (streakDays < 2) return 0;
   
-  // +5 pts per day in streak, with exponential bonus for long streaks
-  const baseBonus = streakDays * 5;
-  const exponentialBonus = streakDays >= 7 ? Math.floor(Math.pow(streakDays - 6, 1.5)) * 5 : 0;
+  // Progressive bonus based on multiplier
+  const multiplier = calculateStreakMultiplier(streakDays);
+  const bonusPercent = (multiplier - 1.0) * 100; // Convert to percentage
   
-  return baseBonus + exponentialBonus;
+  // Return bonus points (scaled to reasonable values)
+  return Math.floor(bonusPercent * 2); // 2-3 days = 20pts, 21+ days = 400pts
 }
 
 /**

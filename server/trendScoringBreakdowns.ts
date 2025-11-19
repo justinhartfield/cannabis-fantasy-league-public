@@ -115,11 +115,14 @@ export function buildManufacturerTrendBreakdown(
     }
   }
 
-  // Streak bonus
+  // Streak bonus with progressive tier display
   if (scoring.streakBonusPoints > 0) {
+    const { getStreakTierName, calculateStreakMultiplier } = require('./trendScoringEngine');
+    const tierName = getStreakTierName(streakDays);
+    const multiplier = calculateStreakMultiplier(streakDays);
     bonuses.push({
-      type: 'Streak Bonus',
-      condition: `${streakDays} consecutive days in top 10`,
+      type: `${tierName} Streak`,
+      condition: `${streakDays} days streak (×${multiplier.toFixed(2)} multiplier)`,
       points: scoring.streakBonusPoints,
     });
   }
@@ -227,9 +230,12 @@ export function buildStrainTrendBreakdown(
   }
 
   if (scoring.streakBonusPoints > 0) {
+    const { getStreakTierName, calculateStreakMultiplier } = require('./trendScoringEngine');
+    const tierName = getStreakTierName(streakDays);
+    const multiplier = calculateStreakMultiplier(streakDays);
     bonuses.push({
-      type: 'Streak Bonus',
-      condition: `${streakDays} consecutive days in top 10`,
+      type: `${tierName} Streak`,
+      condition: `${streakDays} days streak (×${multiplier.toFixed(2)} multiplier)`,
       points: scoring.streakBonusPoints,
     });
   }
@@ -336,9 +342,12 @@ export function buildProductTrendBreakdown(
   }
 
   if (scoring.streakBonusPoints > 0) {
+    const { getStreakTierName, calculateStreakMultiplier } = require('./trendScoringEngine');
+    const tierName = getStreakTierName(streakDays);
+    const multiplier = calculateStreakMultiplier(streakDays);
     bonuses.push({
-      type: 'Streak Bonus',
-      condition: `${streakDays} consecutive days in top 10`,
+      type: `${tierName} Streak`,
+      condition: `${streakDays} days streak (×${multiplier.toFixed(2)} multiplier)`,
       points: scoring.streakBonusPoints,
     });
   }
@@ -445,9 +454,12 @@ export function buildPharmacyTrendBreakdown(
   }
 
   if (scoring.streakBonusPoints > 0) {
+    const { getStreakTierName, calculateStreakMultiplier } = require('./trendScoringEngine');
+    const tierName = getStreakTierName(streakDays);
+    const multiplier = calculateStreakMultiplier(streakDays);
     bonuses.push({
-      type: 'Streak Bonus',
-      condition: `${streakDays} consecutive days in top 10`,
+      type: `${tierName} Streak`,
+      condition: `${streakDays} days streak (×${multiplier.toFixed(2)} multiplier)`,
       points: scoring.streakBonusPoints,
     });
   }
