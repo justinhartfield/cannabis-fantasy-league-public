@@ -129,7 +129,7 @@ export default function Dashboard() {
 
         {/* Invite Code CTA */}
         <div className="mb-8">
-          <Card className="bg-gradient-to-r from-weed-green to-weed-coral border-0">
+          <Card className="bg-white border-2 border-gray-200">
             <CardContent className="py-6">
               <div className="text-center">
                 <h3 className="text-2xl font-bold text-black mb-4">
