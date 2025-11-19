@@ -89,6 +89,9 @@ export async function aggregatePharmaciesWithTrends(
         dailyVolumes: trendData.dailyVolumes,
       });
 
+      // Safeguard: trendMultiplier should never be 0 (minimum is 1.0 for neutral)
+      const safeTrendMultiplier = trendScore.trendMultiplier || 1.0;
+
       // Also calculate old score for comparison
       const oldScore = calculateOldPharmacyScore(data, rank);
 
@@ -103,7 +106,7 @@ export async function aggregatePharmaciesWithTrends(
           totalPoints: trendScore.totalPoints,
           rank,
           previousRank: trendData.previousRank,
-          trendMultiplier: trendScore.trendMultiplier.toString(),
+          trendMultiplier: safeTrendMultiplier.toString(),
           consistencyScore: trendScore.consistencyScore,
           velocityScore: trendScore.velocityScore,
           streakDays: trendData.streakDays,
@@ -122,7 +125,7 @@ export async function aggregatePharmaciesWithTrends(
             totalPoints: trendScore.totalPoints,
             rank,
             previousRank: trendData.previousRank,
-            trendMultiplier: trendScore.trendMultiplier.toString(),
+            trendMultiplier: safeTrendMultiplier.toString(),
             consistencyScore: trendScore.consistencyScore,
             velocityScore: trendScore.velocityScore,
             streakDays: trendData.streakDays,

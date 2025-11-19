@@ -17,8 +17,8 @@ export const debugRouter = router({
    */
   checkStrainTrendData: protectedProcedure
     .input(z.object({
-      strainNames: z.array(z.string()).optional().default(['PINK KUSH', 'HINDU KUSH', 'MODIFIED GRAPES']),
-    }))
+      strainNames: z.array(z.string()).optional(),
+    }).optional())
     .query(async ({ input }) => {
       const db = await getDb();
       if (!db) {
@@ -26,11 +26,18 @@ export const debugRouter = router({
       }
 
       const results = [];
+      const strainNames = input?.strainNames || ['Pink Kush', 'Hindu Kush', 'Modified Grapes'];
 
-      for (const strainName of input.strainNames) {
-        // Find the strain
+      // First, get all available strain names for reference
+      const allStrains = await db.query.cannabisStrains.findMany({
+        columns: { id: true, name: true },
+        limit: 100,
+      });
+
+      for (const strainName of strainNames) {
+        // Find the strain (case-insensitive)
         const strain = await db.query.cannabisStrains.findFirst({
-          where: eq(cannabisStrains.name, strainName),
+          where: (cannabisStrains, { sql }) => sql`LOWER(${cannabisStrains.name}) = LOWER(${strainName})`,
         });
 
         if (!strain) {
@@ -94,6 +101,9 @@ export const debugRouter = router({
         });
       }
 
-      return results;
+      return {
+        results,
+        availableStrains: allStrains.map(s => s.name).slice(0, 50),
+      };
     }),
 });
