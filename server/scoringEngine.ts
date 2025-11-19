@@ -136,6 +136,23 @@ export function buildManufacturerDailyBreakdown(statRecord: ManufacturerDailySou
   const revenueCents = statRecord.revenueCents ?? 0;
   const rank = statRecord.rank ?? 0;
 
+  // Check if trend data is available - if so, use trend-based breakdown
+  if ('trendMultiplier' in statRecord && statRecord.trendMultiplier !== null && statRecord.trendMultiplier !== undefined) {
+    const { buildManufacturerTrendBreakdown } = require('./trendScoringBreakdowns');
+    return buildManufacturerTrendBreakdown({
+      orderCount,
+      trendMultiplier: Number(statRecord.trendMultiplier ?? 1),
+      rank,
+      previousRank: statRecord.previousRank ?? rank,
+      consistencyScore: Number(statRecord.consistencyScore ?? 0),
+      velocityScore: Number(statRecord.velocityScore ?? 0),
+      streakDays: Number(statRecord.streakDays ?? 0),
+      marketSharePercent: Number(statRecord.marketSharePercent ?? 0),
+      totalPoints: statRecord.totalPoints ?? 0,
+    });
+  }
+
+  // Fallback to old breakdown for legacy data
   const scoreParts = calculateDailyManufacturerScore(
     {
       salesVolumeGrams,
@@ -183,6 +200,23 @@ export function buildStrainDailyBreakdown(statRecord: StrainDailySource): Breakd
   const orderCount = statRecord.orderCount ?? 0;
   const rank = statRecord.rank ?? 0;
 
+  // Check if trend data is available - if so, use trend-based breakdown
+  if ('trendMultiplier' in statRecord && statRecord.trendMultiplier !== null && statRecord.trendMultiplier !== undefined) {
+    const { buildStrainTrendBreakdown } = require('./trendScoringBreakdowns');
+    return buildStrainTrendBreakdown({
+      orderCount,
+      trendMultiplier: Number(statRecord.trendMultiplier ?? 1),
+      rank,
+      previousRank: statRecord.previousRank ?? rank,
+      consistencyScore: Number(statRecord.consistencyScore ?? 0),
+      velocityScore: Number(statRecord.velocityScore ?? 0),
+      streakDays: Number(statRecord.streakDays ?? 0),
+      marketSharePercent: Number(statRecord.marketSharePercent ?? 0),
+      totalPoints: statRecord.totalPoints ?? 0,
+    });
+  }
+
+  // Fallback to old breakdown for legacy data
   const scoreParts = calculateDailyStrainScore(
     {
       salesVolumeGrams,
@@ -941,12 +975,12 @@ export async function calculateDailyChallengeScores(challengeId: number, statDat
 
   const statDateString = targetDate.toISOString().split('T')[0];
 
-  // Automatically aggregate daily stats if they don't exist yet
-  console.log(`[calculateDailyChallengeScores] Checking if daily stats exist for ${statDateString}...`);
-  const { dailyChallengeAggregator } = await import('./dailyChallengeAggregator');
+  // Automatically aggregate daily stats with trend-based scoring
+  console.log(`[calculateDailyChallengeScores] Aggregating daily stats with trend scoring for ${statDateString}...`);
+  const { dailyChallengeAggregatorV2 } = await import('./dailyChallengeAggregatorV2');
   try {
-    await dailyChallengeAggregator.aggregateForDate(statDateString);
-    console.log(`[calculateDailyChallengeScores] Daily stats aggregated successfully for ${statDateString}`);
+    await dailyChallengeAggregatorV2.aggregateForDate(statDateString);
+    console.log(`[calculateDailyChallengeScores] Daily stats aggregated successfully with trend scoring for ${statDateString}`);
   } catch (error) {
     console.error(`[calculateDailyChallengeScores] Failed to aggregate daily stats:`, error);
     // Continue anyway - maybe stats already exist
