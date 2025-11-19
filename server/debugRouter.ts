@@ -17,8 +17,8 @@ export const debugRouter = router({
    */
   checkStrainTrendData: protectedProcedure
     .input(z.object({
-      strainNames: z.array(z.string()).optional().default(['PINK KUSH', 'HINDU KUSH', 'MODIFIED GRAPES']),
-    }))
+      strainNames: z.array(z.string()).optional(),
+    }).optional())
     .query(async ({ input }) => {
       const db = await getDb();
       if (!db) {
@@ -26,8 +26,9 @@ export const debugRouter = router({
       }
 
       const results = [];
+      const strainNames = input?.strainNames || ['PINK KUSH', 'HINDU KUSH', 'MODIFIED GRAPES'];
 
-      for (const strainName of input.strainNames) {
+      for (const strainName of strainNames) {
         // Find the strain
         const strain = await db.query.cannabisStrains.findFirst({
           where: eq(cannabisStrains.name, strainName),
