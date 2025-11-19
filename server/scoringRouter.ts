@@ -66,6 +66,13 @@ import {
   buildPharmacyTrendBreakdown,
   buildProductTrendBreakdown,
 } from './trendScoringBreakdowns';
+import {
+  calculateManufacturerTrendScore,
+  calculateStrainTrendScore,
+  calculateProductTrendScore,
+  calculatePharmacyTrendScore,
+  type TrendScoringStats,
+} from './trendScoringEngine';
 import { z } from 'zod';
 import { getDb } from './db';
 import { 
