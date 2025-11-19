@@ -89,6 +89,9 @@ import {
   dailyScoringBreakdowns,
   weeklyLineups,
   productDailyChallengeStats,
+  manufacturerDailyChallengeStats,
+  strainDailyChallengeStats,
+  pharmacyDailyChallengeStats,
 } from '../drizzle/schema';
 import { eq, and, inArray, sql } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
@@ -764,6 +767,52 @@ export const scoringRouter = router({
         rawBreakdowns.forEach((bd) => collectAssetId(bd.assetType, bd.assetId));
         lineupSlots.forEach((slot) => collectAssetId(slot.assetType, slot.assetId));
 
+        // Fetch actual stat records from challenge stats tables
+        const [manufacturerStats, strainStats, productStats, pharmacyStats] = await Promise.all([
+          manufacturerIds.size > 0
+            ? db.select()
+                .from(manufacturerDailyChallengeStats)
+                .where(and(
+                  inArray(manufacturerDailyChallengeStats.manufacturerId, Array.from(manufacturerIds)),
+                  eq(manufacturerDailyChallengeStats.challengeId, input.challengeId),
+                  sql`${manufacturerDailyChallengeStats.statDate} = ${input.statDate}::date`
+                ))
+            : [],
+          strainIds.size > 0
+            ? db.select()
+                .from(strainDailyChallengeStats)
+                .where(and(
+                  inArray(strainDailyChallengeStats.strainId, Array.from(strainIds)),
+                  eq(strainDailyChallengeStats.challengeId, input.challengeId),
+                  sql`${strainDailyChallengeStats.statDate} = ${input.statDate}::date`
+                ))
+            : [],
+          productIds.size > 0
+            ? db.select()
+                .from(productDailyChallengeStats)
+                .where(and(
+                  inArray(productDailyChallengeStats.productId, Array.from(productIds)),
+                  eq(productDailyChallengeStats.challengeId, input.challengeId),
+                  sql`${productDailyChallengeStats.statDate} = ${input.statDate}::date`
+                ))
+            : [],
+          pharmacyIds.size > 0
+            ? db.select()
+                .from(pharmacyDailyChallengeStats)
+                .where(and(
+                  inArray(pharmacyDailyChallengeStats.pharmacyId, Array.from(pharmacyIds)),
+                  eq(pharmacyDailyChallengeStats.challengeId, input.challengeId),
+                  sql`${pharmacyDailyChallengeStats.statDate} = ${input.statDate}::date`
+                ))
+            : [],
+        ]);
+
+        // Create maps for quick lookup
+        const manufacturerStatMap = new Map(manufacturerStats.map(s => [s.manufacturerId, s]));
+        const strainStatMap = new Map(strainStats.map(s => [s.strainId, s]));
+        const productStatMap = new Map(productStats.map(s => [s.productId, s]));
+        const pharmacyStatMap = new Map(pharmacyStats.map(s => [s.pharmacyId, s]));
+
         const [manufacturerNames, strainNames, productNames, pharmacyNames, brandNames] = await Promise.all([
           manufacturerIds.size > 0
             ? db.select({ id: manufacturers.id, name: manufacturers.name, imageUrl: manufacturers.logoUrl })
@@ -806,14 +855,28 @@ export const scoringRouter = router({
           }
         });
 
-        const enrichedBreakdowns = rawBreakdowns.map((bd) => ({
-          ...bd,
-          assetName: nameMap.get(bd.assetId) || null,
-          imageUrl: imageMap.get(bd.assetId) || null,
-          breakdown: normalizeDailyBreakdownPayload(bd),
-          source: 'stats' as const,
-          hasStats: true,
-        }));
+        const enrichedBreakdowns = rawBreakdowns.map((bd) => {
+          // Get the stat record based on asset type
+          let statRecord: StatRecord | undefined;
+          if (bd.assetType === 'manufacturer' && bd.assetId) {
+            statRecord = manufacturerStatMap.get(bd.assetId);
+          } else if (bd.assetType === 'cannabis_strain' && bd.assetId) {
+            statRecord = strainStatMap.get(bd.assetId);
+          } else if (bd.assetType === 'product' && bd.assetId) {
+            statRecord = productStatMap.get(bd.assetId);
+          } else if (bd.assetType === 'pharmacy' && bd.assetId) {
+            statRecord = pharmacyStatMap.get(bd.assetId);
+          }
+          
+          return {
+            ...bd,
+            assetName: nameMap.get(bd.assetId) || null,
+            imageUrl: imageMap.get(bd.assetId) || null,
+            breakdown: normalizeDailyBreakdownPayload(bd, statRecord),
+            source: 'stats' as const,
+            hasStats: true,
+          };
+        });
 
         const positionPoints = buildPositionPointMap(score);
         const productSupplements = await buildMissingProductBreakdowns({
@@ -864,25 +927,41 @@ type DailyScoreRow = typeof dailyTeamScores.$inferSelect;
 type ProductDailyStatRow = typeof productDailyChallengeStats.$inferSelect;
 type DatabaseClient = NonNullable<Awaited<ReturnType<typeof getDb>>>;
 
-function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow): BreakdownDetail {
+type StatRecord = {
+  trendMultiplier?: string | number | null;
+  streakDays?: number | null;
+  consistencyScore?: string | number | null;
+  velocityScore?: string | number | null;
+  marketSharePercent?: string | number | null;
+  orderCount?: number | null;
+  rank?: number | null;
+  previousRank?: number | null;
+  salesVolumeGrams?: number | null;
+  revenueCents?: number | null;
+};
+
+function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow, statRecord?: StatRecord): BreakdownDetail {
   const current = (bd.breakdown ?? null) as BreakdownDetail | Record<string, any> | null;
   const raw = (current ?? {}) as Record<string, any>;
   const totalPoints = bd.totalPoints ?? 0;
+  
+  // Use stat record if provided, otherwise fall back to old breakdown JSON
+  const data = statRecord ?? raw;
 
   if (bd.assetType === 'manufacturer') {
     // Use trend-based breakdown if trend data is available (non-zero multiplier or streak/velocity/consistency/market share)
     const hasTrendData =
-      Number(raw.trendMultiplier ?? 0) > 0 ||
-      Number(raw.streakDays ?? 0) > 0 ||
-      Number(raw.consistencyScore ?? 0) > 0 ||
-      Number(raw.velocityScore ?? 0) !== 0 ||
-      Number(raw.marketSharePercent ?? 0) > 0;
+      Number(data.trendMultiplier ?? 0) > 0 ||
+      Number(data.streakDays ?? 0) > 0 ||
+      Number(data.consistencyScore ?? 0) > 0 ||
+      Number(data.velocityScore ?? 0) !== 0 ||
+      Number(data.marketSharePercent ?? 0) > 0;
 
     if (hasTrendData) {
-      const orderCount = Number(raw.orderCount ?? 0);
-      const rank = raw.rank ?? 0;
-      const previousRank = raw.previousRank ?? rank;
-      const streakDays = Number(raw.streakDays ?? 0);
+      const orderCount = Number(data.orderCount ?? 0);
+      const rank = data.rank ?? 0;
+      const previousRank = data.previousRank ?? rank;
+      const streakDays = Number(data.streakDays ?? 0);
       
       // Calculate the trend score
       const scoring = calculateManufacturerTrendScore({
@@ -891,11 +970,11 @@ function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow): BreakdownDetail 
         days7: 0,
         currentRank: rank,
         previousRank,
-        consistencyScore: Number(raw.consistencyScore ?? 0),
-        velocityScore: Number(raw.velocityScore ?? 0),
+        consistencyScore: Number(data.consistencyScore ?? 0),
+        velocityScore: Number(data.velocityScore ?? 0),
         streakDays,
-        marketSharePercent: Number(raw.marketSharePercent ?? 0),
-        trendMultiplier: Number(raw.trendMultiplier ?? 0) || undefined,
+        marketSharePercent: Number(data.marketSharePercent ?? 0),
+        trendMultiplier: Number(data.trendMultiplier ?? 0) || undefined,
       });
       
       // Build the formatted breakdown
@@ -909,10 +988,10 @@ function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow): BreakdownDetail 
     }
     // Fallback to old breakdown for legacy data
     return buildManufacturerDailyBreakdown({
-      salesVolumeGrams: Number(raw.salesVolumeGrams ?? 0),
-      orderCount: Number(raw.orderCount ?? 0),
-      revenueCents: Number(raw.revenueCents ?? 0),
-      rank: raw.rank ?? 0,
+      salesVolumeGrams: Number(data.salesVolumeGrams ?? 0),
+      orderCount: Number(data.orderCount ?? 0),
+      revenueCents: Number(data.revenueCents ?? 0),
+      rank: data.rank ?? 0,
       totalPoints,
     }).breakdown;
   }
@@ -920,17 +999,17 @@ function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow): BreakdownDetail 
   if (bd.assetType === 'cannabis_strain' || bd.assetType === 'product') {
     // Use trend-based breakdown if trend data is available
     const hasTrendData =
-      Number(raw.trendMultiplier ?? 0) > 0 ||
-      Number(raw.streakDays ?? 0) > 0 ||
-      Number(raw.consistencyScore ?? 0) > 0 ||
-      Number(raw.velocityScore ?? 0) !== 0 ||
-      Number(raw.marketSharePercent ?? 0) > 0;
+      Number(data.trendMultiplier ?? 0) > 0 ||
+      Number(data.streakDays ?? 0) > 0 ||
+      Number(data.consistencyScore ?? 0) > 0 ||
+      Number(data.velocityScore ?? 0) !== 0 ||
+      Number(data.marketSharePercent ?? 0) > 0;
 
     if (hasTrendData) {
-      const orderCount = Number(raw.orderCount ?? 0);
-      const rank = raw.rank ?? 0;
-      const previousRank = raw.previousRank ?? rank;
-      const streakDays = Number(raw.streakDays ?? 0);
+      const orderCount = Number(data.orderCount ?? 0);
+      const rank = data.rank ?? 0;
+      const previousRank = data.previousRank ?? rank;
+      const streakDays = Number(data.streakDays ?? 0);
       
       // Calculate the trend score
       const scoreCalculator = bd.assetType === 'product' ? calculateProductTrendScore : calculateStrainTrendScore;
@@ -940,11 +1019,11 @@ function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow): BreakdownDetail 
         days7: 0,
         currentRank: rank,
         previousRank,
-        consistencyScore: Number(raw.consistencyScore ?? 0),
-        velocityScore: Number(raw.velocityScore ?? 0),
+        consistencyScore: Number(data.consistencyScore ?? 0),
+        velocityScore: Number(data.velocityScore ?? 0),
         streakDays,
-        marketSharePercent: Number(raw.marketSharePercent ?? 0),
-        trendMultiplier: Number(raw.trendMultiplier ?? 0) || undefined,
+        marketSharePercent: Number(data.marketSharePercent ?? 0),
+        trendMultiplier: Number(data.trendMultiplier ?? 0) || undefined,
       } as TrendScoringStats);
       
       // Build the formatted breakdown
@@ -959,9 +1038,9 @@ function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow): BreakdownDetail 
     }
     // Fallback to old breakdown for legacy data
     return buildStrainDailyBreakdown({
-      salesVolumeGrams: Number(raw.salesVolumeGrams ?? 0),
-      orderCount: Number(raw.orderCount ?? 0),
-      rank: raw.rank ?? 0,
+      salesVolumeGrams: Number(data.salesVolumeGrams ?? 0),
+      orderCount: Number(data.orderCount ?? 0),
+      rank: data.rank ?? 0,
       totalPoints,
     }).breakdown;
   }
@@ -969,17 +1048,17 @@ function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow): BreakdownDetail 
   if (bd.assetType === 'pharmacy') {
     // Use trend-based breakdown if trend data is available
     const hasTrendData =
-      Number(raw.trendMultiplier ?? 0) > 0 ||
-      Number(raw.streakDays ?? 0) > 0 ||
-      Number(raw.consistencyScore ?? 0) > 0 ||
-      Number(raw.velocityScore ?? 0) !== 0 ||
-      Number(raw.marketSharePercent ?? 0) > 0;
+      Number(data.trendMultiplier ?? 0) > 0 ||
+      Number(data.streakDays ?? 0) > 0 ||
+      Number(data.consistencyScore ?? 0) > 0 ||
+      Number(data.velocityScore ?? 0) !== 0 ||
+      Number(data.marketSharePercent ?? 0) > 0;
 
     if (hasTrendData) {
-      const orderCount = Number(raw.orderCount ?? 0);
-      const rank = raw.rank ?? 0;
-      const previousRank = raw.previousRank ?? rank;
-      const streakDays = Number(raw.streakDays ?? 0);
+      const orderCount = Number(data.orderCount ?? 0);
+      const rank = data.rank ?? 0;
+      const previousRank = data.previousRank ?? rank;
+      const streakDays = Number(data.streakDays ?? 0);
       
       // Calculate the trend score
       const scoring = calculatePharmacyTrendScore({
@@ -988,11 +1067,11 @@ function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow): BreakdownDetail 
         days7: 0,
         currentRank: rank,
         previousRank,
-        consistencyScore: Number(raw.consistencyScore ?? 0),
-        velocityScore: Number(raw.velocityScore ?? 0),
+        consistencyScore: Number(data.consistencyScore ?? 0),
+        velocityScore: Number(data.velocityScore ?? 0),
         streakDays,
-        marketSharePercent: Number(raw.marketSharePercent ?? 0),
-        trendMultiplier: Number(raw.trendMultiplier ?? 0) || undefined,
+        marketSharePercent: Number(data.marketSharePercent ?? 0),
+        trendMultiplier: Number(data.trendMultiplier ?? 0) || undefined,
       } as TrendScoringStats);
       
       // Build the formatted breakdown
@@ -1006,9 +1085,9 @@ function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow): BreakdownDetail 
     }
     // Fallback to old breakdown for legacy data
     return buildPharmacyDailyBreakdown({
-      orderCount: Number(raw.orderCount ?? 0),
-      revenueCents: Number(raw.revenueCents ?? 0),
-      rank: raw.rank ?? 0,
+      orderCount: Number(data.orderCount ?? 0),
+      revenueCents: Number(data.revenueCents ?? 0),
+      rank: data.rank ?? 0,
       totalPoints,
     }).breakdown;
   }
