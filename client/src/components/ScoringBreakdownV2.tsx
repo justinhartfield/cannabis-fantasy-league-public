@@ -235,8 +235,28 @@ export default function ScoringBreakdownV2({
                 className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 rounded-md bg-muted/50 gap-2"
               >
                 <div className="flex-1 w-full sm:w-auto">
-                  <div className="text-sm font-medium text-foreground mb-1">
+                  <div className="text-sm font-medium text-foreground mb-1 flex items-center gap-2">
                     {component.category}
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors">
+                            <span className="text-xs font-bold">i</span>
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="max-w-xs">
+                          <div className="space-y-1">
+                            <p className="font-semibold">{component.category}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Calculation: {component.value} → {component.formula}
+                            </p>
+                            <p className="text-xs">
+                              Result: {component.points} points
+                            </p>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                   <div className="text-xs text-muted-foreground font-mono">
                     {component.value} → {component.formula}
@@ -269,8 +289,28 @@ export default function ScoringBreakdownV2({
                   <div className="flex items-center gap-2">
                     {getBonusIcon(bonus.type)}
                     <div>
-                      <div className="text-sm font-medium text-foreground">
+                      <div className="text-sm font-medium text-foreground flex items-center gap-2">
                         {bonus.type}
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-green-500/10 hover:bg-green-500/20 text-green-600 transition-colors">
+                                <span className="text-xs font-bold">i</span>
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="max-w-xs">
+                              <div className="space-y-1">
+                                <p className="font-semibold">{bonus.type}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {bonus.condition}
+                                </p>
+                                <p className="text-xs">
+                                  Bonus: +{bonus.points} points
+                                </p>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </div>
                       <div className="text-xs text-muted-foreground">
                         {bonus.condition}
@@ -300,8 +340,28 @@ export default function ScoringBreakdownV2({
                   className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 rounded-md bg-red-500/5 border border-red-500/20 gap-2"
                 >
                   <div>
-                    <div className="text-sm font-medium text-foreground">
+                    <div className="text-sm font-medium text-foreground flex items-center gap-2">
                       {penalty.type}
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-red-500/10 hover:bg-red-500/20 text-red-600 transition-colors">
+                              <span className="text-xs font-bold">i</span>
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="right" className="max-w-xs">
+                            <div className="space-y-1">
+                              <p className="font-semibold">{penalty.type}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {penalty.condition}
+                              </p>
+                              <p className="text-xs">
+                                Penalty: {penalty.points} points
+                              </p>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                     <div className="text-xs text-muted-foreground">
                       {penalty.condition}
