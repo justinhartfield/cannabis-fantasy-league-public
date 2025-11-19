@@ -1,12 +1,7 @@
-import { clerkMiddleware } from '@clerk/nextjs/server';
+// This file is kept for reference but is not used in a Vite React app
+// Clerk middleware is only needed for Next.js applications
+// For React + Vite, authentication is handled via ClerkProvider in main.tsx
 
-export default clerkMiddleware();
-
-export const config = {
-  matcher: [
-    // Skip Next.js internals and all static files, unless found in search params
-    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
-    // Always run for API routes
-    '/(api|trpc)(.*)',
-  ],
-};
+export default function middleware() {
+  // No-op for Vite React apps
+}
