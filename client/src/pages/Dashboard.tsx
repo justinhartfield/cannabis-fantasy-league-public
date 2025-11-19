@@ -233,7 +233,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <div className="flex items-center gap-3 mb-1">
-                <img src="https://framerusercontent.com/images/DPZRbKFGVJYTZGxHxKNNHYDMc.gif" alt="Trophy" className="w-12 h-12 object-contain" />
+                <img src="https://framerusercontent.com/images/kFZKjy4o9vJhuHD4UJW5wFHNGU.gif" alt="Trophy" className="w-12 h-12 object-contain" />
                 <h3 className="text-2xl font-bold text-foreground headline-primary">My Leagues</h3>
               </div>
               <p className="text-sm text-muted-foreground mt-1">
