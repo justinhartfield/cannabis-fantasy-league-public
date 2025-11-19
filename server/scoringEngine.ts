@@ -138,8 +138,11 @@ export function buildManufacturerDailyBreakdown(statRecord: ManufacturerDailySou
 
   // Check if trend data is available - if so, use trend-based breakdown
   if ('trendMultiplier' in statRecord && statRecord.trendMultiplier !== null && statRecord.trendMultiplier !== undefined) {
+    const { calculateManufacturerTrendScore } = require('./trendScoringEngine');
     const { buildManufacturerTrendBreakdown } = require('./trendScoringBreakdowns');
-    return buildManufacturerTrendBreakdown({
+    
+    // Calculate the trend score breakdown
+    const scoring = calculateManufacturerTrendScore({
       orderCount,
       trendMultiplier: Number(statRecord.trendMultiplier ?? 1),
       rank,
@@ -148,8 +151,16 @@ export function buildManufacturerDailyBreakdown(statRecord: ManufacturerDailySou
       velocityScore: Number(statRecord.velocityScore ?? 0),
       streakDays: Number(statRecord.streakDays ?? 0),
       marketSharePercent: Number(statRecord.marketSharePercent ?? 0),
-      totalPoints: statRecord.totalPoints ?? 0,
     });
+    
+    // Build the formatted breakdown for display
+    return buildManufacturerTrendBreakdown(
+      scoring,
+      orderCount,
+      rank,
+      statRecord.previousRank ?? rank,
+      Number(statRecord.streakDays ?? 0)
+    );
   }
 
   // Fallback to old breakdown for legacy data
@@ -202,8 +213,11 @@ export function buildStrainDailyBreakdown(statRecord: StrainDailySource): Breakd
 
   // Check if trend data is available - if so, use trend-based breakdown
   if ('trendMultiplier' in statRecord && statRecord.trendMultiplier !== null && statRecord.trendMultiplier !== undefined) {
+    const { calculateStrainTrendScore } = require('./trendScoringEngine');
     const { buildStrainTrendBreakdown } = require('./trendScoringBreakdowns');
-    return buildStrainTrendBreakdown({
+    
+    // Calculate the trend score breakdown
+    const scoring = calculateStrainTrendScore({
       orderCount,
       trendMultiplier: Number(statRecord.trendMultiplier ?? 1),
       rank,
@@ -212,8 +226,16 @@ export function buildStrainDailyBreakdown(statRecord: StrainDailySource): Breakd
       velocityScore: Number(statRecord.velocityScore ?? 0),
       streakDays: Number(statRecord.streakDays ?? 0),
       marketSharePercent: Number(statRecord.marketSharePercent ?? 0),
-      totalPoints: statRecord.totalPoints ?? 0,
     });
+    
+    // Build the formatted breakdown for display
+    return buildStrainTrendBreakdown(
+      scoring,
+      orderCount,
+      rank,
+      statRecord.previousRank ?? rank,
+      Number(statRecord.streakDays ?? 0)
+    );
   }
 
   // Fallback to old breakdown for legacy data
@@ -257,6 +279,34 @@ export function buildPharmacyDailyBreakdown(statRecord: PharmacyDailySource): Br
   const revenueCents = statRecord.revenueCents ?? 0;
   const rank = statRecord.rank ?? 0;
 
+  // Check if trend data is available - if so, use trend-based breakdown
+  if ('trendMultiplier' in statRecord && statRecord.trendMultiplier !== null && statRecord.trendMultiplier !== undefined) {
+    const { calculatePharmacyTrendScore } = require('./trendScoringEngine');
+    const { buildPharmacyTrendBreakdown } = require('./trendScoringBreakdowns');
+    
+    // Calculate the trend score breakdown
+    const scoring = calculatePharmacyTrendScore({
+      orderCount,
+      trendMultiplier: Number(statRecord.trendMultiplier ?? 1),
+      rank,
+      previousRank: statRecord.previousRank ?? rank,
+      consistencyScore: Number(statRecord.consistencyScore ?? 0),
+      velocityScore: Number(statRecord.velocityScore ?? 0),
+      streakDays: Number(statRecord.streakDays ?? 0),
+      marketSharePercent: Number(statRecord.marketSharePercent ?? 0),
+    });
+    
+    // Build the formatted breakdown for display
+    return buildPharmacyTrendBreakdown(
+      scoring,
+      orderCount,
+      rank,
+      statRecord.previousRank ?? rank,
+      Number(statRecord.streakDays ?? 0)
+    );
+  }
+
+  // Fallback to old breakdown for legacy data
   const scoreParts = calculateDailyPharmacyScore(
     {
       orderCount,
