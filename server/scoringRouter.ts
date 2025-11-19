@@ -866,11 +866,6 @@ type DatabaseClient = NonNullable<Awaited<ReturnType<typeof getDb>>>;
 
 function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow): BreakdownDetail {
   const current = (bd.breakdown ?? null) as BreakdownDetail | Record<string, any> | null;
-  // Weekly scores persist a fully formatted breakdown with components; reuse it directly.
-  if (current && Array.isArray((current as any).components)) {
-    return current as BreakdownDetail;
-  }
-
   const raw = (current ?? {}) as Record<string, any>;
   const totalPoints = bd.totalPoints ?? 0;
 
