@@ -53,9 +53,9 @@ export async function aggregateProductsWithTrends(
     const [name, data] = sorted[i];
     const rank = i + 1;
 
-    // Find product in database
-    const product = await db.query.products.findFirst({
-      where: (products: any, { eq }: any) => eq(products.name, name),
+    // Find product in database (products are stored in strains table)
+    const product = await db.query.strains.findFirst({
+      where: (strains: any, { eq }: any) => eq(strains.name, name),
     });
 
     if (!product) {
