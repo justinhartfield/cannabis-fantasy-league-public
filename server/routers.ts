@@ -16,6 +16,7 @@ import { invitationRouter } from "./invitationRouter";
 import { adminRouter } from "./routes/adminRouter";
 import { predictionRouter } from "./predictionRouter";
 import { profileRouter } from "./profileRouter";
+import { debugRouter } from "./debugRouter";
 
 
 export const appRouter = router({
@@ -47,6 +48,7 @@ export const appRouter = router({
   admin: adminRouter,
   prediction: predictionRouter,
   profile: profileRouter,
+  debug: debugRouter,
 
 });
 
