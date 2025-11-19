@@ -278,6 +278,34 @@ export async function calculateStreakDays(
 }
 
 /**
+ * Fetch total market volume for a given entity type
+ * Used for efficient market share calculations
+ */
+export async function fetchTotalMarketVolume(
+  entityType: 'productManufacturer' | 'pharmacyName' | 'productStrainName' | 'productName'
+): Promise<number> {
+  const metabase = getMetabaseClient();
+  
+  try {
+    // Fetch total market volume
+    const totalQuery = `db.TrendMetrics.aggregate([
+      { $match: { "entity": "${entityType}" } },
+      { $group: { _id: null, total: { $sum: "$days7" } } }
+    ])`;
+    const totalResult = await metabase.executeQuery(totalQuery);
+    
+    if (!totalResult || !totalResult.data || totalResult.data.length === 0) {
+      return 0;
+    }
+    
+    return Number(totalResult.data[0].total || 0);
+  } catch (error) {
+    console.error(`[TrendMetricsFetcher] Error calculating total market volume for ${entityType}:`, error);
+    return 0;
+  }
+}
+
+/**
  * Fetch all trend data needed for scoring in one batch
  */
 export async function fetchTrendDataForScoring(
@@ -285,7 +313,9 @@ export async function fetchTrendDataForScoring(
   entityName: string,
   entityId: number,
   currentDate: string,
-  currentRank: number
+  currentRank: number,
+  prefetchedTotalVolume?: number,
+  prefetchedTrendMetrics?: TrendMetricsData
 ): Promise<{
   trendMetrics: TrendMetricsData | null;
   previousRank: number;
@@ -302,12 +332,24 @@ export async function fetchTrendDataForScoring(
   
   const dbEntityType = entityTypeMap[entityType];
   
-  // Fetch all data in parallel
+  // If trend metrics provided, use them. Otherwise fetch.
+  const trendMetricsPromise = prefetchedTrendMetrics 
+    ? Promise.resolve(prefetchedTrendMetrics) 
+    : fetchTrendMetrics(entityType, entityName);
+
+  // If total volume provided, calculate share in memory. Otherwise fetch.
+  const marketSharePromise = (prefetchedTotalVolume !== undefined && prefetchedTrendMetrics)
+    ? Promise.resolve((prefetchedTrendMetrics.days7 / (prefetchedTotalVolume || 1)) * 100)
+    : (prefetchedTotalVolume !== undefined 
+        ? trendMetricsPromise.then(tm => tm ? (tm.days7 / (prefetchedTotalVolume || 1)) * 100 : 0)
+        : calculateMarketShare(entityType, entityName));
+  
+  // Fetch data in parallel
   const [trendMetrics, previousRank, streakDays, marketShare] = await Promise.all([
-    fetchTrendMetrics(entityType, entityName),
+    trendMetricsPromise,
     getPreviousRank(dbEntityType, entityId, currentDate),
     calculateStreakDays(dbEntityType, entityId, currentDate, currentRank),
-    calculateMarketShare(entityType, entityName),
+    marketSharePromise,
   ]);
   
   const dailyVolumes = trendMetrics ? calculateDailyVolumes(trendMetrics) : [];
@@ -316,7 +358,7 @@ export async function fetchTrendDataForScoring(
     trendMetrics,
     previousRank,
     streakDays,
-    marketShare,
+    marketShare: Math.round(marketShare * 100) / 100,
     dailyVolumes,
   };
 }
