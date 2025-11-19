@@ -1435,8 +1435,29 @@ async function scoreManufacturer(manufacturerId: number, scope: ScoreScope): Pro
     });
   }
 
-  // For daily challenges, build detailed breakdown
-  return buildManufacturerDailyBreakdown(statRecord as ManufacturerDailyStat);
+  // For daily challenges, return raw metrics snapshot for trend-based scoring
+  const dailyStat = statRecord as ManufacturerDailyStat;
+  const points = dailyStat.totalPoints ?? 0;
+
+  const breakdown = {
+    salesVolumeGrams: dailyStat.salesVolumeGrams ?? 0,
+    orderCount: dailyStat.orderCount ?? 0,
+    revenueCents: dailyStat.revenueCents ?? 0,
+    rank: dailyStat.rank ?? 0,
+    previousRank: dailyStat.previousRank ?? 0,
+    // Trend-based fields (may be zero for legacy rows)
+    trendMultiplier: dailyStat.trendMultiplier !== null && dailyStat.trendMultiplier !== undefined
+      ? Number(dailyStat.trendMultiplier)
+      : undefined,
+    consistencyScore: dailyStat.consistencyScore ?? 0,
+    velocityScore: dailyStat.velocityScore ?? 0,
+    streakDays: dailyStat.streakDays ?? 0,
+    marketSharePercent: dailyStat.marketSharePercent !== null && dailyStat.marketSharePercent !== undefined
+      ? Number(dailyStat.marketSharePercent)
+      : 0,
+  };
+
+  return { points, breakdown };
 }
 
 /**
@@ -1516,9 +1537,27 @@ async function scoreCannabisStrain(cannabisStrainId: number, scope: ScoreScope):
     return result;
   }
 
-  // For daily challenges, return pre-calculated points
+  // For daily challenges, return raw metrics snapshot for trend-based scoring
   const dailyStat = statRecord as StrainDailyStat;
-  return buildStrainDailyBreakdown(dailyStat);
+  const points = dailyStat.totalPoints ?? 0;
+
+  const breakdown = {
+    salesVolumeGrams: dailyStat.salesVolumeGrams ?? 0,
+    orderCount: dailyStat.orderCount ?? 0,
+    rank: dailyStat.rank ?? 0,
+    previousRank: dailyStat.previousRank ?? 0,
+    trendMultiplier: dailyStat.trendMultiplier !== null && dailyStat.trendMultiplier !== undefined
+      ? Number(dailyStat.trendMultiplier)
+      : undefined,
+    consistencyScore: dailyStat.consistencyScore ?? 0,
+    velocityScore: dailyStat.velocityScore ?? 0,
+    streakDays: dailyStat.streakDays ?? 0,
+    marketSharePercent: dailyStat.marketSharePercent !== null && dailyStat.marketSharePercent !== undefined
+      ? Number(dailyStat.marketSharePercent)
+      : 0,
+  };
+
+  return { points, breakdown };
 }
 
 /**
@@ -1570,7 +1609,25 @@ async function scoreProduct(productId: number, scope: ScoreScope): Promise<{ poi
   }
 
   const dailyStat = statRecord as ProductDailyStat;
-  return buildStrainDailyBreakdown(dailyStat);
+  const points = dailyStat.totalPoints ?? 0;
+
+  const breakdown = {
+    salesVolumeGrams: dailyStat.salesVolumeGrams ?? 0,
+    orderCount: dailyStat.orderCount ?? 0,
+    rank: dailyStat.rank ?? 0,
+    previousRank: dailyStat.previousRank ?? 0,
+    trendMultiplier: dailyStat.trendMultiplier !== null && dailyStat.trendMultiplier !== undefined
+      ? Number(dailyStat.trendMultiplier)
+      : undefined,
+    consistencyScore: dailyStat.consistencyScore ?? 0,
+    velocityScore: dailyStat.velocityScore ?? 0,
+    streakDays: dailyStat.streakDays ?? 0,
+    marketSharePercent: dailyStat.marketSharePercent !== null && dailyStat.marketSharePercent !== undefined
+      ? Number(dailyStat.marketSharePercent)
+      : 0,
+  };
+
+  return { points, breakdown };
 }
 
 /**
@@ -1622,9 +1679,27 @@ async function scorePharmacy(pharmacyId: number, scope: ScoreScope): Promise<{ p
     });
   }
 
-  // For daily challenges, build detailed breakdown
+  // For daily challenges, return raw metrics snapshot for trend-based scoring
   const dailyStat = statRecord as PharmacyDailyStat;
-  return buildPharmacyDailyBreakdown(dailyStat);
+  const points = dailyStat.totalPoints ?? 0;
+
+  const breakdown = {
+    orderCount: dailyStat.orderCount ?? 0,
+    revenueCents: dailyStat.revenueCents ?? 0,
+    rank: dailyStat.rank ?? 0,
+    previousRank: dailyStat.previousRank ?? 0,
+    trendMultiplier: dailyStat.trendMultiplier !== null && dailyStat.trendMultiplier !== undefined
+      ? Number(dailyStat.trendMultiplier)
+      : undefined,
+    consistencyScore: dailyStat.consistencyScore ?? 0,
+    velocityScore: dailyStat.velocityScore ?? 0,
+    streakDays: dailyStat.streakDays ?? 0,
+    marketSharePercent: dailyStat.marketSharePercent !== null && dailyStat.marketSharePercent !== undefined
+      ? Number(dailyStat.marketSharePercent)
+      : 0,
+  };
+
+  return { points, breakdown };
 }
 
 /**

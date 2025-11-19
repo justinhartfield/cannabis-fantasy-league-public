@@ -7,14 +7,27 @@
 
 export interface TrendScoringStats {
   orderCount: number;
-  days1: number;
-  days7: number;
+  /**
+   * Raw cumulative volumes for trend calculation.
+   * Optional when a precomputed trendMultiplier is provided.
+   */
+  days1?: number;
+  days7?: number;
   days14?: number;
   days30?: number;
   previousRank: number;
   currentRank: number;
   streakDays: number;
   marketSharePercent: number;
+  /**
+   * Optional precomputed values used when raw series data is not available.
+   * - trendMultiplier: precomputed Days7/Days1 ratio
+   * - consistencyScore: 0-100 consistency metric
+   * - velocityScore: momentum/acceleration metric
+   */
+  trendMultiplier?: number;
+  consistencyScore?: number;
+  velocityScore?: number;
   dailyVolumes?: number[]; // Last 7 days for consistency calculation
 }
 
@@ -175,7 +188,10 @@ export function calculateManufacturerTrendScore(stats: TrendScoringStats): Trend
   const orderCountPoints = stats.orderCount * 10;
   
   // Trend momentum points
-  const trendMultiplier = calculateTrendMultiplier(stats.days1, stats.days7);
+  const trendMultiplier =
+    typeof stats.trendMultiplier === 'number'
+      ? stats.trendMultiplier
+      : calculateTrendMultiplier(stats.days1 ?? 0, stats.days7 ?? 0);
   const trendMomentumPoints = Math.floor(trendMultiplier * 20);
   
   // Rank-based bonuses
@@ -183,10 +199,16 @@ export function calculateManufacturerTrendScore(stats: TrendScoringStats): Trend
   const momentumBonusPoints = calculateMomentumBonus(stats.previousRank, stats.currentRank, 'manufacturer');
   
   // Advanced feature bonuses
-  const consistencyScore = calculateConsistencyScore(stats.dailyVolumes || []);
+  const consistencyScore =
+    typeof stats.consistencyScore === 'number'
+      ? stats.consistencyScore
+      : calculateConsistencyScore(stats.dailyVolumes || []);
   const consistencyBonusPoints = Math.floor(consistencyScore * 0.5); // Scale down to 50 max
   
-  const velocityScore = calculateVelocityScore(stats.days1, stats.days7, stats.days14);
+  const velocityScore =
+    typeof stats.velocityScore === 'number'
+      ? stats.velocityScore
+      : calculateVelocityScore(stats.days1 ?? 0, stats.days7 ?? 0, stats.days14);
   const velocityBonusPoints = velocityScore;
   
   const streakBonusPoints = calculateStreakBonus(stats.streakDays);
@@ -227,7 +249,10 @@ export function calculateStrainTrendScore(stats: TrendScoringStats): TrendScorin
   const orderCountPoints = stats.orderCount * 8;
   
   // Trend momentum points (lower multiplier than manufacturers)
-  const trendMultiplier = calculateTrendMultiplier(stats.days1, stats.days7);
+  const trendMultiplier =
+    typeof stats.trendMultiplier === 'number'
+      ? stats.trendMultiplier
+      : calculateTrendMultiplier(stats.days1 ?? 0, stats.days7 ?? 0);
   const trendMomentumPoints = Math.floor(trendMultiplier * 15);
   
   // Rank-based bonuses
@@ -235,10 +260,16 @@ export function calculateStrainTrendScore(stats: TrendScoringStats): TrendScorin
   const momentumBonusPoints = calculateMomentumBonus(stats.previousRank, stats.currentRank, 'strain');
   
   // Advanced feature bonuses
-  const consistencyScore = calculateConsistencyScore(stats.dailyVolumes || []);
+  const consistencyScore =
+    typeof stats.consistencyScore === 'number'
+      ? stats.consistencyScore
+      : calculateConsistencyScore(stats.dailyVolumes || []);
   const consistencyBonusPoints = Math.floor(consistencyScore * 0.4);
   
-  const velocityScore = calculateVelocityScore(stats.days1, stats.days7, stats.days14);
+  const velocityScore =
+    typeof stats.velocityScore === 'number'
+      ? stats.velocityScore
+      : calculateVelocityScore(stats.days1 ?? 0, stats.days7 ?? 0, stats.days14);
   const velocityBonusPoints = Math.floor(velocityScore * 0.8);
   
   const streakBonusPoints = Math.floor(calculateStreakBonus(stats.streakDays) * 0.8);
@@ -279,7 +310,10 @@ export function calculateProductTrendScore(stats: TrendScoringStats): TrendScori
   const orderCountPoints = stats.orderCount * 15;
   
   // Trend momentum points (3x multiplier)
-  const trendMultiplier = calculateTrendMultiplier(stats.days1, stats.days7);
+  const trendMultiplier =
+    typeof stats.trendMultiplier === 'number'
+      ? stats.trendMultiplier
+      : calculateTrendMultiplier(stats.days1 ?? 0, stats.days7 ?? 0);
   const trendMomentumPoints = Math.floor(trendMultiplier * 25);
   
   // Rank-based bonuses
@@ -287,10 +321,16 @@ export function calculateProductTrendScore(stats: TrendScoringStats): TrendScori
   const momentumBonusPoints = calculateMomentumBonus(stats.previousRank, stats.currentRank, 'product');
   
   // Advanced feature bonuses (scaled up for products)
-  const consistencyScore = calculateConsistencyScore(stats.dailyVolumes || []);
+  const consistencyScore =
+    typeof stats.consistencyScore === 'number'
+      ? stats.consistencyScore
+      : calculateConsistencyScore(stats.dailyVolumes || []);
   const consistencyBonusPoints = Math.floor(consistencyScore * 0.6);
   
-  const velocityScore = calculateVelocityScore(stats.days1, stats.days7, stats.days14);
+  const velocityScore =
+    typeof stats.velocityScore === 'number'
+      ? stats.velocityScore
+      : calculateVelocityScore(stats.days1 ?? 0, stats.days7 ?? 0, stats.days14);
   const velocityBonusPoints = Math.floor(velocityScore * 1.2);
   
   const streakBonusPoints = Math.floor(calculateStreakBonus(stats.streakDays) * 1.2);
@@ -331,7 +371,10 @@ export function calculatePharmacyTrendScore(stats: TrendScoringStats): TrendScor
   const orderCountPoints = stats.orderCount * 10;
   
   // Trend momentum points
-  const trendMultiplier = calculateTrendMultiplier(stats.days1, stats.days7);
+  const trendMultiplier =
+    typeof stats.trendMultiplier === 'number'
+      ? stats.trendMultiplier
+      : calculateTrendMultiplier(stats.days1 ?? 0, stats.days7 ?? 0);
   const trendMomentumPoints = Math.floor(trendMultiplier * 20);
   
   // Rank-based bonuses
@@ -339,10 +382,16 @@ export function calculatePharmacyTrendScore(stats: TrendScoringStats): TrendScor
   const momentumBonusPoints = calculateMomentumBonus(stats.previousRank, stats.currentRank, 'pharmacy');
   
   // Advanced feature bonuses
-  const consistencyScore = calculateConsistencyScore(stats.dailyVolumes || []);
+  const consistencyScore =
+    typeof stats.consistencyScore === 'number'
+      ? stats.consistencyScore
+      : calculateConsistencyScore(stats.dailyVolumes || []);
   const consistencyBonusPoints = Math.floor(consistencyScore * 0.5);
   
-  const velocityScore = calculateVelocityScore(stats.days1, stats.days7, stats.days14);
+  const velocityScore =
+    typeof stats.velocityScore === 'number'
+      ? stats.velocityScore
+      : calculateVelocityScore(stats.days1 ?? 0, stats.days7 ?? 0, stats.days14);
   const velocityBonusPoints = velocityScore;
   
   const streakBonusPoints = calculateStreakBonus(stats.streakDays);
