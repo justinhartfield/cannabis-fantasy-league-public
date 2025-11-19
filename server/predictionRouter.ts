@@ -11,6 +11,7 @@ import {
   cannabisStrains,
 } from "../drizzle/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
+import { updateUserStreak } from "./predictionService";
 
 // Lazy initialization helper
 let isInitialized = false;
@@ -120,6 +121,39 @@ export const predictionRouter = router({
       ...matchup,
       userPrediction: predictionMap.get(matchup.id) || null,
     }));
+
+    // Lazy Repair: Check for data inconsistencies and fix them
+    for (const result of results) {
+      if (result.winnerId !== null && result.userPrediction) {
+        const calculatedIsCorrect = result.userPrediction.predictedWinnerId === result.winnerId ? 1 : 0;
+        
+        // If stored isCorrect is invalid (null or mismatch), fix it
+        if (result.userPrediction.isCorrect !== calculatedIsCorrect) {
+          console.log(`[PredictionRouter] Fixing prediction status for matchup ${result.id} (User: ${userId})`);
+          
+          // 1. Fix in-memory object for immediate UI correctness
+          result.userPrediction.isCorrect = calculatedIsCorrect;
+          
+          // 2. Background DB repair
+          // We don't await this to keep response fast, but we catch errors
+          (async () => {
+            try {
+              // Use the ID from the original prediction object before modification
+              // (The modification above only changed the in-memory property, ID is same)
+              const predictionId = result.userPrediction!.id;
+              
+              await db.update(userPredictions)
+                .set({ isCorrect: calculatedIsCorrect })
+                .where(eq(userPredictions.id, predictionId));
+              
+              await updateUserStreak(userId, calculatedIsCorrect === 1);
+            } catch (err) {
+              console.error(`[PredictionRouter] Failed to repair prediction ${result.userPrediction!.id}:`, err);
+            }
+          })();
+        }
+      }
+    }
 
     const correctCount = results.filter(r => r.userPrediction?.isCorrect === 1).length;
     const totalCount = results.filter(r => r.userPrediction !== null).length;

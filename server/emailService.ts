@@ -50,11 +50,15 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
       MessageStream: 'outbound', // Required by Postmark for transactional emails
     };
 
-    await client.sendEmail(msg);
+    const response = await client.sendEmail(msg);
     console.log(`[EmailService] Email sent to ${Array.isArray(options.to) ? options.to.join(', ') : options.to}`);
+    console.log(`[EmailService] Postmark Response:`, JSON.stringify(response, null, 2));
     return true;
   } catch (error) {
     console.error('[EmailService] Error sending email:', error);
+    if (error && typeof error === 'object' && 'statusCode' in error) {
+       console.error('[EmailService] Postmark API Error Details:', JSON.stringify(error, null, 2));
+    }
     return false;
   }
 }

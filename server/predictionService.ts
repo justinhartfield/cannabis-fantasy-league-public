@@ -600,6 +600,10 @@ async function scoreMatchup(matchup: any): Promise<void> {
       ? matchup.entityAId 
       : matchup.entityBId;
 
+    // Update predictions FIRST. If this fails, the matchup won't be marked as scored,
+    // allowing the job to retry later.
+    await updateUserPredictionsForMatchup(matchup.id, winnerId);
+
     await db.update(dailyMatchups)
       .set({ 
         winnerId, 
@@ -609,15 +613,13 @@ async function scoreMatchup(matchup: any): Promise<void> {
       })
       .where(eq(dailyMatchups.id, matchup.id));
 
-    await updateUserPredictionsForMatchup(matchup.id, winnerId);
-
     console.log(`[PredictionService] Scored matchup ${matchup.id}: ${matchup.entityAName} (${entityAPoints}) vs ${matchup.entityBName} (${entityBPoints}) - Winner: ${winnerId}`);
   } catch (error) {
     console.error(`[PredictionService] Error scoring matchup ${matchup.id}:`, error);
   }
 }
 
-async function updateUserPredictionsForMatchup(matchupId: number, winnerId: number): Promise<void> {
+export async function updateUserPredictionsForMatchup(matchupId: number, winnerId: number): Promise<void> {
   const db = await getDb();
   if (!db) return;
 
@@ -630,6 +632,11 @@ async function updateUserPredictionsForMatchup(matchupId: number, winnerId: numb
     for (const prediction of predictions) {
       const isCorrect = prediction.predictedWinnerId === winnerId ? 1 : 0;
 
+      // Idempotency check: if already correct, skip
+      if (prediction.isCorrect === isCorrect) {
+        continue;
+      }
+
       await db.update(userPredictions)
         .set({ isCorrect })
         .where(eq(userPredictions.id, prediction.id));
@@ -641,7 +648,7 @@ async function updateUserPredictionsForMatchup(matchupId: number, winnerId: numb
   }
 }
 
-async function updateUserStreak(userId: number, wasCorrect: boolean): Promise<void> {
+export async function updateUserStreak(userId: number, wasCorrect: boolean): Promise<void> {
   const db = await getDb();
   if (!db) return;
 
