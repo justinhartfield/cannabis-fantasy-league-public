@@ -72,7 +72,7 @@ export default function PredictionStreak() {
       {/* Header */}
       <header className="mb-8">
         <div className="flex items-center gap-4 mb-4">
-          <img src="https://framerusercontent.com/images/Zt2gCKVC0Bxr6yzxVFyJqOQrSU.gif" alt="Lightning" className="w-16 h-16" />
+          <span className="text-5xl">🏆</span>
           <div>
             <h1 className="text-3xl font-bold text-foreground headline-primary">Prediction Streak</h1>
             <p className="text-muted-foreground">Pick the winners and build your streak</p>

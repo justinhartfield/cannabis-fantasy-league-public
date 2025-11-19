@@ -488,7 +488,7 @@ export default function DailyChallenge() {
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div className="flex items-center gap-3">
-              <img src="https://framerusercontent.com/images/Zt2gCKVC0Bxr6yzxVFyJqOQrSU.gif" alt="Challenge" className="w-12 h-12" />
+              <span className="text-4xl">🏆</span>
               <h1 className="text-2xl font-bold text-gradient-primary headline-primary">
                 {league.name}
               </h1>
