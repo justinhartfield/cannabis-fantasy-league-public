@@ -1,9 +1,11 @@
 import { useAuth } from "@/_core/hooks/useAuth";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
 import { Trophy, Plus, UserCircle, TrendingUp, Calendar, Zap, Loader2, Activity } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
+import { toast } from "sonner";
 import { APP_TITLE, getLoginUrl } from "@/const";
 import { StatBadge } from "@/components/StatBadge";
 import { LiveScoreCard } from "@/components/LiveScoreCard";
@@ -11,6 +13,10 @@ import { LeagueCard } from "@/components/LeagueCard";
 
 export default function Dashboard() {
   const { user, loading: authLoading, isAuthenticated } = useAuth();
+  const [, setLocation] = useLocation();
+  const [inviteCode, setInviteCode] = useState("");
+  const [joiningLeague, setJoiningLeague] = useState(false);
+  
   const { data: myLeagues, isLoading: leaguesLoading } = trpc.league.list.useQuery(
     undefined,
     { enabled: isAuthenticated }
@@ -18,6 +24,29 @@ export default function Dashboard() {
 
   // Fetch platform statistics
   const { data: stats } = trpc.stats.getStats.useQuery();
+  
+  const joinLeagueMutation = trpc.league.joinByCode.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Successfully joined ${data.leagueName}!`);
+      setInviteCode("");
+      setJoiningLeague(false);
+      // Redirect to the league page
+      setLocation(`/league/${data.leagueId}`);
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to join league");
+      setJoiningLeague(false);
+    },
+  });
+  
+  const handleJoinLeague = () => {
+    if (!inviteCode.trim()) {
+      toast.error("Please enter an invite code");
+      return;
+    }
+    setJoiningLeague(true);
+    joinLeagueMutation.mutate({ code: inviteCode.trim().toUpperCase() });
+  };
 
   // Redirect to login if not authenticated
   if (!authLoading && !isAuthenticated) {
@@ -139,10 +168,18 @@ export default function Dashboard() {
                   <input
                     type="text"
                     placeholder="Enter your invite code"
-                    className="flex-1 px-4 py-3 rounded-lg border-2 border-black/20 focus:border-black focus:outline-none text-black placeholder:text-black/50 bg-white"
+                    value={inviteCode}
+                    onChange={(e) => setInviteCode(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleJoinLeague()}
+                    disabled={joiningLeague}
+                    className="flex-1 px-4 py-3 rounded-lg border-2 border-black/20 focus:border-black focus:outline-none text-black placeholder:text-black/50 bg-white disabled:opacity-50"
                   />
-                  <Button className="bg-black text-white hover:bg-black/90 px-6">
-                    Join
+                  <Button 
+                    onClick={handleJoinLeague}
+                    disabled={joiningLeague}
+                    className="bg-black text-white hover:bg-black/90 px-6"
+                  >
+                    {joiningLeague ? "Joining..." : "Join"}
                   </Button>
                 </div>
               </div>
