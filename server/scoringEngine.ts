@@ -125,9 +125,9 @@ type ProductDailyStat = typeof productDailyChallengeStats.$inferSelect;
 type PharmacyDailyStat = typeof pharmacyDailyChallengeStats.$inferSelect;
 type BrandDailyStat = typeof brandDailyChallengeStats.$inferSelect;
 
-type ManufacturerDailySource = Pick<ManufacturerDailyStat, 'salesVolumeGrams' | 'orderCount' | 'revenueCents' | 'rank' | 'totalPoints'>;
-type StrainDailySource = Pick<StrainDailyStat, 'salesVolumeGrams' | 'orderCount' | 'rank' | 'totalPoints'>;
-type PharmacyDailySource = Pick<PharmacyDailyStat, 'orderCount' | 'revenueCents' | 'rank' | 'totalPoints'>;
+type ManufacturerDailySource = Pick<ManufacturerDailyStat, 'salesVolumeGrams' | 'orderCount' | 'revenueCents' | 'rank' | 'totalPoints' | 'trendMultiplier' | 'previousRank' | 'consistencyScore' | 'velocityScore' | 'streakDays' | 'marketSharePercent'>;
+type StrainDailySource = Pick<StrainDailyStat, 'salesVolumeGrams' | 'orderCount' | 'rank' | 'totalPoints' | 'trendMultiplier' | 'previousRank' | 'consistencyScore' | 'velocityScore' | 'streakDays' | 'marketSharePercent'>;
+type PharmacyDailySource = Pick<PharmacyDailyStat, 'orderCount' | 'revenueCents' | 'rank' | 'totalPoints' | 'trendMultiplier' | 'previousRank' | 'consistencyScore' | 'velocityScore' | 'streakDays' | 'marketSharePercent'>;
 type BrandDailySource = Pick<BrandDailyStat, 'totalRatings' | 'averageRating' | 'bayesianAverage' | 'veryGoodCount' | 'goodCount' | 'acceptableCount' | 'badCount' | 'veryBadCount' | 'rank' | 'totalPoints'>;
 
 export function buildManufacturerDailyBreakdown(statRecord: ManufacturerDailySource): BreakdownResult {
@@ -137,7 +137,12 @@ export function buildManufacturerDailyBreakdown(statRecord: ManufacturerDailySou
   const rank = statRecord.rank ?? 0;
 
   // Check if trend data is available - if so, use trend-based breakdown
-  if ('trendMultiplier' in statRecord && statRecord.trendMultiplier !== null && statRecord.trendMultiplier !== undefined) {
+  // Use trend scoring if trendMultiplier is set and non-zero, OR if any trend fields are populated
+  const hasTrendData = ('trendMultiplier' in statRecord && statRecord.trendMultiplier !== null && statRecord.trendMultiplier !== undefined && Number(statRecord.trendMultiplier) !== 0) ||
+    ('streakDays' in statRecord && Number(statRecord.streakDays ?? 0) > 0) ||
+    ('previousRank' in statRecord && statRecord.previousRank !== null && statRecord.previousRank !== undefined && statRecord.previousRank !== 0);
+  
+  if (hasTrendData) {
     const { calculateManufacturerTrendScore } = require('./trendScoringEngine');
     const { buildManufacturerTrendBreakdown } = require('./trendScoringBreakdowns');
     
@@ -212,7 +217,12 @@ export function buildStrainDailyBreakdown(statRecord: StrainDailySource): Breakd
   const rank = statRecord.rank ?? 0;
 
   // Check if trend data is available - if so, use trend-based breakdown
-  if ('trendMultiplier' in statRecord && statRecord.trendMultiplier !== null && statRecord.trendMultiplier !== undefined) {
+  // Use trend scoring if trendMultiplier is set and non-zero, OR if any trend fields are populated
+  const hasTrendData = ('trendMultiplier' in statRecord && statRecord.trendMultiplier !== null && statRecord.trendMultiplier !== undefined && Number(statRecord.trendMultiplier) !== 0) ||
+    ('streakDays' in statRecord && Number(statRecord.streakDays ?? 0) > 0) ||
+    ('previousRank' in statRecord && statRecord.previousRank !== null && statRecord.previousRank !== undefined && statRecord.previousRank !== 0);
+  
+  if (hasTrendData) {
     const { calculateStrainTrendScore } = require('./trendScoringEngine');
     const { buildStrainTrendBreakdown } = require('./trendScoringBreakdowns');
     
@@ -280,7 +290,12 @@ export function buildPharmacyDailyBreakdown(statRecord: PharmacyDailySource): Br
   const rank = statRecord.rank ?? 0;
 
   // Check if trend data is available - if so, use trend-based breakdown
-  if ('trendMultiplier' in statRecord && statRecord.trendMultiplier !== null && statRecord.trendMultiplier !== undefined) {
+  // Use trend scoring if trendMultiplier is set and non-zero, OR if any trend fields are populated
+  const hasTrendData = ('trendMultiplier' in statRecord && statRecord.trendMultiplier !== null && statRecord.trendMultiplier !== undefined && Number(statRecord.trendMultiplier) !== 0) ||
+    ('streakDays' in statRecord && Number(statRecord.streakDays ?? 0) > 0) ||
+    ('previousRank' in statRecord && statRecord.previousRank !== null && statRecord.previousRank !== undefined && statRecord.previousRank !== 0);
+  
+  if (hasTrendData) {
     const { calculatePharmacyTrendScore } = require('./trendScoringEngine');
     const { buildPharmacyTrendBreakdown } = require('./trendScoringBreakdowns');
     
