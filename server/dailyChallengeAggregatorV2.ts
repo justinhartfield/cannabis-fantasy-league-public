@@ -29,8 +29,8 @@ import {
   productDailyChallengeStats,
   pharmacyDailyChallengeStats,
   brandDailyChallengeStats,
-  brands,
 } from '../drizzle/dailyChallengeSchema';
+import { brands } from '../drizzle/schema';
 import { calculateBrandScore as calculateDailyBrandScore } from './dailyChallengeScoringEngine';
 
 interface OrderRecord {

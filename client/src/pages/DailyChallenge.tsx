@@ -865,7 +865,7 @@ export default function DailyChallenge() {
                     <div key={assetType} className="grid grid-cols-2 gap-4">
                       {items.map((item: any, index: number) => (
                         <div key={`${item.assetId}-${index}`}>
-                          <ScoringBreakdown
+                          <ScoringBreakdownV2
                             data={{
                               assetName:
                                 item.assetName || `Unknown ${item.assetType}`,
@@ -876,9 +876,16 @@ export default function DailyChallenge() {
                               penalties: item.breakdown?.penalties || [],
                               subtotal: item.breakdown?.subtotal || 0,
                               total: item.totalPoints || 0,
+                              // Pass new trend fields
+                              trendMultiplier: item.breakdown?.trendMultiplier,
+                              streakDays: item.breakdown?.streakDays,
+                              marketSharePercent: item.breakdown?.marketSharePercent,
+                              consistencyScore: item.breakdown?.consistencyScore,
+                              velocityScore: item.breakdown?.velocityScore,
                             }}
                             leagueAverage={item.leagueAverage}
                             weeklyTrend={item.weeklyTrend}
+                            useTrendDisplay={true}
                           />
                         </div>
                       ))}
