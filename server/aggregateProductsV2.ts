@@ -28,30 +28,42 @@ export async function aggregateProductsWithTrends(
   
   await log('info', 'Aggregating products with trend-based scoring...', undefined, logger);
 
-  // Group by product
-  const stats = new Map<string, { salesVolumeGrams: number; orderCount: number }>();
-
-  for (const order of orders) {
-    const name = order.Product;
-    if (!name) continue;
-
-    const quantity = order.Quantity || 0;
-
-    const current = stats.get(name) || { salesVolumeGrams: 0, orderCount: 0 };
-    current.salesVolumeGrams += quantity;
-    current.orderCount += 1;
-    stats.set(name, current);
+  // Products use Metabase Card 1269 (today) instead of order records
+  // because order.Product contains MongoDB IDs, not names
+  const { getMetabaseClient } = await import('./metabase');
+  const metabase = getMetabaseClient();
+  
+  const isToday = dateString === new Date().toISOString().split('T')[0];
+  let productData;
+  
+  if (isToday) {
+    await log('info', 'Using today\'s products query (card 1269)', undefined, logger);
+    productData = await metabase.executeCardQuery(1269);
+  } else {
+    await log('info', 'Using yesterday\'s products query (public)', undefined, logger);
+    productData = await metabase.executePublicQuery('56623750-b096-445c-a130-7518fd629491');
   }
-
-  const sorted = Array.from(stats.entries()).sort((a, b) => b[1].salesVolumeGrams - a[1].salesVolumeGrams);
-  await log('info', `Found ${stats.size} unique products`, undefined, logger);
+  
+  await log('info', `Fetched ${productData.length} products from Metabase`, undefined, logger);
+  
+  const sorted = productData; // Already sorted by Metabase query
 
   let processed = 0;
   let skipped = 0;
 
   for (let i = 0; i < sorted.length; i++) {
-    const [name, data] = sorted[i];
+    const item = sorted[i];
     const rank = i + 1;
+    
+    // Metabase query returns: Name, Quantity (grams), Sales, Orders, etc.
+    const name = item.Name;
+    if (!name) {
+      skipped += 1;
+      continue;
+    }
+
+    const salesVolumeGrams = item.Quantity || 0;
+    const orderCount = item.Orders || 0;
 
     // Find product in database (products are stored in strains table)
     const product = await db.query.strains.findFirst({
@@ -60,7 +72,7 @@ export async function aggregateProductsWithTrends(
 
     if (!product) {
       skipped += 1;
-      await log('warn', `Product not found: ${name}`, undefined, logger);
+      await log('warn', `Product not found in database: ${name}`, undefined, logger);
       continue;
     }
 
@@ -76,7 +88,7 @@ export async function aggregateProductsWithTrends(
 
       // Calculate trend-based score
       const trendScore = calculateProductTrendScore({
-        orderCount: data.orderCount,
+        orderCount,
         trendMultiplier: trendData.trendMetrics?.days7 && trendData.trendMetrics?.days1
           ? trendData.trendMetrics.days7 / trendData.trendMetrics.days1
           : 1.0,
@@ -89,7 +101,7 @@ export async function aggregateProductsWithTrends(
       });
 
       // Also calculate old score for comparison
-      const oldScore = calculateOldProductScore(data, rank);
+      const oldScore = calculateOldProductScore({ salesVolumeGrams, orderCount }, rank);
 
       // Upsert stats with new fields
       await db
@@ -97,8 +109,8 @@ export async function aggregateProductsWithTrends(
         .values({
           productId: product.id,
           statDate: dateString,
-          salesVolumeGrams: data.salesVolumeGrams,
-          orderCount: data.orderCount,
+          salesVolumeGrams,
+          orderCount,
           totalPoints: trendScore.totalPoints,
           rank,
           previousRank: trendData.previousRank,
@@ -116,8 +128,8 @@ export async function aggregateProductsWithTrends(
             productDailyChallengeStats.statDate,
           ],
           set: {
-            salesVolumeGrams: data.salesVolumeGrams,
-            orderCount: data.orderCount,
+            salesVolumeGrams,
+            orderCount,
             totalPoints: trendScore.totalPoints,
             rank,
             previousRank: trendData.previousRank,

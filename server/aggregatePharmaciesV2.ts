@@ -78,15 +78,15 @@ export async function aggregatePharmaciesWithTrends(
       // Calculate trend-based score
       const trendScore = calculatePharmacyTrendScore({
         orderCount: data.orderCount,
-        trendMultiplier: trendData.trendMetrics?.days7 && trendData.trendMetrics?.days1
-          ? trendData.trendMetrics.days7 / trendData.trendMetrics.days1
-          : 1.0,
-        rank,
+        days1: trendData.trendMetrics?.days1 ?? 0,
+        days7: trendData.trendMetrics?.days7 ?? 0,
+        days14: trendData.trendMetrics?.days14 ?? 0,
+        days30: trendData.trendMetrics?.days30 ?? 0,
+        currentRank: rank,
         previousRank: trendData.previousRank ?? rank,
-        consistencyScore: trendData.consistencyScore ?? 0,
-        velocityScore: trendData.velocityScore ?? 0,
         streakDays: trendData.streakDays ?? 0,
         marketSharePercent: trendData.marketShare ?? 0,
+        dailyVolumes: trendData.dailyVolumes,
       });
 
       // Also calculate old score for comparison
