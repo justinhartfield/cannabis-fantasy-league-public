@@ -402,28 +402,6 @@ export function buildBrandDailyBreakdown(statRecord: BrandDailySource): Breakdow
     });
   }
 
-  // Special case: If brand has 0 ratings but non-zero stored points,
-  // it means the score is from a previous aggregation when it had ratings.
-  // Show a clear explanation instead of "Score Sync Adjustment"
-  if (totalRatings === 0 && storedPoints > 0) {
-    components.push({
-      category: 'Historical Score',
-      value: storedPoints,
-      formula: 'Score from previous period (no current ratings)',
-      points: storedPoints,
-    });
-    return {
-      points: storedPoints,
-      breakdown: {
-        components,
-        bonuses: [],
-        penalties: [],
-        subtotal: storedPoints,
-        total: storedPoints,
-      },
-    };
-  }
-
   return finalizeDailyBreakdown(components, bonuses, [], storedPoints, scoreParts.totalPoints);
 }
 
