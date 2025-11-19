@@ -106,4 +106,49 @@ export const debugRouter = router({
         availableStrains: allStrains.map(s => s.name).slice(0, 50),
       };
     }),
+
+  /**
+   * Manually fix entities with trendMultiplier=0
+   */
+  fixZeroTrendMultipliers: protectedProcedure
+    .input(z.object({
+      date: z.string().optional(),
+    }).optional())
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) {
+        throw new Error('Database not available');
+      }
+
+      const targetDate = input?.date || new Date().toISOString().split('T')[0];
+      let fixed = 0;
+
+      // Fix strains
+      const strainStats = await db
+        .select()
+        .from(strainDailyChallengeStats)
+        .where(eq(strainDailyChallengeStats.statDate, targetDate));
+
+      for (const stat of strainStats) {
+        if (Number(stat.trendMultiplier) === 0 && stat.orderCount > 0) {
+          await db
+            .update(strainDailyChallengeStats)
+            .set({
+              trendMultiplier: '1.00',
+              updatedAt: new Date(),
+            })
+            .where(
+              eq(strainDailyChallengeStats.id, stat.id)
+            );
+          fixed++;
+        }
+      }
+
+      return {
+        success: true,
+        date: targetDate,
+        fixed,
+        message: `Fixed ${fixed} entities with trendMultiplier=0`,
+      };
+    }),
 });
