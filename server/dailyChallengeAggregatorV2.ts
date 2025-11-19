@@ -388,10 +388,16 @@ export class DailyChallengeAggregatorV2 {
     const manufacturers = await this.aggregateManufacturersWithTrends(db, dateString, orders, logger);
     const strains = await this.aggregateStrainsWithTrends(db, dateString, orders, logger);
     
-    // Products, pharmacies, and brands would follow similar pattern
-    // For now, return empty summaries
-    const products = { processed: 0, skipped: 0 };
-    const pharmacies = { processed: 0, skipped: 0 };
+    // Import and run pharmacy aggregation
+    const { aggregatePharmaciesWithTrends } = await import('./aggregatePharmaciesV2');
+    const pharmacies = await aggregatePharmaciesWithTrends(db, dateString, orders, logger, this.log.bind(this));
+    
+    // Import and run product aggregation
+    const { aggregateProductsWithTrends } = await import('./aggregateProductsV2');
+    const products = await aggregateProductsWithTrends(db, dateString, orders, logger, this.log.bind(this));
+    
+    // Brands would follow similar pattern
+    // For now, return empty summary
     const brands = { processed: 0, skipped: 0 };
 
     return {

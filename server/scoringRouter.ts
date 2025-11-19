@@ -869,17 +869,31 @@ function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow): BreakdownDetail 
   if (bd.assetType === 'manufacturer') {
     // Use trend-based breakdown if trend data is available
     if (raw.trendMultiplier !== undefined || raw.streakDays !== undefined) {
-      return buildManufacturerTrendBreakdown({
-        orderCount: Number(raw.orderCount ?? 0),
+      const orderCount = Number(raw.orderCount ?? 0);
+      const rank = raw.rank ?? 0;
+      const previousRank = raw.previousRank ?? rank;
+      const streakDays = Number(raw.streakDays ?? 0);
+      
+      // Calculate the trend score
+      const scoring = calculateManufacturerTrendScore({
+        orderCount,
         trendMultiplier: Number(raw.trendMultiplier ?? 1),
-        rank: raw.rank ?? 0,
-        previousRank: raw.previousRank ?? raw.rank ?? 0,
+        rank,
+        previousRank,
         consistencyScore: Number(raw.consistencyScore ?? 0),
         velocityScore: Number(raw.velocityScore ?? 0),
-        streakDays: Number(raw.streakDays ?? 0),
+        streakDays,
         marketSharePercent: Number(raw.marketSharePercent ?? 0),
-        totalPoints,
-      }).breakdown;
+      });
+      
+      // Build the formatted breakdown
+      return buildManufacturerTrendBreakdown(
+        scoring,
+        orderCount,
+        rank,
+        previousRank,
+        streakDays
+      ).breakdown;
     }
     // Fallback to old breakdown for legacy data
     return buildManufacturerDailyBreakdown({
@@ -894,18 +908,33 @@ function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow): BreakdownDetail 
   if (bd.assetType === 'cannabis_strain' || bd.assetType === 'product') {
     // Use trend-based breakdown if trend data is available
     if (raw.trendMultiplier !== undefined || raw.streakDays !== undefined) {
-      const builder = bd.assetType === 'product' ? buildProductTrendBreakdown : buildStrainTrendBreakdown;
-      return builder({
-        orderCount: Number(raw.orderCount ?? 0),
+      const orderCount = Number(raw.orderCount ?? 0);
+      const rank = raw.rank ?? 0;
+      const previousRank = raw.previousRank ?? rank;
+      const streakDays = Number(raw.streakDays ?? 0);
+      
+      // Calculate the trend score
+      const scoreCalculator = bd.assetType === 'product' ? calculateProductTrendScore : calculateStrainTrendScore;
+      const scoring = scoreCalculator({
+        orderCount,
         trendMultiplier: Number(raw.trendMultiplier ?? 1),
-        rank: raw.rank ?? 0,
-        previousRank: raw.previousRank ?? raw.rank ?? 0,
+        rank,
+        previousRank,
         consistencyScore: Number(raw.consistencyScore ?? 0),
         velocityScore: Number(raw.velocityScore ?? 0),
-        streakDays: Number(raw.streakDays ?? 0),
+        streakDays,
         marketSharePercent: Number(raw.marketSharePercent ?? 0),
-        totalPoints,
-      }).breakdown;
+      });
+      
+      // Build the formatted breakdown
+      const builder = bd.assetType === 'product' ? buildProductTrendBreakdown : buildStrainTrendBreakdown;
+      return builder(
+        scoring,
+        orderCount,
+        rank,
+        previousRank,
+        streakDays
+      ).breakdown;
     }
     // Fallback to old breakdown for legacy data
     return buildStrainDailyBreakdown({
@@ -919,17 +948,31 @@ function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow): BreakdownDetail 
   if (bd.assetType === 'pharmacy') {
     // Use trend-based breakdown if trend data is available
     if (raw.trendMultiplier !== undefined || raw.streakDays !== undefined) {
-      return buildPharmacyTrendBreakdown({
-        orderCount: Number(raw.orderCount ?? 0),
+      const orderCount = Number(raw.orderCount ?? 0);
+      const rank = raw.rank ?? 0;
+      const previousRank = raw.previousRank ?? rank;
+      const streakDays = Number(raw.streakDays ?? 0);
+      
+      // Calculate the trend score
+      const scoring = calculatePharmacyTrendScore({
+        orderCount,
         trendMultiplier: Number(raw.trendMultiplier ?? 1),
-        rank: raw.rank ?? 0,
-        previousRank: raw.previousRank ?? raw.rank ?? 0,
+        rank,
+        previousRank,
         consistencyScore: Number(raw.consistencyScore ?? 0),
         velocityScore: Number(raw.velocityScore ?? 0),
-        streakDays: Number(raw.streakDays ?? 0),
+        streakDays,
         marketSharePercent: Number(raw.marketSharePercent ?? 0),
-        totalPoints,
-      }).breakdown;
+      });
+      
+      // Build the formatted breakdown
+      return buildPharmacyTrendBreakdown(
+        scoring,
+        orderCount,
+        rank,
+        previousRank,
+        streakDays
+      ).breakdown;
     }
     // Fallback to old breakdown for legacy data
     return buildPharmacyDailyBreakdown({
