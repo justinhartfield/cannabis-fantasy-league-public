@@ -59,8 +59,7 @@ export const leaderboardRouter = router({
         topManufacturers,
         topPharmacies,
         topBrands,
-        topProducts,
-        topStrains
+        topStrains,
       ] = await Promise.all([
         // Manufacturers
         db.select({
@@ -71,11 +70,14 @@ export const leaderboardRouter = router({
           rank: manufacturerDailyStats.marketShareRank,
           rankChange: manufacturerDailyStats.rankChange,
         })
-        .from(manufacturerDailyStats)
-        .innerJoin(manufacturers, eq(manufacturerDailyStats.manufacturerId, manufacturers.id))
-        .where(eq(manufacturerDailyStats.statDate, targetDate!))
-        .orderBy(desc(manufacturerDailyStats.totalPoints))
-        .limit(input.limit),
+          .from(manufacturerDailyStats)
+          .innerJoin(
+            manufacturers,
+            eq(manufacturerDailyStats.manufacturerId, manufacturers.id),
+          )
+          .where(eq(manufacturerDailyStats.statDate, targetDate!))
+          .orderBy(desc(manufacturerDailyStats.totalPoints))
+          .limit(input.limit),
 
         // Pharmacies
         db.select({
@@ -85,11 +87,11 @@ export const leaderboardRouter = router({
           score: pharmacyDailyStats.totalPoints,
           rankChange: sql<number>`0`, // Not currently tracked in daily stats same way
         })
-        .from(pharmacyDailyStats)
-        .innerJoin(pharmacies, eq(pharmacyDailyStats.pharmacyId, pharmacies.id))
-        .where(eq(pharmacyDailyStats.statDate, targetDate!))
-        .orderBy(desc(pharmacyDailyStats.totalPoints))
-        .limit(input.limit),
+          .from(pharmacyDailyStats)
+          .innerJoin(pharmacies, eq(pharmacyDailyStats.pharmacyId, pharmacies.id))
+          .where(eq(pharmacyDailyStats.statDate, targetDate!))
+          .orderBy(desc(pharmacyDailyStats.totalPoints))
+          .limit(input.limit),
 
         // Brands
         db.select({
@@ -98,24 +100,11 @@ export const leaderboardRouter = router({
           logoUrl: brands.logoUrl,
           score: brandDailyStats.totalPoints,
         })
-        .from(brandDailyStats)
-        .innerJoin(brands, eq(brandDailyStats.brandId, brands.id))
-        .where(eq(brandDailyStats.statDate, targetDate!))
-        .orderBy(desc(brandDailyStats.totalPoints))
-        .limit(input.limit),
-
-        // Products
-        db.select({
-          id: products.id,
-          name: products.name,
-          imageUrl: products.imageUrl,
-          score: productDailyStats.totalPoints,
-        })
-        .from(productDailyStats)
-        .innerJoin(products, eq(productDailyStats.productId, products.id))
-        .where(eq(productDailyStats.statDate, targetDate!))
-        .orderBy(desc(productDailyStats.totalPoints))
-        .limit(input.limit),
+          .from(brandDailyStats)
+          .innerJoin(brands, eq(brandDailyStats.brandId, brands.id))
+          .where(eq(brandDailyStats.statDate, targetDate!))
+          .orderBy(desc(brandDailyStats.totalPoints))
+          .limit(input.limit),
 
         // Cannabis Strains (Flower/Genetics)
         db.select({
@@ -124,12 +113,46 @@ export const leaderboardRouter = router({
           imageUrl: cannabisStrains.imageUrl,
           score: cannabisStrainDailyStats.totalPoints,
         })
-        .from(cannabisStrainDailyStats)
-        .innerJoin(cannabisStrains, eq(cannabisStrainDailyStats.cannabisStrainId, cannabisStrains.id))
-        .where(eq(cannabisStrainDailyStats.statDate, targetDate!))
-        .orderBy(desc(cannabisStrainDailyStats.totalPoints))
-        .limit(input.limit),
+          .from(cannabisStrainDailyStats)
+          .innerJoin(
+            cannabisStrains,
+            eq(cannabisStrainDailyStats.cannabisStrainId, cannabisStrains.id),
+          )
+          .where(eq(cannabisStrainDailyStats.statDate, targetDate!))
+          .orderBy(desc(cannabisStrainDailyStats.totalPoints))
+          .limit(input.limit),
       ]);
+
+      // Products (best-effort: if table is missing, just log and skip)
+      let topProducts:
+        | {
+            id: number;
+            name: string;
+            imageUrl: string | null;
+            score: number | null;
+          }[]
+        | [] = [];
+
+      try {
+        topProducts = await db
+          .select({
+            id: products.id,
+            name: products.name,
+            imageUrl: products.imageUrl,
+            score: productDailyStats.totalPoints,
+          })
+          .from(productDailyStats)
+          .innerJoin(products, eq(productDailyStats.productId, products.id))
+          .where(eq(productDailyStats.statDate, targetDate!))
+          .orderBy(desc(productDailyStats.totalPoints))
+          .limit(input.limit);
+      } catch (err) {
+        console.error(
+          "[Leaderboard] Error fetching daily product leaderboard – falling back to empty list:",
+          err,
+        );
+        topProducts = [];
+      }
 
       return {
         date: targetDate,
@@ -180,8 +203,7 @@ export const leaderboardRouter = router({
         topManufacturers,
         topPharmacies,
         topBrands,
-        topProducts, // Using strainWeeklyStats for products primarily currently based on schema usage
-        topStrains
+        topStrains,
       ] = await Promise.all([
         // Manufacturers
         db.select({
@@ -192,14 +214,19 @@ export const leaderboardRouter = router({
           rank: manufacturerWeeklyStats.marketShareRank,
           rankChange: manufacturerWeeklyStats.rankChange,
         })
-        .from(manufacturerWeeklyStats)
-        .innerJoin(manufacturers, eq(manufacturerWeeklyStats.manufacturerId, manufacturers.id))
-        .where(and(
-          eq(manufacturerWeeklyStats.year, targetYear!),
-          eq(manufacturerWeeklyStats.week, targetWeek!)
-        ))
-        .orderBy(desc(manufacturerWeeklyStats.totalPoints))
-        .limit(input.limit),
+          .from(manufacturerWeeklyStats)
+          .innerJoin(
+            manufacturers,
+            eq(manufacturerWeeklyStats.manufacturerId, manufacturers.id),
+          )
+          .where(
+            and(
+              eq(manufacturerWeeklyStats.year, targetYear!),
+              eq(manufacturerWeeklyStats.week, targetWeek!),
+            ),
+          )
+          .orderBy(desc(manufacturerWeeklyStats.totalPoints))
+          .limit(input.limit),
 
         // Pharmacies
         db.select({
@@ -208,14 +235,16 @@ export const leaderboardRouter = router({
           logoUrl: pharmacies.logoUrl,
           score: pharmacyWeeklyStats.totalPoints,
         })
-        .from(pharmacyWeeklyStats)
-        .innerJoin(pharmacies, eq(pharmacyWeeklyStats.pharmacyId, pharmacies.id))
-        .where(and(
-          eq(pharmacyWeeklyStats.year, targetYear!),
-          eq(pharmacyWeeklyStats.week, targetWeek!)
-        ))
-        .orderBy(desc(pharmacyWeeklyStats.totalPoints))
-        .limit(input.limit),
+          .from(pharmacyWeeklyStats)
+          .innerJoin(pharmacies, eq(pharmacyWeeklyStats.pharmacyId, pharmacies.id))
+          .where(
+            and(
+              eq(pharmacyWeeklyStats.year, targetYear!),
+              eq(pharmacyWeeklyStats.week, targetWeek!),
+            ),
+          )
+          .orderBy(desc(pharmacyWeeklyStats.totalPoints))
+          .limit(input.limit),
 
         // Brands
         db.select({
@@ -224,43 +253,16 @@ export const leaderboardRouter = router({
           logoUrl: brands.logoUrl,
           score: brandWeeklyStats.totalPoints,
         })
-        .from(brandWeeklyStats)
-        .innerJoin(brands, eq(brandWeeklyStats.brandId, brands.id))
-        .where(and(
-          eq(brandWeeklyStats.year, targetYear!),
-          eq(brandWeeklyStats.week, targetWeek!)
-        ))
-        .orderBy(desc(brandWeeklyStats.totalPoints))
-        .limit(input.limit),
-
-        // Products (Note: Product stats are often in strainWeeklyStats in this schema, but let's check plan. 
-        // Plan says "productDailyStats" join "products". Weekly table for products is "strainWeeklyStats" 
-        // based on `scoreProduct` implementation in scoringEngine.ts which maps products to strainWeeklyStats for weekly)
-        db.select({
-          id: products.id, // This might be tricky if strainWeeklyStats links to strains table. 
-          // Let's look at scoringEngine.ts:1435 -> eq(strainWeeklyStats.strainId, productId)
-          // It seems strainWeeklyStats is overloaded for products? Or products table?
-          // Actually, schema.ts says strainWeeklyStats has strainId. 
-          // In scoringEngine.ts `scoreProduct` for weekly uses `strainWeeklyStats` joined on `strainId`.
-          // This implies products might share IDs or table structure with strains for scoring?
-          // However, let's look at cannabisStrainWeeklyStats. 
-          // Let's assume products map to strainWeeklyStats for now based on scoringEngine.ts
-          name: products.name, // We need to join the correct table. 
-          // If strainWeeklyStats uses strainId which is productId...
-          // Let's check schema.ts. products table exists. strains table exists.
-          // scoreProduct in scoringEngine.ts uses strainWeeklyStats.
-          // We will trust scoringEngine.ts logic: Product Score -> strainWeeklyStats.
-          imageUrl: products.imageUrl,
-          score: strainWeeklyStats.totalPoints,
-        })
-        .from(strainWeeklyStats)
-        .innerJoin(products, eq(strainWeeklyStats.strainId, products.id)) 
-        .where(and(
-          eq(strainWeeklyStats.year, targetYear!),
-          eq(strainWeeklyStats.week, targetWeek!)
-        ))
-        .orderBy(desc(strainWeeklyStats.totalPoints))
-        .limit(input.limit),
+          .from(brandWeeklyStats)
+          .innerJoin(brands, eq(brandWeeklyStats.brandId, brands.id))
+          .where(
+            and(
+              eq(brandWeeklyStats.year, targetYear!),
+              eq(brandWeeklyStats.week, targetWeek!),
+            ),
+          )
+          .orderBy(desc(brandWeeklyStats.totalPoints))
+          .limit(input.limit),
 
         // Cannabis Strains
         db.select({
@@ -269,15 +271,56 @@ export const leaderboardRouter = router({
           imageUrl: cannabisStrains.imageUrl,
           score: cannabisStrainWeeklyStats.totalPoints,
         })
-        .from(cannabisStrainWeeklyStats)
-        .innerJoin(cannabisStrains, eq(cannabisStrainWeeklyStats.cannabisStrainId, cannabisStrains.id))
-        .where(and(
-          eq(cannabisStrainWeeklyStats.year, targetYear!),
-          eq(cannabisStrainWeeklyStats.week, targetWeek!)
-        ))
-        .orderBy(desc(cannabisStrainWeeklyStats.totalPoints))
-        .limit(input.limit),
+          .from(cannabisStrainWeeklyStats)
+          .innerJoin(
+            cannabisStrains,
+            eq(cannabisStrainWeeklyStats.cannabisStrainId, cannabisStrains.id),
+          )
+          .where(
+            and(
+              eq(cannabisStrainWeeklyStats.year, targetYear!),
+              eq(cannabisStrainWeeklyStats.week, targetWeek!),
+            ),
+          )
+          .orderBy(desc(cannabisStrainWeeklyStats.totalPoints))
+          .limit(input.limit),
       ]);
+
+      // Products (best-effort: uses strainWeeklyStats; if something is off, just skip)
+      let topProducts:
+        | {
+            id: number;
+            name: string;
+            imageUrl: string | null;
+            score: number | null;
+          }[]
+        | [] = [];
+
+      try {
+        topProducts = await db
+          .select({
+            id: products.id,
+            name: products.name,
+            imageUrl: products.imageUrl,
+            score: strainWeeklyStats.totalPoints,
+          })
+          .from(strainWeeklyStats)
+          .innerJoin(products, eq(strainWeeklyStats.strainId, products.id))
+          .where(
+            and(
+              eq(strainWeeklyStats.year, targetYear!),
+              eq(strainWeeklyStats.week, targetWeek!),
+            ),
+          )
+          .orderBy(desc(strainWeeklyStats.totalPoints))
+          .limit(input.limit);
+      } catch (err) {
+        console.error(
+          "[Leaderboard] Error fetching weekly product leaderboard – falling back to empty list:",
+          err,
+        );
+        topProducts = [];
+      }
 
       return {
         year: targetYear,
