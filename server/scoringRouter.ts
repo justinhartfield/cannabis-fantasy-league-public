@@ -89,10 +89,12 @@ import {
   dailyScoringBreakdowns,
   weeklyLineups,
   productDailyChallengeStats,
+} from '../drizzle/schema';
+import {
   manufacturerDailyChallengeStats,
   strainDailyChallengeStats,
   pharmacyDailyChallengeStats,
-} from '../drizzle/schema';
+} from '../drizzle/dailyChallengeSchema';
 import { eq, and, inArray, sql } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import {
@@ -774,7 +776,6 @@ export const scoringRouter = router({
                 .from(manufacturerDailyChallengeStats)
                 .where(and(
                   inArray(manufacturerDailyChallengeStats.manufacturerId, Array.from(manufacturerIds)),
-                  eq(manufacturerDailyChallengeStats.challengeId, input.challengeId),
                   sql`${manufacturerDailyChallengeStats.statDate} = ${input.statDate}::date`
                 ))
             : [],
@@ -783,7 +784,6 @@ export const scoringRouter = router({
                 .from(strainDailyChallengeStats)
                 .where(and(
                   inArray(strainDailyChallengeStats.strainId, Array.from(strainIds)),
-                  eq(strainDailyChallengeStats.challengeId, input.challengeId),
                   sql`${strainDailyChallengeStats.statDate} = ${input.statDate}::date`
                 ))
             : [],
@@ -792,7 +792,6 @@ export const scoringRouter = router({
                 .from(productDailyChallengeStats)
                 .where(and(
                   inArray(productDailyChallengeStats.productId, Array.from(productIds)),
-                  eq(productDailyChallengeStats.challengeId, input.challengeId),
                   sql`${productDailyChallengeStats.statDate} = ${input.statDate}::date`
                 ))
             : [],
@@ -801,7 +800,6 @@ export const scoringRouter = router({
                 .from(pharmacyDailyChallengeStats)
                 .where(and(
                   inArray(pharmacyDailyChallengeStats.pharmacyId, Array.from(pharmacyIds)),
-                  eq(pharmacyDailyChallengeStats.challengeId, input.challengeId),
                   sql`${pharmacyDailyChallengeStats.statDate} = ${input.statDate}::date`
                 ))
             : [],
