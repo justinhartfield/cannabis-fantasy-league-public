@@ -55,7 +55,7 @@ export const profileRouter = router({
     .input(
       z.object({
         name: z.string().min(1).max(255).optional(),
-        email: z.string().email().max(320).optional(),
+        email: z.string().email().max(320).optional().or(z.literal('')).transform(val => val === '' ? undefined : val),
       })
     )
     .mutation(async ({ ctx, input }) => {
