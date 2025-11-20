@@ -300,7 +300,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <div className="flex items-center gap-3 mb-1">
-                <span className="text-4xl">🏆</span>
+                <Trophy className="w-12 h-12 text-yellow-500" />
                 <h3 className="text-2xl font-bold text-foreground headline-primary">My Challenges</h3>
               </div>
               <p className="text-sm text-muted-foreground mt-1">Quick daily competitions</p>
