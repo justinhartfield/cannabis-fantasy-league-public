@@ -43,13 +43,25 @@ export default function Dashboard() {
     },
   });
   
-  const handleJoinLeague = () => {
+  const handleJoinLeague = async () => {
     if (!inviteCode.trim()) {
       toast.error("Please enter an invite code");
       return;
     }
+    
+    // Validate code length (server requires exactly 6 characters)
+    const trimmedCode = inviteCode.trim().toUpperCase();
+    if (trimmedCode.length !== 6) {
+      toast.error("Invite code must be exactly 6 characters");
+      return;
+    }
+    
     setJoiningLeague(true);
-    joinLeagueMutation.mutate({ leagueCode: inviteCode.trim().toUpperCase() });
+    try {
+      await joinLeagueMutation.mutateAsync({ leagueCode: trimmedCode });
+    } catch (error) {
+      // Error handling is done in onError callback
+    }
   };
 
   // Redirect to login if not authenticated
@@ -173,9 +185,10 @@ export default function Dashboard() {
                     type="text"
                     placeholder="Enter your invite code"
                     value={inviteCode}
-                    onChange={(e) => setInviteCode(e.target.value)}
+                    onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
                     onKeyDown={(e) => e.key === "Enter" && handleJoinLeague()}
                     disabled={joiningLeague}
+                    maxLength={6}
                     className="flex-1 px-4 py-3 rounded-lg border-2 border-weed-green/30 focus:border-weed-green focus:outline-none text-black placeholder:text-black/50 bg-white disabled:opacity-50"
                   />
                   <Button 
