@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
-import { Trophy, Plus, UserCircle, TrendingUp, Calendar, Zap, Loader2, Activity } from "lucide-react";
+import { Trophy, Plus, UserCircle, TrendingUp, Calendar, Zap, Loader2, Crown } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 import { APP_TITLE, getLoginUrl } from "@/const";
@@ -97,31 +97,31 @@ export default function Dashboard() {
                 label="Manufacturers"
                 value={stats.manufacturerCount}
                 variant="primary"
-                icon={Activity}
+                emoji="🏭"
               />
               <StatBadge
                 label="Strains"
                 value={stats.cannabisStrainCount || 0}
                 variant="green"
-                icon={Activity}
+                emoji="🌿"
               />
               <StatBadge
                 label="Products"
                 value={stats.productCount || stats.strainCount}
                 variant="purple"
-                icon={Activity}
+                emoji="📦"
               />
               <StatBadge
                 label="Pharmacies"
                 value={stats.pharmacyCount}
                 variant="amber"
-                icon={Activity}
+                emoji="💊"
               />
               <StatBadge
                 label="Brands"
                 value={stats.brandCount || 0}
                 variant="secondary"
-                icon={Activity}
+                emoji="🏷️"
               />
             </div>
           </div>
@@ -172,36 +172,58 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        {/* Invite Code CTA */}
-        <div className="mb-8">
-          <Card className="bg-white border-2 border-weed-green">
-            <CardContent className="py-6">
+        {/* Invite Code & Leaderboard Split */}
+        <div className="grid md:grid-cols-2 gap-6 mb-8">
+          {/* Left: Invite Code */}
+          <Card className="bg-white border-2 border-weed-green h-full">
+            <CardContent className="py-6 flex flex-col justify-center h-full">
               <div className="text-center">
-                <h3 className="text-2xl font-bold text-weed-coral mb-4 headline-primary">
-                  GOT INVITE CODE? ENTER IT HERE:
+                <h3 className="text-xl font-bold text-weed-coral mb-4 headline-primary">
+                  GOT INVITE CODE?
                 </h3>
-                <div className="max-w-md mx-auto flex gap-3">
+                <div className="flex gap-2">
                   <input
                     type="text"
-                    placeholder="Enter your invite code"
+                    placeholder="ENTER CODE"
                     value={inviteCode}
                     onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
                     onKeyDown={(e) => e.key === "Enter" && handleJoinLeague()}
                     disabled={joiningLeague}
                     maxLength={6}
-                    className="flex-1 px-4 py-3 rounded-lg border-2 border-weed-green/30 focus:border-weed-green focus:outline-none text-black placeholder:text-black/50 bg-white disabled:opacity-50"
+                    className="flex-1 px-3 py-2 rounded-lg border-2 border-weed-green/30 focus:border-weed-green focus:outline-none text-black placeholder:text-black/50 bg-white disabled:opacity-50 text-center font-mono uppercase tracking-widest"
                   />
                   <Button 
                     onClick={handleJoinLeague}
                     disabled={joiningLeague}
-                    className="bg-weed-green text-black hover:bg-weed-green/90 px-6 font-bold"
+                    className="bg-weed-green text-black hover:bg-weed-green/90 px-4 font-bold"
                   >
-                    {joiningLeague ? "Joining..." : "Join"}
+                    {joiningLeague ? "..." : "JOIN"}
                   </Button>
                 </div>
               </div>
             </CardContent>
           </Card>
+
+          {/* Right: Leaderboard Ad */}
+          <Link href="/leaderboard">
+            <Card className="bg-gradient-to-br from-yellow-400 to-yellow-600 border-0 card-hover-lift cursor-pointer h-full text-white overflow-hidden relative group">
+              <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors" />
+              <CardContent className="py-6 flex items-center justify-between relative z-10 h-full">
+                <div>
+                  <h3 className="text-xl font-bold mb-1 flex items-center gap-2">
+                    <Crown className="w-6 h-6 text-yellow-100" />
+                    LEADERBOARD
+                  </h3>
+                  <p className="text-yellow-100 text-sm">
+                    See top players & teams
+                  </p>
+                </div>
+                <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                  <TrendingUp className="w-6 h-6 text-white" />
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
 
         {/* Prediction Streak Game Mode */}

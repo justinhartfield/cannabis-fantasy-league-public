@@ -24,11 +24,19 @@ export function Navigation() {
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           {/* Left side - Home link */}
-          <Link href="/">
-            <a className="flex items-center gap-2 text-foreground hover:text-primary transition-colors">
-              <img src={logoImage} alt="Cannabis Fantasy League" className="h-16 w-auto" />
-            </a>
-          </Link>
+          <div className="flex items-center gap-6">
+            <Link href="/">
+              <a className="flex items-center gap-2 text-foreground hover:text-primary transition-colors">
+                <img src={logoImage} alt="Cannabis Fantasy League" className="h-16 w-auto" />
+              </a>
+            </Link>
+            
+            <Link href="/leaderboard">
+              <a className={`text-sm font-medium transition-colors hover:text-primary ${location === '/leaderboard' ? 'text-primary' : 'text-muted-foreground'}`}>
+                Leaderboard
+              </a>
+            </Link>
+          </div>
 
           {/* Right side - User info */}
           {user && (

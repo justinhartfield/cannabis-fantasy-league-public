@@ -5,6 +5,7 @@ interface StatBadgeProps {
   label: string;
   value: string | number;
   icon?: LucideIcon;
+  emoji?: string;
   variant?: "primary" | "secondary" | "purple" | "green" | "amber";
   size?: "sm" | "md" | "lg";
   className?: string;
@@ -14,6 +15,7 @@ export function StatBadge({
   label,
   value,
   icon: Icon,
+  emoji,
   variant = "primary",
   size = "md",
   className,
@@ -47,7 +49,8 @@ export function StatBadge({
         className
       )}
     >
-      {Icon && <Icon className="w-5 h-5 mb-1 opacity-80" />}
+      {emoji && <div className="text-2xl mb-1">{emoji}</div>}
+      {Icon && !emoji && <Icon className="w-5 h-5 mb-1 opacity-80" />}
       <div className={cn("text-muted-foreground mb-1", textSizes[size].label)}>
         {label}
       </div>

@@ -1,16 +1,22 @@
 export type League = {
-  id: string;
+  id: number;
   name: string;
-  leagueType: 'standard' | 'challenge';
-  commissionerId: string;
-  seasonStatus: 'pre_draft' | 'drafting' | 'in_progress' | 'playoffs' | 'complete';
+  leagueType: string; // relaxed from 'season' | 'challenge' | 'standard' to match DB return type
+  commissionerId?: number; // Legacy
+  commissionerUserId?: number; // DB field
+  seasonStatus?: 'pre_draft' | 'drafting' | 'in_progress' | 'playoffs' | 'complete'; // Legacy
+  status?: string; // DB field
   currentWeek: number;
-  maxTeams: number;
+  maxTeams?: number; // Legacy
+  teamCount?: number; // DB field
   myTeam?: {
-    teamName: string;
-    rank: number;
-    totalPoints: number;
+    id?: number;
+    teamName?: string; // Legacy
+    name?: string; // DB field
+    rank?: number; // Derived?
+    totalPoints?: number;
   };
-  teamCount: number;
-  status: 'active' | 'draft';
+  // Add other fields if necessary
+  draftDate?: string | null;
+  isPublic?: boolean;
 };

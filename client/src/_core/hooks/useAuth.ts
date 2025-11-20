@@ -33,6 +33,9 @@ export function useAuth(options?: UseAuthOptions) {
       name: dbUser.name || clerkUser?.fullName || clerkUser?.username || "",
       email: dbUser.email || clerkUser?.primaryEmailAddress?.emailAddress || "",
       username: dbUser.name || clerkUser?.username || "",
+      currentPredictionStreak: dbUser.currentPredictionStreak || 0,
+      longestPredictionStreak: dbUser.longestPredictionStreak || 0,
+      avatarUrl: dbUser.avatarUrl || clerkUser?.imageUrl,
     } : null;
 
     // Store user info in localStorage for compatibility

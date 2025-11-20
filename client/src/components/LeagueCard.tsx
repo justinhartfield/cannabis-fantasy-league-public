@@ -13,6 +13,20 @@ export function LeagueCard({ league }: LeagueCardProps) {
   const leaguePath = `/challenge/${league.id}`;
 
   const isChallenge = league.leagueType === 'challenge';
+  const commissionerId = league.commissionerId || league.commissionerUserId;
+  const teamName = league.myTeam?.teamName || league.myTeam?.name || 'No Team';
+  const totalPoints = league.myTeam?.totalPoints || 0;
+  // Handle status mapping
+  let displayStatus = 'Active';
+  const status = league.seasonStatus || league.status;
+  
+  if (status === 'pre_draft' || status === 'draft') displayStatus = 'Pre-Draft';
+  else if (status === 'drafting') displayStatus = 'Drafting';
+  else if (status === 'in_progress' || status === 'active') displayStatus = 'Active';
+  else if (status === 'playoffs') displayStatus = 'Playoffs';
+  else if (status === 'complete') displayStatus = 'Complete';
+
+  const maxTeams = league.maxTeams || league.teamCount || 10;
 
   // Season league compact card
   if (!isChallenge) {
@@ -27,10 +41,10 @@ export function LeagueCard({ league }: LeagueCardProps) {
                   {league.name}
                 </h4>
                 <p className="text-xs text-muted-foreground truncate">
-                  {league.myTeam?.teamName || 'No Team'}
+                  {teamName}
                 </p>
               </div>
-              {league.commissionerId === user?.id && (
+              {commissionerId === user?.id && (
                 <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] gradient-primary text-white font-bold uppercase">
                   Comm
                 </span>
@@ -51,7 +65,7 @@ export function LeagueCard({ league }: LeagueCardProps) {
               <div className="flex items-center gap-1.5">
                 <span className="text-muted-foreground">Points</span>
                 <span className="font-bold text-sm text-[#00D9FF]">
-                  {league.myTeam?.totalPoints?.toFixed(1) || "0.0"}
+                  {totalPoints.toFixed(1)}
                 </span>
               </div>
               <div className="h-3 w-px bg-border" />
@@ -66,18 +80,15 @@ export function LeagueCard({ league }: LeagueCardProps) {
             {/* Status Badge */}
             <div className="flex items-center justify-between">
               <span className={`px-2 py-1 rounded text-[10px] font-semibold uppercase ${
-                league.seasonStatus === 'in_progress' ? 'bg-green-500/20 text-green-400' :
-                league.seasonStatus === 'playoffs' ? 'bg-purple-500/20 text-purple-400' :
-                league.seasonStatus === 'drafting' ? 'bg-blue-500/20 text-blue-400' :
+                displayStatus === 'Active' ? 'bg-green-500/20 text-green-400' :
+                displayStatus === 'Playoffs' ? 'bg-purple-500/20 text-purple-400' :
+                displayStatus === 'Drafting' ? 'bg-blue-500/20 text-blue-400' :
                 'bg-muted/50 text-muted-foreground'
               }`}>
-                {league.seasonStatus === "pre_draft" ? "Pre-Draft" :
-                 league.seasonStatus === "drafting" ? "Drafting" :
-                 league.seasonStatus === "in_progress" ? "Active" :
-                 league.seasonStatus === "playoffs" ? "Playoffs" : "Complete"}
+                {displayStatus}
               </span>
               <span className="text-xs text-muted-foreground">
-                {league.maxTeams} teams
+                {maxTeams} teams
               </span>
             </div>
           </div>
@@ -114,22 +125,22 @@ export function LeagueCard({ league }: LeagueCardProps) {
                 <div className="flex items-center gap-1.5">
                   <span className="text-muted-foreground">Score</span>
                   <span className="font-bold text-sm text-[#00D9FF]">
-                    {league.myTeam?.totalPoints?.toFixed(1) || "0.0"}
+                    {totalPoints.toFixed(1)}
                   </span>
                 </div>
                 <div className="h-3 w-px bg-border" />
                 <div className="flex items-center gap-1.5">
-                  <span className="text-muted-foreground">{league.teamCount || 2} teams</span>
+                  <span className="text-muted-foreground">{maxTeams} teams</span>
                 </div>
               </div>
             </div>
             <div className="ml-3">
               <span className={`px-2 py-1 rounded text-[10px] font-semibold uppercase ${
-                league.status === 'active' || league.seasonStatus === 'in_progress' 
+                displayStatus === 'Active' 
                   ? 'bg-green-500/20 text-green-400' 
                   : 'bg-blue-500/20 text-blue-400'
               }`}>
-                {league.status === 'active' || league.seasonStatus === 'in_progress' ? 'LIVE' : 'DRAFT'}
+                {displayStatus === 'Active' ? 'LIVE' : 'DRAFT'}
               </span>
             </div>
           </div>

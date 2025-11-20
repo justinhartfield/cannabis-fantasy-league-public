@@ -1,0 +1,394 @@
+import { useState } from "react";
+import { trpc } from "../utils/trpc";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Trophy, TrendingUp, Users, Medal } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+
+// Entity Types
+type EntityType = 'all' | 'manufacturer' | 'pharmacy' | 'brand' | 'product' | 'strain';
+
+const Leaderboard = () => {
+  const [activeTab, setActiveTab] = useState("daily");
+  const [entityFilter, setEntityFilter] = useState<EntityType>('all');
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [selectedWeek, setSelectedWeek] = useState<number>(1); // Default to 1, will try to auto-set from data if possible
+
+  // Fetch Data
+  const dailyQuery = trpc.leaderboard.getDailyEntityLeaderboard.useQuery({
+    date: selectedDate,
+    limit: 10,
+  }, {
+    enabled: activeTab === "daily"
+  });
+
+  const weeklyQuery = trpc.leaderboard.getWeeklyEntityLeaderboard.useQuery({
+    year: selectedYear,
+    week: selectedWeek,
+    limit: 10,
+  }, {
+    enabled: activeTab === "weekly"
+  });
+
+  const hallOfFameQuery = trpc.leaderboard.getHallOfFame.useQuery({
+    limit: 20,
+  }, {
+    enabled: activeTab === "hof"
+  });
+
+  // Components for rendering
+  const EntityList = ({ 
+    title, 
+    data, 
+    icon: Icon 
+  }: { 
+    title: string, 
+    data: any[], 
+    icon: any 
+  }) => (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 mb-4">
+        <Icon className="w-5 h-5 text-primary" />
+        <h3 className="font-semibold text-lg">{title}</h3>
+      </div>
+      {data && data.length > 0 ? (
+        <div className="grid gap-3">
+          {data.map((item, index) => (
+            <div 
+              key={item.id}
+              className="flex items-center justify-between p-3 rounded-lg bg-card border border-border hover:bg-accent/50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-8 h-8 font-bold text-muted-foreground">
+                  #{index + 1}
+                </div>
+                <Avatar className="w-10 h-10 border border-border">
+                  <AvatarImage src={item.logoUrl || item.imageUrl} />
+                  <AvatarFallback>{item.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <div className="font-medium">{item.name}</div>
+                  {item.rankChange !== undefined && item.rankChange !== 0 && (
+                    <div className={cn(
+                      "text-xs flex items-center gap-1",
+                      item.rankChange > 0 ? "text-green-500" : "text-red-500"
+                    )}>
+                      {item.rankChange > 0 ? "↑" : "↓"} {Math.abs(item.rankChange)}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="font-bold text-primary">
+                {item.score.toLocaleString()} pts
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-8 text-muted-foreground">
+          No data available
+        </div>
+      )}
+    </div>
+  );
+
+  const TeamList = ({ data, type }: { data: any[], type: 'season' | 'weekly' }) => (
+    <div className="grid gap-3">
+      {data.map((item, index) => (
+        <div 
+          key={type === 'season' ? item.teamId : item.scoreId}
+          className="flex items-center justify-between p-4 rounded-lg bg-card border border-border hover:bg-accent/50 transition-colors"
+        >
+          <div className="flex items-center gap-4">
+            <div className="flex items-center justify-center w-8 h-8 text-xl font-bold text-muted-foreground">
+              #{index + 1}
+            </div>
+            <Avatar className="w-12 h-12 border-2 border-primary/20">
+              <AvatarImage src={item.avatarUrl} />
+              <AvatarFallback>{item.userName?.substring(0, 2).toUpperCase()}</AvatarFallback>
+            </Avatar>
+            <div>
+              <div className="font-bold text-lg">{item.teamName}</div>
+              <div className="text-sm text-muted-foreground">
+                Manager: {item.userName} • {item.leagueName}
+              </div>
+              {type === 'weekly' && (
+                <div className="text-xs text-muted-foreground mt-1">
+                  Week {item.week}, {item.year}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-2xl font-bold text-primary">
+              {type === 'season' ? item.totalScore.toLocaleString() : item.score.toLocaleString()}
+            </div>
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">
+              Points
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  // Filter controls
+  const EntityFilters = () => (
+    <div className="flex flex-wrap gap-2 mb-6">
+      {(['all', 'manufacturer', 'pharmacy', 'brand', 'product', 'strain'] as const).map((type) => (
+        <Button
+          key={type}
+          variant={entityFilter === type ? "default" : "outline"}
+          size="sm"
+          onClick={() => setEntityFilter(type)}
+          className="capitalize"
+        >
+          {type === 'strain' ? 'Flower' : type}
+        </Button>
+      ))}
+    </div>
+  );
+
+  return (
+    <div className="container mx-auto max-w-6xl py-8 px-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight mb-2">Leaderboard</h1>
+          <p className="text-muted-foreground">
+            Top performing entities and legendary teams
+          </p>
+        </div>
+        
+        {activeTab === "daily" && (
+          <div className="flex items-center gap-2">
+             <span className="text-sm text-muted-foreground">Date:</span>
+             <input 
+               type="date" 
+               value={selectedDate}
+               onChange={(e) => setSelectedDate(e.target.value)}
+               className="bg-background border border-input rounded-md px-3 py-2 text-sm"
+             />
+          </div>
+        )}
+
+        {activeTab === "weekly" && (
+          <div className="flex items-center gap-2">
+             <span className="text-sm text-muted-foreground">Week:</span>
+             <Select 
+               value={selectedWeek.toString()} 
+               onValueChange={(v) => setSelectedWeek(parseInt(v))}
+             >
+               <SelectTrigger className="w-[100px]">
+                 <SelectValue placeholder="Week" />
+               </SelectTrigger>
+               <SelectContent>
+                 {Array.from({ length: 52 }, (_, i) => i + 1).map((w) => (
+                   <SelectItem key={w} value={w.toString()}>Week {w}</SelectItem>
+                 ))}
+               </SelectContent>
+             </Select>
+             <Select 
+               value={selectedYear.toString()} 
+               onValueChange={(v) => setSelectedYear(parseInt(v))}
+             >
+               <SelectTrigger className="w-[100px]">
+                 <SelectValue placeholder="Year" />
+               </SelectTrigger>
+               <SelectContent>
+                 <SelectItem value="2024">2024</SelectItem>
+                 <SelectItem value="2025">2025</SelectItem>
+               </SelectContent>
+             </Select>
+          </div>
+        )}
+      </div>
+
+      <Tabs defaultValue="daily" value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3 max-w-md mx-auto md:mx-0">
+          <TabsTrigger value="daily">Daily Leaders</TabsTrigger>
+          <TabsTrigger value="weekly">Weekly Leaders</TabsTrigger>
+          <TabsTrigger value="hof">Hall of Fame</TabsTrigger>
+        </TabsList>
+
+        {/* DAILY TAB */}
+        <TabsContent value="daily" className="space-y-6">
+          <EntityFilters />
+          
+          {dailyQuery.isLoading ? (
+            <div className="flex justify-center py-12">Loading...</div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {(entityFilter === 'all' || entityFilter === 'manufacturer') && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Top Manufacturers</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <EntityList title="" data={dailyQuery.data?.manufacturers || []} icon={TrendingUp} />
+                  </CardContent>
+                </Card>
+              )}
+
+              {(entityFilter === 'all' || entityFilter === 'pharmacy') && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Top Pharmacies</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <EntityList title="" data={dailyQuery.data?.pharmacies || []} icon={Users} />
+                  </CardContent>
+                </Card>
+              )}
+
+              {(entityFilter === 'all' || entityFilter === 'brand') && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Top Brands</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <EntityList title="" data={dailyQuery.data?.brands || []} icon={Medal} />
+                  </CardContent>
+                </Card>
+              )}
+
+              {(entityFilter === 'all' || entityFilter === 'product') && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Top Products</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <EntityList title="" data={dailyQuery.data?.products || []} icon={Trophy} />
+                  </CardContent>
+                </Card>
+              )}
+
+              {(entityFilter === 'all' || entityFilter === 'strain') && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Top Flower</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <EntityList title="" data={dailyQuery.data?.strains || []} icon={Trophy} />
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* WEEKLY TAB */}
+        <TabsContent value="weekly" className="space-y-6">
+          <EntityFilters />
+          
+          {weeklyQuery.isLoading ? (
+            <div className="flex justify-center py-12">Loading...</div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {(entityFilter === 'all' || entityFilter === 'manufacturer') && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Top Manufacturers</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <EntityList title="" data={weeklyQuery.data?.manufacturers || []} icon={TrendingUp} />
+                  </CardContent>
+                </Card>
+              )}
+
+              {(entityFilter === 'all' || entityFilter === 'pharmacy') && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Top Pharmacies</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <EntityList title="" data={weeklyQuery.data?.pharmacies || []} icon={Users} />
+                  </CardContent>
+                </Card>
+              )}
+
+              {(entityFilter === 'all' || entityFilter === 'brand') && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Top Brands</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <EntityList title="" data={weeklyQuery.data?.brands || []} icon={Medal} />
+                  </CardContent>
+                </Card>
+              )}
+
+              {(entityFilter === 'all' || entityFilter === 'product') && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Top Products</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <EntityList title="" data={weeklyQuery.data?.products || []} icon={Trophy} />
+                  </CardContent>
+                </Card>
+              )}
+
+              {(entityFilter === 'all' || entityFilter === 'strain') && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Top Flower</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <EntityList title="" data={weeklyQuery.data?.strains || []} icon={Trophy} />
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* HALL OF FAME TAB */}
+        <TabsContent value="hof" className="space-y-8">
+          {hallOfFameQuery.isLoading ? (
+            <div className="flex justify-center py-12">Loading...</div>
+          ) : (
+            <div className="grid lg:grid-cols-2 gap-8">
+              <Card className="border-yellow-500/20 bg-gradient-to-br from-yellow-500/5 to-transparent">
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <Trophy className="w-8 h-8 text-yellow-500" />
+                    <div>
+                      <CardTitle>Season Legends</CardTitle>
+                      <p className="text-sm text-muted-foreground mt-1">Highest total season points</p>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <TeamList data={hallOfFameQuery.data?.seasonLeaders || []} type="season" />
+                </CardContent>
+              </Card>
+
+              <Card className="border-purple-500/20 bg-gradient-to-br from-purple-500/5 to-transparent">
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <TrendingUp className="w-8 h-8 text-purple-500" />
+                    <div>
+                      <CardTitle>Weekly High Scores</CardTitle>
+                      <p className="text-sm text-muted-foreground mt-1">Best single week performances</p>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <TeamList data={hallOfFameQuery.data?.weeklyHighScores || []} type="weekly" />
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};
+
+export default Leaderboard;
+
