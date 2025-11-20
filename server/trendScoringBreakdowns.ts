@@ -249,7 +249,42 @@ export function buildStrainTrendBreakdown(
   }
 
   const subtotal = components.reduce((sum, c) => sum + c.points, 0);
+  let bonusesTotal = bonuses.reduce((sum, c) => sum + c.points, 0);
+  const penaltiesTotal = penalties.reduce((sum, c) => sum + c.points, 0);
+  
+  // Check for consistency bonus mismatch
+  if (scoring.consistencyBonusPoints > 0 && !bonuses.find(b => b.type === 'Consistency Bonus')) {
+    bonuses.push({
+      type: 'Consistency Bonus',
+      condition: `Stable performance (${scoring.consistencyScore}/100)`,
+      points: scoring.consistencyBonusPoints,
+    });
+    bonusesTotal += scoring.consistencyBonusPoints;
+  }
+
   const total = scoring.totalPoints;
+  const computedSum = subtotal + bonusesTotal + penaltiesTotal;
+
+  if (Math.abs(total - computedSum) > 0.5) {
+    const diff = total - computedSum;
+    if (diff > 0) {
+       bonuses.push({
+         type: 'Adjustment',
+         condition: 'Score reconciliation',
+         points: Math.round(diff)
+       });
+    } else {
+       // For negative adjustment, we add to penalties
+       // But penalties points should be negative to subtract from sum?
+       // In this file's logic: subtotal + bonuses + penalties.
+       // If we want to reduce sum, we need negative points.
+       penalties.push({
+         type: 'Adjustment',
+         condition: 'Score reconciliation',
+         points: Math.round(diff) 
+       });
+    }
+  }
 
   return {
     points: total,
