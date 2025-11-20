@@ -6,6 +6,7 @@ import {
   pharmacies,
   brands,
   strains,
+  products,
   cannabisStrains,
   manufacturerWeeklyStats,
   pharmacyWeeklyStats,
@@ -25,6 +26,22 @@ import {
   strainDailyChallengeStats,
 } from "../drizzle/dailyChallengeSchema";
 import { desc, eq, and, sql } from "drizzle-orm";
+
+function prioritizeByLogo<T extends { logoUrl?: string | null }>(
+  rows: T[],
+  limit: number,
+): T[] {
+  if (!rows || rows.length === 0) return [];
+
+  const withLogo = rows.filter(
+    (r) => typeof r.logoUrl === "string" && r.logoUrl.trim().length > 0,
+  );
+  const withoutLogo = rows.filter(
+    (r) => !r.logoUrl || r.logoUrl.trim().length === 0,
+  );
+
+  return [...withLogo, ...withoutLogo].slice(0, limit);
+}
 
 export const leaderboardRouter = router({
   /**
@@ -62,7 +79,7 @@ export const leaderboardRouter = router({
       const [
         topManufacturers,
         topPharmacies,
-        topBrands,
+        rawBrands,
         topStrains,
       ] = await Promise.all([
         // Manufacturers
@@ -114,7 +131,7 @@ export const leaderboardRouter = router({
           )
           .where(eq(brandDailyChallengeStats.statDate, targetDate!))
           .orderBy(desc(brandDailyChallengeStats.totalPoints))
-          .limit(input.limit),
+          .limit(input.limit * 3),
 
         // Flower (strains)
         db
@@ -134,17 +151,16 @@ export const leaderboardRouter = router({
           .limit(input.limit),
       ]);
 
+      const topBrands = prioritizeByLogo(rawBrands, input.limit);
+
       // Products from daily challenge stats (best-effort; if anything is off, just log and return empty)
-      let topProducts:
-        | { id: number; name: string; imageUrl: string | null; score: number | null }[]
-        | [] = [];
+      let topProducts: any[] = [];
 
       try {
         topProducts = await db
           .select({
             id: strains.id,
             name: strains.name,
-            imageUrl: strains.imageUrl,
             score: productDailyChallengeStats.totalPoints,
           })
           .from(productDailyChallengeStats)
@@ -211,7 +227,7 @@ export const leaderboardRouter = router({
       const [
         topManufacturers,
         topPharmacies,
-        topBrands,
+        rawBrands,
         topStrains,
       ] = await Promise.all([
         // Manufacturers
@@ -256,12 +272,13 @@ export const leaderboardRouter = router({
           .limit(input.limit),
 
         // Brands
-        db.select({
-          id: brands.id,
-          name: brands.name,
-          logoUrl: brands.logoUrl,
-          score: brandWeeklyStats.totalPoints,
-        })
+        db
+          .select({
+            id: brands.id,
+            name: brands.name,
+            logoUrl: brands.logoUrl,
+            score: brandWeeklyStats.totalPoints,
+          })
           .from(brandWeeklyStats)
           .innerJoin(brands, eq(brandWeeklyStats.brandId, brands.id))
           .where(
@@ -271,7 +288,7 @@ export const leaderboardRouter = router({
             ),
           )
           .orderBy(desc(brandWeeklyStats.totalPoints))
-          .limit(input.limit),
+          .limit(input.limit * 3),
 
         // Cannabis Strains
         db.select({
@@ -294,6 +311,8 @@ export const leaderboardRouter = router({
           .orderBy(desc(cannabisStrainWeeklyStats.totalPoints))
           .limit(input.limit),
       ]);
+
+      const topBrands = prioritizeByLogo(rawBrands, input.limit);
 
       // Products (best-effort: uses strainWeeklyStats; if something is off, just skip)
       let topProducts:

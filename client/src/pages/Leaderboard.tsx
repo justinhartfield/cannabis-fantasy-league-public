@@ -42,14 +42,16 @@ const Leaderboard = () => {
   });
 
   // Components for rendering
-  const EntityList = ({ 
-    title, 
-    data, 
-    icon: Icon 
-  }: { 
-    title: string, 
-    data: any[], 
-    icon: any 
+  const EntityList = ({
+    title,
+    data,
+    icon: Icon,
+    emptyMessage,
+  }: {
+    title: string;
+    data: any[];
+    icon: any;
+    emptyMessage?: string;
   }) => (
     <div className="space-y-4">
       <div className="flex items-center gap-2 mb-4">
@@ -91,7 +93,7 @@ const Leaderboard = () => {
         </div>
       ) : (
         <div className="text-center py-8 text-muted-foreground">
-          No data available
+          {emptyMessage ?? "No data available"}
         </div>
       )}
     </div>
@@ -262,7 +264,12 @@ const Leaderboard = () => {
                     <CardTitle className="text-base">Top Products</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <EntityList title="" data={dailyQuery.data?.products || []} icon={Trophy} />
+                    <EntityList
+                      title=""
+                      data={dailyQuery.data?.products || []}
+                      icon={Trophy}
+                      emptyMessage="No product scores yet for this date. Data is still syncing."
+                    />
                   </CardContent>
                 </Card>
               )}
@@ -328,7 +335,12 @@ const Leaderboard = () => {
                     <CardTitle className="text-base">Top Products</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <EntityList title="" data={weeklyQuery.data?.products || []} icon={Trophy} />
+                    <EntityList
+                      title=""
+                      data={weeklyQuery.data?.products || []}
+                      icon={Trophy}
+                      emptyMessage="No product scores yet for this week."
+                    />
                   </CardContent>
                 </Card>
               )}
