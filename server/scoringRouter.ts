@@ -94,6 +94,7 @@ import {
   manufacturerDailyChallengeStats,
   strainDailyChallengeStats,
   pharmacyDailyChallengeStats,
+  brandDailyChallengeStats,
 } from '../drizzle/dailyChallengeSchema';
 import { eq, and, inArray, sql } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
@@ -770,7 +771,7 @@ export const scoringRouter = router({
         lineupSlots.forEach((slot) => collectAssetId(slot.assetType, slot.assetId));
 
         // Fetch actual stat records from challenge stats tables
-        const [manufacturerStats, strainStats, productStats, pharmacyStats] = await Promise.all([
+        const [manufacturerStats, strainStats, productStats, pharmacyStats, brandStats] = await Promise.all([
           manufacturerIds.size > 0
             ? db.select()
                 .from(manufacturerDailyChallengeStats)
@@ -803,6 +804,14 @@ export const scoringRouter = router({
                   sql`${pharmacyDailyChallengeStats.statDate} = ${input.statDate}::date`
                 ))
             : [],
+          brandIds.size > 0
+            ? db.select()
+                .from(brandDailyChallengeStats)
+                .where(and(
+                  inArray(brandDailyChallengeStats.brandId, Array.from(brandIds)),
+                  sql`${brandDailyChallengeStats.statDate} = ${input.statDate}::date`
+                ))
+            : [],
         ]);
 
         // Create maps for quick lookup
@@ -810,6 +819,7 @@ export const scoringRouter = router({
         const strainStatMap = new Map(strainStats.map(s => [s.strainId, s]));
         const productStatMap = new Map(productStats.map(s => [s.productId, s]));
         const pharmacyStatMap = new Map(pharmacyStats.map(s => [s.pharmacyId, s]));
+        const brandStatMap = new Map(brandStats.map(s => [s.brandId, s]));
 
         const [manufacturerNames, strainNames, productNames, pharmacyNames, brandNames] = await Promise.all([
           manufacturerIds.size > 0
@@ -864,6 +874,8 @@ export const scoringRouter = router({
             statRecord = productStatMap.get(bd.assetId);
           } else if (bd.assetType === 'pharmacy' && bd.assetId) {
             statRecord = pharmacyStatMap.get(bd.assetId);
+          } else if (bd.assetType === 'brand' && bd.assetId) {
+            statRecord = brandStatMap.get(bd.assetId);
           }
           
           return {
@@ -936,6 +948,15 @@ type StatRecord = {
   previousRank?: number | null;
   salesVolumeGrams?: number | null;
   revenueCents?: number | null;
+  // Brand-specific fields
+  totalRatings?: number | null;
+  averageRating?: string | number | null;
+  bayesianAverage?: string | number | null;
+  veryGoodCount?: number | null;
+  goodCount?: number | null;
+  acceptableCount?: number | null;
+  badCount?: number | null;
+  veryBadCount?: number | null;
 };
 
 function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow, statRecord?: StatRecord): BreakdownDetail {
