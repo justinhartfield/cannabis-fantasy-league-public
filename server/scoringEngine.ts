@@ -79,24 +79,15 @@ const eurosFromCents = (cents: number): string => (cents / 100).toFixed(2);
 function finalizeDailyBreakdown(
   components: BreakdownComponent[],
   bonuses: BreakdownBonus[],
-  penalties: BreakdownBonus[] = [],
-  storedTotal?: number | null,
-  computedTotal?: number
+  penalties: BreakdownBonus[] = []
 ): BreakdownResult {
-  const targetTotal =
-    typeof storedTotal === 'number'
-      ? storedTotal
-      : typeof computedTotal === 'number'
-        ? computedTotal
-        : 0;
-
   const subtotal = components.reduce((sum, component) => sum + component.points, 0);
   const bonusTotal = bonuses.reduce((sum, bonus) => sum + bonus.points, 0);
   const penaltyTotal = penalties.reduce((sum, penalty) => sum + penalty.points, 0);
   const total = subtotal + bonusTotal + penaltyTotal;
 
   return {
-    points: targetTotal,
+    points: total,
     breakdown: {
       components,
       bonuses,
@@ -196,7 +187,7 @@ export function buildManufacturerDailyBreakdown(statRecord: ManufacturerDailySou
     });
   }
 
-  return finalizeDailyBreakdown(components, bonuses, [], statRecord.totalPoints, scoreParts.totalPoints);
+  return finalizeDailyBreakdown(components, bonuses, []);
 }
 
 export function buildStrainDailyBreakdown(statRecord: StrainDailySource): BreakdownResult {
@@ -269,7 +260,7 @@ export function buildStrainDailyBreakdown(statRecord: StrainDailySource): Breakd
     });
   }
 
-  return finalizeDailyBreakdown(components, bonuses, [], statRecord.totalPoints, scoreParts.totalPoints);
+  return finalizeDailyBreakdown(components, bonuses, []);
 }
 
 export function buildPharmacyDailyBreakdown(statRecord: PharmacyDailySource): BreakdownResult {
@@ -342,7 +333,7 @@ export function buildPharmacyDailyBreakdown(statRecord: PharmacyDailySource): Br
     });
   }
 
-  return finalizeDailyBreakdown(components, bonuses, [], statRecord.totalPoints, scoreParts.totalPoints);
+  return finalizeDailyBreakdown(components, bonuses, []);
 }
 
 export function buildBrandDailyBreakdown(statRecord: BrandDailySource): BreakdownResult {
@@ -390,7 +381,7 @@ export function buildBrandDailyBreakdown(statRecord: BrandDailySource): Breakdow
     });
   }
 
-  return finalizeDailyBreakdown(components, bonuses, [], storedPoints, scoreParts.totalPoints);
+  return finalizeDailyBreakdown(components, bonuses, []);
 }
 
 // ============================================================================
