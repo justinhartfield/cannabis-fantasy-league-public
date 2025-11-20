@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams, useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
@@ -297,7 +297,7 @@ export default function DailyChallenge() {
   // Auto-calculation removed - scores are now calculated by the backend scheduler
   // Admin users can still manually trigger calculation using the "Calculate Scores" button
 
-  const handleCalculateScores = () => {
+  const handleCalculateScores = useCallback(() => {
     setIsCalculating(true);
     // Don't pass statDate - let the backend use the challenge creation date
     // This ensures we calculate scores for the date when stats were recorded
@@ -305,7 +305,22 @@ export default function DailyChallenge() {
       challengeId,
       statDate: statDate || '', // Use the challenge's stat date, not today
     });
-  };
+  }, [calculateChallengeDayMutation, challengeId, statDate]);
+
+  // Auto-trigger live score update for new challenges on first visit
+  useEffect(() => {
+    // Only trigger if league is active and we haven't updated yet
+    if (league?.status === 'active' && challengeId) {
+      const AUTO_UPDATE_KEY = `challenge-auto-update-${challengeId}`;
+      const hasAutoUpdated = localStorage.getItem(AUTO_UPDATE_KEY);
+
+      if (!hasAutoUpdated) {
+        console.log('[AutoUpdate] Triggering initial score update for challenge', challengeId);
+        handleCalculateScores();
+        localStorage.setItem(AUTO_UPDATE_KEY, 'true');
+      }
+    }
+  }, [league?.status, challengeId, handleCalculateScores]);
 
   const handleRematch = () => {
     if (!challengeId) return;
