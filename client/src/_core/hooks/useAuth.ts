@@ -1,5 +1,6 @@
 import { useUser, useClerk } from "@clerk/clerk-react";
 import { useCallback, useMemo } from "react";
+import { trpc } from "@/lib/trpc";
 
 type UseAuthOptions = {
   redirectOnUnauthenticated?: boolean;
@@ -7,8 +8,13 @@ type UseAuthOptions = {
 };
 
 export function useAuth(options?: UseAuthOptions) {
-  const { isLoaded, isSignedIn, user } = useUser();
+  const { isLoaded, isSignedIn, user: clerkUser } = useUser();
   const { signOut } = useClerk();
+  
+  // Fetch the database user (which has the numeric ID we need)
+  const { data: dbUser } = trpc.auth.me.useQuery(undefined, {
+    enabled: isSignedIn && isLoaded,
+  });
 
   const logout = useCallback(async () => {
     try {
@@ -20,12 +26,13 @@ export function useAuth(options?: UseAuthOptions) {
   }, [signOut]);
 
   const state = useMemo(() => {
-    // Map Clerk user to our app's user format
-    const mappedUser = user ? {
-      id: user.id,
-      name: user.fullName || user.username || "",
-      email: user.primaryEmailAddress?.emailAddress || "",
-      username: user.username || "",
+    // Map database user to our app's user format
+    // Use database user ID (numeric) instead of Clerk ID (string)
+    const mappedUser = dbUser ? {
+      id: dbUser.id, // This is the numeric database ID
+      name: dbUser.name || clerkUser?.fullName || clerkUser?.username || "",
+      email: dbUser.email || clerkUser?.primaryEmailAddress?.emailAddress || "",
+      username: dbUser.name || clerkUser?.username || "",
     } : null;
 
     // Store user info in localStorage for compatibility
@@ -36,11 +43,11 @@ export function useAuth(options?: UseAuthOptions) {
 
     return {
       user: mappedUser,
-      loading: !isLoaded,
+      loading: !isLoaded || (isSignedIn && !dbUser), // Wait for both Clerk and database user
       error: null,
-      isAuthenticated: isSignedIn || false,
+      isAuthenticated: isSignedIn && !!dbUser, // Only authenticated if we have both
     };
-  }, [user, isLoaded, isSignedIn]);
+  }, [dbUser, clerkUser, isLoaded, isSignedIn]);
 
   return {
     ...state,
