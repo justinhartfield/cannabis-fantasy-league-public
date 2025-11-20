@@ -36,6 +36,16 @@ function Router() {
       <Route path={"/sign-up/sso-callback"} component={SignUpPage} />
       <Route path={"/leagues"} component={LeagueList} />
       <Route path={"/league/create"} component={CreateLeague} />
+      {/* League routes (season mode) */}
+      <Route path={"/league/:id"} component={LeagueDetail} />
+      <Route path={"/league/:id/draft"} component={Draft} />
+      <Route path={"/league/:id/pre-draft"} component={PreDraft} />
+      <Route path={"/league/:id/matchups"} component={Matchups} />
+      <Route path={"/league/:id/standings"} component={Standings} />
+      <Route path={"/league/:id/playoffs"} component={Playoffs} />
+      <Route path={"/league/:id/lineup"} component={Lineup} />
+      <Route path={"/league/:id/scoring"} component={Scoring} />
+      {/* Challenge routes (daily mode) */}
       <Route path={"/challenge/:id"} component={LeagueDetail} />
       <Route path={"/challenge/:id/draft"} component={Draft} />
       <Route path={"/challenge/:id/pre-draft"} component={PreDraft} />
