@@ -1109,7 +1109,7 @@ function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow, statRecord?: Stat
 }
 
 function createNoDataBreakdown(totalPoints: number): BreakdownDetail {
-  const detail: BreakdownDetail = {
+  return {
     components: [
       {
         category: 'No Data',
@@ -1121,20 +1121,8 @@ function createNoDataBreakdown(totalPoints: number): BreakdownDetail {
     bonuses: [],
     penalties: [],
     subtotal: 0,
-    total: totalPoints,
+    total: 0,
   };
-
-  if (totalPoints !== 0) {
-    detail.components.push({
-      category: 'Score Sync Adjustment',
-      value: totalPoints,
-      formula: 'Align with stored score',
-      points: totalPoints,
-    });
-    detail.subtotal = totalPoints;
-  }
-
-  return detail;
 }
 
 function buildChallengeLineupSlots(lineup?: WeeklyLineupRow | undefined): ChallengeSlotInfo[] {

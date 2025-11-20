@@ -90,22 +90,10 @@ function finalizeDailyBreakdown(
         ? computedTotal
         : 0;
 
-  let subtotal = components.reduce((sum, component) => sum + component.points, 0);
+  const subtotal = components.reduce((sum, component) => sum + component.points, 0);
   const bonusTotal = bonuses.reduce((sum, bonus) => sum + bonus.points, 0);
   const penaltyTotal = penalties.reduce((sum, penalty) => sum + penalty.points, 0);
-  let total = subtotal + bonusTotal + penaltyTotal;
-
-  if (total !== targetTotal) {
-    const adjustment = targetTotal - total;
-    components.push({
-      category: 'Score Sync Adjustment',
-      value: adjustment,
-      formula: 'Align with stored score',
-      points: adjustment,
-    });
-    subtotal += adjustment;
-    total += adjustment;
-  }
+  const total = subtotal + bonusTotal + penaltyTotal;
 
   return {
     points: targetTotal,
