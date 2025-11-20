@@ -16,6 +16,7 @@ import Lineup from "./pages/Lineup";
 import Scoring from "./pages/Scoring";
 import AcceptInvitation from "./pages/AcceptInvitation";
 import Login from "./pages/Login";
+import SignUpPage from "./pages/SignUp";
 import Admin from "./pages/Admin";
 import PredictionStreak from "./pages/PredictionStreak";
 import PredictionLeaderboard from "./pages/PredictionLeaderboard";
@@ -29,6 +30,10 @@ function Router() {
     <Switch>
       <Route path={"/"} component={Dashboard} />
       <Route path={"/login"} component={Login} />
+      <Route path={"/sign-up"} component={SignUpPage} />
+      {/* Clerk SSO callback routes - these are handled by Clerk automatically */}
+      <Route path={"/login/sso-callback"} component={Login} />
+      <Route path={"/sign-up/sso-callback"} component={SignUpPage} />
       <Route path={"/leagues"} component={LeagueList} />
       <Route path={"/league/create"} component={CreateLeague} />
       <Route path={"/challenge/:id"} component={LeagueDetail} />
