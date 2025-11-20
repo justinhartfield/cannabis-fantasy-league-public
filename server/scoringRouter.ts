@@ -968,147 +968,89 @@ function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow, statRecord?: Stat
   const data = statRecord ?? raw;
 
   if (bd.assetType === 'manufacturer') {
-    // Use trend-based breakdown if trend data is available (non-zero multiplier or streak/velocity/consistency/market share)
-    const hasTrendData =
-      Number(data.trendMultiplier ?? 0) > 0 ||
-      Number(data.streakDays ?? 0) > 0 ||
-      Number(data.consistencyScore ?? 0) > 0 ||
-      Number(data.velocityScore ?? 0) !== 0 ||
-      Number(data.marketSharePercent ?? 0) > 0;
-
-    if (hasTrendData) {
-      const orderCount = Number(data.orderCount ?? 0);
-      const rank = data.rank ?? 0;
-      const previousRank = data.previousRank ?? rank;
-      const streakDays = Number(data.streakDays ?? 0);
-      
-      // Calculate the trend score
-      const scoring = calculateManufacturerTrendScore({
-        orderCount,
-        days1: 0,
-        days7: 0,
-        currentRank: rank,
-        previousRank,
-        consistencyScore: Number(data.consistencyScore ?? 0),
-        velocityScore: Number(data.velocityScore ?? 0),
-        streakDays,
-        marketSharePercent: Number(data.marketSharePercent ?? 0),
-        trendMultiplier: Number(data.trendMultiplier ?? 0) || undefined,
-      });
-      
-      // Build the formatted breakdown
-      return buildManufacturerTrendBreakdown(
-        scoring,
-        orderCount,
-        rank,
-        previousRank,
-        streakDays
-      ).breakdown;
-    }
-    // Fallback to old breakdown for legacy data
-    return buildManufacturerDailyBreakdown({
-      salesVolumeGrams: Number(data.salesVolumeGrams ?? 0),
-      orderCount: Number(data.orderCount ?? 0),
-      revenueCents: Number(data.revenueCents ?? 0),
-      rank: data.rank ?? 0,
-      totalPoints,
-    }).breakdown;
+    const orderCount = Number(data.orderCount ?? 0);
+    const rank = data.rank ?? 0;
+    const previousRank = data.previousRank ?? rank;
+    const streakDays = Number(data.streakDays ?? 0);
+    
+    const scoring = calculateManufacturerTrendScore({
+      orderCount,
+      days1: 0,
+      days7: 0,
+      currentRank: rank,
+      previousRank,
+      consistencyScore: Number(data.consistencyScore ?? 0),
+      velocityScore: Number(data.velocityScore ?? 0),
+      streakDays,
+      marketSharePercent: Number(data.marketSharePercent ?? 0),
+      trendMultiplier: Number(data.trendMultiplier ?? 0) || undefined,
+    });
+    
+    return buildManufacturerTrendBreakdown(
+      scoring,
+      orderCount,
+      rank,
+      previousRank,
+      streakDays
+    ).breakdown;
   }
 
   if (bd.assetType === 'cannabis_strain' || bd.assetType === 'product') {
-    // Use trend-based breakdown if trend data is available
-    const hasTrendData =
-      Number(data.trendMultiplier ?? 0) > 0 ||
-      Number(data.streakDays ?? 0) > 0 ||
-      Number(data.consistencyScore ?? 0) > 0 ||
-      Number(data.velocityScore ?? 0) !== 0 ||
-      Number(data.marketSharePercent ?? 0) > 0;
-
-    if (hasTrendData) {
-      const orderCount = Number(data.orderCount ?? 0);
-      const rank = data.rank ?? 0;
-      const previousRank = data.previousRank ?? rank;
-      const streakDays = Number(data.streakDays ?? 0);
-      
-      // Calculate the trend score
-      const scoreCalculator = bd.assetType === 'product' ? calculateProductTrendScore : calculateStrainTrendScore;
-      const scoring = scoreCalculator({
-        orderCount,
-        days1: 0,
-        days7: 0,
-        currentRank: rank,
-        previousRank,
-        consistencyScore: Number(data.consistencyScore ?? 0),
-        velocityScore: Number(data.velocityScore ?? 0),
-        streakDays,
-        marketSharePercent: Number(data.marketSharePercent ?? 0),
-        trendMultiplier: Number(data.trendMultiplier ?? 0) || undefined,
-      } as TrendScoringStats);
-      
-      // Build the formatted breakdown
-      const builder = bd.assetType === 'product' ? buildProductTrendBreakdown : buildStrainTrendBreakdown;
-      return builder(
-        scoring,
-        orderCount,
-        rank,
-        previousRank,
-        streakDays
-      ).breakdown;
-    }
-    // Fallback to old breakdown for legacy data
-    return buildStrainDailyBreakdown({
-      salesVolumeGrams: Number(data.salesVolumeGrams ?? 0),
-      orderCount: Number(data.orderCount ?? 0),
-      rank: data.rank ?? 0,
-      totalPoints,
-    }).breakdown;
+    const orderCount = Number(data.orderCount ?? 0);
+    const rank = data.rank ?? 0;
+    const previousRank = data.previousRank ?? rank;
+    const streakDays = Number(data.streakDays ?? 0);
+    
+    const scoreCalculator = bd.assetType === 'product' ? calculateProductTrendScore : calculateStrainTrendScore;
+    const scoring = scoreCalculator({
+      orderCount,
+      days1: 0,
+      days7: 0,
+      currentRank: rank,
+      previousRank,
+      consistencyScore: Number(data.consistencyScore ?? 0),
+      velocityScore: Number(data.velocityScore ?? 0),
+      streakDays,
+      marketSharePercent: Number(data.marketSharePercent ?? 0),
+      trendMultiplier: Number(data.trendMultiplier ?? 0) || undefined,
+    } as TrendScoringStats);
+    
+    const builder = bd.assetType === 'product' ? buildProductTrendBreakdown : buildStrainTrendBreakdown;
+    return builder(
+      scoring,
+      orderCount,
+      rank,
+      previousRank,
+      streakDays
+    ).breakdown;
   }
 
   if (bd.assetType === 'pharmacy') {
-    // Use trend-based breakdown if trend data is available
-    const hasTrendData =
-      Number(data.trendMultiplier ?? 0) > 0 ||
-      Number(data.streakDays ?? 0) > 0 ||
-      Number(data.consistencyScore ?? 0) > 0 ||
-      Number(data.velocityScore ?? 0) !== 0 ||
-      Number(data.marketSharePercent ?? 0) > 0;
-
-    if (hasTrendData) {
-      const orderCount = Number(data.orderCount ?? 0);
-      const rank = data.rank ?? 0;
-      const previousRank = data.previousRank ?? rank;
-      const streakDays = Number(data.streakDays ?? 0);
-      
-      // Calculate the trend score
-      const scoring = calculatePharmacyTrendScore({
-        orderCount,
-        days1: 0,
-        days7: 0,
-        currentRank: rank,
-        previousRank,
-        consistencyScore: Number(data.consistencyScore ?? 0),
-        velocityScore: Number(data.velocityScore ?? 0),
-        streakDays,
-        marketSharePercent: Number(data.marketSharePercent ?? 0),
-        trendMultiplier: Number(data.trendMultiplier ?? 0) || undefined,
-      } as TrendScoringStats);
-      
-      // Build the formatted breakdown
-      return buildPharmacyTrendBreakdown(
-        scoring,
-        orderCount,
-        rank,
-        previousRank,
-        streakDays
-      ).breakdown;
-    }
-    // Fallback to old breakdown for legacy data
-    return buildPharmacyDailyBreakdown({
-      orderCount: Number(data.orderCount ?? 0),
-      revenueCents: Number(data.revenueCents ?? 0),
-      rank: data.rank ?? 0,
-      totalPoints,
-    }).breakdown;
+    const orderCount = Number(data.orderCount ?? 0);
+    const rank = data.rank ?? 0;
+    const previousRank = data.previousRank ?? rank;
+    const streakDays = Number(data.streakDays ?? 0);
+    
+    const scoring = calculatePharmacyTrendScore({
+      orderCount,
+      days1: 0,
+      days7: 0,
+      currentRank: rank,
+      previousRank,
+      consistencyScore: Number(data.consistencyScore ?? 0),
+      velocityScore: Number(data.velocityScore ?? 0),
+      streakDays,
+      marketSharePercent: Number(data.marketSharePercent ?? 0),
+      trendMultiplier: Number(data.trendMultiplier ?? 0) || undefined,
+    } as TrendScoringStats);
+    
+    return buildPharmacyTrendBreakdown(
+      scoring,
+      orderCount,
+      rank,
+      previousRank,
+      streakDays
+    ).breakdown;
   }
 
   if (bd.assetType === 'brand') {

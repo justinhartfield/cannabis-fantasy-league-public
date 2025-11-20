@@ -110,230 +110,93 @@ type PharmacyDailySource = Pick<PharmacyDailyStat, 'orderCount' | 'revenueCents'
 type BrandDailySource = Pick<BrandDailyStat, 'totalRatings' | 'averageRating' | 'bayesianAverage' | 'veryGoodCount' | 'goodCount' | 'acceptableCount' | 'badCount' | 'veryBadCount' | 'rank' | 'totalPoints'>;
 
 export function buildManufacturerDailyBreakdown(statRecord: ManufacturerDailySource): BreakdownResult {
-  const salesVolumeGrams = statRecord.salesVolumeGrams ?? 0;
   const orderCount = statRecord.orderCount ?? 0;
-  const revenueCents = statRecord.revenueCents ?? 0;
   const rank = statRecord.rank ?? 0;
 
-  // Check if trend data is available - if so, use trend-based breakdown
-  // Use trend scoring if trendMultiplier is set and non-zero, OR if any trend fields are populated
-  const hasTrendData = ('trendMultiplier' in statRecord && statRecord.trendMultiplier !== null && statRecord.trendMultiplier !== undefined && Number(statRecord.trendMultiplier) !== 0) ||
-    ('streakDays' in statRecord && Number(statRecord.streakDays ?? 0) > 0) ||
-    ('previousRank' in statRecord && statRecord.previousRank !== null && statRecord.previousRank !== undefined && statRecord.previousRank !== 0);
+  // Use trend-based scoring exclusively
+  const { calculateManufacturerTrendScore } = require('./trendScoringEngine');
+  const { buildManufacturerTrendBreakdown } = require('./trendScoringBreakdowns');
   
-  if (hasTrendData) {
-    const { calculateManufacturerTrendScore } = require('./trendScoringEngine');
-    const { buildManufacturerTrendBreakdown } = require('./trendScoringBreakdowns');
-    
-    // Calculate the trend score breakdown
-    const scoring = calculateManufacturerTrendScore({
-      orderCount,
-      trendMultiplier: Number(statRecord.trendMultiplier ?? 1),
-      rank,
-      previousRank: statRecord.previousRank ?? rank,
-      consistencyScore: Number(statRecord.consistencyScore ?? 0),
-      velocityScore: Number(statRecord.velocityScore ?? 0),
-      streakDays: Number(statRecord.streakDays ?? 0),
-      marketSharePercent: Number(statRecord.marketSharePercent ?? 0),
-    });
-    
-    // Build the formatted breakdown for display
-    return buildManufacturerTrendBreakdown(
-      scoring,
-      orderCount,
-      rank,
-      statRecord.previousRank ?? rank,
-      Number(statRecord.streakDays ?? 0)
-    );
-  }
-
-  // Fallback to old breakdown for legacy data
-  const scoreParts = calculateDailyManufacturerScore(
-    {
-      salesVolumeGrams,
-      orderCount,
-      revenueCents,
-    },
-    rank
+  // Calculate the trend score breakdown
+  const scoring = calculateManufacturerTrendScore({
+    orderCount,
+    trendMultiplier: Number(statRecord.trendMultiplier ?? 1),
+    rank,
+    previousRank: statRecord.previousRank ?? rank,
+    consistencyScore: Number(statRecord.consistencyScore ?? 0),
+    velocityScore: Number(statRecord.velocityScore ?? 0),
+    streakDays: Number(statRecord.streakDays ?? 0),
+    marketSharePercent: Number(statRecord.marketSharePercent ?? 0),
+  });
+  
+  // Build the formatted breakdown for display
+  return buildManufacturerTrendBreakdown(
+    scoring,
+    orderCount,
+    rank,
+    statRecord.previousRank ?? rank,
+    Number(statRecord.streakDays ?? 0)
   );
-
-  const components: BreakdownComponent[] = [
-    {
-      category: 'Sales Volume',
-      value: salesVolumeGrams,
-      formula: `${salesVolumeGrams}g ÷ 10`,
-      points: scoreParts.salesVolumePoints,
-    },
-    {
-      category: 'Order Count',
-      value: orderCount,
-      formula: `${orderCount} orders × 5`,
-      points: scoreParts.orderCountPoints,
-    },
-    {
-      category: 'Revenue',
-      value: `€${eurosFromCents(revenueCents)}`,
-      formula: `€${eurosFromCents(revenueCents)} ÷ 10`,
-      points: scoreParts.revenuePoints,
-    },
-  ];
-
-  const bonuses: BreakdownBonus[] = [];
-  if (scoreParts.rankBonusPoints) {
-    bonuses.push({
-      type: 'Top Seller Bonus',
-      condition: rank === 1 ? 'Rank #1' : `Rank #${rank}`,
-      points: scoreParts.rankBonusPoints,
-    });
-  }
-
-  return finalizeDailyBreakdown(components, bonuses, []);
 }
 
 export function buildStrainDailyBreakdown(statRecord: StrainDailySource): BreakdownResult {
-  const salesVolumeGrams = statRecord.salesVolumeGrams ?? 0;
   const orderCount = statRecord.orderCount ?? 0;
   const rank = statRecord.rank ?? 0;
 
-  // Check if trend data is available - if so, use trend-based breakdown
-  // Use trend scoring if trendMultiplier is set and non-zero, OR if any trend fields are populated
-  const hasTrendData = ('trendMultiplier' in statRecord && statRecord.trendMultiplier !== null && statRecord.trendMultiplier !== undefined && Number(statRecord.trendMultiplier) !== 0) ||
-    ('streakDays' in statRecord && Number(statRecord.streakDays ?? 0) > 0) ||
-    ('previousRank' in statRecord && statRecord.previousRank !== null && statRecord.previousRank !== undefined && statRecord.previousRank !== 0);
+  // Use trend-based scoring exclusively
+  const { calculateStrainTrendScore } = require('./trendScoringEngine');
+  const { buildStrainTrendBreakdown } = require('./trendScoringBreakdowns');
   
-  if (hasTrendData) {
-    const { calculateStrainTrendScore } = require('./trendScoringEngine');
-    const { buildStrainTrendBreakdown } = require('./trendScoringBreakdowns');
-    
-    // Calculate the trend score breakdown
-    const scoring = calculateStrainTrendScore({
-      orderCount,
-      trendMultiplier: Number(statRecord.trendMultiplier ?? 1),
-      rank,
-      previousRank: statRecord.previousRank ?? rank,
-      consistencyScore: Number(statRecord.consistencyScore ?? 0),
-      velocityScore: Number(statRecord.velocityScore ?? 0),
-      streakDays: Number(statRecord.streakDays ?? 0),
-      marketSharePercent: Number(statRecord.marketSharePercent ?? 0),
-    });
-    
-    // Build the formatted breakdown for display
-    return buildStrainTrendBreakdown(
-      scoring,
-      orderCount,
-      rank,
-      statRecord.previousRank ?? rank,
-      Number(statRecord.streakDays ?? 0)
-    );
-  }
-
-  // Fallback to old breakdown for legacy data
-  const scoreParts = calculateDailyStrainScore(
-    {
-      salesVolumeGrams,
-      orderCount,
-    },
-    rank
+  // Calculate the trend score breakdown
+  const scoring = calculateStrainTrendScore({
+    orderCount,
+    trendMultiplier: Number(statRecord.trendMultiplier ?? 1),
+    rank,
+    previousRank: statRecord.previousRank ?? rank,
+    consistencyScore: Number(statRecord.consistencyScore ?? 0),
+    velocityScore: Number(statRecord.velocityScore ?? 0),
+    streakDays: Number(statRecord.streakDays ?? 0),
+    marketSharePercent: Number(statRecord.marketSharePercent ?? 0),
+  });
+  
+  // Build the formatted breakdown for display
+  return buildStrainTrendBreakdown(
+    scoring,
+    orderCount,
+    rank,
+    statRecord.previousRank ?? rank,
+    Number(statRecord.streakDays ?? 0)
   );
-
-  const components: BreakdownComponent[] = [
-    {
-      category: 'Sales Volume',
-      value: salesVolumeGrams,
-      formula: `${salesVolumeGrams}g ÷ 10`,
-      points: scoreParts.salesVolumePoints,
-    },
-    {
-      category: 'Order Count',
-      value: orderCount,
-      formula: `${orderCount} orders × 5`,
-      points: scoreParts.orderCountPoints,
-    },
-  ];
-
-  const bonuses: BreakdownBonus[] = [];
-  if (scoreParts.rankBonusPoints) {
-    bonuses.push({
-      type: 'Popularity Bonus',
-      condition: rank === 1 ? 'Rank #1' : `Rank #${rank}`,
-      points: scoreParts.rankBonusPoints,
-    });
-  }
-
-  return finalizeDailyBreakdown(components, bonuses, []);
 }
 
 export function buildPharmacyDailyBreakdown(statRecord: PharmacyDailySource): BreakdownResult {
   const orderCount = statRecord.orderCount ?? 0;
-  const revenueCents = statRecord.revenueCents ?? 0;
   const rank = statRecord.rank ?? 0;
 
-  // Check if trend data is available - if so, use trend-based breakdown
-  // Use trend scoring if trendMultiplier is set and non-zero, OR if any trend fields are populated
-  const hasTrendData = ('trendMultiplier' in statRecord && statRecord.trendMultiplier !== null && statRecord.trendMultiplier !== undefined && Number(statRecord.trendMultiplier) !== 0) ||
-    ('streakDays' in statRecord && Number(statRecord.streakDays ?? 0) > 0) ||
-    ('previousRank' in statRecord && statRecord.previousRank !== null && statRecord.previousRank !== undefined && statRecord.previousRank !== 0);
+  // Use trend-based scoring exclusively
+  const { calculatePharmacyTrendScore } = require('./trendScoringEngine');
+  const { buildPharmacyTrendBreakdown } = require('./trendScoringBreakdowns');
   
-  if (hasTrendData) {
-    const { calculatePharmacyTrendScore } = require('./trendScoringEngine');
-    const { buildPharmacyTrendBreakdown } = require('./trendScoringBreakdowns');
-    
-    // Calculate the trend score breakdown
-    const scoring = calculatePharmacyTrendScore({
-      orderCount,
-      trendMultiplier: Number(statRecord.trendMultiplier ?? 1),
-      rank,
-      previousRank: statRecord.previousRank ?? rank,
-      consistencyScore: Number(statRecord.consistencyScore ?? 0),
-      velocityScore: Number(statRecord.velocityScore ?? 0),
-      streakDays: Number(statRecord.streakDays ?? 0),
-      marketSharePercent: Number(statRecord.marketSharePercent ?? 0),
-    });
-    
-    // Build the formatted breakdown for display
-    return buildPharmacyTrendBreakdown(
-      scoring,
-      orderCount,
-      rank,
-      statRecord.previousRank ?? rank,
-      Number(statRecord.streakDays ?? 0)
-    );
-  }
-
-  // Fallback to old breakdown for legacy data
-  const scoreParts = calculateDailyPharmacyScore(
-    {
-      orderCount,
-      revenueCents,
-    },
-    rank
+  // Calculate the trend score breakdown
+  const scoring = calculatePharmacyTrendScore({
+    orderCount,
+    trendMultiplier: Number(statRecord.trendMultiplier ?? 1),
+    rank,
+    previousRank: statRecord.previousRank ?? rank,
+    consistencyScore: Number(statRecord.consistencyScore ?? 0),
+    velocityScore: Number(statRecord.velocityScore ?? 0),
+    streakDays: Number(statRecord.streakDays ?? 0),
+    marketSharePercent: Number(statRecord.marketSharePercent ?? 0),
+  });
+  
+  // Build the formatted breakdown for display
+  return buildPharmacyTrendBreakdown(
+    scoring,
+    orderCount,
+    rank,
+    statRecord.previousRank ?? rank,
+    Number(statRecord.streakDays ?? 0)
   );
-
-  const components: BreakdownComponent[] = [
-    {
-      category: 'Order Count',
-      value: orderCount,
-      formula: `${orderCount} orders × 10`,
-      points: scoreParts.orderCountPoints,
-    },
-    {
-      category: 'Revenue',
-      value: `€${eurosFromCents(revenueCents)}`,
-      formula: `€${eurosFromCents(revenueCents)} ÷ 10`,
-      points: scoreParts.revenuePoints,
-    },
-  ];
-
-  const bonuses: BreakdownBonus[] = [];
-  if (scoreParts.rankBonusPoints) {
-    bonuses.push({
-      type: 'Top Pharmacy Bonus',
-      condition: rank === 1 ? 'Rank #1' : `Rank #${rank}`,
-      points: scoreParts.rankBonusPoints,
-    });
-  }
-
-  return finalizeDailyBreakdown(components, bonuses, []);
 }
 
 export function buildBrandDailyBreakdown(statRecord: BrandDailySource): BreakdownResult {
