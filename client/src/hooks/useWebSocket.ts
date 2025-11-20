@@ -29,6 +29,12 @@ export function useWebSocket(options: UseWebSocketOptions) {
   const maxReconnectAttempts = 5;
 
   const connect = useCallback(() => {
+    // Prevent connection with invalid userId
+    if (!userId || userId === 0) {
+      console.log('[WebSocket] Cannot connect: invalid userId');
+      return;
+    }
+
     // Prevent multiple simultaneous connection attempts
     if (wsRef.current?.readyState === WebSocket.OPEN || 
         wsRef.current?.readyState === WebSocket.CONNECTING) {
