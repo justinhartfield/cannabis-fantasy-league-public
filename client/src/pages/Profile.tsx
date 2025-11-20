@@ -21,6 +21,8 @@ export default function Profile() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const utils = trpc.useUtils();
+
   const { data: profile, isLoading: profileLoading, refetch: refetchProfile } = trpc.profile.getProfile.useQuery(
     undefined,
     {
@@ -37,6 +39,8 @@ export default function Profile() {
       toast.success("Profile updated successfully!");
       setIsEditing(false);
       refetchProfile();
+      // Invalidate auth.me cache to update user display everywhere
+      utils.auth.me.invalidate();
     },
     onError: (error) => {
       toast.error(`Failed to update profile: ${error.message}`);
