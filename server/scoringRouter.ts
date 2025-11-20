@@ -1113,15 +1113,15 @@ function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow, statRecord?: Stat
 
   if (bd.assetType === 'brand') {
     return buildBrandDailyBreakdown({
-      totalRatings: Number(raw.totalRatings ?? 0),
-      averageRating: raw.averageRating?.toString() ?? '0',
-      bayesianAverage: raw.bayesianAverage?.toString() ?? '0',
-      veryGoodCount: Number(raw.veryGoodCount ?? 0),
-      goodCount: Number(raw.goodCount ?? 0),
-      acceptableCount: Number(raw.acceptableCount ?? 0),
-      badCount: Number(raw.badCount ?? 0),
-      veryBadCount: Number(raw.veryBadCount ?? 0),
-      rank: raw.rank ?? 0,
+      totalRatings: Number(data.totalRatings ?? 0),
+      averageRating: data.averageRating?.toString() ?? '0',
+      bayesianAverage: data.bayesianAverage?.toString() ?? '0',
+      veryGoodCount: Number(data.veryGoodCount ?? 0),
+      goodCount: Number(data.goodCount ?? 0),
+      acceptableCount: Number(data.acceptableCount ?? 0),
+      badCount: Number(data.badCount ?? 0),
+      veryBadCount: Number(data.veryBadCount ?? 0),
+      rank: data.rank ?? 0,
       totalPoints,
     }).breakdown;
   }
