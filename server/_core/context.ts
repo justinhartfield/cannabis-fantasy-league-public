@@ -1,8 +1,6 @@
 import type { CreateExpressContextOptions } from "@trpc/server/adapters/express";
 import type { User } from "../../drizzle/schema";
-import { getDb } from "../db";
-import { users } from "../../drizzle/schema";
-import { eq } from "drizzle-orm";
+import { getUserByOpenId, upsertUser } from "../db";
 import { verifyToken } from "@clerk/backend";
 
 export type TrpcContext = {
@@ -16,34 +14,37 @@ export type TrpcContext = {
  * Creates or updates user in database based on Clerk user data
  */
 async function syncClerkUser(clerkUserId: string, email: string | undefined, name: string | undefined): Promise<User | null> {
-  const db = getDb();
-  
   try {
     // Check if user already exists (using openId field for Clerk ID)
-    const existingUser = await db.query.users.findFirst({
-      where: eq(users.openId, clerkUserId),
-    });
+    const existingUser = await getUserByOpenId(clerkUserId);
 
     if (existingUser) {
+      console.log('[tRPC Context] ✅ Found existing user:', existingUser.id, existingUser.name);
       return existingUser;
     }
 
-    // Create new user
+    // Create new user using upsertUser
     const username = name || email?.split('@')[0] || `user_${clerkUserId.slice(0, 8)}`;
     
-    const [newUser] = await db
-      .insert(users)
-      .values({
-        openId: clerkUserId,
-        email: email || null,
-        name: name || username,
-        loginMethod: 'clerk',
-        role: 'user',
-      })
-      .returning();
+    await upsertUser({
+      openId: clerkUserId,
+      email: email || null,
+      name: name || username,
+      loginMethod: 'clerk',
+      role: 'user',
+      lastSignedIn: new Date(),
+    });
 
-    console.log('[tRPC Context] ✅ Created new user from Clerk:', newUser.id, newUser.name);
-    return newUser;
+    // Fetch the newly created user
+    const newUser = await getUserByOpenId(clerkUserId);
+    
+    if (newUser) {
+      console.log('[tRPC Context] ✅ Created new user from Clerk:', newUser.id, newUser.name);
+      return newUser;
+    }
+
+    console.error('[tRPC Context] ❌ Failed to fetch newly created user');
+    return null;
   } catch (error) {
     console.error('[tRPC Context] ❌ Failed to sync Clerk user:', error);
     return null;
