@@ -1,17 +1,12 @@
 import { z } from "zod";
 import { router, publicProcedure } from "./_core/trpc";
 import { getDb } from "./db";
-import { 
-  manufacturers, 
-  pharmacies, 
-  brands, 
-  products, 
+import {
+  manufacturers,
+  pharmacies,
+  brands,
+  strains,
   cannabisStrains,
-  manufacturerDailyStats,
-  pharmacyDailyStats,
-  brandDailyStats,
-  productDailyStats,
-  cannabisStrainDailyStats,
   manufacturerWeeklyStats,
   pharmacyWeeklyStats,
   brandWeeklyStats,
@@ -20,8 +15,15 @@ import {
   teams,
   users,
   weeklyTeamScores,
-  leagues
+  leagues,
 } from "../drizzle/schema";
+import {
+  manufacturerDailyChallengeStats,
+  pharmacyDailyChallengeStats,
+  brandDailyChallengeStats,
+  productDailyChallengeStats,
+  strainDailyChallengeStats,
+} from "../drizzle/dailyChallengeSchema";
 import { desc, eq, and, sql } from "drizzle-orm";
 
 export const leaderboardRouter = router({
@@ -35,26 +37,28 @@ export const leaderboardRouter = router({
     }))
     .query(async ({ input }) => {
       const db = await getDb();
-      if (!db) return { manufacturers: [], pharmacies: [], brands: [], products: [], strains: [] };
+      if (!db) {
+        return { manufacturers: [], pharmacies: [], brands: [], products: [], strains: [] };
+      }
 
-      // If no date provided, find the latest date with data from manufacturers
+      // If no date provided, find the latest date with data from daily challenge stats
       let targetDate = input.date;
       if (!targetDate) {
         const latestStat = await db
-          .select({ date: manufacturerDailyStats.statDate })
-          .from(manufacturerDailyStats)
-          .orderBy(desc(manufacturerDailyStats.statDate))
+          .select({ date: manufacturerDailyChallengeStats.statDate })
+          .from(manufacturerDailyChallengeStats)
+          .orderBy(desc(manufacturerDailyChallengeStats.statDate))
           .limit(1);
-        
+
         if (latestStat.length > 0) {
           targetDate = latestStat[0].date;
         } else {
-          // Fallback to today if no data found (will return empty results)
-          targetDate = new Date().toISOString().split('T')[0];
+          // Fallback (will just return empty lists)
+          targetDate = new Date().toISOString().split("T")[0];
         }
       }
 
-      // Fetch top performers for each category
+      // Core categories from daily challenge stats
       const [
         topManufacturers,
         topPharmacies,
@@ -62,89 +66,94 @@ export const leaderboardRouter = router({
         topStrains,
       ] = await Promise.all([
         // Manufacturers
-        db.select({
-          id: manufacturers.id,
-          name: manufacturers.name,
-          logoUrl: manufacturers.logoUrl,
-          score: manufacturerDailyStats.totalPoints,
-          rank: manufacturerDailyStats.marketShareRank,
-          rankChange: manufacturerDailyStats.rankChange,
-        })
-          .from(manufacturerDailyStats)
+        db
+          .select({
+            id: manufacturers.id,
+            name: manufacturers.name,
+            logoUrl: manufacturers.logoUrl,
+            score: manufacturerDailyChallengeStats.totalPoints,
+          })
+          .from(manufacturerDailyChallengeStats)
           .innerJoin(
             manufacturers,
-            eq(manufacturerDailyStats.manufacturerId, manufacturers.id),
+            eq(manufacturerDailyChallengeStats.manufacturerId, manufacturers.id),
           )
-          .where(eq(manufacturerDailyStats.statDate, targetDate!))
-          .orderBy(desc(manufacturerDailyStats.totalPoints))
+          .where(eq(manufacturerDailyChallengeStats.statDate, targetDate!))
+          .orderBy(desc(manufacturerDailyChallengeStats.totalPoints))
           .limit(input.limit),
 
         // Pharmacies
-        db.select({
-          id: pharmacies.id,
-          name: pharmacies.name,
-          logoUrl: pharmacies.logoUrl,
-          score: pharmacyDailyStats.totalPoints,
-          rankChange: sql<number>`0`, // Not currently tracked in daily stats same way
-        })
-          .from(pharmacyDailyStats)
-          .innerJoin(pharmacies, eq(pharmacyDailyStats.pharmacyId, pharmacies.id))
-          .where(eq(pharmacyDailyStats.statDate, targetDate!))
-          .orderBy(desc(pharmacyDailyStats.totalPoints))
+        db
+          .select({
+            id: pharmacies.id,
+            name: pharmacies.name,
+            logoUrl: pharmacies.logoUrl,
+            score: pharmacyDailyChallengeStats.totalPoints,
+          })
+          .from(pharmacyDailyChallengeStats)
+          .innerJoin(
+            pharmacies,
+            eq(pharmacyDailyChallengeStats.pharmacyId, pharmacies.id),
+          )
+          .where(eq(pharmacyDailyChallengeStats.statDate, targetDate!))
+          .orderBy(desc(pharmacyDailyChallengeStats.totalPoints))
           .limit(input.limit),
 
         // Brands
-        db.select({
-          id: brands.id,
-          name: brands.name,
-          logoUrl: brands.logoUrl,
-          score: brandDailyStats.totalPoints,
-        })
-          .from(brandDailyStats)
-          .innerJoin(brands, eq(brandDailyStats.brandId, brands.id))
-          .where(eq(brandDailyStats.statDate, targetDate!))
-          .orderBy(desc(brandDailyStats.totalPoints))
+        db
+          .select({
+            id: brands.id,
+            name: brands.name,
+            logoUrl: brands.logoUrl,
+            score: brandDailyChallengeStats.totalPoints,
+          })
+          .from(brandDailyChallengeStats)
+          .innerJoin(
+            brands,
+            eq(brandDailyChallengeStats.brandId, brands.id),
+          )
+          .where(eq(brandDailyChallengeStats.statDate, targetDate!))
+          .orderBy(desc(brandDailyChallengeStats.totalPoints))
           .limit(input.limit),
 
-        // Cannabis Strains (Flower/Genetics)
-        db.select({
-          id: cannabisStrains.id,
-          name: cannabisStrains.name,
-          imageUrl: cannabisStrains.imageUrl,
-          score: cannabisStrainDailyStats.totalPoints,
-        })
-          .from(cannabisStrainDailyStats)
+        // Flower (strains)
+        db
+          .select({
+            id: cannabisStrains.id,
+            name: cannabisStrains.name,
+            imageUrl: cannabisStrains.imageUrl,
+            score: strainDailyChallengeStats.totalPoints,
+          })
+          .from(strainDailyChallengeStats)
           .innerJoin(
             cannabisStrains,
-            eq(cannabisStrainDailyStats.cannabisStrainId, cannabisStrains.id),
+            eq(strainDailyChallengeStats.strainId, cannabisStrains.id),
           )
-          .where(eq(cannabisStrainDailyStats.statDate, targetDate!))
-          .orderBy(desc(cannabisStrainDailyStats.totalPoints))
+          .where(eq(strainDailyChallengeStats.statDate, targetDate!))
+          .orderBy(desc(strainDailyChallengeStats.totalPoints))
           .limit(input.limit),
       ]);
 
-      // Products (best-effort: if table is missing, just log and skip)
+      // Products from daily challenge stats (best-effort; if anything is off, just log and return empty)
       let topProducts:
-        | {
-            id: number;
-            name: string;
-            imageUrl: string | null;
-            score: number | null;
-          }[]
+        | { id: number; name: string; imageUrl: string | null; score: number | null }[]
         | [] = [];
 
       try {
         topProducts = await db
           .select({
-            id: products.id,
-            name: products.name,
-            imageUrl: products.imageUrl,
-            score: productDailyStats.totalPoints,
+            id: strains.id,
+            name: strains.name,
+            imageUrl: strains.imageUrl,
+            score: productDailyChallengeStats.totalPoints,
           })
-          .from(productDailyStats)
-          .innerJoin(products, eq(productDailyStats.productId, products.id))
-          .where(eq(productDailyStats.statDate, targetDate!))
-          .orderBy(desc(productDailyStats.totalPoints))
+          .from(productDailyChallengeStats)
+          .innerJoin(
+            strains,
+            eq(productDailyChallengeStats.productId, strains.id),
+          )
+          .where(eq(productDailyChallengeStats.statDate, targetDate!))
+          .orderBy(desc(productDailyChallengeStats.totalPoints))
           .limit(input.limit);
       } catch (err) {
         console.error(
