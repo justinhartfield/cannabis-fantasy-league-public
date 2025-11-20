@@ -127,7 +127,7 @@ export default function PredictionStreak() {
       {resultsData && resultsData.results.length > 0 && (
         <section className="mb-8">
           <div className="flex items-center gap-3 mb-4">
-            <img src="https://framerusercontent.com/images/DPZRbKFGVJYTZGxHxKNNHYDMc.gif" alt="Trophy" className="w-10 h-10" />
+            <Trophy className="w-10 h-10 text-yellow-500" />
             <h2 className="text-xl font-bold text-foreground headline-primary">Yesterday's Results</h2>
           </div>
           <Card className="p-4">

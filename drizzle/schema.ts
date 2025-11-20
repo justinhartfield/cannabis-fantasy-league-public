@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, varchar, text, timestamp, json, index, primaryKey, unique, decimal, date } from "drizzle-orm/pg-core"
+import { pgTable, serial, integer, varchar, text, timestamp, json, index, primaryKey, unique, decimal, date, boolean } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 export const achievements = pgTable("achievements", {
@@ -224,6 +224,7 @@ export const leagues = pgTable("leagues", {
 	currentWeek: integer().default(1).notNull(),
 	status: varchar({ length: 50 }).default('draft').notNull(),
 	leagueType: varchar({ length: 50 }).default('season').notNull(),
+	isPublic: boolean("isPublic").default(false).notNull(),
 	draftDate: timestamp({ mode: 'string', withTimezone: true }),
 	seasonStartDate: timestamp({ mode: 'string', withTimezone: true }),
 	playoffStartWeek: integer().default(19).notNull(),

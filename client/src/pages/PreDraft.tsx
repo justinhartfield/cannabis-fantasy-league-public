@@ -110,7 +110,7 @@ export default function PreDraft() {
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="https://framerusercontent.com/images/DPZRbKFGVJYTZGxHxKNNHYDMc.gif" alt="Trophy" className="w-14 h-14" />
+            <Trophy className="w-14 h-14 text-yellow-500" />
             <div>
               <h1 className="text-3xl font-bold text-foreground mb-2 headline-primary">
                 Draft Setup

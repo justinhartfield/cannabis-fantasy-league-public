@@ -27,11 +27,15 @@ export default function Dashboard() {
   
   const joinLeagueMutation = trpc.league.joinByCode.useMutation({
     onSuccess: (data) => {
-      toast.success(`Successfully joined ${data.leagueName}!`);
+      toast.success("Successfully joined league!");
       setInviteCode("");
       setJoiningLeague(false);
-      // Redirect to the league page
-      setLocation(`/league/${data.leagueId}`);
+      // Redirect to the league page based on league type
+      const path =
+        data.leagueType === "challenge"
+          ? `/challenge/${data.leagueId}`
+          : `/league/${data.leagueId}`;
+      setLocation(path);
     },
     onError: (error) => {
       toast.error(error.message || "Failed to join league");
@@ -45,7 +49,7 @@ export default function Dashboard() {
       return;
     }
     setJoiningLeague(true);
-    joinLeagueMutation.mutate({ code: inviteCode.trim().toUpperCase() });
+    joinLeagueMutation.mutate({ leagueCode: inviteCode.trim().toUpperCase() });
   };
 
   // Redirect to login if not authenticated
@@ -233,7 +237,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <div className="flex items-center gap-3 mb-1">
-                <img src="https://framerusercontent.com/images/kFZKjy4o9vJhuHD4UJW5wFHNGU.gif" alt="Trophy" className="w-12 h-12 object-contain" />
+                <Trophy className="w-12 h-12 text-yellow-500" />
                 <h3 className="text-2xl font-bold text-foreground headline-primary">My Leagues</h3>
               </div>
               <p className="text-sm text-muted-foreground mt-1">

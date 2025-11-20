@@ -84,6 +84,7 @@ export const leagueRouter = router({
             seasonYear: currentYear,
             leagueCode: leagueCode,
             leagueType: input.leagueType,
+            isPublic: input.isPublic,
           })
           .returning({ id: leagues.id });
 

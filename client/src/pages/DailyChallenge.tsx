@@ -418,7 +418,7 @@ export default function DailyChallenge() {
         .map((item: any) => ({
           name: item.assetName || `Unknown ${item.assetType}`,
           type: item.assetType,
-          total: item.totalPoints || 0,
+          total: item.breakdown?.total ?? item.totalPoints ?? 0,
           breakdown: item.breakdown,
           imageUrl: item.imageUrl || null,
         }))
@@ -547,7 +547,7 @@ export default function DailyChallenge() {
                   <Trophy className="w-16 h-16 text-yellow-500" />
                 </div>
                 <div className="flex items-center gap-3 justify-center">
-                  <img src="https://framerusercontent.com/images/DPZRbKFGVJYTZGxHxKNNHYDMc.gif" alt="Trophy" className="w-16 h-16" />
+                  <Trophy className="w-16 h-16 text-yellow-500" />
                   <h2 className="text-3xl font-bold text-gradient-primary mb-2 headline-primary">
                     Challenge Complete!
                   </h2>
@@ -875,7 +875,7 @@ export default function DailyChallenge() {
                               bonuses: item.breakdown?.bonuses || [],
                               penalties: item.breakdown?.penalties || [],
                               subtotal: item.breakdown?.subtotal || 0,
-                              total: item.totalPoints || 0,
+                              total: item.breakdown?.total ?? item.totalPoints ?? 0,
                               // Pass new trend fields
                               trendMultiplier: item.breakdown?.trendMultiplier,
                               streakDays: item.breakdown?.streakDays,

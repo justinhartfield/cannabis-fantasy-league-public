@@ -81,7 +81,7 @@ export default function CreateLeague() {
               </Link>
             </Button>
             <div className="flex items-center gap-3">
-              <img src="https://framerusercontent.com/images/DPZRbKFGVJYTZGxHxKNNHYDMc.gif" alt="Trophy" className="w-12 h-12 object-contain" />
+              <Trophy className="w-12 h-12 text-yellow-500" />
               <div>
                 <h1 className="text-xl font-bold text-foreground headline-primary">Neue Liga erstellen</h1>
                 <p className="text-sm text-muted-foreground">
@@ -168,6 +168,22 @@ export default function CreateLeague() {
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   rows={3}
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-muted/30">
+                <div className="space-y-0.5">
+                  <Label htmlFor="isPublic" className="text-base">Öffentliche Liga</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Andere Spieler können dieser Liga beitreten und sie in der Liga-Suche finden.
+                  </p>
+                </div>
+                <Switch
+                  id="isPublic"
+                  checked={formData.isPublic}
+                  onCheckedChange={(checked) =>
+                    setFormData({ ...formData, isPublic: checked })
+                  }
                 />
               </div>
 
@@ -336,113 +352,6 @@ export default function CreateLeague() {
           </Card>
           )}
 
-          {/* League Rules - Season Only */}
-          {formData.leagueType === "season" && (
-            <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="text-card-foreground flex items-center gap-2">
-                <UserCircle className="w-5 h-5" />
-                Liga-Regeln
-              </CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Konfiguriere die Spielregeln für deine Liga.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="scoringSystem">Scoring-System</Label>
-                <Select
-                  value={formData.scoringSystem}
-                  onValueChange={(value: any) =>
-                    setFormData({ ...formData, scoringSystem: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="standard">Standard</SelectItem>
-                    <SelectItem value="ppr">PPR (Points Per Reception)</SelectItem>
-                    <SelectItem value="custom">Custom</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="waiverType">Waiver-System</Label>
-                <Select
-                  value={formData.waiverType}
-                  onValueChange={(value: any) =>
-                    setFormData({ ...formData, waiverType: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="faab">FAAB (Free Agent Acquisition Budget)</SelectItem>
-                    <SelectItem value="rolling">Rolling Waivers</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {formData.waiverType === "faab" && (
-                <div className="space-y-2">
-                  <Label htmlFor="faabBudget">FAAB Budget</Label>
-                  <Input
-                    id="faabBudget"
-                    type="number"
-                    min="0"
-                    max="1000"
-                    value={formData.faabBudget}
-                    onChange={(e) =>
-                      setFormData({ ...formData, faabBudget: parseInt(e.target.value) || 0 })
-                    }
-                  />
-                  <p className="text-sm text-muted-foreground">
-                    Jedes Team startet mit diesem Budget für Waiver-Gebote
-                  </p>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label htmlFor="tradeDeadlineWeek">Trade Deadline (Woche)</Label>
-                <Input
-                  id="tradeDeadlineWeek"
-                  type="number"
-                  min="1"
-                  max="18"
-                  value={formData.tradeDeadlineWeek}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      tradeDeadlineWeek: parseInt(e.target.value) || 13,
-                    })
-                  }
-                />
-                <p className="text-sm text-muted-foreground">
-                  Nach dieser Woche sind keine Trades mehr möglich
-                </p>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="isPublic">Öffentliche Liga</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Andere Spieler können dieser Liga beitreten
-                  </p>
-                </div>
-                <Switch
-                  id="isPublic"
-                  checked={formData.isPublic}
-                  onCheckedChange={(checked) =>
-                    setFormData({ ...formData, isPublic: checked })
-                  }
-                />
-              </div>
-            </CardContent>
-          </Card>
-          )}
 
           {/* Submit Button */}
           <div className="flex gap-3">
