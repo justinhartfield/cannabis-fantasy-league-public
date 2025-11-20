@@ -26,13 +26,13 @@ async function syncClerkUser(clerkUserId: string, email: string | undefined, nam
     // Create new user using upsertUser
     const username = name || email?.split('@')[0] || `user_${clerkUserId.slice(0, 8)}`;
     
+    // Don't pass lastSignedIn - let it default in upsertUser
     await upsertUser({
       openId: clerkUserId,
       email: email || null,
       name: name || username,
       loginMethod: 'clerk',
       role: 'user',
-      lastSignedIn: new Date(),
     });
 
     // Fetch the newly created user
