@@ -2,7 +2,7 @@
  * Trend-Based Scoring Engine
  * 
  * Implements the new scoring system that uses relative trends instead of explicit sales metrics.
- * Includes: Trend Momentum, Consistency Score, Velocity Score, Streak Bonus, and Market Share Trend.
+ * Includes: Trend Bonus, Consistency Score, Velocity Score, Streak Bonus, and Market Share Trend.
  */
 
 export interface TrendScoringStats {

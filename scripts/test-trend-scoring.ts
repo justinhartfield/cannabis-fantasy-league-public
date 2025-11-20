@@ -172,7 +172,7 @@ console.log(`  TOTAL: ${oldScore1.totalPoints} pts`);
 
 console.log('\nNEW SCORING:');
 console.log(`  Order Count: ${testManufacturerData.orderCount} × 10 = ${newScore1.orderCountPoints} pts`);
-console.log(`  Trend Momentum: ${newScore1.trendMultiplier.toFixed(2)}x × 20 = ${newScore1.trendMomentumPoints} pts`);
+console.log(`  Trend Bonus: ${newScore1.trendMultiplier.toFixed(2)}x × 20 = ${newScore1.trendMomentumPoints} pts`);
 console.log(`  Rank Bonus: #${testManufacturerData.currentRank} = ${newScore1.rankBonusPoints} pts`);
 console.log(`  Momentum Bonus: ↑${testManufacturerData.previousRank - testManufacturerData.currentRank} ranks = ${newScore1.momentumBonusPoints} pts`);
 console.log(`  Consistency Bonus: ${newScore1.consistencyScore}/100 = ${newScore1.consistencyBonusPoints} pts`);
@@ -216,7 +216,7 @@ console.log(`  TOTAL: ${oldScore2.totalPoints} pts`);
 
 console.log('\nNEW SCORING:');
 console.log(`  Order Count: ${testDecliningData.orderCount} × 10 = ${newScore2.orderCountPoints} pts`);
-console.log(`  Trend Momentum: ${newScore2.trendMultiplier.toFixed(2)}x × 20 = ${newScore2.trendMomentumPoints} pts`);
+console.log(`  Trend Bonus: ${newScore2.trendMultiplier.toFixed(2)}x × 20 = ${newScore2.trendMomentumPoints} pts`);
 console.log(`  Rank Bonus: #${testDecliningData.currentRank} = ${newScore2.rankBonusPoints} pts`);
 console.log(`  Momentum Penalty: ↓${testDecliningData.currentRank - testDecliningData.previousRank} ranks = ${newScore2.momentumBonusPoints} pts`);
 console.log(`  Consistency Bonus: ${newScore2.consistencyScore}/100 = ${newScore2.consistencyBonusPoints} pts`);

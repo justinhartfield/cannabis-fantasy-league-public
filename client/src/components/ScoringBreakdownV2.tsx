@@ -156,7 +156,7 @@ export default function ScoringBreakdownV2({
                         </Badge>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>Trend Momentum: {data.trendMultiplier.toFixed(2)}x growth</p>
+                        <p>Trend Bonus: {data.trendMultiplier.toFixed(2)}x growth</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>

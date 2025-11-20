@@ -51,7 +51,7 @@ export function buildManufacturerTrendBreakdown(
       points: scoring.orderCountPoints,
     },
     {
-      category: 'Trend Momentum',
+      category: 'Trend Bonus',
       value: `${scoring.trendMultiplier.toFixed(2)}x`,
       formula: `${scoring.trendMultiplier.toFixed(2)} × 20`,
       points: scoring.trendMomentumPoints,
@@ -169,7 +169,7 @@ export function buildStrainTrendBreakdown(
       points: scoring.orderCountPoints,
     },
     {
-      category: 'Trend Momentum',
+      category: 'Trend Bonus',
       value: `${scoring.trendMultiplier.toFixed(2)}x`,
       formula: `${scoring.trendMultiplier.toFixed(2)} × 15`,
       points: scoring.trendMomentumPoints,
@@ -281,7 +281,7 @@ export function buildProductTrendBreakdown(
       points: scoring.orderCountPoints,
     },
     {
-      category: 'Trend Momentum',
+      category: 'Trend Bonus',
       value: `${scoring.trendMultiplier.toFixed(2)}x`,
       formula: `${scoring.trendMultiplier.toFixed(2)} × 25`,
       points: scoring.trendMomentumPoints,
@@ -393,7 +393,7 @@ export function buildPharmacyTrendBreakdown(
       points: scoring.orderCountPoints,
     },
     {
-      category: 'Trend Momentum',
+      category: 'Trend Bonus',
       value: `${scoring.trendMultiplier.toFixed(2)}x`,
       formula: `${scoring.trendMultiplier.toFixed(2)} × 20`,
       points: scoring.trendMomentumPoints,
