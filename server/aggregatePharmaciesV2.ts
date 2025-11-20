@@ -4,8 +4,9 @@
 
 import { calculatePharmacyTrendScore } from './trendScoringEngine';
 import { calculatePharmacyScore as calculateOldPharmacyScore } from './dailyChallengeScoringEngine';
-import { fetchTrendDataForScoring } from './trendMetricsFetcher';
+import { fetchTrendDataForScoring, fetchTotalMarketVolume, fetchTrendMetricsBatch } from './trendMetricsFetcher';
 import { pharmacyDailyChallengeStats } from '../drizzle/dailyChallengeSchema';
+import { pLimit } from './utils/concurrency';
 
 interface OrderRecord {
   PharmacyName: string;
@@ -47,12 +48,18 @@ export async function aggregatePharmaciesWithTrends(
   const sorted = Array.from(stats.entries()).sort((a, b) => b[1].orderCount - a[1].orderCount);
   await log('info', `Found ${stats.size} unique pharmacies`, undefined, logger);
 
+  // Prefetch data for optimization
+  const allNames = sorted.map(([name]) => name);
+  const [totalVolume, batchTrendMetrics] = await Promise.all([
+    fetchTotalMarketVolume('pharmacyName'),
+    fetchTrendMetricsBatch('pharmacyName', allNames)
+  ]);
+
   let processed = 0;
   let skipped = 0;
 
-  for (let i = 0; i < sorted.length; i++) {
-    const [name, data] = sorted[i];
-    const rank = i + 1;
+  await pLimit(sorted, 20, async ([name, data], index) => {
+    const rank = index + 1;
 
     // Find pharmacy in database
     const pharmacy = await db.query.pharmacies.findFirst({
@@ -62,17 +69,19 @@ export async function aggregatePharmaciesWithTrends(
     if (!pharmacy) {
       skipped += 1;
       await log('warn', `Pharmacy not found: ${name}`, undefined, logger);
-      continue;
+      return;
     }
 
     try {
       // Fetch trend data
       const trendData = await fetchTrendDataForScoring(
-        'pharmacy',
+        'pharmacyName',
         name,
         pharmacy.id,
         dateString,
-        rank
+        rank,
+        totalVolume,
+        batchTrendMetrics.get(name)
       );
 
       // Calculate trend-based score
@@ -146,7 +155,7 @@ export async function aggregatePharmaciesWithTrends(
       await log('error', `Error processing pharmacy ${name}:`, error, logger);
       skipped += 1;
     }
-  }
+  });
 
   return { processed, skipped };
 }

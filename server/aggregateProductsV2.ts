@@ -4,8 +4,9 @@
 
 import { calculateProductTrendScore } from './trendScoringEngine';
 import { calculateProductScore as calculateOldProductScore } from './dailyChallengeScoringEngine';
-import { fetchTrendDataForScoring } from './trendMetricsFetcher';
+import { fetchTrendDataForScoring, fetchTotalMarketVolume, fetchTrendMetricsBatch } from './trendMetricsFetcher';
 import { productDailyChallengeStats } from '../drizzle/dailyChallengeSchema';
+import { pLimit } from './utils/concurrency';
 
 interface OrderRecord {
   Product: string;
@@ -48,18 +49,24 @@ export async function aggregateProductsWithTrends(
   
   const sorted = productData; // Already sorted by Metabase query
 
+  // Prefetch data for optimization
+  const allNames = sorted.map((item: any) => item.Name).filter(Boolean);
+  const [totalVolume, batchTrendMetrics] = await Promise.all([
+    fetchTotalMarketVolume('productName'),
+    fetchTrendMetricsBatch('productName', allNames)
+  ]);
+
   let processed = 0;
   let skipped = 0;
 
-  for (let i = 0; i < sorted.length; i++) {
-    const item = sorted[i];
-    const rank = i + 1;
+  await pLimit(sorted, 20, async (item, index) => {
+    const rank = index + 1;
     
     // Metabase query returns: Name, Quantity (grams), Sales, Orders, etc.
     const name = item.Name;
     if (!name) {
       skipped += 1;
-      continue;
+      return;
     }
 
     const salesVolumeGrams = item.Quantity || 0;
@@ -73,17 +80,19 @@ export async function aggregateProductsWithTrends(
     if (!product) {
       skipped += 1;
       await log('warn', `Product not found in database: ${name}`, undefined, logger);
-      continue;
+      return;
     }
 
     try {
       // Fetch trend data
       const trendData = await fetchTrendDataForScoring(
-        'product',
+        'productName',
         name,
         product.id,
         dateString,
-        rank
+        rank,
+        totalVolume,
+        batchTrendMetrics.get(name)
       );
 
       // Calculate trend-based score
@@ -149,7 +158,7 @@ export async function aggregateProductsWithTrends(
 
       await log(
         'info',
-        `${name}: ${data.orderCount} orders, ${trendScore.trendMultiplier.toFixed(2)}x trend, ${trendScore.totalPoints} pts (rank #${rank})`,
+        `${name}: ${orderCount} orders, ${trendScore.trendMultiplier.toFixed(2)}x trend, ${trendScore.totalPoints} pts (rank #${rank})`,
         { oldScore: oldScore.totalPoints, newScore: trendScore.totalPoints },
         logger
       );
@@ -157,7 +166,7 @@ export async function aggregateProductsWithTrends(
       await log('error', `Error processing product ${name}:`, error, logger);
       skipped += 1;
     }
-  }
+  });
 
   return { processed, skipped };
 }
