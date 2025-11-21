@@ -896,17 +896,6 @@ export const draftRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
-      const includeStats = input.includeStats ?? true;
-
-      // Fetch all draft picks for this league
-      const picks = await db
-        .select()
-        .from(draftPicks)
-        .where(eq(draftPicks.leagueId, input.leagueId))
-        .orderBy(draftPicks.pickNumber);
-
-      // Get team names and user data
-      const teamMap = new Map<number, { name: string; userName: string | null; userAvatarUrl: string | null }>();
       const leagueTeams = await db
         .select({
           teamId: teams.id,
@@ -917,7 +906,53 @@ export const draftRouter = router({
         .from(teams)
         .leftJoin(users, eq(teams.userId, users.id))
         .where(eq(teams.leagueId, input.leagueId));
+      const teamIds = leagueTeams.map((t) => t.teamId);
+      const teamMap = new Map<number, { name: string; userName: string | null; userAvatarUrl: string | null }>();
       leagueTeams.forEach(t => teamMap.set(t.teamId, { name: t.teamName, userName: t.userName, userAvatarUrl: t.userAvatarUrl }));
+      const teamCount = Math.max(teamIds.length, 1);
+
+      const includeStats = input.includeStats ?? true;
+
+      // Fetch all draft picks for this league
+      let picks = await db
+        .select()
+        .from(draftPicks)
+        .where(eq(draftPicks.leagueId, input.leagueId))
+        .orderBy(draftPicks.pickNumber);
+
+      if (picks.length === 0 && teamIds.length > 0) {
+        const rosterEntries = await db
+          .select({
+            teamId: rosters.teamId,
+            assetType: rosters.assetType,
+            assetId: rosters.assetId,
+            acquiredVia: rosters.acquiredVia,
+            createdAt: rosters.createdAt,
+          })
+          .from(rosters)
+          .where(
+            and(
+              inArray(rosters.teamId, teamIds),
+              eq(rosters.acquiredVia, "draft")
+            )
+          )
+          .orderBy(rosters.createdAt);
+
+        picks = rosterEntries.map((entry, index) => ({
+          leagueId: input.leagueId,
+          teamId: entry.teamId,
+          round: Math.floor(index / teamCount) + 1,
+          pickNumber: index + 1,
+          assetType: entry.assetType as "manufacturer" | "cannabis_strain" | "product" | "pharmacy" | "brand",
+          assetId: entry.assetId,
+          pickTime: entry.createdAt,
+        }));
+
+        console.warn(
+          `[draft.getAllDraftPicks] No entries in draftPicks for league ${input.leagueId}; ` +
+          `falling back to roster history (${rosterEntries.length} records)`
+        );
+      }
 
       // Process each pick to get asset name and stats
       const enrichedPicks = await Promise.all(picks.map(async (pick) => {

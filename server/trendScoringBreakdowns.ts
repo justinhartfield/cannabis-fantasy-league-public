@@ -53,7 +53,7 @@ export function buildManufacturerTrendBreakdown(
     {
       category: 'Trend Bonus',
       value: `${scoring.trendMultiplier.toFixed(2)}x`,
-      formula: `${scoring.trendMultiplier.toFixed(2)} × 20`,
+      formula: `${scoring.trendMultiplier.toFixed(2)} × 100`,
       points: scoring.trendMomentumPoints,
     },
   ];
@@ -171,7 +171,7 @@ export function buildStrainTrendBreakdown(
     {
       category: 'Trend Bonus',
       value: `${scoring.trendMultiplier.toFixed(2)}x`,
-      formula: `${scoring.trendMultiplier.toFixed(2)} × 15`,
+      formula: `${scoring.trendMultiplier.toFixed(2)} × 80`,
       points: scoring.trendMomentumPoints,
     },
   ];
@@ -318,7 +318,7 @@ export function buildProductTrendBreakdown(
     {
       category: 'Trend Bonus',
       value: `${scoring.trendMultiplier.toFixed(2)}x`,
-      formula: `${scoring.trendMultiplier.toFixed(2)} × 25`,
+      formula: `${scoring.trendMultiplier.toFixed(2)} × 120`,
       points: scoring.trendMomentumPoints,
     },
   ];
@@ -430,7 +430,7 @@ export function buildPharmacyTrendBreakdown(
     {
       category: 'Trend Bonus',
       value: `${scoring.trendMultiplier.toFixed(2)}x`,
-      formula: `${scoring.trendMultiplier.toFixed(2)} × 20`,
+      formula: `${scoring.trendMultiplier.toFixed(2)} × 100`,
       points: scoring.trendMomentumPoints,
     },
   ];
