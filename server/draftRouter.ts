@@ -66,6 +66,7 @@ function parseJsonOrArray(value: string | null | undefined): string[] {
 }
 
 type Database = NonNullable<Awaited<ReturnType<typeof getDb>>>;
+type DraftPickRow = typeof draftPicks.$inferSelect;
 
 function getDailyChallengeStatDates() {
   const today = new Date();
@@ -913,12 +914,21 @@ export const draftRouter = router({
 
       const includeStats = input.includeStats ?? true;
 
-      // Fetch all draft picks for this league
-      let picks = await db
-        .select()
-        .from(draftPicks)
-        .where(eq(draftPicks.leagueId, input.leagueId))
-        .orderBy(draftPicks.pickNumber);
+      // Fetch all draft picks for this league (fall back gracefully if table missing)
+      let picks: DraftPickRow[] = [];
+      try {
+        picks = await db
+          .select()
+          .from(draftPicks)
+          .where(eq(draftPicks.leagueId, input.leagueId))
+          .orderBy(draftPicks.pickNumber);
+      } catch (error) {
+        console.error(
+          `[draft.getAllDraftPicks] Failed to query draftPicks for league ${input.leagueId}:`,
+          error
+        );
+        picks = [];
+      }
 
       if (picks.length === 0 && teamIds.length > 0) {
         const rosterEntries = await db

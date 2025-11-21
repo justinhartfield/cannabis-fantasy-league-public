@@ -323,7 +323,7 @@ export default function Draft() {
 
       {/* Header */}
       <div className="border-b-4 border-weed-green bg-white/90 backdrop-blur-lg shadow-lg relative z-20">
-        <div className="container mx-auto px-4 py-4">
+        <div className="w-full px-4 md:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button
@@ -372,7 +372,7 @@ export default function Draft() {
       </div>
 
       {/* Draft Board */}
-      <div className="container mx-auto px-4 py-8 relative z-10">
+      <div className="w-full px-4 md:px-6 lg:px-8 py-8 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Mobile: Draft Clock first */}
           <div className="lg:hidden order-1">

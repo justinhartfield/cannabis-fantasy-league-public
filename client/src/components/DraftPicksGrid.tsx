@@ -116,7 +116,7 @@ export function DraftPicksGrid({ picks, currentPickNumber }: DraftPicksGridProps
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 3xl:grid-cols-8 gap-3">
           {sortedPicks.map((pick) => {
             const emoji = ASSET_EMOJIS[pick.assetType] || "📦";
             const colorClass = ASSET_COLORS[pick.assetType] || "border-border bg-card";
