@@ -123,6 +123,7 @@ export function LeagueNav({
                   Waivers
                 </Link>
               </Button>
+              {/* TODO: Re-enable TRADES when functionality is ready
               <Button 
                 variant={currentPage === "trades" ? "default" : "ghost"} 
                 size="sm" 
@@ -133,6 +134,7 @@ export function LeagueNav({
                   Trades
                 </Link>
               </Button>
+              */}
             </>
           )}
           {hasTeam && leagueType !== "challenge" && (
