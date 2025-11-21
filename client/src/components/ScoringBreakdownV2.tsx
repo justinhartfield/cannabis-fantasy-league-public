@@ -51,6 +51,94 @@ interface ScoringBreakdownProps {
   useTrendDisplay?: boolean; // Toggle between old and new display
 }
 
+type ComponentTooltipDetails = {
+  context: string;
+  calculation: string;
+  example?: string;
+};
+
+const ORDER_POINTS_PER_UNIT: Record<ScoringBreakdownData["assetType"], number> = {
+  manufacturer: 10,
+  cannabis_strain: 8,
+  product: 15,
+  pharmacy: 10,
+  brand: 10,
+};
+
+const TREND_BASE_POINTS: Record<ScoringBreakdownData["assetType"], number> = {
+  manufacturer: 100,
+  cannabis_strain: 80,
+  product: 120,
+  pharmacy: 100,
+  brand: 100,
+};
+
+const parseMultiplierValue = (value: number | string): number => {
+  if (typeof value === "number") return value;
+  const parsed = parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 1;
+};
+
+const formatAssetDescriptor = (
+  type: ScoringBreakdownData["assetType"]
+): string => {
+  switch (type) {
+    case "cannabis_strain":
+      return "strain";
+    case "manufacturer":
+      return "manufacturer";
+    case "pharmacy":
+      return "pharmacy";
+    case "product":
+      return "product";
+    case "brand":
+      return "brand";
+    default:
+      return "asset";
+  }
+};
+
+const getComponentTooltipContent = (
+  component: ScoringComponent,
+  assetType: ScoringBreakdownData["assetType"]
+): ComponentTooltipDetails => {
+  const assetDescriptor = formatAssetDescriptor(assetType);
+
+  if (component.category === "Order Activity") {
+    const pointsPerOrder = ORDER_POINTS_PER_UNIT[assetType] ?? 10;
+    const derivedOrders =
+      pointsPerOrder > 0 ? component.points / pointsPerOrder : undefined;
+    const orderCount =
+      typeof derivedOrders === "number" && Number.isFinite(derivedOrders)
+        ? Math.round(derivedOrders)
+        : component.value;
+
+    return {
+      context: `Base demand score from recent orders for this ${assetDescriptor}. Sustained orders keep the asset competitive even without a breakout trend.`,
+      calculation: `${orderCount} orders × ${pointsPerOrder} pts per order = ${component.points} pts`,
+    };
+  }
+
+  if (component.category === "Trend Bonus") {
+    const basePoints = TREND_BASE_POINTS[assetType] ?? 100;
+    const multiplier = parseMultiplierValue(component.value);
+
+    return {
+      context:
+        "Momentum boost comparing today's volume to the trailing 7-day average. Above 1× means the asset is surging; below 1× shows a cooldown.",
+      calculation: `${multiplier.toFixed(2)}× momentum × ${basePoints} base pts = ${component.points} pts`,
+      example: `Example: 70 units today vs 10-unit avg ⇒ 7.0× × ${basePoints} = ${
+        7 * basePoints
+      } pts`,
+    };
+  }
+
+  return {
+    context: `${component.category} combines ${component.value} with ${component.formula}.`,
+    calculation: `${component.value} → ${component.formula}`,
+  };
+};
+
 /**
  * ScoringBreakdownV2 Component
  * 
@@ -229,47 +317,58 @@ export default function ScoringBreakdownV2({
         <div className="space-y-2">
           <h4 className="text-sm font-semibold text-foreground">Scoring-Komponenten</h4>
           <div className="space-y-1">
-            {data.components.map((component, idx) => (
-              <div
-                key={idx}
-                className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 rounded-md bg-muted/50 gap-2"
-              >
-                <div className="flex-1 w-full sm:w-auto">
-                  <div className="text-sm font-medium text-foreground mb-1 flex items-center gap-2">
-                    {component.category}
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors">
-                            <span className="text-xs font-bold">i</span>
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent side="right" className="max-w-xs">
-                          <div className="space-y-1">
+            {data.components.map((component, idx) => {
+              const tooltipContent = getComponentTooltipContent(
+                component,
+                data.assetType
+              );
+
+              return (
+                <div
+                  key={idx}
+                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 rounded-md bg-muted/50 gap-2"
+                >
+                  <div className="flex-1 w-full sm:w-auto">
+                    <div className="text-sm font-medium text-foreground mb-1 flex items-center gap-2">
+                      {component.category}
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors">
+                              <span className="text-xs font-bold">i</span>
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="right" className="max-w-xs space-y-1.5">
                             <p className="font-semibold">{component.category}</p>
+                            <p className="text-xs">{tooltipContent.context}</p>
                             <p className="text-xs text-muted-foreground">
-                              Calculation: {component.value} → {component.formula}
+                              Calculation: {tooltipContent.calculation}
                             </p>
-                            <p className="text-xs">
-                              Result: {component.points} points
+                            {tooltipContent.example && (
+                              <p className="text-xs text-muted-foreground">
+                                {tooltipContent.example}
+                              </p>
+                            )}
+                            <p className="text-xs font-medium text-foreground">
+                              Result: {component.points} pts
                             </p>
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    <div className="text-xs text-muted-foreground font-mono">
+                      {component.value} → {component.formula}
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground font-mono">
-                    {component.value} → {component.formula}
+                  <div className="text-left sm:text-right w-full sm:w-auto">
+                    <div className="text-lg font-bold text-foreground">
+                      {component.points}
+                    </div>
+                    <div className="text-xs text-muted-foreground">pts</div>
                   </div>
                 </div>
-                <div className="text-left sm:text-right w-full sm:w-auto">
-                  <div className="text-lg font-bold text-foreground">
-                    {component.points}
-                  </div>
-                  <div className="text-xs text-muted-foreground">pts</div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 

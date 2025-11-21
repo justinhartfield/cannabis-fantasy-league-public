@@ -207,14 +207,19 @@ export async function getPreviousRank(
     const idField = `${entityType}Id`;
     
     // Use Drizzle's sql tagged template for parameterized queries
-    const result = await db.execute(sql`
-      SELECT rank FROM ${sql.identifier(tableName)}
-      WHERE ${sql.identifier(idField)} = ${entityId} AND "statDate" = ${previousDate}
+    // Note: Column names are camelCase and need to be quoted
+    const columnName = `"${idField}"`;
+    const query = `
+      SELECT rank FROM "${tableName}"
+      WHERE ${columnName} = ${entityId} AND "statDate" = '${previousDate}'
       LIMIT 1
-    `);
+    `;
+    const result = await db.execute(sql.raw(query));
     
-    if (result && result.rows && result.rows.length > 0) {
-      return Number(result.rows[0].rank || 0);
+    // sql.raw() returns rows directly as an array, not wrapped in {rows: [...]}
+    const rows = result.rows || result;
+    if (rows && Array.isArray(rows) && rows.length > 0) {
+      return Number(rows[0].rank || 0);
     }
     
     return 0;
@@ -250,18 +255,22 @@ export async function calculateStreakDays(
     const idField = `${entityType}Id`;
     
     // Query last 30 days of ranks using sql tagged template
-    const result = await db.execute(sql`
-      SELECT "statDate", rank FROM ${sql.identifier(tableName)}
-      WHERE ${sql.identifier(idField)} = ${entityId} AND "statDate" < ${currentDate}
+    // Note: Column names are camelCase and need to be quoted
+    const columnName = `"${idField}"`;
+    const result = await db.execute(sql.raw(`
+      SELECT "statDate", rank FROM "${tableName}"
+      WHERE ${columnName} = ${entityId} AND "statDate" < '${currentDate}'
       ORDER BY "statDate" DESC
       LIMIT 30
-    `);
+    `));
     
-    if (!result || !result.rows) return 1; // First day in top 10
+    // sql.raw() returns rows directly as an array, not wrapped in {rows: [...]}
+    const rows = result.rows || result;
+    if (!rows || !Array.isArray(rows) || rows.length === 0) return 1; // First day in top 10
     
     // Count consecutive days in top 10 (working backwards from current date)
     let streakDays = 1; // Current day counts
-    for (const row of result.rows) {
+    for (const row of rows) {
       const rank = Number(row.rank || 0);
       if (rank > 0 && rank <= 10) {
         streakDays++;
