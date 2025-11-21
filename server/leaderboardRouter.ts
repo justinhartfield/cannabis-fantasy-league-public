@@ -329,9 +329,45 @@ export const leaderboardRouter = router({
           .limit(input.limit),
       ]);
 
-      // Score weekly brands using the same formula as the scoring engine
-      const scoredBrands = rawBrands
-        .map((b) => {
+      // If we have no weekly brand stats for this week, fall back to latest daily challenge scores
+      let brandSource: any[] = rawBrands as any[];
+      if (!brandSource || brandSource.length === 0) {
+        console.warn(
+          `[Leaderboard] No brandWeeklyStats for ${targetYear}-W${targetWeek}, falling back to latest daily brand stats`,
+        );
+        const fallbackBrands = await db
+          .select({
+            id: brands.id,
+            name: brands.name,
+            logoUrl: brands.logoUrl,
+            score: brandDailyChallengeStats.totalPoints,
+          })
+          .from(brandDailyChallengeStats)
+          .innerJoin(brands, eq(brandDailyChallengeStats.brandId, brands.id))
+          .orderBy(desc(brandDailyChallengeStats.totalPoints))
+          .limit(input.limit * 5);
+
+        brandSource = fallbackBrands as any[];
+      }
+
+      // Score weekly brands using the same formula when we have weekly metrics;
+      // otherwise keep the precomputed daily challenge score.
+      const scoredBrands = brandSource
+        .map((b: any) => {
+          if (
+            typeof b.score === "number" &&
+            b.score !== null &&
+            b.score !== undefined &&
+            b.favorites === undefined
+          ) {
+            return {
+              id: b.id,
+              name: b.name,
+              logoUrl: b.logoUrl,
+              score: b.score ?? 0,
+            };
+          }
+
           const { points } = calculateBrandPoints({
             favorites: b.favorites ?? 0,
             favoriteGrowth: b.favoriteGrowth ?? 0,
@@ -352,7 +388,7 @@ export const leaderboardRouter = router({
             score: points,
           };
         })
-        .filter((b) => b.score > 0)
+        .filter((b) => (b.score ?? 0) > 0)
         .sort((a, b) => b.score - a.score);
 
       const topBrands = prioritizeByLogo(scoredBrands, input.limit);
