@@ -42,6 +42,12 @@ const ASSET_COLORS: Record<string, string> = {
 };
 
 export function DraftPicksGrid({ picks, currentPickNumber }: DraftPicksGridProps) {
+  // Sort picks by pick number descending (latest first)
+  const sortedPicks = [...picks].sort((a, b) => b.pickNumber - a.pickNumber);
+  
+  // The latest pick is the one with the highest pick number
+  const latestPickNumber = sortedPicks.length > 0 ? sortedPicks[0].pickNumber : 0;
+
   if (picks.length === 0) {
     return (
       <Card className="bg-weed-purple border-2 border-weed-green">
@@ -111,10 +117,11 @@ export function DraftPicksGrid({ picks, currentPickNumber }: DraftPicksGridProps
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {picks.map((pick) => {
+          {sortedPicks.map((pick) => {
             const emoji = ASSET_EMOJIS[pick.assetType] || "📦";
             const colorClass = ASSET_COLORS[pick.assetType] || "border-border bg-card";
-            const isNewestPick = pick.pickNumber === currentPickNumber;
+            // Highlight if this is the latest pick
+            const isNewestPick = pick.pickNumber === latestPickNumber;
             const specialBadge = getSpecialBadge(pick);
 
             return (
