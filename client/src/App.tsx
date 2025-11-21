@@ -24,6 +24,7 @@ import Leaderboard from "./pages/Leaderboard";
 import Profile from "./pages/Profile";
 import InviteFriends from "./pages/InviteFriends";
 import Join from "./pages/Join";
+import Players from "./pages/Players";
 import { useEffect } from "react";
 import { Navigation } from "./components/Navigation";
 
@@ -49,6 +50,7 @@ function Router() {
       <Route path={"/league/:id/playoffs"} component={Playoffs} />
       <Route path={"/league/:id/lineup"} component={Lineup} />
       <Route path={"/league/:id/scoring"} component={Scoring} />
+      <Route path={"/league/:id/players"} component={Players} />
       {/* Challenge routes (daily mode) */}
       <Route path={"/challenge/:id"} component={LeagueDetail} />
       <Route path={"/challenge/:id/draft"} component={Draft} />

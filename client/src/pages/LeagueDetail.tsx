@@ -10,6 +10,9 @@ import { toast } from "sonner";
 import { getLoginUrl } from "@/const";
 import { LeagueNav } from "@/components/LeagueNav";
 import DailyChallenge from "./DailyChallenge";
+import { LeagueChat } from "@/components/LeagueChat";
+import { AchievementsSection } from "@/components/AchievementsSection";
+import { WeeklyRecapCard } from "@/components/WeeklyRecapCard";
 
 export default function LeagueDetail() {
   const { id } = useParams();
@@ -25,7 +28,7 @@ export default function LeagueDetail() {
   const startDraftMutation = trpc.draft.startDraft.useMutation({
     onSuccess: () => {
       toast.success("Draft wurde gestartet!");
-      setLocation(`/challenge/${id}/draft`);
+      setLocation(`${basePath}/draft`);
     },
     onError: (error) => {
       toast.error(`Fehler beim Starten des Drafts: ${error.message}`);
@@ -67,6 +70,8 @@ export default function LeagueDetail() {
     return <DailyChallenge />;
   }
 
+  const basePath = league.leagueType === "challenge" ? `/challenge/${league.id}` : `/league/${league.id}`;
+
   const copyLeagueCode = () => {
     navigator.clipboard.writeText(league.leagueCode);
     setCopied(true);
@@ -85,6 +90,7 @@ export default function LeagueDetail() {
         leagueName={league.name}
         teamCount={league.teams?.length || 0}
         maxTeams={league.maxTeams}
+        leagueType={league.leagueType}
         isCommissioner={isCommissioner}
         hasTeam={!!userTeam}
         currentPage="overview"
@@ -95,6 +101,17 @@ export default function LeagueDetail() {
         <div className="grid md:grid-cols-3 gap-6">
           {/* Left Column - League Info */}
           <div className="md:col-span-2 space-y-6">
+            
+            {/* Weekly Recap (if available) */}
+            {league.currentWeek > 1 && (
+                <WeeklyRecapCard 
+                    leagueId={league.id} 
+                    year={league.seasonYear} 
+                    week={league.currentWeek - 1}
+                    isCommissioner={isCommissioner}
+                />
+            )}
+
             {/* League Details Card */}
             <Card className="bg-card border-border">
               <CardHeader>
@@ -202,10 +219,16 @@ export default function LeagueDetail() {
                 )}
               </CardContent>
             </Card>
+            
+            {/* Achievements */}
+            <AchievementsSection />
           </div>
 
           {/* Right Column - Actions */}
           <div className="space-y-6">
+            {/* League Chat */}
+            <LeagueChat leagueId={parseInt(id!)} />
+
             {/* Invite Card */}
             <Card className="bg-card border-border">
               <CardHeader>
@@ -245,7 +268,7 @@ export default function LeagueDetail() {
                 <CardContent>
                   <Button
                     className="w-full"
-                    onClick={() => setLocation(`/challenge/${league.id}/draft`)}
+                    onClick={() => setLocation(`${basePath}/draft`)}
                   >
                     <Play className="w-4 h-4 mr-2" />
                     Zum Draft
@@ -265,7 +288,7 @@ export default function LeagueDetail() {
                     <>
                       <Button
                         className="w-full"
-                        onClick={() => setLocation(`/challenge/${league.id}/pre-draft`)}
+                        onClick={() => setLocation(`${basePath}/pre-draft`)}
                         disabled={!league.teams || league.teams.length < 2}
                       >
                         <Play className="w-4 h-4 mr-2" />
@@ -282,7 +305,7 @@ export default function LeagueDetail() {
                     <>
                       <Button
                         className="w-full"
-                        onClick={() => setLocation(`/challenge/${league.id}/draft`)}
+                        onClick={() => setLocation(`${basePath}/draft`)}
                       >
                         <Play className="w-4 h-4 mr-2" />
                         Go to Draft
@@ -303,7 +326,7 @@ export default function LeagueDetail() {
                     </>
                   )}
                   <Button variant="outline" className="w-full" asChild>
-                    <Link href={`/challenge/${league.id}/settings`}>
+                    <Link href={`${basePath}/settings`}>
                       <Settings className="w-4 h-4 mr-2" />
                       Einstellungen
                     </Link>
@@ -333,7 +356,7 @@ export default function LeagueDetail() {
                   </div>
                   <div className="space-y-2">
                     <Button variant="outline" className="w-full" asChild>
-                      <Link href={`/challenge/${id}/lineup`}>
+                      <Link href={`${basePath}/lineup`}>
                         Lineup bearbeiten
                       </Link>
                     </Button>

@@ -18,6 +18,11 @@ import { predictionRouter } from "./predictionRouter";
 import { profileRouter } from "./profileRouter";
 import { debugRouter } from "./debugRouter";
 import { leaderboardRouter } from "./leaderboardRouter";
+import { waiverRouter } from "./waiverRouter";
+import { tradeRouter } from "./tradeRouter";
+import { recapRouter } from "./recapRouter";
+import { achievementRouter } from "./achievementRouter";
+import { chatRouter } from "./chatRouter";
 
 
 export const appRouter = router({
@@ -51,6 +56,11 @@ export const appRouter = router({
   profile: profileRouter,
   debug: debugRouter,
   leaderboard: leaderboardRouter,
+  waiver: waiverRouter,
+  trade: tradeRouter,
+  recap: recapRouter,
+  achievement: achievementRouter,
+  chat: chatRouter,
 
 });
 

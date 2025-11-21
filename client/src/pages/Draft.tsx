@@ -69,6 +69,8 @@ export default function Draft() {
       leagueId,
       year: currentYear,
       week: currentWeek,
+      // During live drafts we prioritize responsiveness over heavy scoring stats
+      includeStats: league?.status !== "draft",
     },
     { enabled: !!league && isAuthenticated }
   );
@@ -91,6 +93,13 @@ export default function Draft() {
     autoConnect: isAuthenticated && !!user,
     onMessage: (message) => {
       console.log('[Draft] WebSocket message:', message);
+      if (import.meta.env.MODE !== "production") {
+        console.log('[DraftTiming] ws_message', {
+          type: message.type,
+          time: Date.now(),
+          leagueId,
+        });
+      }
       
       if (message.type === 'player_picked') {
         // Add to recent picks
@@ -244,15 +253,45 @@ export default function Draft() {
 
   const handleDraftPick = async (assetType: "manufacturer" | "cannabis_strain" | "product" | "pharmacy", assetId: number) => {
     try {
+      const clickTime = Date.now();
+      if (import.meta.env.MODE !== "production") {
+        console.log("[DraftTiming] draft_click", {
+          time: clickTime,
+          leagueId,
+          teamId: myTeam.id,
+          assetType,
+          assetId,
+        });
+      }
+
       await makeDraftPickMutation.mutateAsync({
         leagueId,
         teamId: myTeam.id,
         assetType,
         assetId,
       });
+
+      if (import.meta.env.MODE !== "production") {
+        console.log("[DraftTiming] draft_mutation_success", {
+          leagueId,
+          teamId: myTeam.id,
+          assetType,
+          assetId,
+          durationMs: Date.now() - clickTime,
+        });
+      }
     } catch (error) {
       // Error is handled by mutation callbacks
       console.error("Draft pick error:", error);
+      if (import.meta.env.MODE !== "production") {
+        console.log("[DraftTiming] draft_mutation_error", {
+          leagueId,
+          teamId: myTeam.id,
+          assetType,
+          assetId,
+          error,
+        });
+      }
     }
   };
 

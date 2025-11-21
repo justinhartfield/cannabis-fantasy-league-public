@@ -8,9 +8,10 @@ interface LeagueNavProps {
   leagueName: string;
   teamCount: number;
   maxTeams: number;
+  leagueType?: string;
   isCommissioner?: boolean;
   hasTeam?: boolean;
-  currentPage?: "overview" | "scoring" | "standings" | "matchups" | "lineup";
+  currentPage?: "overview" | "scoring" | "standings" | "matchups" | "lineup" | "players";
 }
 
 /**
@@ -24,10 +25,13 @@ export function LeagueNav({
   leagueName,
   teamCount,
   maxTeams,
+  leagueType = "season",
   isCommissioner = false,
   hasTeam = false,
   currentPage = "overview",
 }: LeagueNavProps) {
+  const basePath = leagueType === "challenge" ? `/challenge/${leagueId}` : `/league/${leagueId}`;
+
   return (
     <header className="border-b border-border bg-card">
       <div className="container mx-auto px-4 py-4">
@@ -60,7 +64,7 @@ export function LeagueNav({
             size="sm" 
             asChild
           >
-            <Link href={`/challenge/${leagueId}`}>
+            <Link href={`${basePath}`}>
               <Trophy className="w-4 h-4 mr-2" />
               Übersicht
             </Link>
@@ -70,7 +74,7 @@ export function LeagueNav({
             size="sm" 
             asChild
           >
-            <Link href={`/challenge/${leagueId}/scoring`}>
+            <Link href={`${basePath}/scoring`}>
               <BarChart3 className="w-4 h-4 mr-2" />
               Scoring
             </Link>
@@ -80,7 +84,7 @@ export function LeagueNav({
             size="sm" 
             asChild
           >
-            <Link href={`/challenge/${leagueId}/standings`}>
+            <Link href={`${basePath}/standings`}>
               <ListOrdered className="w-4 h-4 mr-2" />
               Tabelle
             </Link>
@@ -90,7 +94,7 @@ export function LeagueNav({
             size="sm" 
             asChild
           >
-            <Link href={`/challenge/${leagueId}/matchups`}>
+            <Link href={`${basePath}/matchups`}>
               <Swords className="w-4 h-4 mr-2" />
               Matchups
             </Link>
@@ -101,9 +105,21 @@ export function LeagueNav({
               size="sm" 
               asChild
             >
-              <Link href={`/challenge/${leagueId}/lineup`}>
+              <Link href={`${basePath}/lineup`}>
                 <UserCircle className="w-4 h-4 mr-2" />
                 Mein Lineup
+              </Link>
+            </Button>
+          )}
+          {hasTeam && leagueType !== "challenge" && (
+            <Button 
+              variant={currentPage === "players" ? "default" : "ghost"} 
+              size="sm" 
+              asChild
+            >
+              <Link href={`${basePath}/players`}>
+                <UserCircle className="w-4 h-4 mr-2" />
+                Players
               </Link>
             </Button>
           )}

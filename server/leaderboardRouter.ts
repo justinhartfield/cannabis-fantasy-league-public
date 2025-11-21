@@ -26,21 +26,30 @@ import {
   strainDailyChallengeStats,
 } from "../drizzle/dailyChallengeSchema";
 import { desc, eq, and, sql } from "drizzle-orm";
+import { calculateBrandPoints } from "./brandScoring";
+import { calculateStrainPoints } from "./scoringEngine";
 
-function prioritizeByLogo<T extends { logoUrl?: string | null }>(
-  rows: T[],
-  limit: number,
-): T[] {
+function prioritizeByLogo<
+  T extends { logoUrl?: string | null; score?: number | null }
+>(rows: T[], limit: number): T[] {
   if (!rows || rows.length === 0) return [];
 
-  const withLogo = rows.filter(
-    (r) => typeof r.logoUrl === "string" && r.logoUrl.trim().length > 0,
-  );
-  const withoutLogo = rows.filter(
-    (r) => !r.logoUrl || r.logoUrl.trim().length === 0,
-  );
+  const sorted = [...rows].sort((a, b) => {
+    const sa = typeof a.score === "number" ? (a.score as number) : 0;
+    const sb = typeof b.score === "number" ? (b.score as number) : 0;
 
-  return [...withLogo, ...withoutLogo].slice(0, limit);
+    // Primary: sort by score descending
+    if (sb !== sa) return sb - sa;
+
+    // Secondary: prefer entries with a non-empty logo
+    const aHasLogo = !!(a.logoUrl && a.logoUrl.trim().length > 0);
+    const bHasLogo = !!(b.logoUrl && b.logoUrl.trim().length > 0);
+    if (aHasLogo !== bHasLogo) return aHasLogo ? -1 : 1;
+
+    return 0;
+  });
+
+  return sorted.slice(0, limit);
 }
 
 export const leaderboardRouter = router({
@@ -271,13 +280,22 @@ export const leaderboardRouter = router({
           .orderBy(desc(pharmacyWeeklyStats.totalPoints))
           .limit(input.limit),
 
-        // Brands
+        // Brands: pull raw weekly engagement metrics, we score them in Node
         db
           .select({
             id: brands.id,
             name: brands.name,
             logoUrl: brands.logoUrl,
-            score: brandWeeklyStats.totalPoints,
+            favorites: brandWeeklyStats.favorites,
+            favoriteGrowth: brandWeeklyStats.favoriteGrowth,
+            views: brandWeeklyStats.views,
+            viewGrowth: brandWeeklyStats.viewGrowth,
+            comments: brandWeeklyStats.comments,
+            commentGrowth: brandWeeklyStats.commentGrowth,
+            affiliateClicks: brandWeeklyStats.affiliateClicks,
+            clickGrowth: brandWeeklyStats.clickGrowth,
+            engagementRate: brandWeeklyStats.engagementRate,
+            sentimentScore: brandWeeklyStats.sentimentScore,
           })
           .from(brandWeeklyStats)
           .innerJoin(brands, eq(brandWeeklyStats.brandId, brands.id))
@@ -287,8 +305,7 @@ export const leaderboardRouter = router({
               eq(brandWeeklyStats.week, targetWeek!),
             ),
           )
-          .orderBy(desc(brandWeeklyStats.totalPoints))
-          .limit(input.limit * 3),
+          .limit(input.limit * 5),
 
         // Cannabis Strains
         db.select({
@@ -312,39 +329,121 @@ export const leaderboardRouter = router({
           .limit(input.limit),
       ]);
 
-      const topBrands = prioritizeByLogo(rawBrands, input.limit);
+      // If we have no weekly brand stats for this week, fall back to latest daily challenge scores
+      let brandSource: any[] = rawBrands as any[];
+      if (!brandSource || brandSource.length === 0) {
+        console.warn(
+          `[Leaderboard] No brandWeeklyStats for ${targetYear}-W${targetWeek}, falling back to latest daily brand stats`,
+        );
+        const fallbackBrands = await db
+          .select({
+            id: brands.id,
+            name: brands.name,
+            logoUrl: brands.logoUrl,
+            score: brandDailyChallengeStats.totalPoints,
+          })
+          .from(brandDailyChallengeStats)
+          .innerJoin(brands, eq(brandDailyChallengeStats.brandId, brands.id))
+          .orderBy(desc(brandDailyChallengeStats.totalPoints))
+          .limit(input.limit * 5);
 
-      // Products (best-effort: uses strainWeeklyStats; if something is off, just skip)
-      let topProducts:
-        | {
-            id: number;
-            name: string;
-            imageUrl: string | null;
-            score: number | null;
-          }[]
-        | [] = [];
+        brandSource = fallbackBrands as any[];
+      }
+
+      // Score weekly brands using the same formula when we have weekly metrics;
+      // otherwise keep the precomputed daily challenge score.
+      const scoredBrands = brandSource
+        .map((b: any) => {
+          if (
+            typeof b.score === "number" &&
+            b.score !== null &&
+            b.score !== undefined &&
+            b.favorites === undefined
+          ) {
+            return {
+              id: b.id,
+              name: b.name,
+              logoUrl: b.logoUrl,
+              score: b.score ?? 0,
+            };
+          }
+
+          const { points } = calculateBrandPoints({
+            favorites: b.favorites ?? 0,
+            favoriteGrowth: b.favoriteGrowth ?? 0,
+            views: b.views ?? 0,
+            viewGrowth: b.viewGrowth ?? 0,
+            comments: b.comments ?? 0,
+            commentGrowth: b.commentGrowth ?? 0,
+            affiliateClicks: b.affiliateClicks ?? 0,
+            clickGrowth: b.clickGrowth ?? 0,
+            engagementRate: b.engagementRate ?? 0,
+            sentimentScore: b.sentimentScore ?? 0,
+          });
+
+          return {
+            id: b.id,
+            name: b.name,
+            logoUrl: b.logoUrl,
+            score: points,
+          };
+        })
+        .filter((b) => (b.score ?? 0) > 0)
+        .sort((a, b) => b.score - a.score);
+
+      const topBrands = prioritizeByLogo(scoredBrands, input.limit);
+
+      // Products: derive weekly scores from strainWeeklyStats + strains
+      let topProducts: { id: number; name: string; score: number }[] = [];
 
       try {
-        topProducts = await db
+        const productRows = await db
           .select({
-            id: products.id,
-            name: products.name,
-            imageUrl: products.imageUrl,
-            score: strainWeeklyStats.totalPoints,
+            id: strains.id,
+            name: strains.name,
+            favoriteCount: strainWeeklyStats.favoriteCount,
+            favoriteGrowth: strainWeeklyStats.favoriteGrowth,
+            pharmacyCount: strainWeeklyStats.pharmacyCount,
+            pharmacyExpansion: strainWeeklyStats.pharmacyExpansion,
+            avgPriceCents: strainWeeklyStats.avgPriceCents,
+            priceStability: strainWeeklyStats.priceStability,
+            orderVolumeGrams: strainWeeklyStats.orderVolumeGrams,
           })
           .from(strainWeeklyStats)
-          .innerJoin(products, eq(strainWeeklyStats.strainId, products.id))
+          .innerJoin(strains, eq(strainWeeklyStats.strainId, strains.id))
           .where(
             and(
               eq(strainWeeklyStats.year, targetYear!),
               eq(strainWeeklyStats.week, targetWeek!),
             ),
           )
-          .orderBy(desc(strainWeeklyStats.totalPoints))
-          .limit(input.limit);
+          .limit(500);
+
+        const scoredProducts = productRows
+          .map((row) => {
+            const { points } = calculateStrainPoints({
+              favoriteCount: row.favoriteCount ?? 0,
+              favoriteGrowth: row.favoriteGrowth ?? 0,
+              pharmacyCount: row.pharmacyCount ?? 0,
+              pharmacyExpansion: row.pharmacyExpansion ?? 0,
+              avgPriceCents: row.avgPriceCents ?? 0,
+              priceStability: row.priceStability ?? 0,
+              orderVolumeGrams: row.orderVolumeGrams ?? 0,
+            });
+
+            return {
+              id: row.id,
+              name: row.name,
+              score: points,
+            };
+          })
+          .filter((p) => p.score > 0)
+          .sort((a, b) => b.score - a.score);
+
+        topProducts = scoredProducts.slice(0, input.limit);
       } catch (err) {
         console.error(
-          "[Leaderboard] Error fetching weekly product leaderboard – falling back to empty list:",
+          "[Leaderboard] Error computing weekly product leaderboard – falling back to empty list:",
           err,
         );
         topProducts = [];

@@ -10,6 +10,7 @@ import { Link, useLocation } from "wouter";
 import { getLoginUrl } from "@/const";
 import { useState, useRef } from "react";
 import { toast } from "sonner";
+import { AchievementsSection } from "@/components/AchievementsSection";
 
 export default function Profile() {
   const { user, loading: authLoading, isAuthenticated } = useAuth();
@@ -359,6 +360,11 @@ export default function Profile() {
               </div>
             </CardContent>
           </Card>
+          
+          {/* Achievements Section */}
+          <div className="md:col-span-3">
+            <AchievementsSection />
+          </div>
         </div>
       </main>
     </div>

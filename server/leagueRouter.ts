@@ -86,6 +86,7 @@ export const leagueRouter = router({
             draftDate: input.draftDate ? new Date(input.draftDate) : null,
             scoringType: input.scoringSystem === "standard" ? "standard" : "custom",
             playoffTeams: input.playoffTeams,
+            playoffStartWeek: input.seasonLength + 1,
             seasonYear: currentYear,
             leagueCode: leagueCode,
             leagueType: input.leagueType,
