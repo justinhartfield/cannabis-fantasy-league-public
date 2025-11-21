@@ -11,6 +11,17 @@ import { parse } from 'url';
  * - League notifications
  */
 
+const DRAFT_TIMING_ENABLED = process.env.DRAFT_TIMING_LOGS === "1";
+
+function logDraftTiming(step: string, data?: Record<string, unknown>) {
+  if (!DRAFT_TIMING_ENABLED) return;
+  if (data) {
+    console.log(`[DraftTiming] ${step}`, data);
+  } else {
+    console.log(`[DraftTiming] ${step}`);
+  }
+}
+
 interface Client {
   ws: WebSocket;
   userId: number;
@@ -248,6 +259,11 @@ class WebSocketManager {
     assetName: string;
     pickNumber: number;
   }) {
+    logDraftTiming("ws:player_picked", {
+      leagueId,
+      ...data,
+    });
+
     this.broadcastToDraftRoom(leagueId, {
       type: 'player_picked',
       ...data,
@@ -265,6 +281,11 @@ class WebSocketManager {
     if (room) {
       room.currentPick = data.pickNumber;
     }
+
+    logDraftTiming("ws:next_pick", {
+      leagueId,
+      ...data,
+    });
 
     this.broadcastToDraftRoom(leagueId, {
       type: 'next_pick',
@@ -290,6 +311,11 @@ class WebSocketManager {
     timeLimit: number;
     startTime: number;
   }) {
+    logDraftTiming("ws:timer_start", {
+      leagueId,
+      ...data,
+    });
+
     this.broadcastToDraftRoom(leagueId, {
       type: 'timer_start',
       ...data,

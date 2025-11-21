@@ -179,17 +179,19 @@ export async function makeAutoPick(leagueId: number, teamId: number): Promise<vo
   });
 
   // Advance to next pick
-  await advanceDraftPick(leagueId);
+  const draftCompletedNow = await advanceDraftPick(leagueId);
 
-  // Calculate and notify next pick
-  const nextPickInfo = await calculateNextPick(leagueId).catch(() => null);
-  if (nextPickInfo) {
-    wsManager.notifyNextPick(leagueId, {
-      teamId: nextPickInfo.teamId,
-      teamName: nextPickInfo.teamName,
-      pickNumber: nextPickInfo.pickNumber,
-      round: nextPickInfo.round,
-    });
+  // Calculate and notify next pick if draft is not complete
+  if (!draftCompletedNow) {
+    const nextPickInfo = await calculateNextPick(leagueId).catch(() => null);
+    if (nextPickInfo) {
+      wsManager.notifyNextPick(leagueId, {
+        teamId: nextPickInfo.teamId,
+        teamName: nextPickInfo.teamName,
+        pickNumber: nextPickInfo.pickNumber,
+        round: nextPickInfo.round,
+      });
+    }
   }
 
   console.log(`[AutoPick] Team ${teamId} auto-picked ${pickedAsset.name} (${targetPosition})`);

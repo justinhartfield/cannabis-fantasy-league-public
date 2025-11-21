@@ -29,6 +29,17 @@ import { wsManager } from "./websocket";
 import { validateDraftPick, advanceDraftPick, calculateNextPick, getDraftStatus, checkAndCompleteDraft } from "./draftLogic";
 import { draftTimerManager } from "./draftTimer";
 
+const DRAFT_TIMING_ENABLED = process.env.DRAFT_TIMING_LOGS === "1";
+
+function logDraftTiming(step: string, data?: Record<string, unknown>) {
+  if (!DRAFT_TIMING_ENABLED) return;
+  if (data) {
+    console.log(`[DraftTiming] ${step}`, data);
+  } else {
+    console.log(`[DraftTiming] ${step}`);
+  }
+}
+
 /**
  * Helper function to parse JSON or comma-separated string into array
  */
@@ -576,33 +587,55 @@ export const draftRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
-      // Check if draft should be complete (handles stuck drafts)
-      const wasCompleted = await checkAndCompleteDraft(input.leagueId);
-      if (wasCompleted) {
-        // Draft just completed, notify clients
-        wsManager.notifyDraftComplete(input.leagueId);
+      const timingStart = Date.now();
+      logDraftTiming("makeDraftPick:start", {
+        leagueId: input.leagueId,
+        teamId: input.teamId,
+        assetType: input.assetType,
+        assetId: input.assetId,
+      });
+
+      // Load league to ensure draft has not already completed and to get current pick/round
+      const [league] = await db
+        .select()
+        .from(leagues)
+        .where(eq(leagues.id, input.leagueId))
+        .limit(1);
+
+      if (!league) {
+        throw new Error("League not found");
+      }
+
+      if (league.draftCompleted === 1) {
+        logDraftTiming("makeDraftPick:league_already_complete", {
+          leagueId: input.leagueId,
+        });
         throw new Error("Draft is complete");
       }
 
+      const currentPickNumber = league.currentDraftPick;
+      const currentRound = league.currentDraftRound;
+
       // Validate the draft pick
+      const validationStart = Date.now();
       const validation = await validateDraftPick(
         input.leagueId,
         input.teamId,
         input.assetType,
         input.assetId
       );
+      logDraftTiming("makeDraftPick:validateDraftPick", {
+        leagueId: input.leagueId,
+        durationMs: Date.now() - validationStart,
+        valid: validation.valid,
+      });
 
       if (!validation.valid) {
-        // Check again if draft should be complete before throwing error
-        const nowCompleted = await checkAndCompleteDraft(input.leagueId);
-        if (nowCompleted) {
-          wsManager.notifyDraftComplete(input.leagueId);
-          throw new Error("Draft is complete");
-        }
         throw new Error(validation.error || "Invalid draft pick");
       }
 
-      // Calculate draft round and pick if not provided
+      // Calculate draft round and pick if not provided (per-team view, used only for UI)
+      const rosterStart = Date.now();
       const currentRosterSize = await db
         .select()
         .from(rosters)
@@ -610,8 +643,15 @@ export const draftRouter = router({
       
       const draftRound = input.draftRound || Math.floor(currentRosterSize.length / 9) + 1;
       const draftPick = input.draftPick || currentRosterSize.length + 1;
+      logDraftTiming("makeDraftPick:loadRoster", {
+        leagueId: input.leagueId,
+        teamId: input.teamId,
+        rosterSize: currentRosterSize.length,
+        durationMs: Date.now() - rosterStart,
+      });
 
       // Get team and asset details for WebSocket notification
+      const metaStart = Date.now();
       const [team] = await db
         .select()
         .from(teams)
@@ -631,9 +671,17 @@ export const draftRouter = router({
       } else if (input.assetType === "pharmacy") {
         const [pharmacy] = await db.select().from(pharmacies).where(eq(pharmacies.id, input.assetId)).limit(1);
         assetName = pharmacy?.name || "Unknown";
+      } else if (input.assetType === "brand") {
+        const [brand] = await db.select().from(brands).where(eq(brands.id, input.assetId)).limit(1);
+        assetName = brand?.name || "Unknown";
       }
+      logDraftTiming("makeDraftPick:loadMeta", {
+        leagueId: input.leagueId,
+        durationMs: Date.now() - metaStart,
+      });
 
       // Add to roster
+      const writeStart = Date.now();
       await db.insert(rosters).values({
         teamId: input.teamId,
         assetType: input.assetType,
@@ -642,7 +690,23 @@ export const draftRouter = router({
         acquiredVia: "draft",
       });
 
-      // Notify all clients in the draft room
+      // Record draft pick in draftPicks table.
+      // Use league's current draft pick/round for the official record.
+      await db.insert(draftPicks).values({
+        leagueId: input.leagueId,
+        teamId: input.teamId,
+        round: currentRound,
+        pickNumber: currentPickNumber,
+        assetType: input.assetType,
+        assetId: input.assetId,
+      });
+
+      logDraftTiming("makeDraftPick:dbWritesComplete", {
+        leagueId: input.leagueId,
+        durationMs: Date.now() - writeStart,
+      });
+
+      // Notify all clients in the draft room about the pick itself
       wsManager.notifyPlayerPicked(input.leagueId, {
         teamId: input.teamId,
         teamName: team?.name || "Unknown Team",
@@ -652,33 +716,22 @@ export const draftRouter = router({
         pickNumber: draftPick,
       });
 
-      // Record draft pick in draftPicks table
-      const draftStatus = await getDraftStatus(input.leagueId);
-      await db.insert(draftPicks).values({
+      // Advance to next pick (also handles final-draft completion bookkeeping)
+      const advanceStart = Date.now();
+      const draftCompletedNow = await advanceDraftPick(input.leagueId);
+      logDraftTiming("makeDraftPick:advanceDraftPick", {
         leagueId: input.leagueId,
-        teamId: input.teamId,
-        round: draftStatus.currentRound,
-        pickNumber: draftStatus.currentPick,
-        assetType: input.assetType,
-        assetId: input.assetId,
+        draftCompletedNow,
+        durationMs: Date.now() - advanceStart,
       });
 
-      // Advance to next pick
-      await advanceDraftPick(input.leagueId);
-
-      // Stop current timer
+      // Stop current timer for this pick
       draftTimerManager.stopTimer(input.leagueId);
 
-      // Check if draft is now complete
-      const isDraftComplete = await checkAndCompleteDraft(input.leagueId);
-
-      if (isDraftComplete) {
-        // Stop timer
+      if (draftCompletedNow) {
+        // Ensure timer fully stopped and notify all clients
         draftTimerManager.stopTimer(input.leagueId);
-
-        // Notify all clients
         wsManager.notifyDraftComplete(input.leagueId);
-
         console.log(`[DraftRouter] Draft complete for league ${input.leagueId}`);
       } else {
         // Calculate and notify next pick
@@ -695,6 +748,15 @@ export const draftRouter = router({
           await draftTimerManager.startTimer(input.leagueId);
         }
       }
+
+      logDraftTiming("makeDraftPick:complete", {
+        leagueId: input.leagueId,
+        teamId: input.teamId,
+        assetType: input.assetType,
+        assetId: input.assetId,
+        draftCompletedNow,
+        totalDurationMs: Date.now() - timingStart,
+      });
 
       return { success: true, assetName };
     }),
@@ -828,10 +890,13 @@ export const draftRouter = router({
       leagueId: z.number(),
       year: z.number(),
       week: z.number(),
+      includeStats: z.boolean().optional().default(true),
     }))
     .query(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
+
+      const includeStats = input.includeStats ?? true;
 
       // Fetch all draft picks for this league
       const picks = await db
@@ -867,33 +932,35 @@ export const draftRouter = router({
           assetName = asset?.name || "Unknown";
           imageUrl = asset?.logoUrl || null;
 
-          // Fetch last week stats
-          const [lastWeekStat] = await db
-            .select()
-            .from(manufacturerWeeklyStats)
-            .where(and(
-              eq(manufacturerWeeklyStats.manufacturerId, pick.assetId),
-              eq(manufacturerWeeklyStats.year, input.year),
-              eq(manufacturerWeeklyStats.week, input.week - 1)
-            ))
-            .limit(1);
-          
-          if (lastWeekStat) {
-            lastWeekPoints = lastWeekStat.totalPoints;
-
-            // Get week-2 for trend
-            const [twoWeeksAgo] = await db
+          if (includeStats) {
+            // Fetch last week stats
+            const [lastWeekStat] = await db
               .select()
               .from(manufacturerWeeklyStats)
               .where(and(
                 eq(manufacturerWeeklyStats.manufacturerId, pick.assetId),
                 eq(manufacturerWeeklyStats.year, input.year),
-                eq(manufacturerWeeklyStats.week, input.week - 2)
+                eq(manufacturerWeeklyStats.week, input.week - 1)
               ))
               .limit(1);
+            
+            if (lastWeekStat) {
+              lastWeekPoints = lastWeekStat.totalPoints;
 
-            if (twoWeeksAgo && twoWeeksAgo.totalPoints > 0) {
-              trendPercent = ((lastWeekStat.totalPoints - twoWeeksAgo.totalPoints) / twoWeeksAgo.totalPoints) * 100;
+              // Get week-2 for trend
+              const [twoWeeksAgo] = await db
+                .select()
+                .from(manufacturerWeeklyStats)
+                .where(and(
+                  eq(manufacturerWeeklyStats.manufacturerId, pick.assetId),
+                  eq(manufacturerWeeklyStats.year, input.year),
+                  eq(manufacturerWeeklyStats.week, input.week - 2)
+                ))
+                .limit(1);
+
+              if (twoWeeksAgo && twoWeeksAgo.totalPoints > 0) {
+                trendPercent = ((lastWeekStat.totalPoints - twoWeeksAgo.totalPoints) / twoWeeksAgo.totalPoints) * 100;
+              }
             }
           }
         } else if (pick.assetType === 'cannabis_strain') {
@@ -901,62 +968,66 @@ export const draftRouter = router({
           assetName = asset?.name || "Unknown";
           imageUrl = asset?.imageUrl || null;
 
-          const [lastWeekStat] = await db
-            .select()
-            .from(cannabisStrainWeeklyStats)
-            .where(and(
-              eq(cannabisStrainWeeklyStats.cannabisStrainId, pick.assetId),
-              eq(cannabisStrainWeeklyStats.year, input.year),
-              eq(cannabisStrainWeeklyStats.week, input.week - 1)
-            ))
-            .limit(1);
-
-          if (lastWeekStat) {
-            lastWeekPoints = lastWeekStat.totalPoints;
-
-            const [twoWeeksAgo] = await db
+          if (includeStats) {
+            const [lastWeekStat] = await db
               .select()
               .from(cannabisStrainWeeklyStats)
               .where(and(
                 eq(cannabisStrainWeeklyStats.cannabisStrainId, pick.assetId),
                 eq(cannabisStrainWeeklyStats.year, input.year),
-                eq(cannabisStrainWeeklyStats.week, input.week - 2)
+                eq(cannabisStrainWeeklyStats.week, input.week - 1)
               ))
               .limit(1);
 
-            if (twoWeeksAgo && twoWeeksAgo.totalPoints > 0) {
-              trendPercent = ((lastWeekStat.totalPoints - twoWeeksAgo.totalPoints) / twoWeeksAgo.totalPoints) * 100;
+            if (lastWeekStat) {
+              lastWeekPoints = lastWeekStat.totalPoints;
+
+              const [twoWeeksAgo] = await db
+                .select()
+                .from(cannabisStrainWeeklyStats)
+                .where(and(
+                  eq(cannabisStrainWeeklyStats.cannabisStrainId, pick.assetId),
+                  eq(cannabisStrainWeeklyStats.year, input.year),
+                  eq(cannabisStrainWeeklyStats.week, input.week - 2)
+                ))
+                .limit(1);
+
+              if (twoWeeksAgo && twoWeeksAgo.totalPoints > 0) {
+                trendPercent = ((lastWeekStat.totalPoints - twoWeeksAgo.totalPoints) / twoWeeksAgo.totalPoints) * 100;
+              }
             }
           }
         } else if (pick.assetType === 'product') {
           const [asset] = await db.select().from(strains).where(eq(strains.id, pick.assetId)).limit(1);
           assetName = asset?.name || "Unknown";
 
-          const [lastWeekStat] = await db
-            .select()
-            .from(strainWeeklyStats)
-            .where(and(
-              eq(strainWeeklyStats.strainId, pick.assetId),
-              eq(strainWeeklyStats.year, input.year),
-              eq(strainWeeklyStats.week, input.week - 1)
-            ))
-            .limit(1);
-
-          if (lastWeekStat) {
-            lastWeekPoints = lastWeekStat.totalPoints;
-
-            const [twoWeeksAgo] = await db
+          if (includeStats) {
+            const [lastWeekStat] = await db
               .select()
               .from(strainWeeklyStats)
               .where(and(
                 eq(strainWeeklyStats.strainId, pick.assetId),
                 eq(strainWeeklyStats.year, input.year),
-                eq(strainWeeklyStats.week, input.week - 2)
+                eq(strainWeeklyStats.week, input.week - 1)
               ))
               .limit(1);
 
-            if (twoWeeksAgo && twoWeeksAgo.totalPoints > 0) {
-              trendPercent = ((lastWeekStat.totalPoints - twoWeeksAgo.totalPoints) / twoWeeksAgo.totalPoints) * 100;
+            if (lastWeekStat) {
+              lastWeekPoints = lastWeekStat.totalPoints;
+
+              const [twoWeeksAgo] = await db
+                .select()
+                .from(strainWeeklyStats)
+                .where(and(
+                  eq(strainWeeklyStats.strainId, pick.assetId),
+                  eq(strainWeeklyStats.year, input.year),
+                  eq(strainWeeklyStats.week, input.week - 2)
+                ))
+                .limit(1);
+
+              if (twoWeeksAgo && twoWeeksAgo.totalPoints > 0) {
+                trendPercent = ((lastWeekStat.totalPoints - twoWeeksAgo.totalPoints) / twoWeeksAgo.totalPoints) * 100;
+              }
             }
           }
         } else if (pick.assetType === 'pharmacy') {
@@ -964,31 +1035,33 @@ export const draftRouter = router({
           assetName = asset?.name || "Unknown";
           imageUrl = asset?.logoUrl || null;
 
-          const [lastWeekStat] = await db
-            .select()
-            .from(pharmacyWeeklyStats)
-            .where(and(
-              eq(pharmacyWeeklyStats.pharmacyId, pick.assetId),
-              eq(pharmacyWeeklyStats.year, input.year),
-              eq(pharmacyWeeklyStats.week, input.week - 1)
-            ))
-            .limit(1);
-
-          if (lastWeekStat) {
-            lastWeekPoints = lastWeekStat.totalPoints;
-
-            const [twoWeeksAgo] = await db
+          if (includeStats) {
+            const [lastWeekStat] = await db
               .select()
               .from(pharmacyWeeklyStats)
               .where(and(
                 eq(pharmacyWeeklyStats.pharmacyId, pick.assetId),
                 eq(pharmacyWeeklyStats.year, input.year),
-                eq(pharmacyWeeklyStats.week, input.week - 2)
+                eq(pharmacyWeeklyStats.week, input.week - 1)
               ))
               .limit(1);
 
-            if (twoWeeksAgo && twoWeeksAgo.totalPoints > 0) {
-              trendPercent = ((lastWeekStat.totalPoints - twoWeeksAgo.totalPoints) / twoWeeksAgo.totalPoints) * 100;
+            if (lastWeekStat) {
+              lastWeekPoints = lastWeekStat.totalPoints;
+
+              const [twoWeeksAgo] = await db
+                .select()
+                .from(pharmacyWeeklyStats)
+                .where(and(
+                  eq(pharmacyWeeklyStats.pharmacyId, pick.assetId),
+                  eq(pharmacyWeeklyStats.year, input.year),
+                  eq(pharmacyWeeklyStats.week, input.week - 2)
+                ))
+                .limit(1);
+
+              if (twoWeeksAgo && twoWeeksAgo.totalPoints > 0) {
+                trendPercent = ((lastWeekStat.totalPoints - twoWeeksAgo.totalPoints) / twoWeeksAgo.totalPoints) * 100;
+              }
             }
           }
         } else if (pick.assetType === 'brand') {
@@ -996,31 +1069,33 @@ export const draftRouter = router({
           assetName = asset?.name || "Unknown";
           imageUrl = asset?.logoUrl || null;
 
-          const [lastWeekStat] = await db
-            .select()
-            .from(brandWeeklyStats)
-            .where(and(
-              eq(brandWeeklyStats.brandId, pick.assetId),
-              eq(brandWeeklyStats.year, input.year),
-              eq(brandWeeklyStats.week, input.week - 1)
-            ))
-            .limit(1);
-
-          if (lastWeekStat) {
-            lastWeekPoints = lastWeekStat.totalPoints;
-
-            const [twoWeeksAgo] = await db
+          if (includeStats) {
+            const [lastWeekStat] = await db
               .select()
               .from(brandWeeklyStats)
               .where(and(
                 eq(brandWeeklyStats.brandId, pick.assetId),
                 eq(brandWeeklyStats.year, input.year),
-                eq(brandWeeklyStats.week, input.week - 2)
+                eq(brandWeeklyStats.week, input.week - 1)
               ))
               .limit(1);
 
-            if (twoWeeksAgo && twoWeeksAgo.totalPoints > 0) {
-              trendPercent = ((lastWeekStat.totalPoints - twoWeeksAgo.totalPoints) / twoWeeksAgo.totalPoints) * 100;
+            if (lastWeekStat) {
+              lastWeekPoints = lastWeekStat.totalPoints;
+
+              const [twoWeeksAgo] = await db
+                .select()
+                .from(brandWeeklyStats)
+                .where(and(
+                  eq(brandWeeklyStats.brandId, pick.assetId),
+                  eq(brandWeeklyStats.year, input.year),
+                  eq(brandWeeklyStats.week, input.week - 2)
+                ))
+                .limit(1);
+
+              if (twoWeeksAgo && twoWeeksAgo.totalPoints > 0) {
+                trendPercent = ((lastWeekStat.totalPoints - twoWeeksAgo.totalPoints) / twoWeeksAgo.totalPoints) * 100;
+              }
             }
           }
         }

@@ -4,6 +4,17 @@ import { eq, and, sql } from "drizzle-orm";
 import { autoFillLeagueRosters } from "./autoFillRoster";
 import { autoPopulateLeagueLineups } from "./lineupAutoPopulate";
 
+const DRAFT_TIMING_ENABLED = process.env.DRAFT_TIMING_LOGS === "1";
+
+function logDraftTiming(step: string, data?: Record<string, unknown>) {
+  if (!DRAFT_TIMING_ENABLED) return;
+  if (data) {
+    console.log(`[DraftTiming] ${step}`, data);
+  } else {
+    console.log(`[DraftTiming] ${step}`);
+  }
+}
+
 /**
  * Calculate which team should pick next in a snake draft
  */
@@ -157,9 +168,11 @@ export async function validateDraftPick(
 /**
  * Advance to the next pick
  */
-export async function advanceDraftPick(leagueId: number): Promise<void> {
+export async function advanceDraftPick(leagueId: number): Promise<boolean> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+
+  const timingStart = Date.now();
 
   const [league] = await db
     .select()
@@ -174,10 +187,12 @@ export async function advanceDraftPick(leagueId: number): Promise<void> {
     .select()
     .from(teams)
     .where(eq(teams.leagueId, leagueId));
-  
+
   const teamCount = allTeams.length;
   const totalPicks = teamCount * 10; // 10 rounds total (10 roster slots)
   const nextPickNumber = league.currentDraftPick + 1;
+
+  let draftCompleted = false;
 
   if (nextPickNumber > totalPicks) {
     // Draft is complete
@@ -210,6 +225,8 @@ export async function advanceDraftPick(leagueId: number): Promise<void> {
         `[advanceDraftPick] Auto-populated lineups: ${populateResult.lineupsCreated} created, ` +
         `${populateResult.lineupsSkipped} skipped`
       );
+
+      draftCompleted = true;
     } catch (error) {
       console.error("[advanceDraftPick] Error auto-populating lineups:", error);
     }
@@ -225,6 +242,16 @@ export async function advanceDraftPick(leagueId: number): Promise<void> {
       })
       .where(eq(leagues.id, leagueId));
   }
+
+  logDraftTiming("advanceDraftPick", {
+    leagueId,
+    totalPicks,
+    nextPickNumber,
+    draftCompleted,
+    durationMs: Date.now() - timingStart,
+  });
+
+  return draftCompleted;
 }
 
 /**
