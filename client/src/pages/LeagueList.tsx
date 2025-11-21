@@ -26,7 +26,7 @@ export default function LeagueList() {
       const path =
         data.leagueType === "challenge"
           ? `/challenge/${data.leagueId}`
-        : `/challenge/${data.leagueId}`;
+          : `/league/${data.leagueId}`;
       setLocation(path);
     },
     onError: (error) => {
@@ -136,7 +136,7 @@ export default function LeagueList() {
                   const targetPath =
                     league.leagueType === "challenge"
                       ? `/challenge/${league.id}`
-                      : `/challenge/${league.id}`;
+                      : `/league/${league.id}`;
 
                   return (
                     <Card

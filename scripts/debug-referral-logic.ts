@@ -1,128 +1,130 @@
-import { getDb } from "../server/db";
-import { users, referrals, teams, leagues } from "../drizzle/schema";
-import { eq, and } from "drizzle-orm";
-import { 
-  applyReferralCodeForUser, 
-  completeReferralIfEligible,
-  getOrCreateReferralCode 
-} from "../server/referralService";
+import { getDb } from '../server/db';
+import { users, referrals, teams, leagues } from '../drizzle/schema';
+import { eq, and } from 'drizzle-orm';
+import { applyReferralCodeForUser, completeReferralIfEligible, getOrCreateReferralCode } from '../server/referralService';
 
-async function debugReferralFlow() {
-  console.log("🔍 Starting Referral Debug Script...");
+async function runDebug() {
+  console.log("🚀 Starting Referral Debug...");
   
   const db = await getDb();
   if (!db) {
-    console.error("❌ Database connection failed");
+    console.error("❌ Database not available");
     process.exit(1);
   }
 
-  try {
-    // 1. Setup Test Users
-    const timestamp = Date.now();
-    const referrerEmail = `referrer_${timestamp}@test.com`;
-    const refereeEmail = `referee_${timestamp}@test.com`;
-    const referralCode = `DEBUG${timestamp.toString().slice(-6)}`;
+  // 1. Cleanup previous test data if exists
+  console.log("🧹 Cleaning up test data...");
+  const testReferrerEmail = 'test_referrer_debug@example.com';
+  const testRefereeEmail = 'test_referee_debug@example.com';
+  
+  const [existingReferrer] = await db.select().from(users).where(eq(users.email, testReferrerEmail));
+  const [existingReferee] = await db.select().from(users).where(eq(users.email, testRefereeEmail));
 
-    console.log(`\n👤 Creating users...`);
-    console.log(`   Referrer: ${referrerEmail}`);
-    console.log(`   Referee: ${refereeEmail}`);
-    console.log(`   Code: ${referralCode}`);
-
-    // Create Referrer
-    const [referrer] = await db.insert(users).values({
-      openId: `referrer_${timestamp}`,
-      email: referrerEmail,
-      name: "Debug Referrer",
-      referralCode: referralCode,
-      referralCredits: 0,
-      streakFreezeTokens: 0
-    }).returning();
-
-    // Create Referee
-    const [referee] = await db.insert(users).values({
-      openId: `referee_${timestamp}`,
-      email: refereeEmail,
-      name: "Debug Referee",
-      referralCredits: 0,
-      streakFreezeTokens: 0
-    }).returning();
-
-    // 2. Apply Referral Code
-    console.log(`\n🔗 Applying referral code '${referralCode}' for referee...`);
-    const applyResult = await applyReferralCodeForUser(referee.id, referralCode);
-    console.log("   Result:", applyResult);
-
-    // Verify 'referrals' table state
-    const [referralRecord] = await db.select()
-      .from(referrals)
-      .where(eq(referrals.referredUserId, referee.id));
-    
-    console.log("   Referral Record:", referralRecord ? {
-      status: referralRecord.status,
-      trigger: referralRecord.trigger,
-      referrerId: referralRecord.referrerUserId,
-      code: referralRecord.referralCode
-    } : "NOT FOUND");
-
-    if (!referralRecord || referralRecord.status !== 'pending') {
-      console.error("❌ Referral application failed or status incorrect");
-    }
-
-    // 3. Simulate League Join / Team Creation
-    console.log(`\n🏆 Simulating League Join...`);
-    
-    // Create a dummy league
-    const [league] = await db.insert(leagues).values({
-      name: `Debug League ${timestamp}`,
-      commissionerUserId: referrer.id,
-      seasonYear: 2025,
-      leagueCode: `L${timestamp.toString().slice(-5)}`
-    }).returning();
-
-    console.log(`   Created League: ${league.id}`);
-
-    // Referee joins league (creates team)
-    // IMPORTANT: This mimics leagueRouter.join logic order
-    console.log(`   Referee creating team...`);
-    const [team] = await db.insert(teams).values({
-      leagueId: league.id,
-      userId: referee.id,
-      name: "Debug Team"
-    }).returning();
-    console.log(`   Team created: ${team.id}`);
-
-    // 4. Trigger Completion Logic
-    console.log(`   Triggering completeReferralIfEligible(${referee.id})...`);
-    await completeReferralIfEligible(referee.id);
-
-    // 5. Verify Rewards
-    console.log(`\n✨ Verifying Rewards...`);
-    
-    const [updatedReferrer] = await db.select()
-      .from(users)
-      .where(eq(users.id, referrer.id));
-
-    const [updatedReferral] = await db.select()
-      .from(referrals)
-      .where(eq(referrals.id, referralRecord.id));
-
-    console.log("   Referrer Credits:", updatedReferrer.referralCredits);
-    console.log("   Referrer Freeze Tokens:", updatedReferrer.streakFreezeTokens);
-    console.log("   Referral Status:", updatedReferral.status);
-
-    if (updatedReferrer.streakFreezeTokens === 1 && updatedReferral.status === 'completed') {
-      console.log("\n✅ SUCCESS: Referral flow working correctly in isolation.");
-    } else {
-      console.error("\n❌ FAILURE: Rewards not granted or status not updated.");
-    }
-
-  } catch (error) {
-    console.error("\n❌ Unexpected Error:", error);
-  } finally {
-    // Cleanup could go here, but for debug script we might want to inspect DB
-    process.exit(0);
+  if (existingReferee) {
+    await db.delete(teams).where(eq(teams.userId, existingReferee.id));
+    await db.delete(referrals).where(eq(referrals.referredUserId, existingReferee.id));
+    await db.delete(users).where(eq(users.id, existingReferee.id));
   }
+  if (existingReferrer) {
+    await db.delete(referrals).where(eq(referrals.referrerUserId, existingReferrer.id));
+    await db.delete(users).where(eq(users.id, existingReferrer.id));
+  }
+
+  // 2. Create Referrer
+  console.log("👤 Creating Referrer...");
+  const [referrer] = await db.insert(users).values({
+    openId: 'debug_referrer_open_id',
+    name: 'Debug Referrer',
+    email: testReferrerEmail,
+    referralCredits: 0,
+    streakFreezeTokens: 0
+  }).returning();
+
+  // Generate code
+  const referralCode = await getOrCreateReferralCode(referrer.id);
+  console.log(`   Referrer ID: ${referrer.id}, Code: ${referralCode}`);
+
+  if (!referralCode) {
+    console.error("❌ Failed to generate referral code");
+    process.exit(1);
+  }
+
+  // 3. Create Referee (New User)
+  console.log("👤 Creating Referee...");
+  const [referee] = await db.insert(users).values({
+    openId: 'debug_referee_open_id',
+    name: 'Debug Referee',
+    email: testRefereeEmail,
+  }).returning();
+  console.log(`   Referee ID: ${referee.id}`);
+
+  // 4. Apply Referral Code
+  console.log(`🔗 Applying referral code ${referralCode} for Referee...`);
+  const applyResult = await applyReferralCodeForUser(referee.id, referralCode);
+  console.log(`   Result:`, applyResult);
+
+  if (applyResult.status !== 'applied') {
+    console.error("❌ Failed to apply referral code");
+    process.exit(1);
+  }
+
+  // Check pending state
+  const [pendingReferral] = await db.select().from(referrals).where(eq(referrals.referredUserId, referee.id));
+  console.log(`   Referral Status: ${pendingReferral?.status} (Expected: pending)`);
+
+  if (pendingReferral?.status !== 'pending') {
+    console.error("❌ Referral should be pending");
+    process.exit(1);
+  }
+
+  // 5. Simulate Joining a League
+  console.log("🏆 Referee joining a league...");
+  
+  // Create a dummy league first if needed, or just insert a team directly
+  const [league] = await db.insert(leagues).values({
+    name: 'Debug League',
+    commissionerUserId: referrer.id, // doesn't matter
+    seasonYear: 2025,
+    leagueCode: 'DEBUG1'
+  }).returning();
+
+  // Insert team
+  await db.insert(teams).values({
+    leagueId: league.id,
+    userId: referee.id,
+    name: 'Debug Team'
+  });
+
+  console.log("   Team created. Triggering completion logic...");
+  
+  // 6. Trigger Completion Logic manually (simulating leagueRouter call)
+  await completeReferralIfEligible(referee.id);
+
+  // 7. Verify Rewards
+  console.log("✅ Verifying rewards...");
+  
+  const [updatedReferral] = await db.select().from(referrals).where(eq(referrals.referredUserId, referee.id));
+  const [updatedReferrer] = await db.select().from(users).where(eq(users.id, referrer.id));
+
+  console.log(`   Referral Status: ${updatedReferral?.status}`);
+  console.log(`   Referrer Credits: ${updatedReferrer?.referralCredits}`);
+  console.log(`   Referrer Freeze Tokens: ${updatedReferrer?.streakFreezeTokens}`);
+
+  if (updatedReferral?.status === 'completed' && updatedReferrer?.referralCredits === 1) {
+    console.log("🎉 SUCCESS: Referral completed and rewards granted.");
+  } else {
+    console.error("❌ FAILURE: Rewards not granted correctly.");
+  }
+
+  // Cleanup
+  console.log("🧹 Final Cleanup...");
+  await db.delete(teams).where(eq(teams.userId, referee.id));
+  await db.delete(leagues).where(eq(leagues.id, league.id));
+  await db.delete(referrals).where(eq(referrals.referredUserId, referee.id));
+  await db.delete(users).where(eq(users.id, referee.id));
+  await db.delete(users).where(eq(users.id, referrer.id));
+
+  process.exit(0);
 }
 
-debugReferralFlow();
-
+runDebug().catch(console.error);

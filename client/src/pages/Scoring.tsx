@@ -63,7 +63,7 @@ export default function Scoring() {
   }, [league, leagueId, setLocation]);
   
   // Fetch team scores for selected week
-  const { data: weekScores, refetch: refetchScores } = trpc.scoring.getLeagueWeekScores.useQuery({
+  const { data: weekScores, refetch: refetchScores, isRefetching } = trpc.scoring.getLeagueWeekScores.useQuery({
     leagueId,
     year: selectedYear,
     week: selectedWeek,
@@ -190,6 +190,7 @@ export default function Scoring() {
         leagueName={league.name}
         teamCount={league.teams?.length || 0}
         maxTeams={league.maxTeams}
+        leagueType={league.leagueType}
         isCommissioner={isCommissioner}
         hasTeam={!!userTeam}
         currentPage="scoring"
@@ -283,12 +284,13 @@ export default function Scoring() {
 
             <Button
               onClick={() => refetchScores()}
+              disabled={isRefetching}
               variant="outline"
               size="sm"
               className="ml-auto border-border/50"
             >
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Refresh
+              <RefreshCw className={`w-4 h-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
+              {isRefetching ? "Refreshing..." : "Refresh"}
             </Button>
           </div>
         </CardContent>

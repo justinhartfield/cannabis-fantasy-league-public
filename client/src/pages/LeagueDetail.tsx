@@ -28,7 +28,7 @@ export default function LeagueDetail() {
   const startDraftMutation = trpc.draft.startDraft.useMutation({
     onSuccess: () => {
       toast.success("Draft wurde gestartet!");
-      setLocation(`/challenge/${id}/draft`);
+      setLocation(`${basePath}/draft`);
     },
     onError: (error) => {
       toast.error(`Fehler beim Starten des Drafts: ${error.message}`);
@@ -70,6 +70,8 @@ export default function LeagueDetail() {
     return <DailyChallenge />;
   }
 
+  const basePath = league.leagueType === "challenge" ? `/challenge/${league.id}` : `/league/${league.id}`;
+
   const copyLeagueCode = () => {
     navigator.clipboard.writeText(league.leagueCode);
     setCopied(true);
@@ -88,6 +90,7 @@ export default function LeagueDetail() {
         leagueName={league.name}
         teamCount={league.teams?.length || 0}
         maxTeams={league.maxTeams}
+        leagueType={league.leagueType}
         isCommissioner={isCommissioner}
         hasTeam={!!userTeam}
         currentPage="overview"
@@ -265,7 +268,7 @@ export default function LeagueDetail() {
                 <CardContent>
                   <Button
                     className="w-full"
-                    onClick={() => setLocation(`/challenge/${league.id}/draft`)}
+                    onClick={() => setLocation(`${basePath}/draft`)}
                   >
                     <Play className="w-4 h-4 mr-2" />
                     Zum Draft
@@ -285,7 +288,7 @@ export default function LeagueDetail() {
                     <>
                       <Button
                         className="w-full"
-                        onClick={() => setLocation(`/challenge/${league.id}/pre-draft`)}
+                        onClick={() => setLocation(`${basePath}/pre-draft`)}
                         disabled={!league.teams || league.teams.length < 2}
                       >
                         <Play className="w-4 h-4 mr-2" />
@@ -302,7 +305,7 @@ export default function LeagueDetail() {
                     <>
                       <Button
                         className="w-full"
-                        onClick={() => setLocation(`/challenge/${league.id}/draft`)}
+                        onClick={() => setLocation(`${basePath}/draft`)}
                       >
                         <Play className="w-4 h-4 mr-2" />
                         Go to Draft
@@ -323,7 +326,7 @@ export default function LeagueDetail() {
                     </>
                   )}
                   <Button variant="outline" className="w-full" asChild>
-                    <Link href={`/challenge/${league.id}/settings`}>
+                    <Link href={`${basePath}/settings`}>
                       <Settings className="w-4 h-4 mr-2" />
                       Einstellungen
                     </Link>
@@ -353,7 +356,7 @@ export default function LeagueDetail() {
                   </div>
                   <div className="space-y-2">
                     <Button variant="outline" className="w-full" asChild>
-                      <Link href={`/challenge/${id}/lineup`}>
+                      <Link href={`${basePath}/lineup`}>
                         Lineup bearbeiten
                       </Link>
                     </Button>

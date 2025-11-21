@@ -10,7 +10,7 @@ type LeagueCardProps = {
 
 export function LeagueCard({ league }: LeagueCardProps) {
   const { user } = useAuth();
-  const leaguePath = `/challenge/${league.id}`;
+  const leaguePath = league.leagueType === 'challenge' ? `/challenge/${league.id}` : `/league/${league.id}`;
 
   const isChallenge = league.leagueType === 'challenge';
   const commissionerId = league.commissionerId || league.commissionerUserId;
