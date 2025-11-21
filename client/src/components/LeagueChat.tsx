@@ -80,13 +80,13 @@ export function LeagueChat({ leagueId }: LeagueChatProps) {
   };
 
   return (
-    <div className="flex flex-col h-[600px] border rounded-lg bg-background shadow-sm">
-      <div className="p-4 border-b font-semibold flex items-center gap-2">
+    <div className="flex flex-col h-[600px] border rounded-lg bg-background shadow-sm overflow-hidden">
+      <div className="p-4 border-b font-semibold flex items-center gap-2 shrink-0">
         <Smile className="w-5 h-5 text-primary" />
         League Chat
       </div>
 
-      <ScrollArea className="flex-1 p-4">
+      <ScrollArea className="flex-1 min-h-0 p-4">
         <div className="space-y-4">
           {allMessages.map((msg) => {
             const isMe = msg.userId === user?.id;
@@ -109,7 +109,7 @@ export function LeagueChat({ leagueId }: LeagueChatProps) {
                     } ${isGif ? "bg-transparent p-0" : ""}`}
                   >
                     {isGif ? (
-                      <img src={msg.message} alt="GIF" className="rounded-lg max-w-full" />
+                      <img src={msg.message} alt="GIF" className="rounded-lg max-w-full h-auto object-contain" />
                     ) : (
                       msg.message
                     )}
@@ -122,7 +122,7 @@ export function LeagueChat({ leagueId }: LeagueChatProps) {
         </div>
       </ScrollArea>
 
-      <div className="p-4 border-t space-y-2">
+      <div className="p-4 border-t space-y-2 shrink-0">
         <div className="flex gap-2">
             {/* GIPHY / Templates Popover */}
           <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
