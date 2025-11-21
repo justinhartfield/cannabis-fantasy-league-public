@@ -14,6 +14,8 @@ import Standings from "./pages/Standings";
 import Playoffs from "./pages/Playoffs";
 import Lineup from "./pages/Lineup";
 import Scoring from "./pages/Scoring";
+import Waivers from "./pages/Waivers";
+import Trades from "./pages/Trades";
 import AcceptInvitation from "./pages/AcceptInvitation";
 import Login from "./pages/Login";
 import SignUpPage from "./pages/SignUp";
@@ -50,6 +52,8 @@ function Router() {
       <Route path={"/league/:id/playoffs"} component={Playoffs} />
       <Route path={"/league/:id/lineup"} component={Lineup} />
       <Route path={"/league/:id/scoring"} component={Scoring} />
+      <Route path={"/league/:id/waivers"} component={Waivers} />
+      <Route path={"/league/:id/trades"} component={Trades} />
       <Route path={"/league/:id/players"} component={Players} />
       {/* Challenge routes (daily mode) */}
       <Route path={"/challenge/:id"} component={LeagueDetail} />

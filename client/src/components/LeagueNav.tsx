@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Trophy, ArrowLeft, BarChart3, ListOrdered, Swords, UserCircle } from "lucide-react";
+import { Trophy, ArrowLeft, BarChart3, ListOrdered, Swords, UserCircle, Timer, RefreshCw } from "lucide-react";
 import { Link } from "wouter";
 
 interface LeagueNavProps {
@@ -11,7 +11,7 @@ interface LeagueNavProps {
   leagueType?: string;
   isCommissioner?: boolean;
   hasTeam?: boolean;
-  currentPage?: "overview" | "scoring" | "standings" | "matchups" | "lineup" | "players";
+  currentPage?: "overview" | "scoring" | "standings" | "matchups" | "lineup" | "players" | "waivers" | "trades";
 }
 
 /**
@@ -110,6 +110,30 @@ export function LeagueNav({
                 Mein Lineup
               </Link>
             </Button>
+          )}
+          {hasTeam && leagueType !== "challenge" && (
+            <>
+              <Button 
+                variant={currentPage === "waivers" ? "default" : "ghost"} 
+                size="sm" 
+                asChild
+              >
+                <Link href={`${basePath}/waivers`}>
+                  <Timer className="w-4 h-4 mr-2" />
+                  Waivers
+                </Link>
+              </Button>
+              <Button 
+                variant={currentPage === "trades" ? "default" : "ghost"} 
+                size="sm" 
+                asChild
+              >
+                <Link href={`${basePath}/trades`}>
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Trades
+                </Link>
+              </Button>
+            </>
           )}
           {hasTeam && leagueType !== "challenge" && (
             <Button 

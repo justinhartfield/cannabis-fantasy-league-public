@@ -3,11 +3,11 @@
  * Provides endpoints for admin dashboard and data sync control
  */
 
-import { router, protectedProcedure } from '../_core/trpc';
+import { adminProcedure, router } from '../_core/trpc';
 import { getDataSyncServiceV2 } from '../services/dataSyncService';
 import { getDb } from '../db';
 import { syncJobs, syncLogs, cannabisStrains, brands, manufacturers, dailyTeamScores } from '../../drizzle/schema';
-import { eq, desc, sql, gte } from 'drizzle-orm';
+import { eq, desc, sql, gte, and } from 'drizzle-orm';
 import { z } from 'zod';
 import { createSyncJob } from '../services/syncLogger';
 import {
@@ -21,10 +21,7 @@ export const adminRouter = router({
   /**
    * Trigger strain sync
    */
-  syncStrains: protectedProcedure.mutation(async ({ ctx }) => {
-    if (ctx.user.role !== 'admin') {
-      throw new Error('Unauthorized: Admin access required');
-    }
+  syncStrains: adminProcedure.mutation(async ({ ctx }) => {
 
     const syncService = getDataSyncServiceV2();
     
@@ -51,10 +48,7 @@ export const adminRouter = router({
   /**
    * Trigger brand sync
    */
-  syncBrands: protectedProcedure.mutation(async ({ ctx }) => {
-    if (ctx.user.role !== 'admin') {
-      throw new Error('Unauthorized: Admin access required');
-    }
+  syncBrands: adminProcedure.mutation(async ({ ctx }) => {
 
     const syncService = getDataSyncServiceV2();
     
@@ -81,10 +75,7 @@ export const adminRouter = router({
   /**
    * Trigger manufacturer sync
    */
-  syncManufacturers: protectedProcedure.mutation(async ({ ctx }) => {
-    if (ctx.user.role !== 'admin') {
-      throw new Error('Unauthorized: Admin access required');
-    }
+  syncManufacturers: adminProcedure.mutation(async ({ ctx }) => {
 
     const syncService = getDataSyncServiceV2();
     
@@ -111,15 +102,11 @@ export const adminRouter = router({
   /**
    * Trigger daily stats sync
    */
-  syncDailyStats: protectedProcedure
+  syncDailyStats: adminProcedure
     .input(z.object({
       date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     }).default({}))
     .mutation(async ({ ctx, input }) => {
-      if (ctx.user.role !== 'admin') {
-        throw new Error('Unauthorized: Admin access required');
-      }
-
       const syncService = getDataSyncServiceV2();
 
       try {
@@ -144,15 +131,11 @@ export const adminRouter = router({
   /**
    * Trigger daily challenge stats sync (Metabase order aggregation)
    */
-  syncDailyChallengeStats: protectedProcedure
+  syncDailyChallengeStats: adminProcedure
     .input(z.object({
       statDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     }).optional())
     .mutation(async ({ ctx, input }) => {
-      if (ctx.user.role !== 'admin') {
-        throw new Error('Unauthorized: Admin access required');
-      }
-
       const statDate = input?.statDate || new Date().toISOString().split('T')[0];
       const logger = await createSyncJob('sync-daily-challenge');
 
@@ -195,10 +178,7 @@ export const adminRouter = router({
   /**
    * Trigger products sync
    */
-  syncProducts: protectedProcedure.mutation(async ({ ctx }) => {
-    if (ctx.user.role !== 'admin') {
-      throw new Error('Unauthorized: Admin access required');
-    }
+  syncProducts: adminProcedure.mutation(async ({ ctx }) => {
 
     const syncService = getDataSyncServiceV2();
     
@@ -225,10 +205,7 @@ export const adminRouter = router({
   /**
    * Trigger full sync (all data sources)
    */
-  syncAll: protectedProcedure.mutation(async ({ ctx }) => {
-    if (ctx.user.role !== 'admin') {
-      throw new Error('Unauthorized: Admin access required');
-    }
+  syncAll: adminProcedure.mutation(async ({ ctx }) => {
 
     const syncService = getDataSyncServiceV2();
     
@@ -255,16 +232,12 @@ export const adminRouter = router({
   /**
    * Sync weekly stats for a specific year and week
    */
-  syncWeeklyStats: protectedProcedure
+  syncWeeklyStats: adminProcedure
     .input(z.object({
       year: z.number().min(2020).max(2030),
       week: z.number().min(1).max(53),
     }))
     .mutation(async ({ ctx, input }) => {
-      if (ctx.user.role !== 'admin') {
-        throw new Error('Unauthorized: Admin access required');
-      }
-
       const syncService = getDataSyncServiceV2();
       
       try {
@@ -290,15 +263,11 @@ export const adminRouter = router({
   /**
    * Get recent sync jobs
    */
-  getSyncJobs: protectedProcedure
+  getSyncJobs: adminProcedure
     .input(z.object({
       limit: z.number().optional().default(20),
     }))
     .query(async ({ ctx, input }) => {
-      if (ctx.user.role !== 'admin') {
-        throw new Error('Unauthorized: Admin access required');
-      }
-
       const db = await getDb();
     if (!db) throw new Error('Database not available');
     const jobs = await db
@@ -313,15 +282,11 @@ export const adminRouter = router({
   /**
    * Get logs for a specific job
    */
-  getJobLogs: protectedProcedure
+  getJobLogs: adminProcedure
     .input(z.object({
       jobId: z.number(),
     }))
     .query(async ({ ctx, input }) => {
-      if (ctx.user.role !== 'admin') {
-        throw new Error('Unauthorized: Admin access required');
-      }
-
       const db = await getDb();
       if (!db) throw new Error('Database not available');
       const logs = await db
@@ -336,11 +301,7 @@ export const adminRouter = router({
   /**
    * Get dashboard stats (data freshness and counts)
    */
-  getDashboardStats: protectedProcedure.query(async ({ ctx }) => {
-    if (ctx.user.role !== 'admin') {
-      throw new Error('Unauthorized: Admin access required');
-    }
-
+  getDashboardStats: adminProcedure.query(async ({ ctx }) => {
     // Get counts
     const db = await getDb();
     if (!db) throw new Error('Database not available');
@@ -360,24 +321,30 @@ export const adminRouter = router({
     const lastStrainSync = await db
       .select()
       .from(syncJobs)
-      .where(eq(syncJobs.jobName, 'sync-strains'))
-      .where(eq(syncJobs.status, 'completed'))
+      .where(and(
+        eq(syncJobs.jobName, 'sync-strains'),
+        eq(syncJobs.status, 'completed'),
+      ))
       .orderBy(desc(syncJobs.completedAt))
       .limit(1);
 
     const lastBrandSync = await db
       .select()
       .from(syncJobs)
-      .where(eq(syncJobs.jobName, 'sync-brands'))
-      .where(eq(syncJobs.status, 'completed'))
+      .where(and(
+        eq(syncJobs.jobName, 'sync-brands'),
+        eq(syncJobs.status, 'completed'),
+      ))
       .orderBy(desc(syncJobs.completedAt))
       .limit(1);
 
     const lastMfgSync = await db
       .select()
       .from(syncJobs)
-      .where(eq(syncJobs.jobName, 'sync-manufacturers'))
-      .where(eq(syncJobs.status, 'completed'))
+      .where(and(
+        eq(syncJobs.jobName, 'sync-manufacturers'),
+        eq(syncJobs.status, 'completed'),
+      ))
       .orderBy(desc(syncJobs.completedAt))
       .limit(1);
 
@@ -400,11 +367,7 @@ export const adminRouter = router({
   /**
    * Get latest stat dates for daily challenge data sources
    */
-  getDailyChallengeStatsSummary: protectedProcedure.query(async ({ ctx }) => {
-    if (ctx.user.role !== 'admin') {
-      throw new Error('Unauthorized: Admin access required');
-    }
-
+  getDailyChallengeStatsSummary: adminProcedure.query(async ({ ctx }) => {
     const db = await getDb();
     if (!db) throw new Error('Database not available');
 
@@ -448,15 +411,11 @@ export const adminRouter = router({
   /**
    * Get rolling averages for each daily challenge position
    */
-  getDailyChallengePositionAverages: protectedProcedure
+  getDailyChallengePositionAverages: adminProcedure
     .input(z.object({
       windowDays: z.number().min(1).max(90).default(7),
     }).optional())
     .query(async ({ ctx, input }) => {
-      if (ctx.user.role !== 'admin') {
-        throw new Error('Unauthorized: Admin access required');
-      }
-
       const db = await getDb();
       if (!db) throw new Error('Database not available');
 

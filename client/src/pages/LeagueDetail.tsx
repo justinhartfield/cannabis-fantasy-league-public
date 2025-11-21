@@ -199,7 +199,8 @@ export default function LeagueDetail() {
                             <p className="font-medium text-foreground">{team.teamName}</p>
                             <p className="text-sm text-muted-foreground">
                               {team.userId === league.commissionerId && "Commissioner • "}
-                              {team.userId === user?.id && "Dein Team"}
+                              {team.userId === user?.id && "Dein Team • "}
+                              ${team.faabBudget} FAAB
                             </p>
                           </div>
                         </div>
@@ -348,7 +349,7 @@ export default function LeagueDetail() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">FAAB verbleibend</p>
-                    <p className="text-foreground font-medium">{userTeam.faabRemaining}</p>
+                    <p className="text-foreground font-medium">{userTeam.faabBudget}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">Waiver-Priorität</p>
@@ -358,6 +359,11 @@ export default function LeagueDetail() {
                     <Button variant="outline" className="w-full" asChild>
                       <Link href={`${basePath}/lineup`}>
                         Lineup bearbeiten
+                      </Link>
+                    </Button>
+                    <Button variant="outline" className="w-full" asChild>
+                      <Link href={`${basePath}/waivers`}>
+                        Waivers & Claims
                       </Link>
                     </Button>
                     <Button variant="outline" className="w-full" asChild>

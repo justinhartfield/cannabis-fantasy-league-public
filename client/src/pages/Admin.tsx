@@ -4,9 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
-import { Database, RefreshCw, Loader2, CheckCircle, XCircle, Eye, Calendar, BarChart3 } from "lucide-react";
+import { ADMIN_PASS_STORAGE_KEY, DEFAULT_ADMIN_BYPASS_PASSWORD } from "@shared/const";
+import { Database, RefreshCw, Loader2, XCircle, Eye, Calendar, BarChart3, KeyRound } from "lucide-react";
 import { toast } from "sonner";
-import { useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 
 export default function Admin() {
@@ -16,18 +17,66 @@ export default function Admin() {
   const [weekNumber, setWeekNumber] = useState<number>(1);
   const [dailyStatDate, setDailyStatDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [positionWindow, setPositionWindow] = useState<7 | 30>(7);
-  const isAdminUser = isAuthenticated && user?.role === 'admin';
+  const [adminPassword, setAdminPassword] = useState("");
+  const [hasAdminOverride, setHasAdminOverride] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const stored = localStorage.getItem(ADMIN_PASS_STORAGE_KEY);
+      setHasAdminOverride(Boolean(stored));
+    } catch {
+      setHasAdminOverride(false);
+    }
+  }, []);
+
+  const adminAccessGranted = hasAdminOverride || (isAuthenticated && user?.role === 'admin');
+  const isPasswordOverride = hasAdminOverride && !(isAuthenticated && user?.role === 'admin');
+
+  const handleUnlock = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (adminPassword.trim() !== DEFAULT_ADMIN_BYPASS_PASSWORD) {
+      toast.error("Incorrect admin password.");
+      return;
+    }
+
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(ADMIN_PASS_STORAGE_KEY, DEFAULT_ADMIN_BYPASS_PASSWORD);
+      }
+      setHasAdminOverride(true);
+      setAdminPassword("");
+      toast.success("Admin access unlocked.");
+    } catch {
+      toast.error("Failed to store admin access key.");
+    }
+  };
+
+  const handleRemoveOverride = () => {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(ADMIN_PASS_STORAGE_KEY);
+      }
+    } catch {
+      // ignore storage removal errors
+    }
+
+    setHasAdminOverride(false);
+    setAdminPassword("");
+    toast.success("Admin password cleared.");
+  };
 
   // Queries
   const { data: stats, refetch: refetchStats } = trpc.admin.getDashboardStats.useQuery(undefined, {
-    enabled: isAdminUser,
+    enabled: adminAccessGranted,
     refetchInterval: 5000, // Auto-refresh every 5 seconds
   });
   
   const { data: jobs, refetch: refetchJobs } = trpc.admin.getSyncJobs.useQuery(
     { limit: 20 },
     {
-      enabled: isAdminUser,
+      enabled: adminAccessGranted,
       refetchInterval: 5000, // Auto-refresh every 5 seconds
     }
   );
@@ -42,7 +91,7 @@ export default function Admin() {
     refetch: refetchDailySummary,
     isFetching: summaryLoading,
   } = trpc.admin.getDailyChallengeStatsSummary.useQuery(undefined, {
-    enabled: isAdminUser,
+    enabled: adminAccessGranted,
   });
 
   const {
@@ -52,8 +101,7 @@ export default function Admin() {
   } = trpc.admin.getDailyChallengePositionAverages.useQuery(
     { windowDays: positionWindow },
     {
-      enabled: isAdminUser,
-      keepPreviousData: true,
+      enabled: adminAccessGranted,
     }
   );
 
@@ -175,7 +223,7 @@ export default function Admin() {
     }
   };
 
-  if (authLoading) {
+  if (authLoading && !hasAdminOverride) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -183,14 +231,42 @@ export default function Admin() {
     );
   }
 
-  if (!isAuthenticated || user?.role !== 'admin') {
+  if (!adminAccessGranted) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle>Access Denied</CardTitle>
-            <CardDescription>You must be an admin to access this page.</CardDescription>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <KeyRound className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle>Admin Password Required</CardTitle>
+                <CardDescription>Enter the admin password to unlock the dashboard.</CardDescription>
+              </div>
+            </div>
           </CardHeader>
+          <CardContent>
+            <form onSubmit={handleUnlock} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="admin-password">Password</Label>
+                <Input
+                  id="admin-password"
+                  type="password"
+                  value={adminPassword}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                  placeholder="Enter admin password"
+                  autoComplete="off"
+                />
+              </div>
+              <Button type="submit" className="w-full">
+                Unlock Admin Dashboard
+              </Button>
+            </form>
+            <p className="text-xs text-muted-foreground mt-4">
+              A Clerk login is recommended but not required when using the password override.
+            </p>
+          </CardContent>
         </Card>
       </div>
     );
@@ -211,8 +287,20 @@ export default function Admin() {
                 <p className="text-sm text-muted-foreground">Data Sync & Monitoring</p>
               </div>
             </div>
-            <div className="text-sm text-muted-foreground">
-              {user?.name}
+            <div className="flex items-center gap-3">
+              {isPasswordOverride && (
+                <span className="px-2 py-1 rounded-full bg-amber-500/10 text-amber-500 text-xs font-semibold">
+                  Password Override Active
+                </span>
+              )}
+              {hasAdminOverride && (
+                <Button variant="ghost" size="sm" onClick={handleRemoveOverride}>
+                  Remove Override
+                </Button>
+              )}
+              <div className="text-sm text-muted-foreground">
+                {user?.name || "Guest"}
+              </div>
             </div>
           </div>
         </div>
@@ -537,7 +625,7 @@ export default function Admin() {
                     className="border border-border rounded-md bg-background px-3 py-2 text-sm"
                     value={positionWindow}
                     onChange={(e) => setPositionWindow(Number(e.target.value) as 7 | 30)}
-                    disabled={!isAdminUser}
+                    disabled={!adminAccessGranted}
                   >
                     <option value={7}>Last 7 days</option>
                     <option value={30}>Last 30 days</option>

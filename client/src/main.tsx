@@ -1,5 +1,5 @@
 import { trpc } from "@/lib/trpc";
-import { UNAUTHED_ERR_MSG } from '@shared/const';
+import { ADMIN_PASS_STORAGE_KEY, UNAUTHED_ERR_MSG } from '@shared/const';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink, TRPCClientError } from "@trpc/client";
 import { createRoot } from "react-dom/client";
@@ -9,7 +9,17 @@ import App from "./App";
 import { getLoginUrl } from "./const";
 import "./index.css";
 
+const ADMIN_PASS_HEADER = "x-admin-pass";
 const queryClient = new QueryClient();
+
+function getStoredAdminPassword() {
+  if (typeof window === "undefined") return "";
+  try {
+    return localStorage.getItem(ADMIN_PASS_STORAGE_KEY) || "";
+  } catch {
+    return "";
+  }
+}
 
 const redirectToLoginIfUnauthorized = (error: unknown) => {
   if (!(error instanceof TRPCClientError)) return;
@@ -61,9 +71,17 @@ function TRPCProvider({ children }: { children: React.ReactNode }) {
         transformer: superjson,
         async headers() {
           const token = await getToken();
-          return {
-            authorization: token ? `Bearer ${token}` : "",
-          };
+          const headers: Record<string, string> = {};
+          if (token) {
+            headers.authorization = `Bearer ${token}`;
+          }
+
+          const adminPass = getStoredAdminPassword();
+          if (adminPass) {
+            headers[ADMIN_PASS_HEADER] = adminPass;
+          }
+
+          return headers;
         },
         fetch(input, init) {
           return globalThis.fetch(input, {
