@@ -164,7 +164,9 @@ export const lineupRouter = router({
           phm1Id: z.number().nullable(),
           phm2Id: z.number().nullable(),
           flexId: z.number().nullable(),
-          flexType: z.enum(["manufacturer", "cannabis_strain", "product", "pharmacy"]).nullable(),
+          flexType: z
+            .enum(["manufacturer", "cannabis_strain", "product", "pharmacy", "brand"])
+            .nullable(),
         }),
       })
     )

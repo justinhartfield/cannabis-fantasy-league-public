@@ -5,7 +5,7 @@ import { Loader2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getLoginUrl } from "@/const";
 import DraftBoard from "@/components/DraftBoard";
-import { DraftPicksGrid } from "@/components/DraftPicksGrid";
+// import { DraftPicksGrid } from "@/components/DraftPicksGrid";
 import { MyRoster } from "@/components/MyRoster";
 import { DraftClock } from "@/components/DraftClock";
 import { toast } from "sonner";
@@ -64,16 +64,17 @@ export default function Draft() {
   const currentYear = league?.seasonYear || new Date().getFullYear();
   const currentWeek = league?.currentWeek || 1;
 
-  const { data: allPicks = [], refetch: refetchAllPicks } = trpc.draft.getAllDraftPicks.useQuery(
-    {
-      leagueId,
-      year: currentYear,
-      week: currentWeek,
-      // During live drafts we prioritize responsiveness over heavy scoring stats
-      includeStats: league?.status !== "draft",
-    },
-    { enabled: !!league && isAuthenticated }
-  );
+  // Draft Board (DraftPicksGrid) removed - using Recent Picks instead
+  // const { data: allPicks = [], refetch: refetchAllPicks } = trpc.draft.getAllDraftPicks.useQuery(
+  //   {
+  //     leagueId,
+  //     year: currentYear,
+  //     week: currentWeek,
+  //     // During live drafts we prioritize responsiveness over heavy scoring stats
+  //     includeStats: league?.status !== "draft",
+  //   },
+  //   { enabled: !!league && isAuthenticated }
+  // );
 
   // Initialize current turn from draft status
   useEffect(() => {
@@ -116,9 +117,9 @@ export default function Draft() {
         // Show toast notification
         toast.success(`${message.teamName} drafted ${message.assetName}`);
 
-        // Refetch roster and all picks to update UI
+        // Refetch roster to update UI (Draft Board now uses Recent Picks from WebSocket)
         refetchRoster();
-        refetchAllPicks();
+        // refetchAllPicks(); // Removed - using Recent Picks instead
         // Invalidate available players queries to remove drafted player
         utils.draft.getAvailableManufacturers.invalidate();
         utils.draft.getAvailableCannabisStrains.invalidate();
@@ -323,7 +324,7 @@ export default function Draft() {
 
       {/* Header */}
       <div className="border-b-4 border-weed-green bg-white/90 backdrop-blur-lg shadow-lg relative z-20">
-        <div className="w-full px-4 md:px-6 lg:px-8 py-4">
+        <div className="w-full max-w-[1600px] mx-auto px-4 md:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button
@@ -372,7 +373,7 @@ export default function Draft() {
       </div>
 
       {/* Draft Board */}
-      <div className="w-full px-4 md:px-6 lg:px-8 py-8 relative z-10">
+      <div className="w-full max-w-[1600px] mx-auto px-4 md:px-6 lg:px-8 py-8 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Mobile: Draft Clock first */}
           <div className="lg:hidden order-1">
@@ -420,32 +421,32 @@ export default function Draft() {
             />
           </div>
 
-          {/* Mobile: Recent Picks fourth */}
-          <div className="lg:hidden order-4">
-            <div className="bg-white border-0 shadow-xl rounded-lg p-4">
-              <h3 className="headline-secondary text-lg text-foreground mb-4">
-                📄 Recent Picks
+          {/* Mobile: Recent Picks - moved to replace Draft Board */}
+          <div className="lg:hidden order-5">
+            <div className="bg-weed-purple border-2 border-weed-green shadow-xl rounded-lg p-4">
+              <h3 className="headline-secondary text-lg text-white uppercase mb-4">
+                Draft Board
               </h3>
               {recentPicks.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">
-                  No picks yet
+                <p className="text-sm text-white/70 text-center py-8">
+                  Noch keine Picks
                 </p>
               ) : (
                 <div className="space-y-2">
                   {recentPicks.map((pick, index) => (
                     <div
                       key={`${pick.pickNumber}-${index}`}
-                      className="p-3 bg-weed-cream rounded-lg border-2 border-weed-green/30"
+                      className="p-3 bg-white/10 rounded-lg border-2 border-white/20"
                     >
                       <div className="flex items-start justify-between mb-1">
-                        <span className="text-xs font-medium text-muted-foreground">
+                        <span className="text-xs font-medium text-white/70">
                           Pick #{pick.pickNumber}
                         </span>
                       </div>
-                      <p className="text-sm font-medium text-foreground mb-1">
+                      <p className="text-sm font-medium text-white mb-1">
                         {pick.assetName}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-white/70">
                         {pick.teamName}
                       </p>
                     </div>
@@ -455,21 +456,41 @@ export default function Draft() {
             </div>
           </div>
 
-          {/* Mobile: Draft Picks Grid fifth */}
-          <div className="lg:hidden order-5">
-            <DraftPicksGrid 
-              picks={allPicks}
-              currentPickNumber={currentPickNumber}
-            />
-          </div>
-
-          {/* Desktop: Draft Picks Grid + Draft Board - 3 cols on desktop */}
+          {/* Desktop: Draft Board (Recent Picks) + Draft Board - 3 cols on desktop */}
           <div className="hidden lg:block lg:col-span-3 lg:order-1">
             <div className="space-y-6">
-              <DraftPicksGrid 
-                picks={allPicks}
-                currentPickNumber={currentPickNumber}
-              />
+              {/* Draft Board - Reskinned Recent Picks */}
+              <div className="bg-weed-purple border-2 border-weed-green shadow-xl rounded-lg p-4">
+                <h3 className="headline-secondary text-lg text-white uppercase mb-4">
+                  Draft Board
+                </h3>
+                {recentPicks.length === 0 ? (
+                  <p className="text-sm text-white/70 text-center py-8">
+                    Noch keine Picks
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {recentPicks.map((pick, index) => (
+                      <div
+                        key={`${pick.pickNumber}-${index}`}
+                        className="p-3 bg-white/10 rounded-lg border-2 border-white/20"
+                      >
+                        <div className="flex items-start justify-between mb-1">
+                          <span className="text-xs font-medium text-white/70">
+                            Pick #{pick.pickNumber}
+                          </span>
+                        </div>
+                        <p className="text-sm font-medium text-white mb-1">
+                          {pick.assetName}
+                        </p>
+                        <p className="text-xs text-white/70">
+                          {pick.teamName}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               <DraftBoard
                 leagueId={leagueId}
                 currentPick={currentPick}
@@ -513,8 +534,8 @@ export default function Draft() {
               teamName={myTeam.name || "My Team"}
             />
 
-            {/* Recent Picks */}
-            <div className="bg-white border-0 shadow-xl rounded-lg p-4">
+            {/* Recent Picks - Moved to Draft Board position */}
+            {/* <div className="bg-white border-0 shadow-xl rounded-lg p-4">
               <h3 className="headline-secondary text-lg text-foreground mb-4">
                 📄 Recent Picks
               </h3>
@@ -544,7 +565,7 @@ export default function Draft() {
                   ))}
                 </div>
               )}
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
