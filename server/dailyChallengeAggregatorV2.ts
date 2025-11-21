@@ -20,8 +20,11 @@ import {
   calculateProductTrendScore,
   calculatePharmacyTrendScore,
 } from './trendScoringEngine';
-import {
-  fetchTrendDataForScoring,
+import { pLimit } from './utils/concurrency';
+import { 
+  fetchTotalMarketVolume, 
+  fetchTrendMetricsBatch, 
+  fetchTrendDataForScoring 
 } from './trendMetricsFetcher';
 import {
   manufacturerDailyChallengeStats,
@@ -137,12 +140,18 @@ export class DailyChallengeAggregatorV2 {
     const sorted = Array.from(stats.entries()).sort((a, b) => b[1].salesVolumeGrams - a[1].salesVolumeGrams);
     await this.log('info', `Found ${stats.size} unique manufacturers`, undefined, logger);
 
+    // Prefetch data for optimization
+    const allNames = sorted.map(([name]) => name);
+    const [totalVolume, batchTrendMetrics] = await Promise.all([
+      fetchTotalMarketVolume('productManufacturer'),
+      fetchTrendMetricsBatch('productManufacturer', allNames)
+    ]);
+
     let processed = 0;
     let skipped = 0;
 
-    for (let i = 0; i < sorted.length; i++) {
-      const [name, data] = sorted[i];
-      const rank = i + 1;
+    await pLimit(sorted, 20, async ([name, data], index) => {
+      const rank = index + 1;
 
       // Find manufacturer in database
       const manufacturer = await db.query.manufacturers.findFirst({
@@ -152,7 +161,7 @@ export class DailyChallengeAggregatorV2 {
       if (!manufacturer) {
         skipped += 1;
         await this.log('warn', `Manufacturer not found: ${name}`, undefined, logger);
-        continue;
+        return;
       }
 
       try {
@@ -162,7 +171,9 @@ export class DailyChallengeAggregatorV2 {
           name,
           manufacturer.id,
           dateString,
-          rank
+          rank,
+          totalVolume,
+          batchTrendMetrics.get(name)
         );
 
         // Calculate trend-based score
@@ -237,7 +248,7 @@ export class DailyChallengeAggregatorV2 {
         await this.log('error', `Error processing manufacturer ${name}:`, error, logger);
         skipped += 1;
       }
-    }
+    });
 
     return { processed, skipped };
   }
@@ -267,12 +278,19 @@ export class DailyChallengeAggregatorV2 {
     }
 
     const sorted = Array.from(stats.entries()).sort((a, b) => b[1].salesVolumeGrams - a[1].salesVolumeGrams);
+    
+    // Prefetch data for optimization
+    const allNames = sorted.map(([name]) => name);
+    const [totalVolume, batchTrendMetrics] = await Promise.all([
+      fetchTotalMarketVolume('productStrainName'),
+      fetchTrendMetricsBatch('productStrainName', allNames)
+    ]);
+
     let processed = 0;
     let skipped = 0;
 
-    for (let i = 0; i < sorted.length; i++) {
-      const [name, data] = sorted[i];
-      const rank = i + 1;
+    await pLimit(sorted, 20, async ([name, data], index) => {
+      const rank = index + 1;
 
       const strain = await db.query.cannabisStrains.findFirst({
         where: (cannabisStrains, { eq }) => eq(cannabisStrains.name, name),
@@ -280,7 +298,7 @@ export class DailyChallengeAggregatorV2 {
 
       if (!strain) {
         skipped += 1;
-        continue;
+        return;
       }
 
       try {
@@ -289,7 +307,9 @@ export class DailyChallengeAggregatorV2 {
           name,
           strain.id,
           dateString,
-          rank
+          rank,
+          totalVolume,
+          batchTrendMetrics.get(name)
         );
 
         const trendScore = calculateStrainTrendScore({
@@ -347,7 +367,7 @@ export class DailyChallengeAggregatorV2 {
         await this.log('error', `Error processing strain ${name}:`, error, logger);
         skipped += 1;
       }
-    }
+    });
 
     return { processed, skipped };
   }
@@ -381,9 +401,8 @@ export class DailyChallengeAggregatorV2 {
     let processed = 0;
     let skipped = 0;
 
-    for (let i = 0; i < sorted.length; i++) {
-      const brandData = sorted[i];
-      const rank = i + 1;
+    await pLimit(sorted, 20, async (brandData, index) => {
+      const rank = index + 1;
 
       const brand = await db.query.brands.findFirst({
         where: (brands, { eq }) => eq(brands.name, brandData.name),
@@ -392,7 +411,7 @@ export class DailyChallengeAggregatorV2 {
       if (!brand) {
         skipped += 1;
         await this.log('warn', `Brand not found in DB: ${brandData.name}`, undefined, logger);
-        continue;
+        return;
       }
 
       const scoring = calculateDailyBrandScore({
@@ -448,7 +467,7 @@ export class DailyChallengeAggregatorV2 {
         undefined,
         logger
       );
-    }
+    });
 
     return { processed, skipped };
   }
@@ -535,19 +554,17 @@ export class DailyChallengeAggregatorV2 {
     await this.log('info', `Fetched ${orders.length} orders for ${dateString}`, undefined, logger);
 
     // Aggregate with trend scoring
-    const manufacturers = await this.aggregateManufacturersWithTrends(db, dateString, orders, logger);
-    const strains = await this.aggregateStrainsWithTrends(db, dateString, orders, logger);
-    
-    // Import and run pharmacy aggregation
-    const { aggregatePharmaciesWithTrends } = await import('./aggregatePharmaciesV2');
-    const pharmacies = await aggregatePharmaciesWithTrends(db, dateString, orders, logger, this.log.bind(this));
-    
-    // Import and run product aggregation
-    const { aggregateProductsWithTrends } = await import('./aggregateProductsV2');
-    const products = await aggregateProductsWithTrends(db, dateString, orders, logger, this.log.bind(this));
-    
-    // Aggregate brands using ported logic
-    const brands = await this.aggregateBrands(db, dateString, orders, logger);
+    const [manufacturers, strains, pharmacies, products, brands] = await Promise.all([
+      this.aggregateManufacturersWithTrends(db, dateString, orders, logger),
+      this.aggregateStrainsWithTrends(db, dateString, orders, logger),
+      import('./aggregatePharmaciesV2').then(({ aggregatePharmaciesWithTrends }) =>
+        aggregatePharmaciesWithTrends(db, dateString, orders, logger, this.log.bind(this))
+      ),
+      import('./aggregateProductsV2').then(({ aggregateProductsWithTrends }) =>
+        aggregateProductsWithTrends(db, dateString, orders, logger, this.log.bind(this))
+      ),
+      this.aggregateBrands(db, dateString, orders, logger)
+    ]);
 
     return {
       statDate: dateString,
