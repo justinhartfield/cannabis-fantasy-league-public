@@ -10,6 +10,9 @@ import { toast } from "sonner";
 import { getLoginUrl } from "@/const";
 import { LeagueNav } from "@/components/LeagueNav";
 import DailyChallenge from "./DailyChallenge";
+import { LeagueChat } from "@/components/LeagueChat";
+import { AchievementsSection } from "@/components/AchievementsSection";
+import { WeeklyRecapCard } from "@/components/WeeklyRecapCard";
 
 export default function LeagueDetail() {
   const { id } = useParams();
@@ -95,6 +98,17 @@ export default function LeagueDetail() {
         <div className="grid md:grid-cols-3 gap-6">
           {/* Left Column - League Info */}
           <div className="md:col-span-2 space-y-6">
+            
+            {/* Weekly Recap (if available) */}
+            {league.currentWeek > 1 && (
+                <WeeklyRecapCard 
+                    leagueId={league.id} 
+                    year={league.seasonYear} 
+                    week={league.currentWeek - 1}
+                    isCommissioner={isCommissioner}
+                />
+            )}
+
             {/* League Details Card */}
             <Card className="bg-card border-border">
               <CardHeader>
@@ -202,10 +216,16 @@ export default function LeagueDetail() {
                 )}
               </CardContent>
             </Card>
+            
+            {/* Achievements */}
+            <AchievementsSection />
           </div>
 
           {/* Right Column - Actions */}
           <div className="space-y-6">
+            {/* League Chat */}
+            <LeagueChat leagueId={parseInt(id!)} />
+
             {/* Invite Card */}
             <Card className="bg-card border-border">
               <CardHeader>

@@ -394,6 +394,20 @@ class WebSocketManager {
       timestamp: Date.now(),
     });
   }
+
+  notifyChatMessage(leagueId: number, data: {
+    id: number;
+    userId: number;
+    userName: string;
+    userAvatarUrl?: string | null;
+    message: string;
+    createdAt: string;
+  }) {
+    this.broadcastToLeague(leagueId, {
+        type: 'chat_message',
+        ...data,
+    });
+  }
 }
 
 export const wsManager = new WebSocketManager();

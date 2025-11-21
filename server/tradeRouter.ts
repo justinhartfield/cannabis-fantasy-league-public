@@ -2,12 +2,12 @@ import { z } from "zod";
 import { router, protectedProcedure } from "./_core/trpc";
 import { getDb } from "./db";
 import { trades, teams, rosters } from "../drizzle/schema";
-import { eq, and, or, desc } from "drizzle-orm";
+import { eq, and, or } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
 const AssetSchema = z.object({
-  assetType: z.string(),
-  assetId: z.number(),
+  type: z.enum(["manufacturer", "strain", "product", "pharmacy", "brand"]),
+  id: z.number(),
 });
 
 export const tradeRouter = router({
@@ -15,199 +15,164 @@ export const tradeRouter = router({
    * Propose a trade
    */
   proposeTrade: protectedProcedure
-    .input(z.object({
-      leagueId: z.number(),
-      team2Id: z.number(),
-      team1Assets: z.array(AssetSchema),
-      team2Assets: z.array(AssetSchema),
-    }))
-    .mutation(async ({ input, ctx }) => {
+    .input(
+      z.object({
+        leagueId: z.number(),
+        targetTeamId: z.number(),
+        myAssets: z.array(AssetSchema),
+        targetAssets: z.array(AssetSchema),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
       const db = await getDb();
-      if (!db) {
-        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+
+      // 1. Get My Team
+      const myTeam = await db.query.teams.findFirst({
+        where: and(eq(teams.leagueId, input.leagueId), eq(teams.userId, ctx.user.id)),
+      });
+      if (!myTeam) throw new TRPCError({ code: "NOT_FOUND", message: "Your team not found" });
+
+      // 2. Verify Ownership (My Assets)
+      for (const asset of input.myAssets) {
+        const owned = await db.query.rosters.findFirst({
+          where: and(
+            eq(rosters.teamId, myTeam.id),
+            eq(rosters.assetType, asset.type),
+            eq(rosters.assetId, asset.id)
+          ),
+        });
+        if (!owned) throw new TRPCError({ code: "BAD_REQUEST", message: `You do not own asset ${asset.type}:${asset.id}` });
       }
 
-      // Get user's team (Team 1)
-      const userTeam = await db
-        .select()
-        .from(teams)
-        .where(and(
-          eq(teams.leagueId, input.leagueId),
-          eq(teams.userId, ctx.user.id)
-        ))
-        .limit(1);
-
-      if (userTeam.length === 0) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Your team not found' });
-      }
-      const team1Id = userTeam[0].id;
-
-      // Verify Team 1 owns assets
-      for (const asset of input.team1Assets) {
-        const owned = await db
-          .select()
-          .from(rosters)
-          .where(and(
-            eq(rosters.teamId, team1Id),
-            eq(rosters.assetType, asset.assetType),
-            eq(rosters.assetId, asset.assetId)
-          ))
-          .limit(1);
-        
-        if (owned.length === 0) {
-          throw new TRPCError({ code: 'BAD_REQUEST', message: `You do not own asset ${asset.assetType}:${asset.assetId}` });
-        }
+      // 3. Verify Ownership (Target Assets)
+      for (const asset of input.targetAssets) {
+        const owned = await db.query.rosters.findFirst({
+          where: and(
+            eq(rosters.teamId, input.targetTeamId),
+            eq(rosters.assetType, asset.type),
+            eq(rosters.assetId, asset.id)
+          ),
+        });
+        if (!owned) throw new TRPCError({ code: "BAD_REQUEST", message: `Target team does not own asset ${asset.type}:${asset.id}` });
       }
 
-      // Verify Team 2 owns assets
-      for (const asset of input.team2Assets) {
-        const owned = await db
-          .select()
-          .from(rosters)
-          .where(and(
-            eq(rosters.teamId, input.team2Id),
-            eq(rosters.assetType, asset.assetType),
-            eq(rosters.assetId, asset.assetId)
-          ))
-          .limit(1);
-        
-        if (owned.length === 0) {
-          throw new TRPCError({ code: 'BAD_REQUEST', message: `Opponent does not own asset ${asset.assetType}:${asset.assetId}` });
-        }
-      }
-
-      // Create trade
+      // 4. Create Trade
       await db.insert(trades).values({
         leagueId: input.leagueId,
-        team1Id: team1Id,
-        team2Id: input.team2Id,
-        team1Assets: input.team1Assets,
-        team2Assets: input.team2Assets,
-        proposedBy: team1Id,
-        status: 'proposed',
+        team1Id: myTeam.id,
+        team2Id: input.targetTeamId,
+        team1Assets: input.myAssets,
+        team2Assets: input.targetAssets,
+        proposedBy: myTeam.id,
+        status: "proposed",
       });
 
       return { success: true };
     }),
 
   /**
-   * Get trades for user
+   * Accept a trade
    */
-  getTrades: protectedProcedure
-    .input(z.object({
-      leagueId: z.number(),
-    }))
-    .query(async ({ input, ctx }) => {
+  acceptTrade: protectedProcedure
+    .input(z.object({ tradeId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
       const db = await getDb();
-      if (!db) {
-        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+
+      const trade = await db.query.trades.findFirst({
+        where: eq(trades.id, input.tradeId),
+      });
+      if (!trade) throw new TRPCError({ code: "NOT_FOUND", message: "Trade not found" });
+      if (trade.status !== "proposed") throw new TRPCError({ code: "BAD_REQUEST", message: "Trade is not active" });
+
+      // Verify User is Target (Team 2)
+      const team2 = await db.query.teams.findFirst({ where: eq(teams.id, trade.team2Id) });
+      if (!team2 || team2.userId !== ctx.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Only the target team can accept this trade" });
       }
 
-      const userTeam = await db
-        .select()
-        .from(teams)
-        .where(and(
-          eq(teams.leagueId, input.leagueId),
-          eq(teams.userId, ctx.user.id)
-        ))
-        .limit(1);
+      // Transaction: Swap Assets
+      await db.transaction(async (tx) => {
+        // Parse Assets (stored as JSON)
+        const team1Assets = trade.team1Assets as { type: string; id: number }[];
+        const team2Assets = trade.team2Assets as { type: string; id: number }[];
 
-      if (userTeam.length === 0) return [];
-      const teamId = userTeam[0].id;
+        // 1. Move Team 1 Assets to Team 2
+        for (const asset of team1Assets) {
+          // Verify ownership again
+          const owned = await tx.query.rosters.findFirst({
+            where: and(eq(rosters.teamId, trade.team1Id), eq(rosters.assetType, asset.type), eq(rosters.assetId, asset.id)),
+          });
+          if (!owned) throw new Error(`Trade failed: Team 1 no longer owns ${asset.type}:${asset.id}`);
 
-      const myTrades = await db
-        .select()
-        .from(trades)
-        .where(or(
-          eq(trades.team1Id, teamId),
-          eq(trades.team2Id, teamId)
-        ))
-        .orderBy(desc(trades.createdAt));
+          await tx.update(rosters)
+            .set({ teamId: trade.team2Id, acquiredVia: "trade" })
+            .where(and(eq(rosters.teamId, trade.team1Id), eq(rosters.assetType, asset.type), eq(rosters.assetId, asset.id)));
+        }
 
-      return myTrades;
+        // 2. Move Team 2 Assets to Team 1
+        for (const asset of team2Assets) {
+          const owned = await tx.query.rosters.findFirst({
+            where: and(eq(rosters.teamId, trade.team2Id), eq(rosters.assetType, asset.type), eq(rosters.assetId, asset.id)),
+          });
+          if (!owned) throw new Error(`Trade failed: Team 2 no longer owns ${asset.type}:${asset.id}`);
+
+          await tx.update(rosters)
+            .set({ teamId: trade.team1Id, acquiredVia: "trade" })
+            .where(and(eq(rosters.teamId, trade.team2Id), eq(rosters.assetType, asset.type), eq(rosters.assetId, asset.id)));
+        }
+
+        // 3. Update Trade Status
+        await tx.update(trades).set({ status: "accepted", processedWeek: 0 }).where(eq(trades.id, trade.id)); // processedWeek: 0 placeholder or actual current week?
+      });
+
+      return { success: true };
     }),
 
   /**
-   * Respond to trade (accept/reject)
+   * Reject a trade
    */
-  respondTrade: protectedProcedure
-    .input(z.object({
-      tradeId: z.number(),
-      action: z.enum(['accept', 'reject']),
-    }))
-    .mutation(async ({ input, ctx }) => {
+  rejectTrade: protectedProcedure
+    .input(z.object({ tradeId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
       const db = await getDb();
-      if (!db) {
-        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+
+      const trade = await db.query.trades.findFirst({
+        where: eq(trades.id, input.tradeId),
+      });
+      if (!trade) throw new TRPCError({ code: "NOT_FOUND", message: "Trade not found" });
+
+      // Verify User is involved
+      const team1 = await db.query.teams.findFirst({ where: eq(teams.id, trade.team1Id) });
+      const team2 = await db.query.teams.findFirst({ where: eq(teams.id, trade.team2Id) });
+      
+      if ((team1?.userId !== ctx.user.id) && (team2?.userId !== ctx.user.id)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "You are not involved in this trade" });
       }
 
-      const trade = await db
-        .select()
-        .from(trades)
-        .where(eq(trades.id, input.tradeId))
-        .limit(1);
+      await db.update(trades).set({ status: "rejected" }).where(eq(trades.id, trade.id));
+      return { success: true };
+    }),
 
-      if (trade.length === 0) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Trade not found' });
-      }
+  /**
+   * Get trades for a league
+   */
+  getTrades: protectedProcedure
+    .input(z.object({ leagueId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
-      const tradeRecord = trade[0];
+      const myTeam = await db.query.teams.findFirst({
+        where: and(eq(teams.leagueId, input.leagueId), eq(teams.userId, ctx.user.id)),
+      });
 
-      // Verify user is the one who needs to respond (Team 2)
-      // Unless they are rejecting their own proposal? Let's stick to recipient responds.
-      const userTeam = await db
-        .select()
-        .from(teams)
-        .where(and(
-          eq(teams.leagueId, tradeRecord.leagueId),
-          eq(teams.userId, ctx.user.id)
-        ))
-        .limit(1);
+      if (!myTeam) return [];
 
-      if (userTeam.length === 0 || userTeam[0].id !== tradeRecord.team2Id) {
-        // Allow proposer to cancel (reject) their own trade
-        if (input.action === 'reject' && userTeam.length > 0 && userTeam[0].id === tradeRecord.team1Id) {
-           // Proposer cancelling
-        } else {
-           throw new TRPCError({ code: 'FORBIDDEN', message: 'Not authorized to respond to this trade' });
-        }
-      }
-
-      if (input.action === 'reject') {
-        await db.update(trades).set({ status: 'rejected' }).where(eq(trades.id, input.tradeId));
-        return { success: true, status: 'rejected' };
-      }
-
-      // Accepting Trade
-      if (tradeRecord.status !== 'proposed') {
-        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Trade is not active' });
-      }
-
-      // 1. Verify ownership again
-      // (Simplification: assuming valid JSON structure)
-      const assets1 = tradeRecord.team1Assets as { assetType: string, assetId: number }[];
-      const assets2 = tradeRecord.team2Assets as { assetType: string, assetId: number }[];
-
-      // 2. Swap assets
-      // Remove from old teams
-      for (const asset of assets1) {
-        await db.delete(rosters).where(and(eq(rosters.teamId, tradeRecord.team1Id), eq(rosters.assetType, asset.assetType), eq(rosters.assetId, asset.assetId)));
-      }
-      for (const asset of assets2) {
-        await db.delete(rosters).where(and(eq(rosters.teamId, tradeRecord.team2Id), eq(rosters.assetType, asset.assetType), eq(rosters.assetId, asset.assetId)));
-      }
-
-      // Add to new teams
-      for (const asset of assets1) {
-        await db.insert(rosters).values({ teamId: tradeRecord.team2Id, assetType: asset.assetType, assetId: asset.assetId, acquiredWeek: 0, acquiredVia: 'trade' }); // Week 0 placeholder
-      }
-      for (const asset of assets2) {
-        await db.insert(rosters).values({ teamId: tradeRecord.team1Id, assetType: asset.assetType, assetId: asset.assetId, acquiredWeek: 0, acquiredVia: 'trade' });
-      }
-
-      await db.update(trades).set({ status: 'accepted' }).where(eq(trades.id, input.tradeId));
-
-      return { success: true, status: 'accepted' };
+      return await db.select().from(trades).where(
+        or(eq(trades.team1Id, myTeam.id), eq(trades.team2Id, myTeam.id))
+      ).orderBy(desc(trades.createdAt));
     }),
 });
-

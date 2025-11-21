@@ -191,6 +191,29 @@ export default function CreateLeague() {
               {formData.leagueType === "season" && (
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="space-y-2">
+                    <Label htmlFor="seasonLength">Saison-Länge</Label>
+                    <Select
+                      value={formData.seasonLength.toString()}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, seasonLength: parseInt(value) })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="4">Sprint (4 Wochen)</SelectItem>
+                        <SelectItem value="8">Viertel (8 Wochen)</SelectItem>
+                        <SelectItem value="12">Halbzeit (12 Wochen)</SelectItem>
+                        <SelectItem value="18">Volle Saison (18 Wochen)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[10px] text-muted-foreground">
+                      Playoffs starten in Woche {formData.seasonLength + 1}
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
                     <Label htmlFor="maxTeams">Maximale Teams</Label>
                     <Select
                       value={formData.maxTeams.toString()}
