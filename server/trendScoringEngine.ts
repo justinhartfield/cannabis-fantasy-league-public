@@ -51,14 +51,25 @@ export interface TrendScoringBreakdown {
  * Returns the Days7/Days1 ratio, handling edge cases
  */
 export function calculateTrendMultiplier(days1: number, days7: number): number {
-  // Handle division by zero
-  if (days1 === 0) {
-    if (days7 === 0) return 1.0; // Both zero = neutral
-    return 10.0; // New entity with sales = max multiplier
+  const currentDayVolume = Math.max(days1, 0);
+  const trailingSevenDayVolume = Math.max(days7, 0);
+
+  // If no volume at all, stay neutral
+  if (currentDayVolume === 0 && trailingSevenDayVolume === 0) {
+    return 1.0;
   }
-  
-  // Calculate ratio and cap at reasonable bounds
-  const multiplier = days7 / days1;
+
+  const averageDailyVolume = trailingSevenDayVolume > 0
+    ? trailingSevenDayVolume / 7
+    : 0;
+
+  // When we don't have 7-day history yet (average = 0), treat any positive day
+  // as a hype multiplier so brand-new drops get rewarded.
+  if (averageDailyVolume === 0) {
+    return currentDayVolume > 0 ? 10.0 : 1.0;
+  }
+
+  const multiplier = currentDayVolume / averageDailyVolume;
   return Math.min(Math.max(multiplier, 0.1), 10.0); // Cap between 0.1x and 10x
 }
 
@@ -220,7 +231,7 @@ export function calculateManufacturerTrendScore(stats: TrendScoringStats): Trend
     typeof stats.trendMultiplier === 'number' && stats.trendMultiplier > 0
       ? stats.trendMultiplier
       : calculateTrendMultiplier(stats.days1 ?? 0, stats.days7 ?? 0);
-  const trendMomentumPoints = Math.floor(trendMultiplier * 20);
+  const trendMomentumPoints = Math.floor(trendMultiplier * 100);
   
   // Rank-based bonuses
   const rankBonusPoints = calculateRankBonus(stats.currentRank, 'manufacturer');
@@ -281,7 +292,7 @@ export function calculateStrainTrendScore(stats: TrendScoringStats): TrendScorin
     typeof stats.trendMultiplier === 'number' && stats.trendMultiplier > 0
       ? stats.trendMultiplier
       : calculateTrendMultiplier(stats.days1 ?? 0, stats.days7 ?? 0);
-  const trendMomentumPoints = Math.floor(trendMultiplier * 15);
+  const trendMomentumPoints = Math.floor(trendMultiplier * 80);
   
   // Rank-based bonuses
   const rankBonusPoints = calculateRankBonus(stats.currentRank, 'strain');
@@ -342,7 +353,7 @@ export function calculateProductTrendScore(stats: TrendScoringStats): TrendScori
     typeof stats.trendMultiplier === 'number' && stats.trendMultiplier > 0
       ? stats.trendMultiplier
       : calculateTrendMultiplier(stats.days1 ?? 0, stats.days7 ?? 0);
-  const trendMomentumPoints = Math.floor(trendMultiplier * 25);
+  const trendMomentumPoints = Math.floor(trendMultiplier * 120);
   
   // Rank-based bonuses
   const rankBonusPoints = calculateRankBonus(stats.currentRank, 'product');
@@ -403,7 +414,7 @@ export function calculatePharmacyTrendScore(stats: TrendScoringStats): TrendScor
     typeof stats.trendMultiplier === 'number' && stats.trendMultiplier > 0
       ? stats.trendMultiplier
       : calculateTrendMultiplier(stats.days1 ?? 0, stats.days7 ?? 0);
-  const trendMomentumPoints = Math.floor(trendMultiplier * 20);
+  const trendMomentumPoints = Math.floor(trendMultiplier * 100);
   
   // Rank-based bonuses
   const rankBonusPoints = calculateRankBonus(stats.currentRank, 'pharmacy');
@@ -458,7 +469,7 @@ export function calculatePharmacyTrendScore(stats: TrendScoringStats): TrendScor
 export const TREND_SCORING_RULES = {
   manufacturer: {
     orderCount: { formula: 'Order count × 10', points: '10 pts per order' },
-    trendMomentum: { formula: '(Days7 ÷ Days1) × 20', points: 'Up to 200 pts' },
+    trendMomentum: { formula: '(Day 1 ÷ 7-day avg) × 100', points: 'Up to 1,000 pts' },
     rankBonus: { formula: 'Rank #1', points: '+50 pts' },
     momentumBonus: { formula: 'Rank improvement', points: '+10 pts per rank' },
     consistencyBonus: { formula: 'Low variance', points: 'Up to 50 pts' },
@@ -468,19 +479,19 @@ export const TREND_SCORING_RULES = {
   },
   strain: {
     orderCount: { formula: 'Order count × 8', points: '8 pts per order' },
-    trendMomentum: { formula: '(Days7 ÷ Days1) × 15', points: 'Up to 150 pts' },
+    trendMomentum: { formula: '(Day 1 ÷ 7-day avg) × 80', points: 'Up to 800 pts' },
     rankBonus: { formula: 'Rank #1', points: '+30 pts' },
     momentumBonus: { formula: 'Rank improvement', points: '+8 pts per rank' },
   },
   product: {
     orderCount: { formula: 'Order count × 15', points: '15 pts per order' },
-    trendMomentum: { formula: '(Days7 ÷ Days1) × 25', points: 'Up to 250 pts' },
+    trendMomentum: { formula: '(Day 1 ÷ 7-day avg) × 120', points: 'Up to 1,200 pts' },
     rankBonus: { formula: 'Rank #1', points: '+35 pts' },
     momentumBonus: { formula: 'Rank improvement', points: '+10 pts per rank' },
   },
   pharmacy: {
     orderCount: { formula: 'Order count × 10', points: '10 pts per order' },
-    trendMomentum: { formula: '(Days7 ÷ Days1) × 20', points: 'Up to 200 pts' },
+    trendMomentum: { formula: '(Day 1 ÷ 7-day avg) × 100', points: 'Up to 1,000 pts' },
     rankBonus: { formula: 'Rank #1', points: '+40 pts' },
     momentumBonus: { formula: 'Rank improvement', points: '+10 pts per rank' },
   },

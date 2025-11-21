@@ -3,7 +3,6 @@ import { useParams, useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LiveIndicator } from "@/components/LiveIndicator";
@@ -24,7 +23,6 @@ import {
   Clock,
   UserPlus,
   Copy,
-  Mail,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getLoginUrl } from "@/const";
@@ -414,7 +412,6 @@ export default function DailyChallenge() {
     return league.teams.find((team: any) => team.userId === user.id) || null;
   }, [league, user]);
   const showInviteCard = (league?.teams?.length ?? 0) < (league?.teamCount ?? 2);
-  const canInviteByEmail = showInviteCard && !!userTeam;
   const scoreDiff =
     leader && challenger ? (leader.points || 0) - (challenger.points || 0) : 0;
 
@@ -706,7 +703,6 @@ export default function DailyChallenge() {
                     leagueCode={league.leagueCode}
                     leagueId={challengeId}
                     leagueName={league.name}
-                    showEmailInvite={canInviteByEmail}
                   />
                 ) : (
                   <EmptyTeamBlock />
@@ -1007,39 +1003,14 @@ function InviteBlock({
   leagueCode,
   leagueId,
   leagueName,
-  showEmailInvite,
 }: {
   leagueCode: string;
   leagueId: number;
   leagueName: string;
-  showEmailInvite?: boolean;
 }) {
-  const [inviteEmail, setInviteEmail] = useState("");
-  const sendInvitation = trpc.invitation.sendInvitation.useMutation({
-    onSuccess: () => {
-      toast.success(`Einladung zu ${leagueName} gesendet!`);
-      setInviteEmail("");
-    },
-    onError: (error) => {
-      toast.error(error.message);
-    },
-  });
-
   const handleCopyCode = () => {
     navigator.clipboard.writeText(leagueCode);
     toast.success("Invite code copied to clipboard!");
-  };
-
-  const handleSendEmail = () => {
-    if (!inviteEmail.trim()) {
-      toast.error("Bitte gib eine E-Mail-Adresse ein");
-      return;
-    }
-
-    sendInvitation.mutate({
-      leagueId,
-      email: inviteEmail.trim(),
-    });
   };
 
   return (
@@ -1072,34 +1043,6 @@ function InviteBlock({
           <Copy className="w-4 h-4 mr-2" />
           Code kopieren
         </Button>
-        {showEmailInvite && (
-          <div className="w-full space-y-2 text-left">
-            <p className="text-xs uppercase text-muted-foreground tracking-wide">
-              Einladen per E-Mail
-            </p>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Input
-                type="email"
-                placeholder="freund@example.com"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                className="flex-1"
-              />
-              <Button
-                onClick={handleSendEmail}
-                disabled={sendInvitation.isPending}
-                className="sm:w-auto"
-              >
-                {sendInvitation.isPending ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Mail className="w-4 h-4 mr-2" />
-                )}
-                Einladung senden
-              </Button>
-            </div>
-          </div>
-        )}
         <div className="pt-2 space-y-1">
           <div className="flex items-center justify-center gap-2 text-muted-foreground">
             <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />

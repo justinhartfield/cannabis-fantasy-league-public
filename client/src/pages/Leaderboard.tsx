@@ -2,11 +2,9 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Trophy, TrendingUp, Users, Medal } from "lucide-react";
-import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
 // Entity Types
@@ -16,8 +14,6 @@ const Leaderboard = () => {
   const [activeTab, setActiveTab] = useState("daily");
   const [entityFilter, setEntityFilter] = useState<EntityType>('all');
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
-  const [selectedWeek, setSelectedWeek] = useState<number>(1); // Default to 1, will try to auto-set from data if possible
 
   // Fetch Data
   const dailyQuery = trpc.leaderboard.getDailyEntityLeaderboard.useQuery({
@@ -25,14 +21,6 @@ const Leaderboard = () => {
     limit: 10,
   }, {
     enabled: activeTab === "daily"
-  });
-
-  const weeklyQuery = trpc.leaderboard.getWeeklyEntityLeaderboard.useQuery({
-    year: selectedYear,
-    week: selectedWeek,
-    limit: 10,
-  }, {
-    enabled: activeTab === "weekly"
   });
 
   const hallOfFameQuery = trpc.leaderboard.getHallOfFame.useQuery({
@@ -177,43 +165,11 @@ const Leaderboard = () => {
              />
           </div>
         )}
-
-        {activeTab === "weekly" && (
-          <div className="flex items-center gap-2">
-             <span className="text-sm text-muted-foreground">Week:</span>
-             <Select 
-               value={selectedWeek.toString()} 
-               onValueChange={(v) => setSelectedWeek(parseInt(v))}
-             >
-               <SelectTrigger className="w-[100px]">
-                 <SelectValue placeholder="Week" />
-               </SelectTrigger>
-               <SelectContent>
-                 {Array.from({ length: 52 }, (_, i) => i + 1).map((w) => (
-                   <SelectItem key={w} value={w.toString()}>Week {w}</SelectItem>
-                 ))}
-               </SelectContent>
-             </Select>
-             <Select 
-               value={selectedYear.toString()} 
-               onValueChange={(v) => setSelectedYear(parseInt(v))}
-             >
-               <SelectTrigger className="w-[100px]">
-                 <SelectValue placeholder="Year" />
-               </SelectTrigger>
-               <SelectContent>
-                 <SelectItem value="2024">2024</SelectItem>
-                 <SelectItem value="2025">2025</SelectItem>
-               </SelectContent>
-             </Select>
-          </div>
-        )}
       </div>
 
       <Tabs defaultValue="daily" value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 max-w-md mx-auto md:mx-0">
+        <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto md:mx-0">
           <TabsTrigger value="daily">Daily Leaders</TabsTrigger>
-          <TabsTrigger value="weekly">Weekly Leaders</TabsTrigger>
           <TabsTrigger value="hof">Hall of Fame</TabsTrigger>
         </TabsList>
 
@@ -281,77 +237,6 @@ const Leaderboard = () => {
                   </CardHeader>
                   <CardContent>
                     <EntityList title="" data={dailyQuery.data?.strains || []} icon={Trophy} />
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          )}
-        </TabsContent>
-
-        {/* WEEKLY TAB */}
-        <TabsContent value="weekly" className="space-y-6">
-          <EntityFilters />
-          
-          {weeklyQuery.isLoading ? (
-            <div className="flex justify-center py-12">Loading...</div>
-          ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {(entityFilter === 'all' || entityFilter === 'manufacturer') && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Top Manufacturers</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <EntityList title="" data={weeklyQuery.data?.manufacturers || []} icon={TrendingUp} />
-                  </CardContent>
-                </Card>
-              )}
-
-              {(entityFilter === 'all' || entityFilter === 'pharmacy') && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Top Pharmacies</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <EntityList title="" data={weeklyQuery.data?.pharmacies || []} icon={Users} />
-                  </CardContent>
-                </Card>
-              )}
-
-              {(entityFilter === 'all' || entityFilter === 'brand') && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Top Brands</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <EntityList title="" data={weeklyQuery.data?.brands || []} icon={Medal} />
-                  </CardContent>
-                </Card>
-              )}
-
-              {(entityFilter === 'all' || entityFilter === 'product') && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Top Products</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <EntityList
-                      title=""
-                      data={weeklyQuery.data?.products || []}
-                      icon={Trophy}
-                      emptyMessage="No product scores yet for this week."
-                    />
-                  </CardContent>
-                </Card>
-              )}
-
-              {(entityFilter === 'all' || entityFilter === 'strain') && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Top Flower</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <EntityList title="" data={weeklyQuery.data?.strains || []} icon={Trophy} />
                   </CardContent>
                 </Card>
               )}
