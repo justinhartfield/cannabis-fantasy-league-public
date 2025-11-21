@@ -32,6 +32,7 @@ export function LeagueChat({ leagueId }: LeagueChatProps) {
   const [giphySearch, setGiphySearch] = useState("");
   const [gifs, setGifs] = useState<any[]>([]);
   const [isGiphyLoading, setIsGiphyLoading] = useState(false);
+  const [popoverOpen, setPopoverOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Initial Load
@@ -124,7 +125,7 @@ export function LeagueChat({ leagueId }: LeagueChatProps) {
       <div className="p-4 border-t space-y-2">
         <div className="flex gap-2">
             {/* GIPHY / Templates Popover */}
-          <Popover>
+          <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" size="icon">
                 <Zap className="w-4 h-4" />
@@ -144,7 +145,10 @@ export function LeagueChat({ leagueId }: LeagueChatProps) {
                         key={i} 
                         variant="ghost" 
                         className="justify-start h-auto whitespace-normal text-left"
-                        onClick={() => handleSendMessage(t)}
+                        onClick={() => {
+                          setInputValue(t);
+                          setPopoverOpen(false);
+                        }}
                       >
                         {t}
                       </Button>

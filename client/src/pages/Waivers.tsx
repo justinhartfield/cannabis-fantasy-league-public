@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, Link } from "wouter";
+import { useParams } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { LeagueNav } from "@/components/LeagueNav";
@@ -8,45 +8,71 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Gavel, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, Gavel } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
+const statusVariants: Record<string, "default" | "destructive" | "secondary"> = {
+  pending: "secondary",
+  success: "default",
+  failed: "destructive",
+  error: "destructive",
+};
+
+function formatCurrency(value: number) {
+  return `$${value.toLocaleString("en-US")}`;
+}
+
+function formatTimestamp(value?: string | null) {
+  if (!value) return "—";
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
 
 export default function Waivers() {
   const { id } = useParams();
   const leagueId = parseInt(id!);
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState("available");
-  const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
-  const [bidAmount, setBidAmount] = useState(0);
-  const [dropAssetId, setDropAssetId] = useState<string>("none");
-  
+  const [activeTab, setActiveTab] = useState("claims");
+
   // Fetch league details
   const { data: league } = trpc.league.getById.useQuery({ leagueId });
-  
+
   // Fetch user's team
   const { data: myTeam } = trpc.league.getMyTeam.useQuery({ leagueId });
-  
-  // Fetch waiver claims
-  // const { data: claims, refetch: refetchClaims } = trpc.waiver.getClaims.useQuery({ leagueId });
-  
-  // Placeholder for claims until router is implemented
-  const claims: any[] = []; 
-  
-  const handlePlaceBid = () => {
-    toast.info("Bid placed (simulation)");
-    // Implement mutation call here
-    setSelectedPlayer(null);
-  };
 
-  const handleProcessWaivers = () => {
-    toast.info("Processing waivers (simulation)");
-    // Implement mutation call here
-  };
+  const {
+    data: claims = [],
+    isLoading: claimsLoading,
+    refetch: refetchClaims,
+  } = trpc.waiver.getClaims.useQuery({ leagueId }, { enabled: !!leagueId });
+
+  const {
+    data: transactionLog = [],
+    isLoading: logLoading,
+    refetch: refetchLog,
+  } = trpc.waiver.getTransactionLog.useQuery({ leagueId }, { enabled: !!leagueId });
+
+  const cancelClaim = trpc.waiver.cancelClaim.useMutation({
+    onSuccess: () => {
+      toast.success("Waiver claim cancelled");
+      refetchClaims();
+    },
+    onError: (error) => toast.error(error.message),
+  });
+
+  const processWaivers = trpc.waiver.processWaivers.useMutation({
+    onSuccess: (result) => {
+      toast.success("Waivers processed", {
+        description: `${result.log.length} claims reviewed.`,
+      });
+      refetchClaims();
+      refetchLog();
+    },
+    onError: (error) => toast.error(error.message),
+  });
 
   if (!league || !myTeam) {
     return (
@@ -55,8 +81,9 @@ export default function Waivers() {
       </div>
     );
   }
-  
+
   const isCommissioner = league.commissionerUserId === user?.id;
+  const lastProcessedAt = transactionLog?.[0]?.processedAt;
 
   return (
     <div className="min-h-screen bg-background">
@@ -73,12 +100,11 @@ export default function Waivers() {
 
       <main className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="grid gap-6">
-          {/* Header Section */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
               <h2 className="text-3xl font-bold tracking-tight">Waiver Wire</h2>
               <p className="text-muted-foreground">
-                Manage waiver claims and free agents
+                Submit bids, track results, and review history.
               </p>
             </div>
             <div className="flex items-center gap-4">
@@ -86,7 +112,7 @@ export default function Waivers() {
                 <CardContent className="p-4 flex items-center gap-4">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Your FAAB</p>
-                    <p className="text-2xl font-bold">${myTeam.faabBudget}</p>
+                    <p className="text-2xl font-bold">{formatCurrency(myTeam.faabBudget)}</p>
                   </div>
                   <div className="h-10 w-px bg-border" />
                   <div>
@@ -98,68 +124,100 @@ export default function Waivers() {
             </div>
           </div>
 
-          {/* Commissioner Tools */}
           {isCommissioner && (
             <Alert>
               <Gavel className="h-4 w-4" />
               <AlertTitle>Commissioner Tools</AlertTitle>
-              <AlertDescription className="flex items-center justify-between mt-2">
-                <span>Manually process waivers for the current period.</span>
-                <Button size="sm" onClick={handleProcessWaivers}>Process Waivers Now</Button>
+              <AlertDescription className="flex flex-col gap-2 mt-2 md:flex-row md:items-center md:justify-between">
+                <span>
+                  {lastProcessedAt
+                    ? `Last processed ${formatTimestamp(lastProcessedAt)}`
+                    : "Waivers have not been processed yet."}
+                </span>
+                <Button
+                  size="sm"
+                  onClick={() => processWaivers.mutate({ leagueId })}
+                  disabled={processWaivers.isPending}
+                >
+                  {processWaivers.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Process Waivers Now
+                </Button>
               </AlertDescription>
             </Alert>
           )}
 
-          <Tabs defaultValue="available" value={activeTab} onValueChange={setActiveTab}>
+          <Tabs defaultValue="claims" value={activeTab} onValueChange={setActiveTab}>
             <TabsList>
-              <TabsTrigger value="available">Available Players</TabsTrigger>
               <TabsTrigger value="claims">My Claims</TabsTrigger>
               <TabsTrigger value="log">Transaction Log</TabsTrigger>
             </TabsList>
-
-            <TabsContent value="available" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Available Players</CardTitle>
-                  <CardDescription>
-                    Search and filter available players to add to your team.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-12 text-muted-foreground">
-                    Player search component coming soon...
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
 
             <TabsContent value="claims" className="space-y-4">
               <Card>
                 <CardHeader>
                   <CardTitle>Pending Claims</CardTitle>
                   <CardDescription>
-                    Your active waiver claims for the next processing period.
+                    Active bids awaiting the next processing window.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {claims && claims.length > 0 ? (
+                  {claimsLoading ? (
+                    <div className="flex justify-center py-12">
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                    </div>
+                  ) : claims.length > 0 ? (
                     <Table>
                       <TableHeader>
                         <TableRow>
                           <TableHead>Player to Add</TableHead>
                           <TableHead>Player to Drop</TableHead>
-                          <TableHead>Bid Amount</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Action</TableHead>
+                          <TableHead>Bid</TableHead>
+                          <TableHead>Submitted</TableHead>
+                          <TableHead className="text-right">Action</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {/* Claims mapping */}
+                        {claims.map((claim: any) => (
+                          <TableRow key={claim.id}>
+                            <TableCell>
+                              <div className="flex flex-col">
+                                <span className="font-medium">{claim.addAssetName}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {claim.addAssetLabel}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {claim.dropAssetName ? (
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{claim.dropAssetName}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {claim.dropAssetLabel}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-sm text-muted-foreground">None</span>
+                              )}
+                            </TableCell>
+                            <TableCell>{formatCurrency(claim.bidAmount)}</TableCell>
+                            <TableCell>{formatTimestamp(claim.createdAt)}</TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => cancelClaim.mutate({ claimId: claim.id })}
+                                disabled={cancelClaim.isPending}
+                              >
+                                Cancel
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
                       </TableBody>
                     </Table>
                   ) : (
                     <div className="text-center py-12 text-muted-foreground">
-                      No pending claims.
+                      You have no pending waiver claims.
                     </div>
                   )}
                 </CardContent>
@@ -170,11 +228,67 @@ export default function Waivers() {
               <Card>
                 <CardHeader>
                   <CardTitle>Transaction Log</CardTitle>
+                  <CardDescription>
+                    Recent waiver outcomes for everyone in the league.
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center py-12 text-muted-foreground">
-                    Transaction history coming soon...
-                  </div>
+                  {logLoading ? (
+                    <div className="flex justify-center py-12">
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                    </div>
+                  ) : transactionLog.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Processed</TableHead>
+                          <TableHead>Team</TableHead>
+                          <TableHead>Added</TableHead>
+                          <TableHead>Dropped</TableHead>
+                          <TableHead>Bid</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {transactionLog.map((entry: any) => (
+                          <TableRow key={entry.id}>
+                            <TableCell>{formatTimestamp(entry.processedAt)}</TableCell>
+                            <TableCell>{entry.teamName}</TableCell>
+                            <TableCell>
+                              <div className="flex flex-col">
+                                <span className="font-medium">{entry.addAssetName}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {entry.addAssetLabel}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {entry.dropAssetName ? (
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{entry.dropAssetName}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {entry.dropAssetLabel}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-sm text-muted-foreground">None</span>
+                              )}
+                            </TableCell>
+                            <TableCell>{formatCurrency(entry.bidAmount)}</TableCell>
+                            <TableCell>
+                              <Badge variant={statusVariants[entry.status] || "secondary"}>
+                                {entry.status}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <div className="text-center py-12 text-muted-foreground">
+                      No waiver activity has been processed yet.
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>

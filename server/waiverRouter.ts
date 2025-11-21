@@ -1,9 +1,107 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "./_core/trpc";
 import { getDb } from "./db";
-import { waiverClaims, teams, leagues, rosters } from "../drizzle/schema";
-import { eq, and, desc, inArray } from "drizzle-orm";
+import {
+  waiverClaims,
+  teams,
+  leagues,
+  rosters,
+  manufacturers,
+  cannabisStrains,
+  strains,
+  pharmacies,
+  brands,
+} from "../drizzle/schema";
+import { eq, and, desc, inArray, ne } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
+
+type Database = NonNullable<Awaited<ReturnType<typeof getDb>>>;
+
+const ASSET_TYPE_LABELS: Record<string, string> = {
+  manufacturer: "Manufacturer",
+  strain: "Strain",
+  cannabis_strain: "Strain",
+  product: "Product",
+  pharmacy: "Dispensary",
+  brand: "Brand",
+};
+
+async function getAssetName(db: Database, assetType: string, assetId: number) {
+  switch (assetType) {
+    case "manufacturer": {
+      const [row] = await db
+        .select({ name: manufacturers.name })
+        .from(manufacturers)
+        .where(eq(manufacturers.id, assetId))
+        .limit(1);
+      return row?.name || `Manufacturer #${assetId}`;
+    }
+    case "cannabis_strain":
+    case "strain": {
+      const [row] = await db
+        .select({ name: cannabisStrains.name })
+        .from(cannabisStrains)
+        .where(eq(cannabisStrains.id, assetId))
+        .limit(1);
+      return row?.name || `Strain #${assetId}`;
+    }
+    case "product": {
+      const [row] = await db
+        .select({ name: strains.name })
+        .from(strains)
+        .where(eq(strains.id, assetId))
+        .limit(1);
+      return row?.name || `Product #${assetId}`;
+    }
+    case "pharmacy": {
+      const [row] = await db
+        .select({ name: pharmacies.name })
+        .from(pharmacies)
+        .where(eq(pharmacies.id, assetId))
+        .limit(1);
+      return row?.name || `Dispensary #${assetId}`;
+    }
+    case "brand": {
+      const [row] = await db
+        .select({ name: brands.name })
+        .from(brands)
+        .where(eq(brands.id, assetId))
+        .limit(1);
+      return row?.name || `Brand #${assetId}`;
+    }
+    case "none":
+      return null;
+    default:
+      return `Asset #${assetId}`;
+  }
+}
+
+async function enrichClaims(db: Database, claims: typeof waiverClaims.$inferSelect[]) {
+  return Promise.all(
+    claims.map(async (claim) => {
+      const [team] = await db
+        .select({ name: teams.name })
+        .from(teams)
+        .where(eq(teams.id, claim.teamId))
+        .limit(1);
+
+      return {
+        ...claim,
+        teamName: team?.name || "Unknown Team",
+        addAssetName: await getAssetName(db, claim.addAssetType, claim.addAssetId),
+        dropAssetName:
+          claim.dropAssetType === "none"
+            ? null
+            : await getAssetName(db, claim.dropAssetType, claim.dropAssetId),
+        addAssetLabel: ASSET_TYPE_LABELS[claim.addAssetType] || claim.addAssetType,
+        dropAssetLabel:
+          claim.dropAssetType === "none"
+            ? null
+            : ASSET_TYPE_LABELS[claim.dropAssetType] || claim.dropAssetType,
+      };
+    })
+  );
+}
 
 export const waiverRouter = router({
   /**
@@ -108,10 +206,44 @@ export const waiverRouter = router({
 
       if (!team) throw new TRPCError({ code: "NOT_FOUND", message: "Team not found" });
 
-      return await db.select().from(waiverClaims).where(and(
-        eq(waiverClaims.teamId, team.id),
-        eq(waiverClaims.status, "pending")
-      ));
+      const claims = await db
+        .select()
+        .from(waiverClaims)
+        .where(
+          and(eq(waiverClaims.teamId, team.id), eq(waiverClaims.status, "pending"))
+        )
+        .orderBy(desc(waiverClaims.createdAt));
+
+      return enrichClaims(db, claims);
+    }),
+
+  /**
+   * Get processed waiver log for a league
+   */
+  getTransactionLog: protectedProcedure
+    .input(z.object({ leagueId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+
+      const team = await db.query.teams.findFirst({
+        where: and(eq(teams.leagueId, input.leagueId), eq(teams.userId, ctx.user.id)),
+      });
+
+      if (!team) throw new TRPCError({ code: "FORBIDDEN", message: "You are not part of this league" });
+
+      const claims = await db
+        .select()
+        .from(waiverClaims)
+        .where(
+          and(
+            eq(waiverClaims.leagueId, input.leagueId),
+            ne(waiverClaims.status, "pending")
+          )
+        )
+        .orderBy(desc(waiverClaims.processedAt), desc(waiverClaims.updatedAt));
+
+      return enrichClaims(db, claims);
     }),
 
   /**
@@ -171,20 +303,28 @@ export const waiverRouter = router({
       const assetsTaken = new Set<string>(); // "type:id"
       const assetsDropped = new Set<string>(); // "teamId:type:id"
 
+      const now = new Date().toISOString();
+
       for (const claim of sortedClaims) {
         const addKey = `${claim.addAssetType}:${claim.addAssetId}`;
         const dropKey = `${claim.teamId}:${claim.dropAssetType}:${claim.dropAssetId}`;
 
         // Check if add asset is already taken in this batch
         if (assetsTaken.has(addKey)) {
-          await db.update(waiverClaims).set({ status: "failed" }).where(eq(waiverClaims.id, claim.id));
+          await db
+            .update(waiverClaims)
+            .set({ status: "failed", processedAt: now })
+            .where(eq(waiverClaims.id, claim.id));
           processedLog.push(`Claim ${claim.id} failed: Player already taken.`);
           continue;
         }
 
         // Check if drop asset is still available (only if not "none")
         if (claim.dropAssetType !== "none" && assetsDropped.has(dropKey)) {
-           await db.update(waiverClaims).set({ status: "failed" }).where(eq(waiverClaims.id, claim.id));
+           await db
+             .update(waiverClaims)
+             .set({ status: "failed", processedAt: now })
+             .where(eq(waiverClaims.id, claim.id));
            processedLog.push(`Claim ${claim.id} failed: Drop player already moved.`);
            continue;
         }
@@ -217,7 +357,10 @@ export const waiverRouter = router({
             }
 
             // 4. Mark claim success
-            await tx.update(waiverClaims).set({ status: "success", processedAt: new Date().toISOString() }).where(eq(waiverClaims.id, claim.id));
+            await tx
+              .update(waiverClaims)
+              .set({ status: "success", processedAt: new Date().toISOString() })
+              .where(eq(waiverClaims.id, claim.id));
           });
 
           assetsTaken.add(addKey);
@@ -228,7 +371,10 @@ export const waiverRouter = router({
 
         } catch (e) {
           console.error(e);
-          await db.update(waiverClaims).set({ status: "error" }).where(eq(waiverClaims.id, claim.id));
+          await db
+            .update(waiverClaims)
+            .set({ status: "error", processedAt: new Date().toISOString() })
+            .where(eq(waiverClaims.id, claim.id));
           processedLog.push(`Claim ${claim.id} error: Database transaction failed.`);
         }
       }
