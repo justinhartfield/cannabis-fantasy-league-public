@@ -2,7 +2,7 @@ import { pgTable, serial, integer, varchar, text, timestamp, json, index, primar
 import { sql } from "drizzle-orm"
 
 export const achievements = pgTable("achievements", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	userId: integer().notNull(),
 	achievementType: varchar({ length: 100 }).notNull(),
 	achievementName: varchar({ length: 255 }).notNull(),
@@ -14,7 +14,7 @@ export const achievements = pgTable("achievements", {
 ]);
 
 export const brands = pgTable("brands", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	name: varchar({ length: 255 }).notNull(),
 	slug: varchar({ length: 255 }),
 	description: text(),
@@ -33,7 +33,7 @@ export const brands = pgTable("brands", {
 ]);
 
 export const brandWeeklyStats = pgTable("brandWeeklyStats", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	brandId: integer().notNull(),
 	year: integer().notNull(),
 	week: integer().notNull(),
@@ -56,7 +56,7 @@ export const brandWeeklyStats = pgTable("brandWeeklyStats", {
 ]);
 
 export const brandDailyStats = pgTable("brandDailyStats", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	brandId: integer().notNull(),
 	statDate: date({ mode: 'string' }).notNull(),
 	favorites: integer().default(0).notNull(),
@@ -79,7 +79,7 @@ export const brandDailyStats = pgTable("brandDailyStats", {
 ]);
 
 export const cannabisStrainWeeklyStats = pgTable("cannabisStrainWeeklyStats", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	cannabisStrainId: integer().notNull(),
 	year: integer().notNull(),
 	week: integer().notNull(),
@@ -98,7 +98,7 @@ export const cannabisStrainWeeklyStats = pgTable("cannabisStrainWeeklyStats", {
 ]);
 
 export const cannabisStrainDailyStats = pgTable("cannabisStrainDailyStats", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	cannabisStrainId: integer().notNull(),
 	statDate: date({ mode: 'string' }).notNull(),
 	totalFavorites: integer().default(0).notNull(),
@@ -117,7 +117,7 @@ export const cannabisStrainDailyStats = pgTable("cannabisStrainDailyStats", {
 ]);
 
 export const cannabisStrains = pgTable("cannabisStrains", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	metabaseId: varchar({ length: 64 }).notNull(),
 	name: varchar({ length: 255 }).notNull(),
 	slug: varchar({ length: 255 }),
@@ -143,7 +143,7 @@ export const cannabisStrains = pgTable("cannabisStrains", {
 ]);
 
 export const challengeParticipants = pgTable("challengeParticipants", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	challengeId: integer().notNull(),
 	userId: integer().notNull(),
 	draftPosition: integer(),
@@ -156,7 +156,7 @@ export const challengeParticipants = pgTable("challengeParticipants", {
 ]);
 
 export const challengeRosters = pgTable("challengeRosters", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	challengeId: integer().notNull(),
 	userId: integer().notNull(),
 	assetType: varchar({ length: 50 }).notNull(),
@@ -171,7 +171,7 @@ export const challengeRosters = pgTable("challengeRosters", {
 ]);
 
 export const challenges = pgTable("challenges", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	name: varchar({ length: 255 }).notNull(),
 	creatorUserId: integer().notNull(),
 	year: integer().notNull(),
@@ -187,7 +187,7 @@ export const challenges = pgTable("challenges", {
 ]);
 
 export const draftPicks = pgTable("draftPicks", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	leagueId: integer().notNull(),
 	teamId: integer().notNull(),
 	round: integer().notNull(),
@@ -201,7 +201,7 @@ export const draftPicks = pgTable("draftPicks", {
 ]);
 
 export const leagueMessages = pgTable("leagueMessages", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	leagueId: integer().notNull(),
 	userId: integer().notNull(),
 	message: text().notNull(),
@@ -212,7 +212,7 @@ export const leagueMessages = pgTable("leagueMessages", {
 ]);
 
 export const leagues = pgTable("leagues", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	name: varchar({ length: 255 }).notNull(),
 	leagueCode: varchar({ length: 10 }),
 	commissionerUserId: integer().notNull(),
@@ -241,7 +241,7 @@ export const leagues = pgTable("leagues", {
 ]);
 
 export const manufacturerWeeklyStats = pgTable("manufacturerWeeklyStats", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	manufacturerId: integer().notNull(),
 	year: integer().notNull(),
 	week: integer().notNull(),
@@ -259,7 +259,7 @@ export const manufacturerWeeklyStats = pgTable("manufacturerWeeklyStats", {
 ]);
 
 export const manufacturerDailyStats = pgTable("manufacturerDailyStats", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	manufacturerId: integer().notNull(),
 	statDate: date({ mode: 'string' }).notNull(),
 	salesVolumeGrams: integer().default(0).notNull(),
@@ -277,7 +277,7 @@ export const manufacturerDailyStats = pgTable("manufacturerDailyStats", {
 ]);
 
 export const manufacturers = pgTable("manufacturers", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	name: varchar({ length: 255 }).notNull(),
 	logoUrl: varchar({ length: 500 }),
 	currentRank: integer(),
@@ -294,7 +294,7 @@ export const manufacturers = pgTable("manufacturers", {
 ]);
 
 export const matchups = pgTable("matchups", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	leagueId: integer().notNull(),
 	year: integer().notNull(),
 	week: integer().notNull(),
@@ -312,7 +312,7 @@ export const matchups = pgTable("matchups", {
 ]);
 
 export const pharmacies = pgTable("pharmacies", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	name: varchar({ length: 255 }).notNull(),
 	logoUrl: varchar({ length: 500 }),
 	city: varchar({ length: 100 }),
@@ -332,7 +332,7 @@ export const pharmacies = pgTable("pharmacies", {
 	]);
 
 export const products = pgTable("products", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	name: varchar({ length: 500 }).notNull(),
 	slug: varchar({ length: 500 }),
 	manufacturerId: integer(),
@@ -352,7 +352,7 @@ export const products = pgTable("products", {
 ]);
 
 export const productDailyStats = pgTable("productDailyStats", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	productId: integer().notNull(),
 	statDate: date({ mode: 'string' }).notNull(),
 	salesVolumeGrams: integer().default(0).notNull(),
@@ -368,7 +368,7 @@ export const productDailyStats = pgTable("productDailyStats", {
 ]);
 
 export const pharmacyWeeklyStats = pgTable("pharmacyWeeklyStats", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	pharmacyId: integer().notNull(),
 	year: integer().notNull(),
 	week: integer().notNull(),
@@ -388,7 +388,7 @@ export const pharmacyWeeklyStats = pgTable("pharmacyWeeklyStats", {
 ]);
 
 export const pharmacyDailyStats = pgTable("pharmacyDailyStats", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	pharmacyId: integer().notNull(),
 	statDate: date({ mode: 'string' }).notNull(),
 	revenueCents: integer().default(0).notNull(),
@@ -408,7 +408,7 @@ export const pharmacyDailyStats = pgTable("pharmacyDailyStats", {
 ]);
 
 export const rosters = pgTable("rosters", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	teamId: integer().notNull(),
 	assetType: varchar({ length: 50 }).notNull(),
 	assetId: integer().notNull(),
@@ -421,7 +421,7 @@ export const rosters = pgTable("rosters", {
 ]);
 
 export const scoringBreakdowns = pgTable("scoringBreakdowns", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	weeklyTeamScoreId: integer().notNull(),
 	assetType: varchar({ length: 50 }).notNull(),
 	assetId: integer().notNull(),
@@ -434,7 +434,7 @@ export const scoringBreakdowns = pgTable("scoringBreakdowns", {
 ]);
 
 export const dailyScoringBreakdowns = pgTable("dailyScoringBreakdowns", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	dailyTeamScoreId: integer().notNull(),
 	assetType: varchar({ length: 50 }).notNull(),
 	assetId: integer().notNull(),
@@ -448,7 +448,7 @@ export const dailyScoringBreakdowns = pgTable("dailyScoringBreakdowns", {
 ]);
 
 export const strainWeeklyStats = pgTable("strainWeeklyStats", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	strainId: integer().notNull(),
 	year: integer().notNull(),
 	week: integer().notNull(),
@@ -468,7 +468,7 @@ export const strainWeeklyStats = pgTable("strainWeeklyStats", {
 ]);
 
 export const strainDailyStats = pgTable("strainDailyStats", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	strainId: integer().notNull(),
 	statDate: date({ mode: 'string' }).notNull(),
 	favoriteCount: integer().default(0).notNull(),
@@ -488,7 +488,7 @@ export const strainDailyStats = pgTable("strainDailyStats", {
 ]);
 
 export const strains = pgTable("strains", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	metabaseId: varchar({ length: 64 }),
 	name: varchar({ length: 255 }).notNull(),
 	strainId: integer(),
@@ -514,7 +514,7 @@ export const strains = pgTable("strains", {
 ]);
 
 export const teams = pgTable("teams", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	leagueId: integer().notNull(),
 	userId: integer().notNull(),
 	name: varchar({ length: 255 }).notNull(),
@@ -534,7 +534,7 @@ export const teams = pgTable("teams", {
 ]);
 
 export const invitations = pgTable("invitations", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	leagueId: integer().notNull(),
 	email: varchar({ length: 255 }).notNull(),
 	token: varchar({ length: 255 }).notNull(),
@@ -552,7 +552,7 @@ export const invitations = pgTable("invitations", {
 ]);
 
 export const trades = pgTable("trades", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	leagueId: integer().notNull(),
 	team1Id: integer().notNull(),
 	team2Id: integer().notNull(),
@@ -568,7 +568,7 @@ export const trades = pgTable("trades", {
 ]);
 
 export const users = pgTable("users", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	openId: varchar({ length: 64 }).notNull(),
 	name: text(),
 	email: varchar({ length: 320 }),
@@ -592,7 +592,7 @@ export const users = pgTable("users", {
 ]);
 
 export const waiverClaims = pgTable("waiverClaims", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	leagueId: integer().notNull(),
 	teamId: integer().notNull(),
 	year: integer().notNull(),
@@ -611,7 +611,7 @@ export const waiverClaims = pgTable("waiverClaims", {
 ]);
 
 export const weeklyLineups = pgTable("weeklyLineups", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	teamId: integer().notNull(),
 	year: integer().notNull(),
 	week: integer().notNull(),
@@ -636,7 +636,7 @@ export const weeklyLineups = pgTable("weeklyLineups", {
 ]);
 
 export const weeklyTeamScores = pgTable("weeklyTeamScores", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	teamId: integer().notNull(),
 	year: integer().notNull(),
 	week: integer().notNull(),
@@ -660,7 +660,7 @@ export const weeklyTeamScores = pgTable("weeklyTeamScores", {
 ]);
 
 export const dailyTeamScores = pgTable("dailyTeamScores", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	challengeId: integer().notNull(),
 	teamId: integer().notNull(),
 	statDate: date({ mode: 'string' }).notNull(),
@@ -687,7 +687,7 @@ export const dailyTeamScores = pgTable("dailyTeamScores", {
 ]);
 
 export const referrals = pgTable("referrals", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	referrerUserId: integer().notNull(),
 	referredUserId: integer().notNull(),
 	referralCode: varchar({ length: 32 }).notNull(),
@@ -703,7 +703,7 @@ export const referrals = pgTable("referrals", {
 ]);
 
 export const streakFreezes = pgTable("streakFreezes", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	userId: integer().notNull(),
 	scope: varchar({ length: 50 }).default('prediction').notNull(),
 	period: date({ mode: 'string' }).notNull(),
@@ -756,7 +756,7 @@ export * from './dailyChallengeSchema';
 // ============================================================================
 
 export const dailyMatchups = pgTable("dailyMatchups", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	matchupDate: date({ mode: 'string' }).notNull(),
 	entityType: varchar({ length: 50 }).notNull(),
 	entityAId: integer().notNull(),
@@ -776,12 +776,13 @@ export const dailyMatchups = pgTable("dailyMatchups", {
 ]);
 
 export const userPredictions = pgTable("userPredictions", {
-	id: serial().notNull(),
+	id: serial().primaryKey(),
 	userId: integer().notNull(),
 	matchupId: integer().notNull(),
 	predictedWinnerId: integer().notNull(),
 	isCorrect: integer(),
 	submittedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
+	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
 (table) => [
 	index("user_matchup_idx").on(table.userId, table.matchupId),
