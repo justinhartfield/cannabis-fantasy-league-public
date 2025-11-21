@@ -15,7 +15,8 @@ export const waiverRouter = router({
         leagueId: z.number(),
         addAssetType: z.enum(["manufacturer", "strain", "product", "pharmacy", "brand"]),
         addAssetId: z.number(),
-        dropAssetType: z.enum(["manufacturer", "strain", "product", "pharmacy", "brand"]),
+        // Allow "none" for cases where we don't drop anyone (e.g. open roster spot)
+        dropAssetType: z.enum(["manufacturer", "strain", "product", "pharmacy", "brand", "none"]),
         dropAssetId: z.number(),
         bidAmount: z.number().min(0),
       })
@@ -42,20 +43,19 @@ export const waiverRouter = router({
         throw new TRPCError({ code: "BAD_REQUEST", message: `Insufficient FAAB. You have ${team.faabBudget}.` });
       }
 
-      // 3. Validate "Drop" Asset (Must own it)
-      const dropAsset = await db.query.rosters.findFirst({
-        where: and(
-          eq(rosters.teamId, team.id),
-          eq(rosters.assetType, input.addAssetType === "brand" ? "brand" : input.dropAssetType), // Schema might have 'brand' mapped differently? checking schema...
-          eq(rosters.assetId, input.dropAssetId)
-        ),
-      });
-      
-      // Note: Asset types in schema are: manufacturer, strain, pharmacy. "brand" and "product" might need mapping if not in enum.
-      // Checking schema again... rosters.assetType is varchar(50), so it supports string literals.
-      
-      if (!dropAsset) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "You do not own the asset you are trying to drop." });
+      // 3. Validate "Drop" Asset (Must own it), ONLY if not "none"
+      if (input.dropAssetType !== "none") {
+        const dropAsset = await db.query.rosters.findFirst({
+          where: and(
+            eq(rosters.teamId, team.id),
+            eq(rosters.assetType, input.dropAssetType), 
+            eq(rosters.assetId, input.dropAssetId)
+          ),
+        });
+        
+        if (!dropAsset) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "You do not own the asset you are trying to drop." });
+        }
       }
 
       // 4. Validate "Add" Asset (Must be free agent)
@@ -161,13 +161,7 @@ export const waiverRouter = router({
       }
 
       // 1. Get all pending claims
-      const claims = await db.select().from(waiverClaims).where(and(
-        eq(waiverClaims.leagueId, input.leagueId),
-        eq(waiverClaims.status, "pending")
-      )).orderBy(desc(waiverClaims.bidAmount), desc(waiverClaims.priority)); // Highest bid first, then priority (lower number is usually better, but here assuming higher priority value means better? Let's assume priority 1 is best. So ASC priority. BUT schema says 'waiverPriority' int. Usually 1 is best. Let's assume ASC.)
-      
-      // Correction: In fantasy, priority 1 is best. So ASC.
-      // Re-query with correct sort:
+      // Sort: Highest bid first (DESC), then Priority (ASC - assuming 1 is best)
       const sortedClaims = await db.select().from(waiverClaims).where(and(
         eq(waiverClaims.leagueId, input.leagueId),
         eq(waiverClaims.status, "pending")
@@ -175,10 +169,7 @@ export const waiverRouter = router({
 
       const processedLog = [];
       const assetsTaken = new Set<string>(); // "type:id"
-      const assetsDropped = new Set<string>(); // "teamId:type:id" (to prevent dropping same player twice in one batch if multiple claims involve it? No, a team can only drop a player once. But if they have multiple claims conditional on drops...)
-
-      // We need to handle conditional logic: If a team has multiple claims, they can't drop the same player twice.
-      // Also can't add the same player twice.
+      const assetsDropped = new Set<string>(); // "teamId:type:id"
 
       for (const claim of sortedClaims) {
         const addKey = `${claim.addAssetType}:${claim.addAssetId}`;
@@ -191,8 +182,8 @@ export const waiverRouter = router({
           continue;
         }
 
-        // Check if drop asset is still available to drop (e.g. wasn't dropped in a previous successful claim by same team)
-        if (assetsDropped.has(dropKey)) {
+        // Check if drop asset is still available (only if not "none")
+        if (claim.dropAssetType !== "none" && assetsDropped.has(dropKey)) {
            await db.update(waiverClaims).set({ status: "failed" }).where(eq(waiverClaims.id, claim.id));
            processedLog.push(`Claim ${claim.id} failed: Drop player already moved.`);
            continue;
@@ -201,12 +192,14 @@ export const waiverRouter = router({
         // EXECUTE TRANSACTION
         try {
           await db.transaction(async (tx) => {
-            // 1. Remove dropped asset
-            await tx.delete(rosters).where(and(
-              eq(rosters.teamId, claim.teamId),
-              eq(rosters.assetType, claim.dropAssetType),
-              eq(rosters.assetId, claim.dropAssetId)
-            ));
+            // 1. Remove dropped asset (if not none)
+            if (claim.dropAssetType !== "none") {
+              await tx.delete(rosters).where(and(
+                eq(rosters.teamId, claim.teamId),
+                eq(rosters.assetType, claim.dropAssetType),
+                eq(rosters.assetId, claim.dropAssetId)
+              ));
+            }
 
             // 2. Add new asset
             await tx.insert(rosters).values({
@@ -228,12 +221,15 @@ export const waiverRouter = router({
           });
 
           assetsTaken.add(addKey);
-          assetsDropped.add(dropKey);
+          if (claim.dropAssetType !== "none") {
+            assetsDropped.add(dropKey);
+          }
           processedLog.push(`Claim ${claim.id} success: Team ${claim.teamId} got ${addKey} for $${claim.bidAmount}`);
 
         } catch (e) {
           console.error(e);
           await db.update(waiverClaims).set({ status: "error" }).where(eq(waiverClaims.id, claim.id));
+          processedLog.push(`Claim ${claim.id} error: Database transaction failed.`);
         }
       }
 

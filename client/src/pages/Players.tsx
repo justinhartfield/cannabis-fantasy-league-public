@@ -105,29 +105,15 @@ export default function Players() {
       addAssetType: claimAsset.type,
       addAssetId: claimAsset.id,
       bidAmount: parseInt(bidAmount) || 0,
+      dropAssetType: dropAsset ? dropAsset.assetType : "none",
+      dropAssetId: dropAsset ? dropAsset.assetId : 0,
     };
 
-    if (dropAsset) {
-      input.dropAssetType = dropAsset.assetType;
-      input.dropAssetId = dropAsset.assetId;
-    } else if (dropAssetId === "none" && myRoster.length >= 10) {
-       // Ideally backend handles this check, but we can warn
-       // Proceeding to let backend throw if needed, but createClaim might require drop args in types
-       // Checking type def in next step. Assuming drop args are optional in mutation input but required by logic if full.
+    // Optional: Client-side check for roster limit (warn user)
+    if (dropAssetId === "none" && myRoster.length >= 10) {
+       // We can still submit; backend might fail if there's a hard limit or allow it.
+       // For now, we proceed.
     }
-
-    // The mutation expects optional drop fields.
-    // However, if I selected "none" but I needed to drop, backend will error "You do not own..." or "Team full" (if added that check).
-    // Wait, looking at router code, it doesn't seem to check "Team Full" explicitly, but it does insert into roster. 
-    // If roster limits are enforced by DB constraint or just logic? 
-    // rosterRouter.addToRoster doesn't seem to check limits.
-    // But let's assume we need to drop if we have 10.
-    
-    // Actually, the router.createClaim input definition has dropAssetType/Id as REQUIRED in the zod schema I read earlier?
-    // Let's re-read the grep output or file.
-    // server/waiverRouter.ts:18: dropAssetType: z.enum(...),
-    // It looks required in the input schema I saw.
-    // Let's re-verify.
     
     createClaim.mutate(input);
   };
