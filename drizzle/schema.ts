@@ -576,6 +576,10 @@ export const users = pgTable("users", {
 	role: varchar({ length: 50 }).default('user').notNull(),
 	currentPredictionStreak: integer().default(0).notNull(),
 	longestPredictionStreak: integer().default(0).notNull(),
+	referralCredits: integer().default(0).notNull(),
+	streakFreezeTokens: integer().default(0).notNull(),
+	referralCode: varchar({ length: 32 }),
+	referredByUserId: integer(),
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	lastSignedIn: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
@@ -583,6 +587,8 @@ export const users = pgTable("users", {
 },
 (table) => [
 	unique("users_openId_unique").on(table.openId),
+	unique("users_referralCode_unique").on(table.referralCode),
+	index("users_referredBy_idx").on(table.referredByUserId),
 ]);
 
 export const waiverClaims = pgTable("waiverClaims", {
@@ -680,6 +686,37 @@ export const dailyTeamScores = pgTable("dailyTeamScores", {
 	unique("daily_scores_unique").on(table.challengeId, table.teamId, table.statDate),
 ]);
 
+export const referrals = pgTable("referrals", {
+	id: serial().notNull(),
+	referrerUserId: integer().notNull(),
+	referredUserId: integer().notNull(),
+	referralCode: varchar({ length: 32 }).notNull(),
+	status: varchar({ length: 50 }).default('pending').notNull(),
+	trigger: varchar({ length: 50 }),
+	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
+	completedAt: timestamp({ mode: 'string', withTimezone: true }),
+},
+(table) => [
+	unique("referrals_referredUser_unique").on(table.referredUserId),
+	index("referrals_referrer_idx").on(table.referrerUserId),
+	index("referrals_code_idx").on(table.referralCode),
+]);
+
+export const streakFreezes = pgTable("streakFreezes", {
+	id: serial().notNull(),
+	userId: integer().notNull(),
+	scope: varchar({ length: 50 }).default('prediction').notNull(),
+	period: date({ mode: 'string' }).notNull(),
+	status: varchar({ length: 50 }).default('active').notNull(),
+	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
+	usedAt: timestamp({ mode: 'string', withTimezone: true }),
+	expiresAt: timestamp({ mode: 'string', withTimezone: true }),
+},
+(table) => [
+	index("streak_freezes_user_idx").on(table.userId),
+	index("streak_freezes_period_idx").on(table.period),
+]);
+
 
 // Admin Dashboard - Sync Jobs and Logs
 export const syncJobs = pgTable("syncJobs", {
@@ -751,3 +788,6 @@ export const userPredictions = pgTable("userPredictions", {
 	index("user_predictions_date_idx").on(table.submittedAt),
 	unique("user_matchup_unique").on(table.userId, table.matchupId),
 ]);
+
+export type User = typeof users.$inferSelect;
+export type InsertUser = typeof users.$inferInsert;

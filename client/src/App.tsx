@@ -22,6 +22,8 @@ import PredictionStreak from "./pages/PredictionStreak";
 import PredictionLeaderboard from "./pages/PredictionLeaderboard";
 import Leaderboard from "./pages/Leaderboard";
 import Profile from "./pages/Profile";
+import InviteFriends from "./pages/InviteFriends";
+import Join from "./pages/Join";
 import { useEffect } from "react";
 import { Navigation } from "./components/Navigation";
 
@@ -32,6 +34,7 @@ function Router() {
       <Route path={"/"} component={Dashboard} />
       <Route path={"/login"} component={Login} />
       <Route path={"/sign-up"} component={SignUpPage} />
+      <Route path={"/join"} component={Join} />
       {/* Clerk SSO callback routes - these are handled by Clerk automatically */}
       <Route path={"/login/sso-callback"} component={Login} />
       <Route path={"/sign-up/sso-callback"} component={SignUpPage} />
@@ -59,6 +62,7 @@ function Router() {
       <Route path={"/prediction-leaderboard"} component={PredictionLeaderboard} />
       <Route path={"/leaderboard"} component={Leaderboard} />
       <Route path={"/profile"} component={Profile} />
+      <Route path={"/invite"} component={InviteFriends} />
       <Route path={"/invitations/:token"} component={AcceptInvitation} />
       <Route path={"/admin"} component={Admin} />
 

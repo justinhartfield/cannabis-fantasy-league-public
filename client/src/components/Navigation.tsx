@@ -36,6 +36,12 @@ export function Navigation() {
                 Leaderboard
               </a>
             </Link>
+
+            <Link href="/invite">
+              <a className={`text-sm font-medium transition-colors hover:text-primary ${location === '/invite' ? 'text-primary' : 'text-muted-foreground'}`}>
+                Invite Friends
+              </a>
+            </Link>
           </div>
 
           {/* Right side - User info */}

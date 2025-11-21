@@ -5,6 +5,7 @@ import { leagues, teams, users } from "../drizzle/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { wsManager } from "./websocket";
+import { completeReferralIfEligible } from "./referralService";
 
 /**
  * Generate a random 6-character alphanumeric league code
@@ -39,6 +40,7 @@ export const leagueRouter = router({
         faabBudget: z.number().min(0).max(1000).default(100),
         tradeDeadlineWeek: z.number().min(1).max(18).default(13),
         playoffTeams: z.number().min(4).max(8).default(6),
+        seasonLength: z.number().min(4).max(52).default(18),
         isPublic: z.boolean().default(false),
         leagueType: z.enum(["season", "challenge"]).default("season"),
       })
@@ -69,6 +71,9 @@ export const leagueRouter = router({
 
         // Create league
         const currentYear = new Date().getFullYear();
+        // Calculate playoff start week: Season length + 1
+        // e.g., 4 week season -> playoffs start week 5
+        const playoffStartWeek = input.seasonLength + 1;
         
         const leagueResult = await db
           .insert(leagues)
@@ -85,6 +90,7 @@ export const leagueRouter = router({
             leagueCode: leagueCode,
             leagueType: input.leagueType,
             isPublic: input.isPublic,
+            playoffStartWeek: playoffStartWeek,
           })
           .returning({ id: leagues.id });
 
@@ -99,6 +105,9 @@ export const leagueRouter = router({
           name: `${ctx.user.name}'s Team`,
           faabBudget: input.faabBudget,
         });
+
+        // If this user was referred, complete the referral when they create their first league
+        await completeReferralIfEligible(ctx.user.id);
 
         return {
           success: true,
@@ -274,6 +283,9 @@ export const leagueRouter = router({
           faabRemaining: league.faabBudget,
         });
 
+        // Complete referral for this user when they join their first league
+        await completeReferralIfEligible(ctx.user.id);
+
         return {
           success: true,
         };
@@ -351,6 +363,9 @@ export const leagueRouter = router({
           name: teamName,
           faabBudget: 100, // Default FAAB budget
         }).returning();
+
+        // Complete referral for this user when they join their first league
+        await completeReferralIfEligible(ctx.user.id);
 
         // Check if this is a challenge and now has 2 teams
         const allTeams = await db

@@ -5,6 +5,7 @@ import { users } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { bunnyStoragePut } from "./bunnyStorage";
+import { applyReferralCodeForUser, getOrCreateReferralCode, getReferralStats } from "./referralService";
 
 /**
  * Profile Router
@@ -45,6 +46,56 @@ export const profileRouter = router({
     }
 
     return user;
+  }),
+
+  /**
+   * Get Referral Info
+   * Returns the user's referral code, credits, and streak freeze tokens
+   */
+  getReferralInfo: protectedProcedure.query(async ({ ctx }) => {
+    const db = await getDb();
+    if (!db) {
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Database not available",
+      });
+    }
+
+    const [user] = await db
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        referralCode: users.referralCode,
+        referralCredits: users.referralCredits,
+        streakFreezeTokens: users.streakFreezeTokens,
+      })
+      .from(users)
+      .where(eq(users.id, ctx.user.id))
+      .limit(1);
+
+    if (!user) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "User not found",
+      });
+    }
+
+    const referralCode =
+      user.referralCode || (await getOrCreateReferralCode(user.id)) || undefined;
+
+    const stats = await getReferralStats(user.id);
+
+    const invitePath = referralCode ? `/join?ref=${referralCode}` : null;
+
+    return {
+      referralCode: referralCode ?? null,
+      referralCredits: user.referralCredits ?? 0,
+      streakFreezeTokens: user.streakFreezeTokens ?? 0,
+      invitePath,
+      totalReferrals: stats.totalReferrals,
+      completedReferrals: stats.completedReferrals,
+    };
   }),
 
   /**
@@ -92,6 +143,77 @@ export const profileRouter = router({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to update profile",
+        });
+      }
+    }),
+
+  /**
+   * Apply Referral Code
+   * Associates the current user with a referrer using a referral code
+   */
+  applyReferralCode: protectedProcedure
+    .input(
+      z.object({
+        code: z.string().min(3).max(32),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Database not available",
+        });
+      }
+
+      try {
+        const normalizedCode = input.code.trim().toUpperCase();
+        if (!normalizedCode) {
+          return { success: false };
+        }
+
+        const result = await applyReferralCodeForUser(ctx.user.id, normalizedCode);
+
+        switch (result.status) {
+          case "applied":
+            return { success: true };
+          case "already_referred":
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "You have already used a referral code.",
+            });
+          case "already_has_teams":
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Referral codes can only be used before joining a league.",
+            });
+          case "invalid_code":
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Invalid referral code.",
+            });
+          case "self_referral":
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "You cannot use your own referral code.",
+            });
+          case "user_not_found":
+          case "db_unavailable":
+          default:
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: "Unable to apply referral code at this time.",
+            });
+        }
+
+      } catch (error) {
+        if (error instanceof TRPCError) {
+          throw error;
+        }
+        console.error("Apply referral code error:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to apply referral code",
         });
       }
     }),

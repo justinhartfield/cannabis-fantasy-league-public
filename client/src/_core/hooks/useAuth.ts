@@ -1,5 +1,5 @@
 import { useUser, useClerk } from "@clerk/clerk-react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 
 type UseAuthOptions = {
@@ -15,6 +15,42 @@ export function useAuth(options?: UseAuthOptions) {
   const { data: dbUser } = trpc.auth.me.useQuery(undefined, {
     enabled: isSignedIn && isLoaded,
   });
+
+  const applyReferralMutation = trpc.profile.applyReferralCode.useMutation();
+  const hasTriedReferralRef = useRef(false);
+
+  // Automatically apply any stored referral code once the user is fully authenticated
+  useEffect(() => {
+    if (!isSignedIn || !isLoaded || !dbUser) return;
+    if (hasTriedReferralRef.current) return;
+
+    let storedCode: string | null = null;
+    try {
+      storedCode = localStorage.getItem("cfl_referral_code");
+    } catch {
+      storedCode = null;
+    }
+
+    if (!storedCode) {
+      hasTriedReferralRef.current = true;
+      return;
+    }
+
+    hasTriedReferralRef.current = true;
+
+    applyReferralMutation.mutate(
+      { code: storedCode },
+      {
+        onSettled: () => {
+          try {
+            localStorage.removeItem("cfl_referral_code");
+          } catch {
+            // ignore storage errors
+          }
+        },
+      }
+    );
+  }, [isSignedIn, isLoaded, dbUser, applyReferralMutation]);
 
   const logout = useCallback(async () => {
     try {

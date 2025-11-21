@@ -34,6 +34,7 @@ export default function CreateLeague() {
     faabBudget: 100,
     tradeDeadlineWeek: 13,
     playoffTeams: 6,
+    seasonLength: 18,
     isPublic: false,
     leagueType: "season" as "season" | "challenge",
   });
@@ -191,43 +192,63 @@ export default function CreateLeague() {
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="maxTeams">Maximale Teams</Label>
-                  <Select
-                    value={formData.maxTeams.toString()}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, maxTeams: parseInt(value) })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[4, 6, 8, 10, 12, 14, 16].map((num) => (
-                        <SelectItem key={num} value={num.toString()}>
-                          {num} Teams
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                    <Select
+                      value={formData.maxTeams.toString()}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, maxTeams: parseInt(value) })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[4, 6, 8, 10, 12, 14, 16].map((num) => (
+                          <SelectItem key={num} value={num.toString()}>
+                            {num} Teams
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="playoffTeams">Playoff Teams</Label>
-                  <Select
-                    value={formData.playoffTeams.toString()}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, playoffTeams: parseInt(value) })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[4, 6, 8].map((num) => (
-                        <SelectItem key={num} value={num.toString()}>
-                          {num} Teams
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
+                  <div className="space-y-2">
+                    <Label htmlFor="seasonLength">Saison-Länge</Label>
+                    <Select
+                      value={formData.seasonLength?.toString() || "18"}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, seasonLength: parseInt(value) })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="4">Sprint (4 Wochen)</SelectItem>
+                        <SelectItem value="8">Quarter (8 Wochen)</SelectItem>
+                        <SelectItem value="12">Half Season (12 Wochen)</SelectItem>
+                        <SelectItem value="18">Full Season (18 Wochen)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="playoffTeams">Playoff Teams</Label>
+                    <Select
+                      value={formData.playoffTeams.toString()}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, playoffTeams: parseInt(value) })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[4, 6, 8].map((num) => (
+                          <SelectItem key={num} value={num.toString()}>
+                            {num} Teams
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
                     </Select>
                   </div>
                 </div>

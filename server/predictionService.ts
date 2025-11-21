@@ -11,6 +11,7 @@ import {
   cannabisStrainDailyStats,
   brandDailyStats,
   pharmacyDailyStats,
+  streakFreezes,
 } from '../drizzle/schema';
 import { eq, and, desc, isNotNull, sql } from 'drizzle-orm';
 
@@ -602,7 +603,7 @@ async function scoreMatchup(matchup: any): Promise<void> {
 
     // Update predictions FIRST. If this fails, the matchup won't be marked as scored,
     // allowing the job to retry later.
-    await updateUserPredictionsForMatchup(matchup.id, winnerId);
+    await updateUserPredictionsForMatchup(matchup.id, winnerId, matchup.matchupDate);
 
     await db.update(dailyMatchups)
       .set({ 
@@ -619,7 +620,11 @@ async function scoreMatchup(matchup: any): Promise<void> {
   }
 }
 
-export async function updateUserPredictionsForMatchup(matchupId: number, winnerId: number): Promise<void> {
+export async function updateUserPredictionsForMatchup(
+  matchupId: number,
+  winnerId: number,
+  matchupDate: string
+): Promise<void> {
   const db = await getDb();
   if (!db) return;
 
@@ -637,18 +642,23 @@ export async function updateUserPredictionsForMatchup(matchupId: number, winnerI
         continue;
       }
 
-      await db.update(userPredictions)
+      await db
+        .update(userPredictions)
         .set({ isCorrect })
         .where(eq(userPredictions.id, prediction.id));
 
-      await updateUserStreak(prediction.userId, isCorrect === 1);
+      await updateUserStreak(prediction.userId, isCorrect === 1, matchupDate);
     }
   } catch (error) {
     console.error(`[PredictionService] Error updating predictions for matchup ${matchupId}:`, error);
   }
 }
 
-export async function updateUserStreak(userId: number, wasCorrect: boolean): Promise<void> {
+export async function updateUserStreak(
+  userId: number,
+  wasCorrect: boolean,
+  matchupDate: string
+): Promise<void> {
   const db = await getDb();
   if (!db) return;
 
@@ -661,11 +671,48 @@ export async function updateUserStreak(userId: number, wasCorrect: boolean): Pro
 
     if (!user) return;
 
-    let newStreak = wasCorrect 
-      ? (user.currentPredictionStreak || 0) + 1 
-      : 0;
-    
-    let newLongest = Math.max(
+    let usedFreeze = false;
+
+    // If the prediction was incorrect, see if the user has an active streak freeze
+    if (!wasCorrect) {
+      const [freeze] = await db
+        .select()
+        .from(streakFreezes)
+        .where(
+          and(
+            eq(streakFreezes.userId, userId),
+            eq(streakFreezes.scope, "prediction"),
+            eq(streakFreezes.period, matchupDate),
+            eq(streakFreezes.status, "active")
+          )
+        )
+        .limit(1);
+
+      if (freeze) {
+        usedFreeze = true;
+
+        await db
+          .update(streakFreezes)
+          .set({
+            status: "used",
+            usedAt: new Date().toISOString(),
+          })
+          .where(eq(streakFreezes.id, freeze.id));
+      }
+    }
+
+    let newStreak: number;
+
+    if (wasCorrect) {
+      newStreak = (user.currentPredictionStreak || 0) + 1;
+    } else if (usedFreeze) {
+      // Freeze protects the current streak from being reset
+      newStreak = user.currentPredictionStreak || 0;
+    } else {
+      newStreak = 0;
+    }
+
+    const newLongest = Math.max(
       newStreak, 
       user.longestPredictionStreak || 0
     );

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Zap, Trophy, TrendingUp, CheckCircle, XCircle } from "lucide-react";
+import { Loader2, Zap, Trophy, TrendingUp, CheckCircle, XCircle, Snowflake } from "lucide-react";
 import { toast } from "sonner";
 
 interface Prediction {
@@ -26,6 +26,20 @@ export default function PredictionStreak() {
     },
     onError: (error) => {
       toast.error(`Submission failed: ${error.message}`);
+    },
+  });
+
+  const activateFreezeMutation = trpc.prediction.activateStreakFreeze.useMutation({
+    onSuccess: (data) => {
+      if (data.alreadyActive) {
+        toast.info("You already have an active streak freeze for today.");
+      } else {
+        toast.success("Streak freeze activated for today. One loss will not break your streak.");
+      }
+      utils.prediction.getUserStats.invalidate();
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to activate streak freeze.");
     },
   });
 
@@ -119,6 +133,38 @@ export default function PredictionStreak() {
             <p className="text-2xl font-bold text-foreground">
               {stats?.correctPredictions || 0}/{stats?.totalPredictions || 0}
             </p>
+          </Card>
+
+          <Card className="p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Snowflake className="w-4 h-4 text-cyan-500" />
+              <span className="text-sm text-muted-foreground">Streak Freezes</span>
+            </div>
+            <p className="text-2xl font-bold text-foreground mb-2">
+              {stats?.streakFreezeTokens || 0}
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={
+                activateFreezeMutation.isPending ||
+                !stats ||
+                (stats.streakFreezeTokens || 0) <= 0
+              }
+              onClick={() => activateFreezeMutation.mutate()}
+            >
+              {activateFreezeMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Activating...
+                </>
+              ) : (
+                <>
+                  <Zap className="w-4 h-4 mr-2" />
+                  Activate for today
+                </>
+              )}
+            </Button>
           </Card>
         </div>
       </header>

@@ -9,6 +9,7 @@ import {
   brands,
   pharmacies,
   cannabisStrains,
+  streakFreezes,
 } from "../drizzle/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { updateUserStreak } from "./predictionService";
@@ -146,7 +147,7 @@ export const predictionRouter = router({
                 .set({ isCorrect: calculatedIsCorrect })
                 .where(eq(userPredictions.id, predictionId));
               
-              await updateUserStreak(userId, calculatedIsCorrect === 1);
+              await updateUserStreak(userId, calculatedIsCorrect === 1, yesterdayStr);
             } catch (err) {
               console.error(`[PredictionRouter] Failed to repair prediction ${result.userPrediction!.id}:`, err);
             }
@@ -303,6 +304,7 @@ export const predictionRouter = router({
       .select({
         currentStreak: users.currentPredictionStreak,
         longestStreak: users.longestPredictionStreak,
+        streakFreezeTokens: users.streakFreezeTokens,
       })
       .from(users)
       .where(eq(users.id, userId))
@@ -331,6 +333,75 @@ export const predictionRouter = router({
       totalPredictions: total,
       correctPredictions: correct,
       accuracy: Math.round(accuracy * 10) / 10,
+      streakFreezeTokens: user?.streakFreezeTokens || 0,
+    };
+  }),
+
+  activateStreakFreeze: protectedProcedure.mutation(async ({ ctx }) => {
+    const db = await getDb();
+    if (!db) {
+      throw new Error("Database not available");
+    }
+
+    const userId = ctx.user.id;
+    const today = new Date().toISOString().split("T")[0];
+
+    const [user] = await db
+      .select({
+        id: users.id,
+        streakFreezeTokens: users.streakFreezeTokens,
+      })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    if ((user.streakFreezeTokens || 0) <= 0) {
+      throw new Error("No streak freeze tokens available");
+    }
+
+    const [existing] = await db
+      .select()
+      .from(streakFreezes)
+      .where(
+        and(
+          eq(streakFreezes.userId, userId),
+          eq(streakFreezes.scope, "prediction"),
+          eq(streakFreezes.period, today),
+          eq(streakFreezes.status, "active")
+        )
+      )
+      .limit(1);
+
+    if (existing) {
+      return {
+        success: true,
+        alreadyActive: true,
+      };
+    }
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(users)
+        .set({
+          streakFreezeTokens: sql`${users.streakFreezeTokens} - 1`,
+        })
+        .where(and(eq(users.id, userId), sql`${users.streakFreezeTokens} > 0`));
+
+      await tx.insert(streakFreezes).values({
+        userId,
+        scope: "prediction",
+        period: today,
+        status: "active",
+      });
+    });
+
+    return {
+      success: true,
+      alreadyActive: false,
     };
   }),
 });

@@ -43,10 +43,41 @@ All tables use MySQL/TiDB with Drizzle ORM for type-safe database access.
 ### 6. Social & Gamification
 - `achievements` - User badges and milestones
 - `leagueMessages` - League message boards
+- `referrals` - Referral relationships and rewards tracking
+- `streakFreezes` - Activated streak freeze tokens for prediction streaks
 
 ---
 
 ## Detailed Table Specifications
+
+### Core User Table
+
+#### users
+Stores authentication profiles, prediction streaks, and referral metadata.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INT | Primary key |
+| openId | VARCHAR(64) | External auth provider ID (Clerk) |
+| name | TEXT | Display name |
+| email | VARCHAR(320) | Email address |
+| loginMethod | VARCHAR(64) | Auth provider (e.g., clerk, mock) |
+| role | VARCHAR(50) | User role (user, admin) |
+| currentPredictionStreak | INT | Current daily prediction streak |
+| longestPredictionStreak | INT | All-time best prediction streak |
+| referralCredits | INT | Count of successful referrals for analytics |
+| streakFreezeTokens | INT | Available streak freeze tokens for gameplay |
+| referralCode | VARCHAR(32) | Shareable referral code for invites |
+| referredByUserId | INT | ID of the user who referred this user (nullable) |
+| createdAt | TIMESTAMP | Account creation time |
+| updatedAt | TIMESTAMP | Last profile update time |
+| lastSignedIn | TIMESTAMP | Last sign-in time |
+| avatarUrl | VARCHAR(500) | Profile avatar image URL |
+
+**Indexes / Constraints**:
+- `users_openId_unique` on (`openId`)
+- `users_referralCode_unique` on (`referralCode`)
+- `users_referredBy_idx` on (`referredByUserId`)
 
 ### Reference Data Tables
 
