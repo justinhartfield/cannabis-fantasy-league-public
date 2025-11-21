@@ -80,7 +80,7 @@ export function LeagueChat({ leagueId }: LeagueChatProps) {
   };
 
   return (
-    <div className="flex flex-col h-[600px] border rounded-lg bg-background shadow-sm overflow-hidden">
+    <div className="flex flex-col max-h-[520px] border rounded-lg bg-background shadow-sm overflow-hidden">
       <div className="p-4 border-b font-semibold flex items-center gap-2 shrink-0">
         <Smile className="w-5 h-5 text-primary" />
         League Chat
