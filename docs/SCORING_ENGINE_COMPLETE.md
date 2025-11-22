@@ -112,7 +112,7 @@
 ### Product Scoring
 | Component | Formula | Points |
 |-----------|---------|--------|
-| Order Activity | Orders × 4 | 4 pts per order |
+| Order Activity | Orders × 7 | 7 pts per order |
 | Price Performance | Stability 90%+ | +5 pts |
 | Pharmacy Expansion | New pharmacies × 6 | 6 pts per pharmacy |
 | Demand Tier | Derived from internal order-volume buckets | 1 pt per demand bucket |

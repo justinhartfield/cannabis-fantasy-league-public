@@ -258,7 +258,7 @@ export default function Scoring() {
               <WeekProgressBar year={selectedYear} week={selectedWeek} />
             </div>
 
-            {user?.role === 'admin' || isCommissioner ? (
+            {(user?.role === 'admin' || isCommissioner) && (
               <Button
                 onClick={handleCalculateScores}
                 disabled={isCalculating}

@@ -272,8 +272,8 @@ export function calculateManufacturerTrendScore(stats: TrendScoringStats): Trend
  * REBALANCED: Similar to manufacturers, target 50-100 pts
  */
 export function calculateStrainTrendScore(stats: TrendScoringStats): TrendScoringBreakdown {
-  // Base points from order count (normalized to 4.5)
-  const orderCountPoints = Math.floor(stats.orderCount * 4.5);
+  // Base points from order count (normalized to 5)
+  const orderCountPoints = Math.floor(stats.orderCount * 5);
   
   // Trend momentum points (normalized to 22)
   const trendMultiplier =
@@ -334,8 +334,8 @@ export function calculateStrainTrendScore(stats: TrendScoringStats): TrendScorin
  * REBALANCED: Normalized multipliers, removed 3x advantage, target 40-80 pts
  */
 export function calculateProductTrendScore(stats: TrendScoringStats): TrendScoringBreakdown {
-  // Base points from order count (normalized to 4, removed 3x multiplier)
-  const orderCountPoints = stats.orderCount * 4;
+  // Base points from order count (normalized to 7, removed 3x multiplier)
+  const orderCountPoints = stats.orderCount * 7;
   
   // Trend momentum points (normalized to 20, removed 3x multiplier)
   const trendMultiplier =
@@ -468,7 +468,7 @@ export const TREND_SCORING_RULES = {
     marketShareBonus: { formula: 'Market position', points: 'Up to 20 pts' },
   },
   strain: {
-    orderCount: { formula: 'Order count × 4.5', points: '4.5 pts per order' },
+    orderCount: { formula: 'Order count × 5', points: '5 pts per order' },
     trendMomentum: { formula: '(Day 1 ÷ 7-day avg) × 22', points: 'Up to 110 pts' },
     rankBonus: { formula: 'Rank tiers', points: '+30 / +20 / +15 / +10' },
     momentumBonus: { formula: 'Rank improvement', points: '+8 pts per rank (capped 40)' },
@@ -478,7 +478,7 @@ export const TREND_SCORING_RULES = {
     marketShareBonus: { formula: 'Market position', points: 'Up to 20 pts' },
   },
   product: {
-    orderCount: { formula: 'Order count × 4', points: '4 pts per order' },
+    orderCount: { formula: 'Order count × 7', points: '7 pts per order' },
     trendMomentum: { formula: '(Day 1 ÷ 7-day avg) × 20', points: 'Up to 100 pts' },
     rankBonus: { formula: 'Rank tiers', points: '+30 / +20 / +15 / +10' },
     momentumBonus: { formula: 'Rank improvement', points: '+8 pts per rank (capped 40)' },

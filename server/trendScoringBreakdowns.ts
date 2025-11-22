@@ -165,7 +165,7 @@ export function buildStrainTrendBreakdown(
     {
       category: 'Order Activity',
       value: `${orderCount} orders`,
-      formula: `${orderCount} × 4.5`,
+      formula: `${orderCount} × 5`,
       points: scoring.orderCountPoints,
     },
     {
@@ -312,7 +312,7 @@ export function buildProductTrendBreakdown(
     {
       category: 'Order Activity',
       value: `${orderCount} orders`,
-      formula: `${orderCount} × 4`,
+      formula: `${orderCount} × 7`,
       points: scoring.orderCountPoints,
     },
     {
