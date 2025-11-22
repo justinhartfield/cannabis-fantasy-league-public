@@ -40,6 +40,10 @@ export function DraftAssetCard({
 }: DraftAssetCardProps) {
   const [imageError, setImageError] = useState(false);
   
+  // Validate image URL
+  const isValidUrl = imageUrl && imageUrl.length > 5 && !imageUrl.includes("undefined") && !imageUrl.includes("null");
+  const showImage = isValidUrl && !imageError;
+
   // Get icon based on asset type
   const getIcon = () => {
     const iconClass = "w-5 h-5";
@@ -133,9 +137,9 @@ export function DraftAssetCard({
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         {/* Asset Info */}
         <div className="flex items-center gap-3 flex-1 min-w-0 w-full sm:w-auto">
-          {imageUrl && !imageError ? (
+          {showImage ? (
             <img 
-              src={imageUrl} 
+              src={imageUrl || ""} 
               alt={assetName}
               className="w-10 h-10 object-contain rounded-md bg-muted"
               onError={() => setImageError(true)}
