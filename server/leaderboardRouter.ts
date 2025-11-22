@@ -25,7 +25,7 @@ import {
   productDailyChallengeStats,
   strainDailyChallengeStats,
 } from "../drizzle/dailyChallengeSchema";
-import { desc, eq, and, sql } from "drizzle-orm";
+import { desc, eq, and, sql, gt } from "drizzle-orm";
 import { calculateBrandPoints } from "./brandScoring";
 import { calculateStrainPoints } from "./scoringEngine";
 
@@ -486,6 +486,7 @@ export const leaderboardRouter = router({
         .from(teams)
         .innerJoin(users, eq(teams.userId, users.id))
         .innerJoin(leagues, eq(teams.leagueId, leagues.id))
+        .where(gt(teams.pointsFor, 0))
         .orderBy(desc(teams.pointsFor))
         .limit(input.limit);
 
@@ -507,6 +508,7 @@ export const leaderboardRouter = router({
         .innerJoin(teams, eq(weeklyTeamScores.teamId, teams.id))
         .innerJoin(users, eq(teams.userId, users.id))
         .innerJoin(leagues, eq(teams.leagueId, leagues.id))
+        .where(gt(weeklyTeamScores.totalPoints, 0))
         .orderBy(desc(weeklyTeamScores.totalPoints))
         .limit(input.limit);
 

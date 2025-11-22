@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
 import { ADMIN_PASS_STORAGE_KEY, DEFAULT_ADMIN_BYPASS_PASSWORD } from "@shared/const";
-import { Database, RefreshCw, Loader2, XCircle, Eye, Calendar, BarChart3, KeyRound } from "lucide-react";
+import { Database, RefreshCw, Loader2, XCircle, Eye, Calendar, BarChart3, KeyRound, Trophy } from "lucide-react";
 import { toast } from "sonner";
 import { FormEvent, useEffect, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
@@ -198,6 +198,32 @@ export default function Admin() {
       toast.error(`Failed to start weekly stats sync: ${error.message}`);
     },
   });
+
+  const resetHallOfFame = trpc.admin.resetHallOfFame.useMutation({
+    onSuccess: (data) => {
+      if (data?.success) {
+        toast.success(data.message || "Hall of Fame scores have been reset.");
+      } else {
+        toast.error(data?.message || "Failed to reset Hall of Fame scores.");
+      }
+    },
+    onError: (error) => {
+      toast.error(`Failed to reset Hall of Fame scores: ${error.message}`);
+    },
+  });
+
+  const handleResetHallOfFame = () => {
+    if (typeof window !== "undefined") {
+      const confirmed = window.confirm(
+        "This will reset all team season points and weekly team scores used by the Hall of Fame leaderboard. This action cannot be undone. Continue?"
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    resetHallOfFame.mutate();
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -699,6 +725,44 @@ export default function Admin() {
                     })}
                   </tbody>
                 </table>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Hall of Fame Controls */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Trophy className="w-5 h-5" />
+                Hall of Fame
+              </CardTitle>
+              <CardDescription>
+                Reset all season totals and weekly high scores used by the Hall of Fame leaderboard.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <p className="text-sm text-muted-foreground">
+                  This will set all team season points and weekly team scores to zero. Use with caution.
+                </p>
+                <Button
+                  variant="destructive"
+                  onClick={handleResetHallOfFame}
+                  disabled={resetHallOfFame.isPending}
+                  className="w-full sm:w-auto"
+                >
+                  {resetHallOfFame.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Resetting...
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="w-4 h-4 mr-2" />
+                      Reset Hall of Fame
+                    </>
+                  )}
+                </Button>
               </div>
             </CardContent>
           </Card>

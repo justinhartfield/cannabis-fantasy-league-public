@@ -6,7 +6,7 @@
 import { adminProcedure, router } from '../_core/trpc';
 import { getDataSyncServiceV2 } from '../services/dataSyncService';
 import { getDb } from '../db';
-import { syncJobs, syncLogs, cannabisStrains, brands, manufacturers, dailyTeamScores } from '../../drizzle/schema';
+import { syncJobs, syncLogs, cannabisStrains, brands, manufacturers, dailyTeamScores, teams, weeklyTeamScores } from '../../drizzle/schema';
 import { eq, desc, sql, gte, and } from 'drizzle-orm';
 import { z } from 'zod';
 import { createSyncJob } from '../services/syncLogger';
@@ -507,4 +507,56 @@ export const adminRouter = router({
         },
       };
     }),
+
+  /**
+   * Reset Hall of Fame scores (season totals + weekly team scores)
+   *
+   * This sets all team season points and weekly team scores back to zero so that
+   * the Hall of Fame leaderboard starts fresh. This is a destructive operation
+   * and should only be used intentionally from the admin dashboard.
+   */
+  resetHallOfFame: adminProcedure.mutation(async () => {
+    const db = await getDb();
+    if (!db) {
+      throw new Error('Database not available');
+    }
+
+    try {
+      await db.transaction(async (tx) => {
+        // Reset season-long team points used by Hall of Fame "Season Legends"
+        await tx.update(teams).set({
+          pointsFor: 0,
+        });
+
+        // Reset weekly team scores used by Hall of Fame "Weekly High Scores"
+        await tx.update(weeklyTeamScores).set({
+          mfg1Points: 0,
+          mfg2Points: 0,
+          cstr1Points: 0,
+          cstr2Points: 0,
+          prd1Points: 0,
+          prd2Points: 0,
+          phm1Points: 0,
+          phm2Points: 0,
+          brd1Points: 0,
+          flexPoints: 0,
+          bonusPoints: 0,
+          penaltyPoints: 0,
+          totalPoints: 0,
+        });
+      });
+
+      return {
+        success: true,
+        message: 'Hall of Fame scores have been reset.',
+      };
+    } catch (error) {
+      console.error('[Admin] Failed to reset Hall of Fame scores:', error);
+      return {
+        success: false,
+        message: 'Failed to reset Hall of Fame scores',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }),
 });
