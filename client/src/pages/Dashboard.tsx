@@ -88,7 +88,7 @@ export default function Dashboard() {
       <main className="container mx-auto px-4 py-8">
         {/* Platform Statistics */}
         {stats && (stats.manufacturerCount > 0 || stats.cannabisStrainCount > 0 || stats.pharmacyCount > 0) && (
-          <div className="mb-8">
+          <div className="mb-8 hidden md:block">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">
               Platform Stats
             </h3>
