@@ -24,7 +24,7 @@ export function Navigation() {
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           {/* Left side - Home link */}
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2 md:gap-6">
             <Link
               href="/"
               className="flex items-center gap-2 text-foreground hover:text-primary transition-colors"
@@ -32,31 +32,33 @@ export function Navigation() {
               <img
                 src={logoImage}
                 alt="Cannabis Fantasy League"
-                className="h-16 w-auto"
+                className="h-10 md:h-16 w-auto object-contain"
               />
             </Link>
             
-            <Link
-              href="/leaderboard"
-              className={`text-sm font-medium transition-colors hover:text-primary ${
-                location === "/leaderboard"
-                  ? "text-primary"
-                  : "text-muted-foreground"
-              }`}
-            >
-              Leaderboard
-            </Link>
+            <div className="hidden md:flex items-center gap-6">
+              <Link
+                href="/leaderboard"
+                className={`text-sm font-medium transition-colors hover:text-primary ${
+                  location === "/leaderboard"
+                    ? "text-primary"
+                    : "text-muted-foreground"
+                }`}
+              >
+                Leaderboard
+              </Link>
 
-            <Link
-              href="/invite"
-              className={`text-sm font-medium transition-colors hover:text-primary ${
-                location === "/invite"
-                  ? "text-primary"
-                  : "text-muted-foreground"
-              }`}
-            >
-              Invite Friends
-            </Link>
+              <Link
+                href="/invite"
+                className={`text-sm font-medium transition-colors hover:text-primary ${
+                  location === "/invite"
+                    ? "text-primary"
+                    : "text-muted-foreground"
+                }`}
+              >
+                Invite Friends
+              </Link>
+            </div>
           </div>
 
           {/* Right side - User info */}

@@ -337,7 +337,7 @@ export default function Draft() {
                 <span className="hidden md:inline">Zurück zur Liga</span>
               </Button>
               <div className="min-w-0 flex-1">
-                <h1 className="headline-secondary text-xl md:text-2xl text-weed-coral break-words leading-tight">{league.name}</h1>
+                <h1 className="headline-secondary text-lg md:text-2xl text-weed-coral break-words leading-tight">{league.name}</h1>
                 <p className="text-sm text-muted-foreground font-medium truncate">
                   Draft - {myTeam.name}
                 </p>
