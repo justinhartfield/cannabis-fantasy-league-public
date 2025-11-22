@@ -302,6 +302,20 @@ export default function Players() {
 }
 
 function AssetCard({ asset, type, onClaim }: { asset: any, type: AssetType, onClaim: () => void }) {
+  const getImageUrl = () => {
+    switch (type) {
+      case "manufacturer":
+      case "pharmacy":
+      case "brand":
+        return asset.logoUrl as string | null | undefined;
+      case "cannabis_strain":
+      case "product":
+        return asset.imageUrl as string | null | undefined;
+      default:
+        return null;
+    }
+  };
+
   const getIcon = () => {
     switch (type) {
       case "manufacturer": return <Building2 className="w-5 h-5 text-blue-500" />;
@@ -312,14 +326,27 @@ function AssetCard({ asset, type, onClaim }: { asset: any, type: AssetType, onCl
     }
   };
 
+  const imageUrl = getImageUrl();
+
   return (
     <Card className="hover:border-primary/50 transition-colors">
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3 flex-1 min-w-0">
-             <div className="p-2 bg-muted rounded-lg">
-               {getIcon()}
-             </div>
+             {imageUrl ? (
+               <img
+                 src={imageUrl}
+                 alt={asset.name}
+                 className="w-10 h-10 rounded-md object-contain bg-muted flex-shrink-0"
+                 onError={(e) => {
+                   e.currentTarget.style.display = "none";
+                 }}
+               />
+             ) : (
+               <div className="p-2 bg-muted rounded-lg flex-shrink-0">
+                 {getIcon()}
+               </div>
+             )}
              <div className="min-w-0">
                <h3 className="font-bold truncate">{asset.name}</h3>
                <p className="text-xs text-muted-foreground capitalize">{type.replace("_", " ")}</p>
