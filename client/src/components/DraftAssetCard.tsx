@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Leaf, Package, Clock, CheckCircle2, Lock } from "lucide-react";
+import { Building2, Leaf, Package, CheckCircle2, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type AssetType = "manufacturer" | "cannabis_strain" | "product" | "pharmacy";
@@ -14,7 +14,6 @@ interface DraftAssetCardProps {
   isMyTurn: boolean;
   isDrafted?: boolean;
   isInMyRoster?: boolean;
-  remainingTime?: number | null;
   onDraft: (assetType: AssetType, assetId: number, assetName: string) => void;
 }
 
@@ -36,7 +35,6 @@ export function DraftAssetCard({
   isMyTurn,
   isDrafted = false,
   isInMyRoster = false,
-  remainingTime,
   onDraft,
 }: DraftAssetCardProps) {
   
@@ -69,16 +67,6 @@ export function DraftAssetCard({
     }
   };
 
-  // Determine urgency level based on remaining time
-  const getUrgency = () => {
-    if (!isMyTurn || !remainingTime) return "none";
-    if (remainingTime <= 10) return "critical";
-    if (remainingTime <= 30) return "warning";
-    return "normal";
-  };
-
-  const urgency = getUrgency();
-
   // Get card styling based on state
   const getCardStyle = () => {
     if (isDrafted || isInMyRoster) {
@@ -89,17 +77,7 @@ export function DraftAssetCard({
       return "bg-card border-border hover:bg-accent/30";
     }
 
-    // Active turn styling with urgency
-    switch (urgency) {
-      case "critical":
-        return "bg-red-50 dark:bg-red-950/20 border-red-500 hover:bg-red-100 dark:hover:bg-red-950/30 shadow-lg shadow-red-500/20";
-      case "warning":
-        return "bg-yellow-50 dark:bg-yellow-950/20 border-yellow-500 hover:bg-yellow-100 dark:hover:bg-yellow-950/30 shadow-md shadow-yellow-500/10";
-      case "normal":
-        return "bg-green-50 dark:bg-green-950/20 border-green-500 hover:bg-green-100 dark:hover:bg-green-950/30 shadow-md shadow-green-500/10";
-      default:
-        return "bg-card border-border hover:bg-accent/50";
-    }
+    return "bg-card border-border hover:bg-accent/50";
   };
 
   // Get button variant and text
@@ -131,30 +109,12 @@ export function DraftAssetCard({
       };
     }
 
-    // Active turn - show urgency
-    switch (urgency) {
-      case "critical":
-        return {
-          variant: "destructive" as const,
-          text: "Draft Now!",
-          icon: <Clock className="w-4 h-4 mr-1 animate-pulse" />,
-          disabled: false,
-        };
-      case "warning":
-        return {
-          variant: "default" as const,
-          text: "Draft",
-          icon: <Clock className="w-4 h-4 mr-1" />,
-          disabled: false,
-        };
-      default:
-        return {
-          variant: "default" as const,
-          text: "Draft",
-          icon: null,
-          disabled: false,
-        };
-    }
+    return {
+      variant: "default" as const,
+      text: "Draft",
+      icon: null,
+      disabled: false,
+    };
   };
 
   const buttonConfig = getButtonConfig();
@@ -210,36 +170,12 @@ export function DraftAssetCard({
           variant={buttonConfig.variant}
           onClick={() => onDraft(assetType, assetId, assetName)}
           disabled={buttonConfig.disabled}
-          className={cn(
-            "shrink-0 w-full sm:w-auto sm:ml-4",
-            urgency === "critical" && "animate-pulse"
-          )}
+          className="shrink-0 w-full sm:w-auto sm:ml-4"
         >
           {buttonConfig.icon}
           {buttonConfig.text}
         </Button>
       </div>
-
-      {/* Urgency Indicator */}
-      {isMyTurn && remainingTime !== null && remainingTime !== undefined && (
-        <div className="mt-3 pt-3 border-t border-border/50">
-          <div className="flex items-center justify-between text-xs">
-            <span className={cn(
-              "font-medium",
-              urgency === "critical" && "text-red-600 dark:text-red-400",
-              urgency === "warning" && "text-yellow-600 dark:text-yellow-400",
-              urgency === "normal" && "text-green-600 dark:text-green-400"
-            )}>
-              {urgency === "critical" && "⚠️ Time running out!"}
-              {urgency === "warning" && "⏰ Make your pick soon"}
-              {urgency === "normal" && "✓ Time available"}
-            </span>
-            <span className="text-muted-foreground">
-              {Math.floor(remainingTime / 60)}:{String(remainingTime % 60).padStart(2, '0')} left
-            </span>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

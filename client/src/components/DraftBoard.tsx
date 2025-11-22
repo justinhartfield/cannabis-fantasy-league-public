@@ -49,7 +49,6 @@ interface DraftBoardProps {
   currentPick: number;
   isMyTurn: boolean;
   myRoster: Array<{ assetType: AssetType; assetId: number; name: string }>;
-  remainingTime?: number | null;
   onDraftPick: (assetType: AssetType, assetId: number) => void;
 }
 
@@ -69,7 +68,6 @@ export default function DraftBoard({
   currentPick,
   isMyTurn,
   myRoster,
-  remainingTime,
   onDraftPick,
 }: DraftBoardProps) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -291,7 +289,6 @@ export default function DraftBoard({
                           ]}
                           isMyTurn={isMyTurn}
                           isInMyRoster={myRoster.some(r => r.assetType === "manufacturer" && r.assetId === mfg.id)}
-                          remainingTime={remainingTime}
                           onDraft={handleDraft}
                         />
                       ))}
@@ -318,7 +315,6 @@ export default function DraftBoard({
                           ]}
                           isMyTurn={isMyTurn}
                           isInMyRoster={myRoster.some(r => r.assetType === "cannabis_strain" && r.assetId === strain.id)}
-                          remainingTime={remainingTime}
                           onDraft={handleDraft}
                         />
                       ))}
@@ -346,7 +342,6 @@ export default function DraftBoard({
                           ]}
                           isMyTurn={isMyTurn}
                           isInMyRoster={myRoster.some(r => r.assetType === "product" && r.assetId === product.id)}
-                          remainingTime={remainingTime}
                           onDraft={handleDraft}
                         />
                       ))}
@@ -373,7 +368,6 @@ export default function DraftBoard({
                           ]}
                           isMyTurn={isMyTurn}
                           isInMyRoster={myRoster.some(r => r.assetType === "brand" && r.assetId === brand.id)}
-                          remainingTime={remainingTime}
                           onDraft={handleDraft}
                         />
                       ))}
@@ -399,7 +393,6 @@ export default function DraftBoard({
                           ]}
                           isMyTurn={isMyTurn}
                           isInMyRoster={myRoster.some(r => r.assetType === "pharmacy" && r.assetId === phm.id)}
-                          remainingTime={remainingTime}
                           onDraft={handleDraft}
                         />
                       ))}
@@ -459,7 +452,6 @@ export default function DraftBoard({
                   ]}
                   isMyTurn={isMyTurn}
                   isInMyRoster={myRoster.some(r => r.assetType === "cannabis_strain" && r.assetId === strain.id)}
-                  remainingTime={remainingTime}
                   onDraft={handleDraft}
                 />
                 ))
@@ -487,7 +479,6 @@ export default function DraftBoard({
                     ]}
                     isMyTurn={isMyTurn}
                     isInMyRoster={myRoster.some(r => r.assetType === "product" && r.assetId === product.id)}
-                    remainingTime={remainingTime}
                     onDraft={handleDraft}
                   />
                 ))
@@ -513,7 +504,6 @@ export default function DraftBoard({
                     ]}
                     isMyTurn={isMyTurn}
                     isInMyRoster={myRoster.some(r => r.assetType === "pharmacy" && r.assetId === phm.id)}
-                    remainingTime={remainingTime}
                     onDraft={handleDraft}
                   />
                 ))
@@ -540,7 +530,6 @@ export default function DraftBoard({
                     ]}
                     isMyTurn={isMyTurn}
                     isInMyRoster={myRoster.some(r => r.assetType === "brand" && r.assetId === brand.id)}
-                    remainingTime={remainingTime}
                     onDraft={handleDraft}
                   />
                 ))

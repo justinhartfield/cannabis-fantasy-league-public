@@ -405,7 +405,6 @@ export default function Draft() {
                 assetId: r.assetId,
                 name: r.name || "Unknown",
               }))}
-              remainingTime={timerSeconds}
               onDraftPick={handleDraftPick}
             />
           </div>
@@ -492,18 +491,17 @@ export default function Draft() {
                   </div>
                 )}
               </div>
-              <DraftBoard
-                leagueId={leagueId}
-                currentPick={currentPick}
-                isMyTurn={isMyTurn}
-                myRoster={roster.map((r: any) => ({
-                  assetType: r.assetType,
-                  assetId: r.assetId,
-                  name: r.name || "Unknown",
-                }))}
-                remainingTime={timerSeconds}
-                onDraftPick={handleDraftPick}
-              />
+          <DraftBoard
+            leagueId={leagueId}
+            currentPick={currentPick}
+            isMyTurn={isMyTurn}
+            myRoster={roster.map((r: any) => ({
+              assetType: r.assetType,
+              assetId: r.assetId,
+              name: r.name || "Unknown",
+            }))}
+            onDraftPick={handleDraftPick}
+          />
             </div>
           </div>
 
