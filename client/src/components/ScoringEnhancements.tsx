@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown, Trophy, Info, Star } from "lucide-react";
+import { TrendingUp, TrendingDown, Trophy, Info, Star, Clock, Calendar } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -256,6 +256,85 @@ export function PerformanceInsights({
               <p className="text-2xl font-bold">{percentile.toFixed(0)}th</p>
             </div>
           )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * WeekProgressBar Component
+ * Shows progress through the current matchup week
+ */
+export function WeekProgressBar({ year, week }: { year: number; week: number }) {
+  // Calculate week start (Monday) and end (Sunday) based on ISO week
+  const getWeekDateRange = (y: number, w: number) => {
+    const simple = new Date(Date.UTC(y, 0, 1 + (w - 1) * 7));
+    const dow = simple.getUTCDay();
+    const isoWeekStart = simple;
+    if (dow <= 4)
+        isoWeekStart.setUTCDate(simple.getUTCDate() - simple.getUTCDay() + 1);
+    else
+        isoWeekStart.setUTCDate(simple.getUTCDate() + 8 - simple.getUTCDay());
+    
+    // Adjust to start of Monday (00:00)
+    const start = new Date(isoWeekStart);
+    start.setUTCHours(0, 0, 0, 0);
+    
+    // End of Sunday (23:59:59.999)
+    const end = new Date(start);
+    end.setDate(end.getDate() + 7);
+    end.setMilliseconds(-1);
+    
+    return { start, end };
+  };
+
+  const { start, end } = getWeekDateRange(year, week);
+  const now = new Date();
+  
+  // Calculate progress percentage
+  const totalDuration = end.getTime() - start.getTime();
+  const elapsed = now.getTime() - start.getTime();
+  const progress = Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
+  
+  // Calculate time remaining
+  const timeRemaining = end.getTime() - now.getTime();
+  const daysRemaining = Math.floor(timeRemaining / (1000 * 60 * 60 * 24));
+  const hoursRemaining = Math.floor((timeRemaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  
+  const isComplete = now > end;
+  const isFuture = now < start;
+
+  return (
+    <Card className="bg-card border-border">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <Clock className="w-4 h-4 text-primary" />
+            {isComplete ? "Week Complete" : isFuture ? "Week Starting Soon" : "Week In Progress"}
+          </div>
+          <div className="text-xs text-muted-foreground font-mono">
+            {isComplete 
+              ? "Finalized" 
+              : isFuture 
+                ? `Starts ${start.toLocaleDateString()}`
+                : `${daysRemaining}d ${hoursRemaining}h remaining`
+            }
+          </div>
+        </div>
+        
+        <div className="h-2 bg-muted rounded-full overflow-hidden">
+          <div 
+            className="h-full bg-primary transition-all duration-1000 ease-out relative"
+            style={{ width: `${progress}%` }}
+          >
+            <div className="absolute right-0 top-0 bottom-0 w-1 bg-white/20" />
+          </div>
+        </div>
+        
+        <div className="flex justify-between mt-1.5 text-[10px] text-muted-foreground">
+          <span>Mon 00:00</span>
+          <span>Sun 23:59</span>
         </div>
       </CardContent>
     </Card>

@@ -89,6 +89,7 @@ import {
   dailyScoringBreakdowns,
   weeklyLineups,
   productDailyChallengeStats,
+  leagues,
 } from '../drizzle/schema';
 import {
   manufacturerDailyChallengeStats,
@@ -117,9 +118,20 @@ export const scoringRouter = router({
       week: z.number().min(1).max(53),
     }))
     .mutation(async ({ ctx, input }) => {
-      // TODO: Check if user is admin or league commissioner
+      // Check if user is admin or league commissioner
       if (ctx.user.role !== 'admin') {
-        throw new Error('Unauthorized: Admin access required');
+        const db = await getDb();
+        if (!db) throw new Error('Database not available');
+        
+        const league = await db
+          .select()
+          .from(leagues)
+          .where(eq(leagues.id, input.leagueId))
+          .limit(1);
+          
+        if (!league.length || league[0].commissionerUserId !== ctx.user.id) {
+          throw new Error('Unauthorized: Admin or Commissioner access required');
+        }
       }
 
       try {

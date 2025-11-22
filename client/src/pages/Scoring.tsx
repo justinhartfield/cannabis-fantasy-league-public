@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ScoringBreakdown from "@/components/ScoringBreakdownV2";
-import { CategoryBarChart, TopPerformersPanel, PerformanceInsights, WeekOverWeekIndicator } from "@/components/ScoringEnhancements";
+import { CategoryBarChart, TopPerformersPanel, PerformanceInsights, WeekOverWeekIndicator, WeekProgressBar } from "@/components/ScoringEnhancements";
 import { 
   Trophy, 
   TrendingUp, 
@@ -16,7 +16,8 @@ import {
   BarChart3,
   UserCircle,
   Award,
-  Zap
+  Zap,
+  Clock
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -76,6 +77,36 @@ export default function Scoring() {
     setSelectedWeek(defaultWeek);
     setDefaultsApplied(true);
   }, [league, defaultsApplied]);
+
+  // Auto-calculate scores if data is missing and user is admin/commissioner
+  const { mutate: calculateScores } = calculateScoresMutation;
+  
+  useEffect(() => {
+    if (
+      !isCalculating &&
+      !isRefetching &&
+      weekScores &&
+      weekScores.every(s => s.points === 0) &&
+      (user?.role === 'admin' || isCommissioner)
+    ) {
+      console.log("Auto-triggering score calculation for empty week...");
+      calculateScores({
+        leagueId,
+        year: selectedYear,
+        week: selectedWeek,
+      });
+    }
+  }, [
+    weekScores, 
+    isCalculating, 
+    isRefetching, 
+    user?.role, 
+    isCommissioner, 
+    calculateScores, 
+    leagueId, 
+    selectedYear, 
+    selectedWeek
+  ]);
   
   // Fetch team scores for selected week
   const { data: weekScores, refetch: refetchScores, isRefetching } = trpc.scoring.getLeagueWeekScores.useQuery({
@@ -222,7 +253,12 @@ export default function Scoring() {
               {isConnected ? 'LIVE' : 'Offline'}
             </Badge>
             
-            {user?.role === 'admin' && (
+            {/* Progress Bar */}
+            <div className="w-full lg:w-auto min-w-[250px]">
+              <WeekProgressBar year={selectedYear} week={selectedWeek} />
+            </div>
+
+            {user?.role === 'admin' || isCommissioner ? (
               <Button
                 onClick={handleCalculateScores}
                 disabled={isCalculating}
@@ -402,9 +438,10 @@ export default function Scoring() {
                     <BarChart3 className="w-10 h-10 text-muted-foreground" />
                   </div>
                   <div>
-                    <p className="text-xl font-bold text-foreground mb-2">Breakdown unavailable</p>
+                    <p className="text-xl font-bold text-foreground mb-2">Live Scoring Active</p>
                     <p className="text-muted-foreground">
-                      Weekly scoring has not completed for this league/week yet. Once stats are synced and scoring runs, the detailed breakdown for the selected team will appear here.
+                      Scores are being calculated. If you see 0.0, partial stats for this week may not be synced yet. 
+                      Check back later or click "Calculate Scores" to force an update.
                     </p>
                   </div>
                 </div>

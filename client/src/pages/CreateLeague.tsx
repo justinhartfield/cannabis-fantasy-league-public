@@ -232,26 +232,9 @@ export default function CreateLeague() {
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="seasonLength">Saison-Länge</Label>
-                    <Select
-                      value={formData.seasonLength?.toString() || "18"}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, seasonLength: parseInt(value) })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="4">Sprint (4 Wochen)</SelectItem>
-                        <SelectItem value="8">Quarter (8 Wochen)</SelectItem>
-                        <SelectItem value="12">Half Season (12 Wochen)</SelectItem>
-                        <SelectItem value="18">Full Season (18 Wochen)</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <p className="text-[10px] text-muted-foreground">
+                      Maximale Anzahl an Teams, die der Liga beitreten können
+                    </p>
                   </div>
 
                   <div className="space-y-2">
@@ -273,6 +256,9 @@ export default function CreateLeague() {
                         ))}
                       </SelectContent>
                     </Select>
+                    <p className="text-[10px] text-muted-foreground">
+                      Anzahl der Teams, die sich für die Playoffs qualifizieren
+                    </p>
                   </div>
                 </div>
               )}
