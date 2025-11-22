@@ -1,4 +1,4 @@
-import "dotenv/config";
+import dotenv from "dotenv";
 import express from "express";
 import cookieParser from "cookie-parser";
 import { createServer } from "http";
@@ -37,6 +37,11 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 }
 
 async function startServer() {
+  // Load environment variables
+  // Prefer .env.local for local development, then fall back to .env / process env
+  dotenv.config({ path: ".env.local" });
+  dotenv.config();
+
   const app = express();
   const server = createServer(app);
   // Configure body parser with larger size limit for file uploads
