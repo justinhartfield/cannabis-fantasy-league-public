@@ -44,6 +44,26 @@ export default function LeagueDetail() {
     },
   });
 
+  // Safe derived state for hooks (handled safely even if league is undefined)
+  const isCommissioner = league?.commissionerUserId === user?.id;
+  const userTeam = league?.teams?.find((team: any) => team.userId === user?.id);
+
+  // MOVE HOOK HERE: Always executed on every render
+  useEffect(() => {
+    if (!league) return;
+    if (league.leagueType === "challenge") return;
+    if (!userTeam) return;
+
+    const draftStarted = Boolean(league.draftStarted);
+    const draftCompleted = Boolean(league.draftCompleted);
+
+    if (draftStarted && !draftCompleted) {
+      setShowDraftRedirectDialog(true);
+    } else {
+      setShowDraftRedirectDialog(false);
+    }
+  }, [league, userTeam]);
+
   // Redirect to login if not authenticated
   if (!authLoading && !isAuthenticated) {
     const loginUrl = getLoginUrl(); if (loginUrl) window.location.href = loginUrl; else window.location.href = "/login";
@@ -71,25 +91,6 @@ export default function LeagueDetail() {
       </div>
     );
   }
-
-  const isCommissioner = league.commissionerUserId === user?.id;
-  const userTeam = league.teams?.find((team: any) => team.userId === user?.id);
-
-  // When a season-long league draft is in progress, gently prompt members to join the live draft
-  useEffect(() => {
-    if (!league) return;
-    if (league.leagueType === "challenge") return;
-    if (!userTeam) return;
-
-    const draftStarted = Boolean(league.draftStarted);
-    const draftCompleted = Boolean(league.draftCompleted);
-
-    if (draftStarted && !draftCompleted) {
-      setShowDraftRedirectDialog(true);
-    } else {
-      setShowDraftRedirectDialog(false);
-    }
-  }, [league, userTeam]);
 
   if (league?.leagueType === "challenge") {
     return <DailyChallenge />;
