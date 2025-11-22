@@ -3,8 +3,10 @@ import { leagues, teams, draftPicks, rosters } from "../drizzle/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { autoFillLeagueRosters } from "./autoFillRoster";
 import { autoPopulateLeagueLineups } from "./lineupAutoPopulate";
+import { generateSeasonMatchupsForLeague } from "./matchupService";
 
 const DRAFT_TIMING_ENABLED = process.env.DRAFT_TIMING_LOGS === "1";
+type LeagueRow = typeof leagues.$inferSelect;
 
 function logDraftTiming(step: string, data?: Record<string, unknown>) {
   if (!DRAFT_TIMING_ENABLED) return;
@@ -230,6 +232,8 @@ export async function advanceDraftPick(leagueId: number): Promise<boolean> {
     } catch (error) {
       console.error("[advanceDraftPick] Error auto-populating lineups:", error);
     }
+
+    await autoGenerateSeasonScheduleIfNeeded(league, "advanceDraftPick");
   } else {
     // Calculate next round
     const nextRound = Math.ceil(nextPickNumber / teamCount);
@@ -328,6 +332,8 @@ export async function checkAndCompleteDraft(leagueId: number): Promise<boolean> 
       console.error("[checkAndCompleteDraft] Error auto-populating lineups:", error);
     }
 
+    await autoGenerateSeasonScheduleIfNeeded(league, "checkAndCompleteDraft");
+
     return true;
   }
 
@@ -379,4 +385,33 @@ export async function getDraftStatus(leagueId: number) {
     draftType: league.draftType,
     pickTimeLimit: league.draftPickTimeLimit,
   };
+}
+
+async function autoGenerateSeasonScheduleIfNeeded(
+  league: LeagueRow | undefined,
+  context: string
+) {
+  if (!league) return;
+  if (league.leagueType !== "season") return;
+
+  const playoffStartWeek = league.playoffStartWeek ?? 19;
+  const regularSeasonEndWeek = Math.max(1, playoffStartWeek - 1);
+
+  try {
+    const result = await generateSeasonMatchupsForLeague({
+      leagueId: league.id,
+      year: league.seasonYear,
+      startWeek: 1,
+      endWeek: regularSeasonEndWeek,
+      league,
+    });
+    console.log(
+      `[${context}] Auto-generated ${result.totalMatchups} matchups for league ${league.id}`
+    );
+  } catch (error) {
+    console.error(
+      `[${context}] Error auto-generating season matchups for league ${league?.id}:`,
+      error
+    );
+  }
 }

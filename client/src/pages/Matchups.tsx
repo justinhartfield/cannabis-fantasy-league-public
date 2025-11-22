@@ -151,15 +151,17 @@ export default function Matchups() {
 
             {league?.isCommissioner && (
               <>
-                <Button 
-                  onClick={handleGenerateMatchups}
-                  disabled={generateMatchups.isLoading}
-                  size="sm"
-                  className="gradient-primary"
-                >
-                  {generateMatchups.isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Generate Matchups
-                </Button>
+                {league?.leagueType !== "season" && (
+                  <Button 
+                    onClick={handleGenerateMatchups}
+                    disabled={generateMatchups.isLoading}
+                    size="sm"
+                    className="gradient-primary"
+                  >
+                    {generateMatchups.isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Generate Matchups
+                  </Button>
+                )}
                 <Button 
                   onClick={handleUpdateScores}
                   disabled={updateScores.isLoading}

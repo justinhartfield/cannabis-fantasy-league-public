@@ -5,6 +5,7 @@ import { matchups, teams, weeklyTeamScores, leagues } from "../drizzle/schema";
 import { eq, and, or, desc, asc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { autoPopulateLeagueLineups } from "./lineupAutoPopulate";
+import { generateSeasonMatchupsForLeague } from "./matchupService";
 
 /**
  * Matchup Router
@@ -187,111 +188,25 @@ export const matchupRouter = router({
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Only commissioner can generate matchups' });
       }
 
-      let totalMatchups = 0;
-      const errors = [];
-
-      for (let week = input.startWeek; week <= input.endWeek; week++) {
-        try {
-          // Check if matchups already exist
-          const existing = await db
-            .select()
-            .from(matchups)
-            .where(and(
-              eq(matchups.leagueId, input.leagueId),
-              eq(matchups.year, input.year),
-              eq(matchups.week, week)
-            ));
-
-          if (existing.length === 0) {
-            // Generate matchups for this week using the same logic
-            const leagueTeams = await db
-              .select()
-              .from(teams)
-              .where(eq(teams.leagueId, input.leagueId))
-              .orderBy(teams.id);
-
-            const teamCount = leagueTeams.length;
-            const matchupsToCreate = [];
-
-            if (teamCount % 2 === 0) {
-              const matchupsPerWeek = teamCount / 2;
-              const rotation = (week - 1) % (teamCount - 1);
-
-              for (let i = 0; i < matchupsPerWeek; i++) {
-                const team1Index = (i + rotation) % teamCount;
-                const team2Index = (teamCount - 1 - i + rotation) % teamCount;
-
-                matchupsToCreate.push({
-                  leagueId: input.leagueId,
-                  year: input.year,
-                  week,
-                  team1Id: leagueTeams[team1Index].id,
-                  team2Id: leagueTeams[team2Index].id,
-                  team1Score: 0,
-                  team2Score: 0,
-                  winnerId: null,
-                  status: 'scheduled' as const,
-                });
-              }
-            } else {
-              const rotation = (week - 1) % teamCount;
-              const byeTeamIndex = rotation;
-
-              for (let i = 0; i < Math.floor(teamCount / 2); i++) {
-                let team1Index = (i + rotation + 1) % teamCount;
-                let team2Index = (teamCount - 1 - i + rotation) % teamCount;
-
-                if (team1Index === byeTeamIndex) team1Index = (team1Index + 1) % teamCount;
-                if (team2Index === byeTeamIndex) team2Index = (team2Index - 1 + teamCount) % teamCount;
-
-                if (team1Index !== team2Index && team1Index !== byeTeamIndex && team2Index !== byeTeamIndex) {
-                  matchupsToCreate.push({
-                    leagueId: input.leagueId,
-                    year: input.year,
-                    week,
-                    team1Id: leagueTeams[team1Index].id,
-                    team2Id: leagueTeams[team2Index].id,
-                    team1Score: 0,
-                    team2Score: 0,
-                    winnerId: null,
-                    status: 'scheduled' as const,
-                  });
-                }
-              }
-            }
-
-            if (matchupsToCreate.length > 0) {
-              await db.insert(matchups).values(matchupsToCreate);
-              totalMatchups += matchupsToCreate.length;
-
-              // Auto-populate lineups for all teams in this week
-              try {
-                const populateResult = await autoPopulateLeagueLineups(
-                  input.leagueId,
-                  input.year,
-                  week
-                );
-                console.log(
-                  `[generateSeasonMatchups] Week ${week}: Auto-populated ${populateResult.lineupsCreated} lineups ` +
-                  `(${populateResult.lineupsSkipped} skipped, ${populateResult.errors} errors)`
-                );
-              } catch (populateError) {
-                console.error(`[generateSeasonMatchups] Week ${week}: Error auto-populating lineups:`, populateError);
-                // Don't fail the entire operation if lineup population fails
-              }
-            }
-          }
-        } catch (error) {
-          errors.push({ week, error: (error as Error).message });
-        }
+      try {
+        const result = await generateSeasonMatchupsForLeague({
+          leagueId: input.leagueId,
+          year: input.year,
+          startWeek: input.startWeek,
+          endWeek: input.endWeek,
+          league: league[0],
+        });
+        return result;
+      } catch (error) {
+        console.error("[generateSeasonMatchups] Failed:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to generate season matchups",
+        });
       }
-
-      return {
-        success: true,
-        totalMatchups,
-        errors,
-        message: `Generated ${totalMatchups} total matchups for weeks ${input.startWeek}-${input.endWeek}`,
-      };
     }),
 
   /**
