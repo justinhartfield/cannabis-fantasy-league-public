@@ -44,6 +44,22 @@ interface TeamScore {
   rank?: number;
 }
 
+// Helper to get current ISO year/week (mirrors server/utils/isoWeek.ts)
+function getIsoYearWeek(date: Date): { year: number; week: number } {
+  const tempDate = new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
+  );
+  const dayNum = tempDate.getUTCDay() || 7;
+  tempDate.setUTCDate(tempDate.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(
+    Date.UTC(tempDate.getUTCFullYear(), 0, 1)
+  );
+  const week = Math.ceil(
+    ((tempDate.getTime() - yearStart.getTime()) / 86400000 + 1) / 7
+  );
+  return { year: tempDate.getUTCFullYear(), week };
+}
+
 /**
  * Scoring Page
  * 
@@ -154,9 +170,17 @@ export default function Scoring() {
       return;
     }
 
-    const fallbackYear = new Date().getFullYear();
-    const defaultYear = league.seasonYear || fallbackYear;
-    const defaultWeek = Math.max(1, (league.currentWeek ?? 1) - 1);
+    const now = new Date();
+    const { year: isoYear, week: isoWeek } = getIsoYearWeek(now);
+
+    // For season-long leagues, always default to the current ISO week
+    // For any other league type, fall back to the previous league week as before
+    const defaultYear = league.leagueType === "season"
+      ? isoYear
+      : league.seasonYear || isoYear;
+    const defaultWeek = league.leagueType === "season"
+      ? isoWeek
+      : Math.max(1, (league.currentWeek ?? 1) - 1);
 
     setSelectedYear(defaultYear);
     setSelectedWeek(defaultWeek);
@@ -169,9 +193,15 @@ export default function Scoring() {
       return;
     }
 
-    const fallbackYear = new Date().getFullYear();
-    const expectedYear = league?.seasonYear || fallbackYear;
-    const expectedWeek = Math.max(1, (league?.currentWeek ?? 1) - 1);
+    const now = new Date();
+    const { year: isoYear, week: isoWeek } = getIsoYearWeek(now);
+
+    const expectedYear = league?.leagueType === "season"
+      ? isoYear
+      : league?.seasonYear || isoYear;
+    const expectedWeek = league?.leagueType === "season"
+      ? isoWeek
+      : Math.max(1, (league?.currentWeek ?? 1) - 1);
     const matchesActiveSelection =
       defaultsApplied &&
       selectedYear === expectedYear &&

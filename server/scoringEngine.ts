@@ -674,8 +674,11 @@ export function calculateStrainPoints(stats: {
     });
   }
 
-  // 4. Order Volume: 1 pt per 80g sold (reported as demand tier)
-  const volumePoints = Math.floor(stats.orderVolumeGrams / 80);
+  // 4. Order Volume: scaled and capped so products don't dominate team scores
+  //    Previously: 1 pt per 80g, which produced thousands of points for high-volume SKUs.
+  //    Now: 1 pt per 800g, capped at 120 pts to keep this component in line with other slots.
+  const rawVolumePoints = Math.floor(stats.orderVolumeGrams / 800);
+  const volumePoints = Math.min(rawVolumePoints, 120);
   const demandDescriptor = describeOrderVolume(stats.orderVolumeGrams);
   breakdown.components.push({
     category: 'Order Volume',
