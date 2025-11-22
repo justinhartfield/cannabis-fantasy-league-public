@@ -1,6 +1,10 @@
 import {
   DEFAULT_LANGUAGE,
   LanguageCode,
+ ...
+import {
+  DEFAULT_LANGUAGE,
+  LanguageCode,
   SUPPORTED_LANGUAGES,
   translate,
   TranslationKey,
