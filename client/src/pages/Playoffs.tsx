@@ -16,10 +16,13 @@ import { toast } from "sonner";
  */
 
 export default function Playoffs() {
-  const { leagueId } = useParams<{ leagueId: string }>();
+  // Route is defined as `/league/:id/playoffs` and `/challenge/:id/playoffs`
+  // so we need to read the `id` param and convert it to a number.
+  const { id } = useParams<{ id: string }>();
+  const leagueId = Number(id);
   const [year, setYear] = useState(2025);
 
-  const { data: league } = trpc.league.getById.useQuery({ id: Number(leagueId) });
+  const { data: league } = trpc.league.getById.useQuery({ leagueId });
 
   const { data: bracket, isLoading, refetch } = trpc.playoff.getPlayoffBracket.useQuery({
     leagueId: Number(leagueId),

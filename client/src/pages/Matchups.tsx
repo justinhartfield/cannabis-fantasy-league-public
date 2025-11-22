@@ -8,25 +8,21 @@ import { Loader2, RefreshCw, Calendar, ChevronLeft, ChevronRight } from "lucide-
 import { toast } from "sonner";
 import { LiveScoreCard } from "@/components/LiveScoreCard";
 
-/**
- * Matchups Page
- * 
- * Displays weekly head-to-head matchups for a league
- * Shows scores, winners, and upcoming games
- */
-
 export default function Matchups() {
-  const { leagueId } = useParams<{ leagueId: string }>();
+  // Route is defined as `/league/:id/matchups` and `/challenge/:id/matchups`
+  // so we need to read the `id` param and convert it to a number.
+  const { id } = useParams<{ id: string }>();
+  const leagueId = Number(id);
   const [year, setYear] = useState(2025);
   const [week, setWeek] = useState(1);
 
   const { data: matchups, isLoading, refetch } = trpc.matchup.getWeekMatchups.useQuery({
-    leagueId: Number(leagueId),
+    leagueId,
     year,
     week,
   });
 
-  const { data: league } = trpc.league.getById.useQuery({ id: Number(leagueId) });
+  const { data: league } = trpc.league.getById.useQuery({ leagueId });
 
   const generateMatchups = trpc.matchup.generateWeekMatchups.useMutation({
     onSuccess: () => {
@@ -49,11 +45,11 @@ export default function Matchups() {
   });
 
   const handleGenerateMatchups = () => {
-    generateMatchups.mutate({ leagueId: Number(leagueId), year, week });
+    generateMatchups.mutate({ leagueId, year, week });
   };
 
   const handleUpdateScores = () => {
-    updateScores.mutate({ leagueId: Number(leagueId), year, week });
+    updateScores.mutate({ leagueId, year, week });
   };
 
   const [, setLocation] = useLocation();
