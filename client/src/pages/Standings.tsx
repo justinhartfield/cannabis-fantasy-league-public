@@ -22,21 +22,24 @@ import {
  */
 
 export default function Standings() {
-  const { leagueId } = useParams<{ leagueId: string }>();
+  // Route is defined as `/league/:id/standings` and `/challenge/:id/standings`
+  // so we need to read the `id` param and convert it to a number.
+  const { id } = useParams<{ id: string }>();
+  const leagueId = Number(id);
   const [year, setYear] = useState(2025);
   const [view, setView] = useState<'standings' | 'power'>('standings');
 
   const { data: standings, isLoading } = trpc.standings.getLeagueStandings.useQuery({
-    leagueId: Number(leagueId),
+    leagueId,
     year,
   });
 
   const { data: powerRankings, isLoading: powerLoading } = trpc.standings.getPowerRankings.useQuery({
-    leagueId: Number(leagueId),
+    leagueId,
     year,
   });
 
-  const { data: league } = trpc.league.getById.useQuery({ id: Number(leagueId) });
+  const { data: league } = trpc.league.getById.useQuery({ leagueId });
   const [, setLocation] = useLocation();
 
   useEffect(() => {

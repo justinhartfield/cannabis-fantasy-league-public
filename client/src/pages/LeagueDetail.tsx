@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
 import { Loader2, Calendar, Settings, Copy, Check, Play, UserCircle, Trophy } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import { toast } from "sonner";
 import { getLoginUrl } from "@/const";
@@ -13,12 +13,21 @@ import DailyChallenge from "./DailyChallenge";
 import { LeagueChat } from "@/components/LeagueChat";
 import { AchievementsSection } from "@/components/AchievementsSection";
 import { WeeklyRecapCard } from "@/components/WeeklyRecapCard";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function LeagueDetail() {
   const { id } = useParams();
   const [, setLocation] = useLocation();
   const { user, loading: authLoading, isAuthenticated } = useAuth();
   const [copied, setCopied] = useState(false);
+  const [showDraftRedirectDialog, setShowDraftRedirectDialog] = useState(false);
 
   const { data: league, isLoading } = trpc.league.getById.useQuery(
     { leagueId: parseInt(id!) },
@@ -66,6 +75,22 @@ export default function LeagueDetail() {
   const isCommissioner = league.commissionerUserId === user?.id;
   const userTeam = league.teams?.find((team: any) => team.userId === user?.id);
 
+  // When a season-long league draft is in progress, gently prompt members to join the live draft
+  useEffect(() => {
+    if (!league) return;
+    if (league.leagueType === "challenge") return;
+    if (!userTeam) return;
+
+    const draftStarted = Boolean(league.draftStarted);
+    const draftCompleted = Boolean(league.draftCompleted);
+
+    if (draftStarted && !draftCompleted) {
+      setShowDraftRedirectDialog(true);
+    } else {
+      setShowDraftRedirectDialog(false);
+    }
+  }, [league, userTeam]);
+
   if (league?.leagueType === "challenge") {
     return <DailyChallenge />;
   }
@@ -85,6 +110,37 @@ export default function LeagueDetail() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Live Draft redirect dialog for season-long leagues */}
+      <Dialog open={showDraftRedirectDialog} onOpenChange={setShowDraftRedirectDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">Live Draft läuft gerade</DialogTitle>
+            <DialogDescription className="pt-2">
+              Der Commissioner hat den Draft für diese Saison-Liga gestartet. Tritt jetzt dem Live Draft bei, um deine Picks nicht zu verpassen.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="default"
+              className="w-full sm:w-auto"
+              onClick={() => {
+                setShowDraftRedirectDialog(false);
+                setLocation(`${basePath}/draft`);
+              }}
+            >
+              Zum Live Draft
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={() => setShowDraftRedirectDialog(false)}
+            >
+              Auf dieser Seite bleiben
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <LeagueNav
         leagueId={parseInt(id)}
         leagueName={league.name}
