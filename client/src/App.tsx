@@ -90,8 +90,8 @@ export default function App() {
         <LanguageProvider>
           <Navigation />
           <Router />
+          <Toaster />
         </LanguageProvider>
-        <Toaster />
       </TooltipProvider>
     </ErrorBoundary>
   );
