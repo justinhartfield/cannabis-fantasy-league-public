@@ -2,8 +2,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Building2, Leaf, Package, CheckCircle2, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
 
-type AssetType = "manufacturer" | "cannabis_strain" | "product" | "pharmacy";
+type AssetType = "manufacturer" | "cannabis_strain" | "product" | "pharmacy" | "brand";
 
 interface DraftAssetCardProps {
   assetType: AssetType;
@@ -37,6 +38,7 @@ export function DraftAssetCard({
   isInMyRoster = false,
   onDraft,
 }: DraftAssetCardProps) {
+  const [imageError, setImageError] = useState(false);
   
   // Get icon based on asset type
   const getIcon = () => {
@@ -50,6 +52,8 @@ export function DraftAssetCard({
         return <Package className={cn(iconClass, "text-pink-500")} />;
       case "pharmacy":
         return <Building2 className={cn(iconClass, "text-green-500")} />;
+      case "brand":
+        return <Building2 className={cn(iconClass, "text-yellow-500")} />;
     }
   };
 
@@ -64,6 +68,8 @@ export function DraftAssetCard({
         return "Produkt";
       case "pharmacy":
         return "Apotheke";
+      case "brand":
+        return "Brand";
     }
   };
 
@@ -127,15 +133,17 @@ export function DraftAssetCard({
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         {/* Asset Info */}
         <div className="flex items-center gap-3 flex-1 min-w-0 w-full sm:w-auto">
-          {imageUrl ? (
+          {imageUrl && !imageError ? (
             <img 
               src={imageUrl} 
               alt={assetName}
-              className="w-10 h-10 object-contain rounded-md"
-              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              className="w-10 h-10 object-contain rounded-md bg-muted"
+              onError={() => setImageError(true)}
             />
           ) : (
-            getIcon()
+            <div className="p-2 bg-muted rounded-lg">
+              {getIcon()}
+            </div>
           )}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">

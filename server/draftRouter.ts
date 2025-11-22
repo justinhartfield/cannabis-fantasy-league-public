@@ -212,6 +212,7 @@ export const draftRouter = router({
         id: mfg.id,
         name: mfg.name,
         productCount: mfg.productCount || 0,
+        logoUrl: mfg.logoUrl,
         todayPoints: todayMap.get(mfg.id) ?? null,
         yesterdayPoints: yesterdayMap.get(mfg.id) ?? null,
         todayStatDate,
@@ -293,6 +294,7 @@ export const draftRouter = router({
         type: strain.type || "Unknown",
         effects: parseJsonOrArray(strain.effects),
         flavors: parseJsonOrArray(strain.flavors),
+        imageUrl: strain.imageUrl,
         todayPoints: todayMap.get(strain.id) ?? null,
         yesterdayPoints: yesterdayMap.get(strain.id) ?? null,
         todayStatDate,
@@ -387,6 +389,7 @@ export const draftRouter = router({
         thcContent: product.thcContent || 0,
         cbdContent: product.cbdContent || 0,
         favoriteCount: product.favoriteCount || 0,
+        imageUrl: product.imageUrl,
         todayPoints: todayMap.get(product.id) ?? null,
         yesterdayPoints: yesterdayMap.get(product.id) ?? null,
         todayStatDate,
@@ -482,6 +485,7 @@ export const draftRouter = router({
         id: phm.id,
         name: phm.name,
         city: phm.city || "Unknown",
+        logoUrl: phm.logoUrl,
         todayPoints: todayMap.get(phm.id) ?? null,
         yesterdayPoints: yesterdayMap.get(phm.id) ?? null,
         todayStatDate,
@@ -562,6 +566,7 @@ export const draftRouter = router({
         name: brand.name,
         totalFavorites: brand.totalFavorites || 0,
         totalViews: brand.totalViews || 0,
+        logoUrl: brand.logoUrl,
         todayPoints: todayMap.get(brand.id) ?? null,
         yesterdayPoints: yesterdayMap.get(brand.id) ?? null,
         todayStatDate,
@@ -821,7 +826,7 @@ export const draftRouter = router({
       wsManager.broadcastToDraftRoom(input.leagueId, {
         type: "draft_started",
         timestamp: Date.now(),
-      });
+        });
 
       // Start timer for first pick
       await draftTimerManager.startTimer(input.leagueId);
