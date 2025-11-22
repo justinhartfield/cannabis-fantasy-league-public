@@ -1,5 +1,5 @@
 import { useAuth } from "@/_core/hooks/useAuth";
-import { useLanguage } from "@/contexts/LanguageContext";
+import { useLanguage, useTranslation } from "@/contexts/LanguageContext";
 import { Link, useLocation } from "wouter";
 import { UserCircle } from "lucide-react";
 import logoImage from "../cfl-logo.png";
@@ -14,7 +14,9 @@ import logoImage from "../cfl-logo.png";
 export function Navigation() {
   const { user } = useAuth();
   const [location] = useLocation();
-  const { t, availableLanguages, language, setLanguage } = useLanguage();
+  const { availableLanguages, language, setLanguage } = useLanguage();
+  const { t: tNav } = useTranslation("nav");
+  const { t: tAuth } = useTranslation("auth");
 
   // Hide navigation on login and invitation pages
   if (location === '/login' || location.startsWith('/invitations/')) {
@@ -47,7 +49,7 @@ export function Navigation() {
                     : "text-muted-foreground"
                 }`}
               >
-                {t("leaderboard")}
+                {tNav("leaderboard")}
               </Link>
 
               <Link
@@ -58,7 +60,7 @@ export function Navigation() {
                     : "text-muted-foreground"
                 }`}
               >
-                {t("inviteFriends")}
+                {tNav("inviteFriends")}
               </Link>
             </div>
           </div>
@@ -79,7 +81,7 @@ export function Navigation() {
                         : "opacity-40 hover:opacity-80 focus:opacity-80"
                     }`}
                     aria-pressed={isActive}
-                    aria-label={`${t("language")}: ${langOption.label}`}
+                    aria-label={`${tNav("language")}: ${langOption.label}`}
                   >
                     <span role="img" aria-hidden="true">
                       {langOption.flag}
@@ -91,7 +93,7 @@ export function Navigation() {
             {user && (
               <Link
                 href="/profile"
-                aria-label={t("profile")}
+                aria-label={tAuth("profileLinkAria")}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-card/50 border border-border/50 hover:bg-card hover:border-primary/50 transition-all cursor-pointer"
               >
                 <UserCircle className="w-4 h-4 text-muted-foreground" />

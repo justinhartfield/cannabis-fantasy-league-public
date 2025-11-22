@@ -37,7 +37,7 @@ import {
   pharmacyDailyChallengeStats,
   brandDailyChallengeStats,
 } from '../drizzle/dailyChallengeSchema';
-import { eq, and, count } from 'drizzle-orm';
+import { eq, and, count, sql } from 'drizzle-orm';
 import { wsManager } from './websocket';
 import { getOrCreateLineup } from './utils/autoLineup';
 import { calculateBrandPoints } from './brandScoring';
@@ -1478,18 +1478,13 @@ async function persistTeamScore(db: Awaited<ReturnType<typeof getDb>>, params: P
     throw new Error('Database not available');
   }
 
-  if (params.persistence.mode === 'weekly') {
-    const existingScore = await db.select().from(weeklyTeamScores).where(and(
-      eq(weeklyTeamScores.teamId, params.persistence.teamId),
-      eq(weeklyTeamScores.year, params.persistence.year),
-      eq(weeklyTeamScores.week, params.persistence.week)
-    )).limit(1);
-
-    let scoreId: number;
-
-    if (existingScore.length > 0) {
-      await db.update(weeklyTeamScores)
-        .set({
+  await db.transaction(async (tx) => {
+    if (params.persistence.mode === 'weekly') {
+      const upserted = await tx.insert(weeklyTeamScores)
+        .values({
+          teamId: params.persistence.teamId,
+          year: params.persistence.year,
+          week: params.persistence.week,
           mfg1Points: params.positionPoints.mfg1,
           mfg2Points: params.positionPoints.mfg2,
           cstr1Points: params.positionPoints.cstr1,
@@ -1504,59 +1499,51 @@ async function persistTeamScore(db: Awaited<ReturnType<typeof getDb>>, params: P
           penaltyPoints: 0,
           totalPoints: params.totalPoints,
         })
-        .where(and(
-          eq(weeklyTeamScores.teamId, params.persistence.teamId),
-          eq(weeklyTeamScores.year, params.persistence.year),
-          eq(weeklyTeamScores.week, params.persistence.week)
-        ));
-      scoreId = existingScore[0].id;
+        .onConflictDoUpdate({
+          target: [weeklyTeamScores.teamId, weeklyTeamScores.year, weeklyTeamScores.week],
+          set: {
+            mfg1Points: params.positionPoints.mfg1,
+            mfg2Points: params.positionPoints.mfg2,
+            cstr1Points: params.positionPoints.cstr1,
+            cstr2Points: params.positionPoints.cstr2,
+            prd1Points: params.positionPoints.prd1,
+            prd2Points: params.positionPoints.prd2,
+            phm1Points: params.positionPoints.phm1,
+            phm2Points: params.positionPoints.phm2,
+            brd1Points: params.positionPoints.brd1,
+            flexPoints: params.positionPoints.flex,
+            bonusPoints: params.totalBonus,
+            penaltyPoints: 0,
+            totalPoints: params.totalPoints,
+          },
+        })
+        .returning({ id: weeklyTeamScores.id });
 
-      await db.delete(scoringBreakdowns)
+      const scoreId = upserted[0].id;
+
+      await tx.execute(sql`select pg_advisory_xact_lock(${scoreId})`);
+
+      await tx.delete(scoringBreakdowns)
         .where(eq(scoringBreakdowns.weeklyTeamScoreId, scoreId));
+
+      if (params.breakdowns.length > 0) {
+        await tx.insert(scoringBreakdowns).values(
+          params.breakdowns.map((breakdown) => ({
+            weeklyTeamScoreId: scoreId,
+            assetType: breakdown.assetType as any,
+            assetId: breakdown.assetId,
+            position: breakdown.position,
+            breakdown: breakdown.breakdown,
+            totalPoints: breakdown.points,
+          }))
+        );
+      }
     } else {
-      const inserted = await db.insert(weeklyTeamScores).values({
-        teamId: params.persistence.teamId,
-        year: params.persistence.year,
-        week: params.persistence.week,
-        mfg1Points: params.positionPoints.mfg1,
-        mfg2Points: params.positionPoints.mfg2,
-        cstr1Points: params.positionPoints.cstr1,
-        cstr2Points: params.positionPoints.cstr2,
-        prd1Points: params.positionPoints.prd1,
-        prd2Points: params.positionPoints.prd2,
-        phm1Points: params.positionPoints.phm1,
-        phm2Points: params.positionPoints.phm2,
-        brd1Points: params.positionPoints.brd1,
-        flexPoints: params.positionPoints.flex,
-        bonusPoints: params.totalBonus,
-        penaltyPoints: 0,
-        totalPoints: params.totalPoints,
-      }).returning({ id: weeklyTeamScores.id });
-      scoreId = inserted[0].id;
-    }
-
-    for (const breakdown of params.breakdowns) {
-      await db.insert(scoringBreakdowns).values({
-        weeklyTeamScoreId: scoreId,
-        assetType: breakdown.assetType as any,
-        assetId: breakdown.assetId,
-        position: breakdown.position,
-        breakdown: breakdown.breakdown,
-        totalPoints: breakdown.points,
-      });
-    }
-  } else {
-    const existingScore = await db.select().from(dailyTeamScores).where(and(
-      eq(dailyTeamScores.teamId, params.persistence.teamId),
-      eq(dailyTeamScores.challengeId, params.persistence.challengeId),
-      eq(dailyTeamScores.statDate, params.persistence.statDate)
-    )).limit(1);
-
-    let scoreId: number;
-
-    if (existingScore.length > 0) {
-      await db.update(dailyTeamScores)
-        .set({
+      const upserted = await tx.insert(dailyTeamScores)
+        .values({
+          teamId: params.persistence.teamId,
+          challengeId: params.persistence.challengeId,
+          statDate: params.persistence.statDate,
           mfg1Points: params.positionPoints.mfg1,
           mfg2Points: params.positionPoints.mfg2,
           cstr1Points: params.positionPoints.cstr1,
@@ -1572,48 +1559,48 @@ async function persistTeamScore(db: Awaited<ReturnType<typeof getDb>>, params: P
           totalPoints: params.totalPoints,
           updatedAt: new Date().toISOString(),
         })
-        .where(and(
-          eq(dailyTeamScores.teamId, params.persistence.teamId),
-          eq(dailyTeamScores.challengeId, params.persistence.challengeId),
-          eq(dailyTeamScores.statDate, params.persistence.statDate)
-        ));
-      scoreId = existingScore[0].id;
+        .onConflictDoUpdate({
+          target: [dailyTeamScores.challengeId, dailyTeamScores.teamId, dailyTeamScores.statDate],
+          set: {
+            mfg1Points: params.positionPoints.mfg1,
+            mfg2Points: params.positionPoints.mfg2,
+            cstr1Points: params.positionPoints.cstr1,
+            cstr2Points: params.positionPoints.cstr2,
+            prd1Points: params.positionPoints.prd1,
+            prd2Points: params.positionPoints.prd2,
+            phm1Points: params.positionPoints.phm1,
+            phm2Points: params.positionPoints.phm2,
+            brd1Points: params.positionPoints.brd1,
+            flexPoints: params.positionPoints.flex,
+            bonusPoints: params.totalBonus,
+            penaltyPoints: 0,
+            totalPoints: params.totalPoints,
+            updatedAt: new Date().toISOString(),
+          },
+        })
+        .returning({ id: dailyTeamScores.id });
 
-      await db.delete(dailyScoringBreakdowns)
+      const scoreId = upserted[0].id;
+
+      await tx.execute(sql`select pg_advisory_xact_lock(${scoreId})`);
+
+      await tx.delete(dailyScoringBreakdowns)
         .where(eq(dailyScoringBreakdowns.dailyTeamScoreId, scoreId));
-    } else {
-      const inserted = await db.insert(dailyTeamScores).values({
-        teamId: params.persistence.teamId,
-        challengeId: params.persistence.challengeId,
-        statDate: params.persistence.statDate,
-        mfg1Points: params.positionPoints.mfg1,
-        mfg2Points: params.positionPoints.mfg2,
-        cstr1Points: params.positionPoints.cstr1,
-        cstr2Points: params.positionPoints.cstr2,
-        prd1Points: params.positionPoints.prd1,
-        prd2Points: params.positionPoints.prd2,
-        phm1Points: params.positionPoints.phm1,
-        phm2Points: params.positionPoints.phm2,
-        brd1Points: params.positionPoints.brd1,
-        flexPoints: params.positionPoints.flex,
-        bonusPoints: params.totalBonus,
-        penaltyPoints: 0,
-        totalPoints: params.totalPoints,
-      }).returning({ id: dailyTeamScores.id });
-      scoreId = inserted[0].id;
-    }
 
-    for (const breakdown of params.breakdowns) {
-      await db.insert(dailyScoringBreakdowns).values({
-        dailyTeamScoreId: scoreId,
-        assetType: breakdown.assetType as any,
-        assetId: breakdown.assetId,
-        position: breakdown.position,
-        breakdown: breakdown.breakdown,
-        totalPoints: breakdown.points,
-      });
+      if (params.breakdowns.length > 0) {
+        await tx.insert(dailyScoringBreakdowns).values(
+          params.breakdowns.map((breakdown) => ({
+            dailyTeamScoreId: scoreId,
+            assetType: breakdown.assetType as any,
+            assetId: breakdown.assetId,
+            position: breakdown.position,
+            breakdown: breakdown.breakdown,
+            totalPoints: breakdown.points,
+          }))
+        );
+      }
     }
-  }
+  });
 }
 
 /**

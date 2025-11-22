@@ -1,6 +1,12 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,16 +19,25 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { trpc } from "@/lib/trpc";
-import { Trophy, ArrowLeft, Loader2, Calendar, UserCircle, Settings } from "lucide-react";
+import {
+  Trophy,
+  ArrowLeft,
+  Loader2,
+  Calendar,
+  UserCircle,
+  Settings,
+} from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 import { getLoginUrl } from "@/const";
+import { useTranslation } from "@/contexts/LanguageContext";
 
 export default function CreateLeague() {
   const [, setLocation] = useLocation();
   const { user, loading: authLoading, isAuthenticated } = useAuth();
   const createLeague = trpc.league.create.useMutation();
+  const { t: tCreate } = useTranslation("createLeague");
 
   const [formData, setFormData] = useState({
     name: "",
@@ -57,16 +72,16 @@ export default function CreateLeague() {
     e.preventDefault();
 
     if (!formData.name.trim()) {
-      toast.error("Bitte gib einen Liga-Namen ein");
+      toast.error(tCreate("nameRequired"));
       return;
     }
 
     try {
       const result = await createLeague.mutateAsync(formData);
-      toast.success("Liga erfolgreich erstellt!");
+      toast.success(tCreate("successToast"));
       setLocation(`/league/${result.leagueId}`);
     } catch (error: any) {
-      toast.error(error.message || "Fehler beim Erstellen der Liga");
+      toast.error(error.message || tCreate("errorToast"));
     }
   };
 
@@ -84,7 +99,9 @@ export default function CreateLeague() {
             <div className="flex items-center gap-3">
               <Trophy className="w-12 h-12 text-yellow-500" />
               <div>
-                <h1 className="text-xl font-bold text-foreground headline-primary">Neue Liga erstellen</h1>
+                  <h1 className="text-xl font-bold text-foreground headline-primary">
+                    {tCreate("headerTitle")}
+                  </h1>
                 <p className="text-sm text-muted-foreground">
                   {formData.leagueType === "season" ? "Saison-Modus" : "Daily Challenge"}
                 </p>
@@ -102,10 +119,10 @@ export default function CreateLeague() {
             <CardHeader>
               <CardTitle className="text-card-foreground flex items-center gap-2">
                 <Settings className="w-5 h-5" />
-                Grundeinstellungen
+                  {tCreate("basicInfo")}
               </CardTitle>
               <CardDescription className="text-muted-foreground">
-                Lege die grundlegenden Informationen für deine Liga fest.
+                  {tCreate("basicInfoDescription")}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

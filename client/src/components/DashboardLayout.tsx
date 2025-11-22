@@ -19,6 +19,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { APP_LOGO, APP_TITLE } from "@/const";
+import { useTranslation } from "@/contexts/LanguageContext";
 import { useIsMobile } from "@/hooks/useMobile";
 import { LayoutDashboard, LogOut, PanelLeft, UserCircle } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
@@ -47,6 +48,7 @@ export default function DashboardLayout({
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
   const { isLoaded, isSignedIn, user } = useUser();
+  const { t: tAuth } = useTranslation("auth");
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
@@ -75,14 +77,14 @@ export default function DashboardLayout({
             <div className="text-center space-y-2">
               <h1 className="text-2xl font-bold tracking-tight">{APP_TITLE}</h1>
               <p className="text-sm text-muted-foreground">
-                Please sign in to continue
+                {tAuth("signInPrompt")}
               </p>
             </div>
           </div>
           <SignedOut>
             <SignInButton mode="modal">
               <Button size="lg" className="w-full shadow-lg hover:shadow-xl transition-all">
-                Sign in
+                {tAuth("signIn")}
               </Button>
             </SignInButton>
           </SignedOut>

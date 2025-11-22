@@ -302,6 +302,16 @@ export const scoringRouter = router({
         .from(scoringBreakdowns)
         .where(eq(scoringBreakdowns.weeklyTeamScoreId, score.id));
 
+      const uniqueBreakdownsMap = new Map<string, typeof breakdowns[number]>();
+      breakdowns.forEach((bd) => {
+        const key = `${bd.position}-${bd.assetType}-${bd.assetId ?? 'na'}`;
+        const existing = uniqueBreakdownsMap.get(key);
+        if (!existing || bd.id > existing.id) {
+          uniqueBreakdownsMap.set(key, bd);
+        }
+      });
+      const uniqueBreakdowns = Array.from(uniqueBreakdownsMap.values());
+
       // Fetch names for each asset type
       const manufacturerIds: number[] = [];
       const strainIds: number[] = [];
@@ -309,7 +319,7 @@ export const scoringRouter = router({
       const pharmacyIds: number[] = [];
       const brandIds: number[] = [];
 
-      breakdowns.forEach((bd) => {
+      uniqueBreakdowns.forEach((bd) => {
         if (bd.assetType === 'manufacturer') {
           manufacturerIds.push(bd.assetId);
         } else if (bd.assetType === 'cannabis_strain') {
@@ -379,7 +389,7 @@ export const scoringRouter = router({
       brandNames.forEach((b) => nameMap.set(b.id, b.name));
 
       // Enrich breakdowns with asset names
-      const enrichedBreakdowns = breakdowns.map((bd) => {
+      const enrichedBreakdowns = uniqueBreakdowns.map((bd) => {
         const name = nameMap.get(bd.assetId);
         // If name not found, create a descriptive fallback
         const fallbackName = name || `${bd.position} (ID: ${bd.assetId})`;

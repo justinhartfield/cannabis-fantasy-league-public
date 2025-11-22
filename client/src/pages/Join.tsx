@@ -1,10 +1,17 @@
 import { useEffect, useMemo } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Gift, Users, ArrowRight, LogIn, UserPlus } from "lucide-react";
 import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
 import { Link } from "wouter";
+import { useTranslation } from "@/contexts/LanguageContext";
 
 function getReferralCodeFromLocation(): string | null {
   if (typeof window === "undefined") return null;
@@ -15,6 +22,7 @@ function getReferralCodeFromLocation(): string | null {
 
 export default function Join() {
   const { isAuthenticated, loading } = useAuth();
+  const { t: tJoin } = useTranslation("join");
 
   const referralCode = useMemo(() => getReferralCodeFromLocation(), []);
 
@@ -46,11 +54,10 @@ export default function Join() {
             />
           </div>
           <h1 className="headline-primary text-4xl md:text-5xl text-weed-burgundy dark:text-weed-green">
-            You&apos;ve been invited!
+            {tJoin("heroTitle")}
           </h1>
           <p className="text-lg text-muted-foreground dark:text-white/80 max-w-xl mx-auto">
-            Join the Cannabis Fantasy League, build your team, and help your friend earn a streak
-            freeze reward when you join your first league.
+            {tJoin("heroSubtitle")}
           </p>
         </div>
 
@@ -59,10 +66,10 @@ export default function Join() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Gift className="w-5 h-5 text-weed-green" />
-                Claim your invite
+                {tJoin("claimTitle")}
               </CardTitle>
               <CardDescription>
-                Create an account or log in to accept this referral and start playing.
+                {tJoin("claimDescription")}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -71,7 +78,7 @@ export default function Join() {
                   <div className="flex items-center gap-2">
                     <Users className="w-4 h-4 text-weed-green" />
                     <span className="text-sm text-muted-foreground">
-                      Referral code saved for this session
+                      {tJoin("referralSaved")}
                     </span>
                   </div>
                   <span className="text-sm font-mono font-semibold">{referralCode}</span>
@@ -79,21 +86,20 @@ export default function Join() {
               )}
 
               <p className="text-sm text-muted-foreground">
-                As soon as you join your first league, your friend will automatically receive a
-                streak freeze token they can use to protect their prediction streak.
+                {tJoin("rewardDescription")}
               </p>
 
               <div className="flex flex-col sm:flex-row gap-3 pt-2">
                 <Button className="flex-1" onClick={handleGetStarted}>
                   <UserPlus className="w-4 h-4 mr-2" />
-                  Get Started
+                  {tJoin("primaryCta")}
                   <ArrowRight className="w-4 h-4 ml-1" />
                 </Button>
                 <Button asChild variant="outline" className="flex-1">
                   <Link href="/login">
                     <span className="flex items-center justify-center">
                       <LogIn className="w-4 h-4 mr-2" />
-                      I already have an account
+                      {tJoin("secondaryCta")}
                     </span>
                   </Link>
                 </Button>
@@ -103,22 +109,24 @@ export default function Join() {
 
           <Card className="bg-white/80 dark:bg-black/40">
             <CardHeader>
-              <CardTitle>What happens next?</CardTitle>
-              <CardDescription>Invites are simple and fair for everyone.</CardDescription>
+              <CardTitle>{tJoin("nextTitle")}</CardTitle>
+              <CardDescription>{tJoin("nextDescription")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2 text-sm text-muted-foreground">
               <ol className="list-decimal list-inside space-y-1">
-                <li>Sign up or log in to your Cannabis Fantasy League account.</li>
-                <li>Create or join your first league and draft your team.</li>
-                <li>Your friend earns a streak freeze token for your first league join.</li>
+                <li>{tJoin("steps.signup")}</li>
+                <li>{tJoin("steps.draft")}</li>
+                <li>{tJoin("steps.reward")}</li>
               </ol>
               {isAuthenticated && !loading && (
                 <p className="pt-2 text-xs text-foreground">
-                  You&apos;re already signed in. Head to your{" "}
+                  {tJoin("signedInPrefix")}{" "}
                   <Link href="/leagues">
-                    <span className="underline cursor-pointer">leagues</span>
+                    <span className="underline cursor-pointer">
+                      {tJoin("leaguesLink")}
+                    </span>
                   </Link>{" "}
-                  to create or join a league and trigger the referral reward.
+                  {tJoin("signedInSuffix")}
                 </p>
               )}
             </CardContent>

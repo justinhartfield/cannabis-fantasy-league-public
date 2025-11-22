@@ -2,16 +2,37 @@ import { useEffect, useMemo } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { useLocation, Link } from "wouter";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Gift, Link2, Users, Zap, ArrowLeft, Share2 } from "lucide-react";
+import {
+  Loader2,
+  Gift,
+  Link2,
+  Users,
+  Zap,
+  ArrowLeft,
+  Share2,
+} from "lucide-react";
 import { getLoginUrl } from "@/const";
-import { toast } from "sonner";
+import { useTranslation } from "@/contexts/LanguageContext";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 
 export default function InviteFriends() {
-  const { user, loading: authLoading, isAuthenticated } = useAuth();
+  const { loading: authLoading, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
+  const { t: tInvite } = useTranslation("invite");
+  const { t: tNav } = useTranslation("nav");
+  const { copy } = useCopyToClipboard({
+    successKey: "invite.copySuccess",
+    errorKey: "invite.copyError",
+  });
 
   const {
     data: referral,
@@ -40,24 +61,19 @@ export default function InviteFriends() {
 
   const handleCopyLink = async () => {
     if (!inviteUrl) return;
-    try {
-      await navigator.clipboard.writeText(inviteUrl);
-      toast.success("Invite link copied to clipboard!");
-    } catch {
-      toast.error("Failed to copy link. Please copy it manually.");
-    }
+    await copy(inviteUrl);
   };
 
   const handleShare = async () => {
     if (!inviteUrl) return;
-    const message =
-      "Join me in the Cannabis Fantasy League! Use my link to get started and unlock rewards.";
+    const shareTitle = tInvite("shareTitle");
+    const shareMessage = tInvite("shareMessage");
 
     if (navigator.share) {
       try {
         await navigator.share({
-          title: "Join my Cannabis Fantasy League",
-          text: message,
+          title: shareTitle,
+          text: shareMessage,
           url: inviteUrl,
         });
       } catch {
@@ -83,7 +99,7 @@ export default function InviteFriends() {
         <Link href="/dashboard">
           <Button variant="ghost" className="mb-6">
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Dashboard
+            {tInvite("backButton") || tNav("dashboard")}
           </Button>
         </Link>
 
@@ -92,15 +108,14 @@ export default function InviteFriends() {
           <div>
             <h1 className="text-3xl font-bold text-foreground mb-2">Invite Friends</h1>
             <p className="text-muted-foreground">
-              Share your personal link and earn streak freeze rewards when friends join their
-              first league.
+              {tInvite("description")}
             </p>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/30">
               <Gift className="w-4 h-4 text-primary" />
               <span className="text-sm font-medium text-foreground">
-                +1 streak freeze per successful referral
+                {tInvite("highlight")}
               </span>
             </div>
           </div>
@@ -110,17 +125,14 @@ export default function InviteFriends() {
           {/* Invite Link & Actions */}
           <Card>
             <CardHeader>
-              <CardTitle>Your invite link</CardTitle>
-              <CardDescription>
-                Friends who join using this link and create a team will earn you a streak freeze
-                token.
-              </CardDescription>
+              <CardTitle>{tInvite("cardTitle")}</CardTitle>
+              <CardDescription>{tInvite("cardDescription")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                   <Link2 className="w-4 h-4" />
-                  Shareable link
+                  {tInvite("inviteLinkLabel")}
                 </label>
                 <div className="flex gap-2">
                   <Input
@@ -129,7 +141,7 @@ export default function InviteFriends() {
                     className="font-mono text-xs md:text-sm"
                   />
                   <Button variant="outline" onClick={handleCopyLink}>
-                    Copy
+                    {tInvite("copyButton")}
                   </Button>
                 </div>
               </div>
@@ -137,14 +149,14 @@ export default function InviteFriends() {
               <div className="space-y-2">
                 <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                   <Users className="w-4 h-4" />
-                  Your referral code
+                  {tInvite("referralCodeLabel")}
                 </label>
                 <div className="flex items-center gap-3">
                   <span className="text-lg font-semibold tracking-wide">
                     {referral?.referralCode}
                   </span>
                   <Button variant="outline" size="sm" onClick={refetchReferral}>
-                    Refresh
+                    {tInvite("refreshButton")}
                   </Button>
                 </div>
               </div>
@@ -152,11 +164,11 @@ export default function InviteFriends() {
               <div className="flex flex-wrap gap-3 pt-2">
                 <Button onClick={handleShare}>
                   <Share2 className="w-4 h-4 mr-2" />
-                  Share with friends
+                  {tInvite("shareCta")}
                 </Button>
                 <Button variant="outline" onClick={handleCopyLink}>
                   <Link2 className="w-4 h-4 mr-2" />
-                  Copy link
+                  {tInvite("shareLink")}
                 </Button>
               </div>
             </CardContent>
@@ -166,16 +178,14 @@ export default function InviteFriends() {
           <div className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Rewards overview</CardTitle>
-                <CardDescription>
-                  Track how your invites are turning into in-game power-ups.
-                </CardDescription>
+                <CardTitle>{tInvite("rewardsTitle")}</CardTitle>
+                <CardDescription>{tInvite("rewardsDescription")}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Zap className="w-4 h-4 text-yellow-500" />
-                    <span>Streak freeze tokens</span>
+                    <span>{tInvite("stats.streakTokens")}</span>
                   </div>
                   <span className="text-xl font-bold text-foreground">
                     {referral?.streakFreezeTokens ?? 0}
@@ -185,7 +195,7 @@ export default function InviteFriends() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Gift className="w-4 h-4 text-green-500" />
-                    <span>Completed referrals</span>
+                    <span>{tInvite("stats.completed")}</span>
                   </div>
                   <span className="text-lg font-semibold text-foreground">
                     {referral?.completedReferrals ?? 0}
@@ -195,7 +205,7 @@ export default function InviteFriends() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Users className="w-4 h-4 text-blue-500" />
-                    <span>Total referrals</span>
+                    <span>{tInvite("stats.total")}</span>
                   </div>
                   <span className="text-lg font-semibold text-foreground">
                     {referral?.totalReferrals ?? 0}
@@ -206,19 +216,14 @@ export default function InviteFriends() {
 
             <Card>
               <CardHeader>
-                <CardTitle>How it works</CardTitle>
-                <CardDescription>
-                  Simple, transparent rewards tied to your friends&apos; first league.
-                </CardDescription>
+                <CardTitle>{tInvite("howItWorksTitle")}</CardTitle>
+                <CardDescription>{tInvite("howItWorksDescription")}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3 text-sm text-muted-foreground">
                 <ol className="list-decimal list-inside space-y-2">
-                  <li>Share your invite link or code with friends.</li>
-                  <li>Your friend signs up and joins their first league.</li>
-                  <li>
-                    You automatically earn <span className="font-medium">1 streak freeze token</span>{" "}
-                    for each friend who completes their first league join.
-                  </li>
+                  <li>{tInvite("steps.share")}</li>
+                  <li>{tInvite("steps.join")}</li>
+                  <li>{tInvite("steps.reward")}</li>
                 </ol>
               </CardContent>
             </Card>

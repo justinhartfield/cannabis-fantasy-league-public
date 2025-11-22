@@ -1,6 +1,7 @@
-import { APP_LOGO, APP_TITLE } from '@/const';
-import { Leaf } from 'lucide-react';
-import { SignUp } from '@clerk/clerk-react';
+import { APP_LOGO, APP_TITLE } from "@/const";
+import { Leaf } from "lucide-react";
+import { SignUp } from "@clerk/clerk-react";
+import { useTranslation } from "@/contexts/LanguageContext";
 
 /**
  * Sign Up Page - Clerk Authentication
@@ -8,6 +9,12 @@ import { SignUp } from '@clerk/clerk-react';
  * Uses Clerk's SignUp component for user registration
  */
 export default function SignUpPage() {
+  const { t: tSignup } = useTranslation("signup");
+  const { t: tHome } = useTranslation("home");
+  const footerCopy = tHome("footer.disclaimer", {
+    replacements: { year: new Date().getFullYear(), appTitle: APP_TITLE },
+  });
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-weed-cream dark:bg-weed-burgundy pattern-dots p-4 relative">
       {/* Floating Wayfinder Characters */}
@@ -33,7 +40,7 @@ export default function SignUpPage() {
               {APP_TITLE}
             </h1>
             <p className="body-text text-muted-foreground dark:text-white/70">
-              Join the first fantasy league for medical cannabis in Germany!
+              {tSignup("subtitle")}
             </p>
           </div>
 
@@ -55,7 +62,7 @@ export default function SignUpPage() {
 
         {/* Footer */}
         <div className="text-center mt-6 text-muted-foreground dark:text-white/60 text-sm">
-          <p className="font-medium">First fantasy league for medical cannabis in Germany 🇩🇪</p>
+          <p className="font-medium">{footerCopy}</p>
         </div>
       </div>
     </div>

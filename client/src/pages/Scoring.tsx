@@ -1,28 +1,41 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ScoringBreakdown from "@/components/ScoringBreakdownV2";
-import { CategoryBarChart, TopPerformersPanel, PerformanceInsights, WeekOverWeekIndicator, WeekProgressBar } from "@/components/ScoringEnhancements";
-import { 
-  Trophy, 
-  TrendingUp, 
-  TrendingDown, 
-  Calendar, 
+import {
+  CategoryBarChart,
+  TopPerformersPanel,
+  PerformanceInsights,
+  WeekOverWeekIndicator,
+  WeekProgressBar,
+} from "@/components/ScoringEnhancements";
+import {
+  Trophy,
+  TrendingUp,
+  TrendingDown,
+  Calendar,
   RefreshCw,
   BarChart3,
   UserCircle,
   Award,
   Zap,
-  Clock
+  Clock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { LeagueNav } from "@/components/LeagueNav";
+import { useTranslation } from "@/contexts/LanguageContext";
 
 interface TeamScore {
   teamId: number;
@@ -45,6 +58,8 @@ export default function Scoring() {
   const [, setLocation] = useLocation();
   const leagueId = parseInt(id!);
   const { user } = useAuth();
+  const { t: tScoring } = useTranslation("scoring");
+  const { t: tNav } = useTranslation("nav");
 
   const [selectedWeek, setSelectedWeek] = useState<number>(1);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
@@ -54,6 +69,16 @@ export default function Scoring() {
   const [assetSortBy, setAssetSortBy] = useState<'points' | 'name' | 'type'>('points');
   const [assetFilter, setAssetFilter] = useState<string>('all');
   const [defaultsApplied, setDefaultsApplied] = useState(false);
+  const autoScoreTriggeredRef = useRef<Set<string>>(new Set());
+  const autoWeekBackfillRef = useRef<Set<string>>(new Set());
+  const manualSelectionRef = useRef(false);
+
+  useEffect(() => {
+    manualSelectionRef.current = false;
+    autoWeekBackfillRef.current.clear();
+    autoScoreTriggeredRef.current.clear();
+    setDefaultsApplied(false);
+  }, [leagueId]);
 
   // Fetch league data
   const { data: league } = trpc.league.getById.useQuery({ leagueId: leagueId });
@@ -103,12 +128,14 @@ export default function Scoring() {
   // Manual score calculation mutation (admin only)
   const calculateScoresMutation = trpc.scoring.calculateLeagueWeek.useMutation({
     onSuccess: () => {
-      toast.success("Scores calculated successfully!");
+      toast.success(tScoring("calculateSuccess"));
       refetchScores();
       setIsCalculating(false);
     },
     onError: (error) => {
-      toast.error(`Failed to calculate scores: ${error.message}`);
+      toast.error(
+        tScoring("calculateError", { replacements: { message: error.message } })
+      );
       setIsCalculating(false);
     },
   });
@@ -138,14 +165,34 @@ export default function Scoring() {
 
   // Auto-calculate scores if data is missing and user is admin/commissioner
   useEffect(() => {
+    if (!weekScores || weekScores.length === 0) {
+      return;
+    }
+
+    const fallbackYear = new Date().getFullYear();
+    const expectedYear = league?.seasonYear || fallbackYear;
+    const expectedWeek = Math.max(1, (league?.currentWeek ?? 1) - 1);
+    const matchesActiveSelection =
+      defaultsApplied &&
+      selectedYear === expectedYear &&
+      selectedWeek === expectedWeek;
+
+    const autoKey = `${leagueId}-${selectedYear}-${selectedWeek}`;
+    const alreadyTriggered = autoScoreTriggeredRef.current.has(autoKey);
+
     if (
       !isCalculating &&
       !isRefetching &&
-      weekScores &&
-      weekScores.every(s => s.points === 0) &&
+      !calculateScoresMutation.isPending &&
+      matchesActiveSelection &&
+      !alreadyTriggered &&
+      weekScores.every((s) => s.points === 0) &&
       (user?.role === 'admin' || isCommissioner)
     ) {
+      autoScoreTriggeredRef.current.add(autoKey);
       console.log("Auto-triggering score calculation for empty week...");
+      setIsCalculating(true);
+      setLiveScores([]);
       calculateScoresMutation.mutate({
         leagueId,
         year: selectedYear,
@@ -161,7 +208,37 @@ export default function Scoring() {
     calculateScoresMutation,
     leagueId,
     selectedYear,
-    selectedWeek
+    selectedWeek,
+    defaultsApplied,
+    league?.seasonYear,
+    league?.currentWeek,
+  ]);
+
+  useEffect(() => {
+    if (
+      !defaultsApplied ||
+      manualSelectionRef.current ||
+      !weekScores ||
+      weekScores.length === 0
+    ) {
+      return;
+    }
+
+    const fallbackKey = `${leagueId}-${selectedYear}-${selectedWeek}`;
+    if (
+      weekScores.every((s) => s.points === 0) &&
+      selectedWeek > 1 &&
+      !autoWeekBackfillRef.current.has(fallbackKey)
+    ) {
+      autoWeekBackfillRef.current.add(fallbackKey);
+      setSelectedWeek((prev) => Math.max(1, prev - 1));
+    }
+  }, [
+    defaultsApplied,
+    weekScores,
+    selectedWeek,
+    leagueId,
+    selectedYear,
   ]);
 
   // WebSocket for real-time updates
@@ -187,18 +264,28 @@ export default function Scoring() {
           }];
         });
 
-        toast.info(`${message.teamName} scored ${message.points} points!`, {
-          duration: 3000,
-        });
+        toast.info(
+          tScoring("liveUpdate", {
+            replacements: {
+              team: message.teamName,
+              points: message.points,
+            },
+          }),
+          {
+            duration: 3000,
+          }
+        );
       } else if (message.type === 'scores_updated') {
         // Final scores update
-        toast.success("All scores updated!", {
+        toast.success(tScoring("liveAllUpdated"), {
           duration: 5000,
         });
         refetchScores();
         setLiveScores([]);
       } else if (message.type === 'scoring_complete') {
-        toast.success(`Scoring complete for Week ${message.week}!`);
+        toast.success(
+          tScoring("weekComplete", { replacements: { week: message.week } })
+        );
         refetchScores();
       }
     },
@@ -227,6 +314,20 @@ export default function Scoring() {
     : useLiveCalculation 
       ? cumulativeLiveScores 
       : weekScores || [];
+  const dedupedBreakdowns = useMemo(() => {
+    if (!breakdown?.breakdowns) {
+      return [];
+    }
+
+    const map = new Map<string, any>();
+    for (const entry of breakdown.breakdowns) {
+      const key = `${entry.position}-${entry.assetType}-${entry.assetId ?? 'na'}`;
+      if (!map.has(key)) {
+        map.set(key, entry);
+      }
+    }
+    return Array.from(map.values());
+  }, [breakdown]);
 
   // Sort and rank teams
   const rankedScores = [...displayScores]
@@ -301,12 +402,12 @@ export default function Scoring() {
                 {isCalculating ? (
                   <>
                     <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                    Calculating...
+                    {tScoring("calculatingLabel")}
                   </>
                 ) : (
                   <>
                     <Zap className="w-4 h-4 mr-2" />
-                    Calculate Scores
+                    {tScoring("calculateButton")}
                   </>
                 )}
               </Button>
@@ -320,16 +421,21 @@ export default function Scoring() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-foreground">
             <Calendar className="w-5 h-5 text-[#FF2D55]" />
-            Select Week
+            {tScoring("selectWeekTitle")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-4 flex-wrap">
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-muted-foreground">Year:</label>
+              <label className="text-sm font-medium text-muted-foreground">
+                {tScoring("yearSelectorLabel")}:
+              </label>
               <select
                 value={selectedYear}
-                onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                onChange={(e) => {
+                  manualSelectionRef.current = true;
+                  setSelectedYear(parseInt(e.target.value));
+                }}
                 className="px-4 py-2 border border-border/50 rounded-lg bg-card text-foreground"
               >
                 <option value={2024}>2024</option>
@@ -338,15 +444,20 @@ export default function Scoring() {
             </div>
             
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-muted-foreground">Week:</label>
+              <label className="text-sm font-medium text-muted-foreground">
+                {tScoring("weekSelectorLabel")}:
+              </label>
               <select
                 value={selectedWeek}
-                onChange={(e) => setSelectedWeek(parseInt(e.target.value))}
+                onChange={(e) => {
+                  manualSelectionRef.current = true;
+                  setSelectedWeek(parseInt(e.target.value));
+                }}
                 className="px-4 py-2 border border-border/50 rounded-lg bg-card text-foreground"
               >
                 {Array.from({ length: 52 }, (_, i) => i + 1).map((week) => (
                   <option key={week} value={week}>
-                    Week {week}
+                    {tScoring("weekSelectorLabel")} {week}
                   </option>
                 ))}
               </select>
@@ -360,7 +471,7 @@ export default function Scoring() {
               className="ml-auto border-border/50"
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
-              {isRefetching ? "Refreshing..." : "Refresh"}
+              {isRefetching ? tScoring("refreshing") : tScoring("refresh")}
             </Button>
           </div>
         </CardContent>
@@ -374,10 +485,10 @@ export default function Scoring() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-foreground">
                 <Award className="w-5 h-5 text-[#FFD700]" />
-                Leaderboard
+                {tNav("leaderboard")}
               </CardTitle>
               <CardDescription>
-                {selectedYear} - Week {selectedWeek}
+                {selectedYear} - {tScoring("weekSelectorLabel")} {selectedWeek}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -387,8 +498,8 @@ export default function Scoring() {
                     <Award className="w-8 h-8 text-muted-foreground" />
                   </div>
                   <div className="space-y-2 text-sm text-muted-foreground">
-                    <p>No scores yet for this week.</p>
-                    <p>Scores appear after weekly stats are synced and scoring has been run for the selected year and week.</p>
+                    <p>{tScoring("leaderboardEmptyTitle")}</p>
+                    <p>{tScoring("leaderboardEmptyDescription")}</p>
                   </div>
                 </div>
               ) : (
@@ -538,7 +649,7 @@ export default function Scoring() {
                       totalPoints={breakdown.score.totalPoints || 0}
                     />
                     <TopPerformersPanel
-                      performers={breakdown.breakdowns
+                      performers={dedupedBreakdowns
                         .map((b: any) => ({
                           assetName: b.assetName || `${b.assetType} #${b.assetId}`,
                           assetType: b.assetType,
@@ -584,7 +695,7 @@ export default function Scoring() {
                     </div>
                   </div>
                   <div className="space-y-4">
-                    {breakdown.breakdowns
+                    {dedupedBreakdowns
                       .filter((b: any) => assetFilter === 'all' || b.assetType === assetFilter)
                       .sort((a: any, b: any) => {
                         if (assetSortBy === 'points') {
