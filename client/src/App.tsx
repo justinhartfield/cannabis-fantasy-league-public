@@ -29,6 +29,7 @@ import Join from "./pages/Join";
 import Players from "./pages/Players";
 import { useEffect } from "react";
 import { Navigation } from "./components/Navigation";
+import { LanguageProvider } from "./contexts/LanguageContext";
 
 
 function Router() {
@@ -86,8 +87,10 @@ export default function App() {
   return (
     <ErrorBoundary>
       <TooltipProvider>
-        <Navigation />
-        <Router />
+        <LanguageProvider>
+          <Navigation />
+          <Router />
+        </LanguageProvider>
         <Toaster />
       </TooltipProvider>
     </ErrorBoundary>

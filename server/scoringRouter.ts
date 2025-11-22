@@ -97,7 +97,7 @@ import {
   pharmacyDailyChallengeStats,
   brandDailyChallengeStats,
 } from '../drizzle/dailyChallengeSchema';
-import { eq, and, inArray, sql } from 'drizzle-orm';
+import { eq, and, inArray, sql, gte, lte } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import {
   mergeLineupWithBreakdowns,
@@ -105,6 +105,7 @@ import {
   type ChallengeSlotInfo,
   type ChallengeStatBreakdown,
 } from './utils/challengeBreakdownHelpers';
+import { getWeekDateRange } from './utils/isoWeek';
 
 export const scoringRouter = router({
   /**
@@ -471,6 +472,101 @@ export const scoringRouter = router({
       }
 
       return teamScores;
+    }),
+
+  /**
+   * Get live cumulative scores for the current week
+   * Aggregates daily stats for all teams in the league
+   */
+  getLeagueLiveScores: protectedProcedure
+    .input(z.object({
+      leagueId: z.number(),
+      year: z.number(),
+      week: z.number().min(1).max(53),
+    }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error('Database not available');
+
+      // Calculate date range for the week
+      const { startDate, endDate } = getWeekDateRange(input.year, input.week);
+
+      // Get all teams in the league
+      const leagueTeams = await db
+        .select({ id: teams.id, name: teams.name })
+        .from(teams)
+        .where(eq(teams.leagueId, input.leagueId));
+
+      const teamScores = [];
+
+      // For each team, calculate score from DAILY stats
+      for (const team of leagueTeams) {
+        // Get team's lineup for this week
+        const lineup = await db
+          .select()
+          .from(weeklyLineups)
+          .where(and(
+            eq(weeklyLineups.teamId, team.id),
+            eq(weeklyLineups.year, input.year),
+            eq(weeklyLineups.week, input.week)
+          ))
+          .limit(1);
+
+        let totalPoints = 0;
+
+        if (lineup.length > 0) {
+          const l = lineup[0];
+          const assetIds = [
+            { type: 'manufacturer', id: l.mfg1Id },
+            { type: 'manufacturer', id: l.mfg2Id },
+            { type: 'cannabis_strain', id: l.cstr1Id },
+            { type: 'cannabis_strain', id: l.cstr2Id },
+            { type: 'product', id: l.prd1Id },
+            { type: 'product', id: l.prd2Id },
+            { type: 'pharmacy', id: l.phm1Id },
+            { type: 'pharmacy', id: l.phm2Id },
+            { type: 'brand', id: l.brd1Id },
+            { type: l.flexType, id: l.flexId }
+          ].filter(a => a.id !== null);
+
+          // Aggregate points for each asset from daily stats tables
+          for (const asset of assetIds) {
+            if (!asset.type || !asset.id) continue;
+
+            let table;
+            let idCol;
+            switch (asset.type) {
+              case 'manufacturer': table = manufacturerDailyChallengeStats; idCol = manufacturerDailyChallengeStats.manufacturerId; break;
+              case 'cannabis_strain': table = strainDailyChallengeStats; idCol = strainDailyChallengeStats.strainId; break;
+              case 'product': table = productDailyChallengeStats; idCol = productDailyChallengeStats.productId; break;
+              case 'pharmacy': table = pharmacyDailyChallengeStats; idCol = pharmacyDailyChallengeStats.pharmacyId; break;
+              case 'brand': table = brandDailyChallengeStats; idCol = brandDailyChallengeStats.brandId; break;
+            }
+
+            if (table && idCol) {
+              const stats = await db
+                .select({ points: table.totalPoints })
+                .from(table)
+                .where(and(
+                  eq(idCol, asset.id),
+                  gte(table.statDate, startDate),
+                  lte(table.statDate, endDate)
+                ));
+              
+              const assetTotal = stats.reduce((sum, s) => sum + (s.points || 0), 0);
+              totalPoints += assetTotal;
+            }
+          }
+        }
+
+        teamScores.push({
+          teamId: team.id,
+          teamName: team.name,
+          points: totalPoints
+        });
+      }
+
+      return teamScores.sort((a, b) => b.points - a.points).map((s, i) => ({ ...s, rank: i + 1 }));
     }),
 
   /**
