@@ -45,7 +45,7 @@ export default function Scoring() {
   const [, setLocation] = useLocation();
   const leagueId = parseInt(id!);
   const { user } = useAuth();
-  
+
   const [selectedWeek, setSelectedWeek] = useState<number>(1);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
@@ -57,6 +57,64 @@ export default function Scoring() {
 
   // Fetch league data
   const { data: league } = trpc.league.getById.useQuery({ leagueId: leagueId });
+
+  // Fetch team scores for selected week
+  const { data: weekScores, refetch: refetchScores, isRefetching } =
+    trpc.scoring.getLeagueWeekScores.useQuery(
+      {
+        leagueId,
+        year: selectedYear,
+        week: selectedWeek,
+      },
+      {
+        enabled: !!leagueId,
+      }
+    );
+
+  // NEW: Fetch LIVE cumulative scores for the current week
+  const { data: cumulativeLiveScores, isLoading: isLoadingLive } =
+    trpc.scoring.getLeagueLiveScores.useQuery(
+      {
+        leagueId,
+        year: selectedYear,
+        week: selectedWeek,
+      },
+      {
+        enabled:
+          !!leagueId &&
+          !!weekScores &&
+          weekScores.every((s) => s.points === 0),
+        refetchInterval: 60000, // Refresh every minute
+      }
+    );
+
+  // Fetch scoring breakdown for selected team
+  const { data: breakdown } = trpc.scoring.getTeamBreakdown.useQuery(
+    {
+      teamId: selectedTeamId!,
+      year: selectedYear,
+      week: selectedWeek,
+    },
+    {
+      enabled: !!selectedTeamId,
+    }
+  );
+
+  // Manual score calculation mutation (admin only)
+  const calculateScoresMutation = trpc.scoring.calculateLeagueWeek.useMutation({
+    onSuccess: () => {
+      toast.success("Scores calculated successfully!");
+      refetchScores();
+      setIsCalculating(false);
+    },
+    onError: (error) => {
+      toast.error(`Failed to calculate scores: ${error.message}`);
+      setIsCalculating(false);
+    },
+  });
+
+  const userTeam = league?.teams?.find((team: any) => team.userId === user?.id);
+  const isCommissioner = league?.commissionerUserId === user?.id;
 
   useEffect(() => {
     if (league?.leagueType === "challenge") {
@@ -77,10 +135,8 @@ export default function Scoring() {
     setSelectedWeek(defaultWeek);
     setDefaultsApplied(true);
   }, [league, defaultsApplied]);
-  
+
   // Auto-calculate scores if data is missing and user is admin/commissioner
-  const { mutate: calculateScores } = calculateScoresMutation;
-  
   useEffect(() => {
     if (
       !isCalculating &&
@@ -90,64 +146,23 @@ export default function Scoring() {
       (user?.role === 'admin' || isCommissioner)
     ) {
       console.log("Auto-triggering score calculation for empty week...");
-      calculateScores({
+      calculateScoresMutation.mutate({
         leagueId,
         year: selectedYear,
         week: selectedWeek,
       });
     }
   }, [
-    weekScores, 
-    isCalculating, 
-    isRefetching, 
-    user?.role, 
-    isCommissioner, 
-    calculateScores, 
-    leagueId, 
-    selectedYear, 
+    weekScores,
+    isCalculating,
+    isRefetching,
+    user?.role,
+    isCommissioner,
+    calculateScoresMutation,
+    leagueId,
+    selectedYear,
     selectedWeek
   ]);
-  
-  // Fetch team scores for selected week
-  const { data: weekScores, refetch: refetchScores, isRefetching } = trpc.scoring.getLeagueWeekScores.useQuery({
-    leagueId,
-    year: selectedYear,
-    week: selectedWeek,
-  }, {
-    enabled: !!leagueId,
-  });
-
-  // NEW: Fetch LIVE cumulative scores for the current week
-  const { data: cumulativeLiveScores, isLoading: isLoadingLive } = trpc.scoring.getLeagueLiveScores.useQuery({
-    leagueId,
-    year: selectedYear,
-    week: selectedWeek,
-  }, {
-    enabled: !!leagueId && !!weekScores && weekScores.every(s => s.points === 0),
-    refetchInterval: 60000, // Refresh every minute
-  });
-
-  // Fetch scoring breakdown for selected team
-  const { data: breakdown } = trpc.scoring.getTeamBreakdown.useQuery({
-    teamId: selectedTeamId!,
-    year: selectedYear,
-    week: selectedWeek,
-  }, {
-    enabled: !!selectedTeamId,
-  });
-
-  // Manual score calculation mutation (admin only)
-  const calculateScoresMutation = trpc.scoring.calculateLeagueWeek.useMutation({
-    onSuccess: () => {
-      toast.success("Scores calculated successfully!");
-      refetchScores();
-      setIsCalculating(false);
-    },
-    onError: (error) => {
-      toast.error(`Failed to calculate scores: ${error.message}`);
-      setIsCalculating(false);
-    },
-  });
 
   // WebSocket for real-time updates
   const { isConnected } = useWebSocket({
@@ -232,9 +247,6 @@ export default function Scoring() {
   if (league.leagueType === "challenge") {
     return null;
   }
-
-  const userTeam = league.teams?.find((team: any) => team.userId === user?.id);
-  const isCommissioner = league.commissionerUserId === user?.id;
 
   return (
     <div className="min-h-screen gradient-dark">
