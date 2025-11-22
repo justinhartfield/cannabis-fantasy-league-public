@@ -325,40 +325,41 @@ export default function Draft() {
       {/* Header */}
       <div className="border-b-4 border-weed-green bg-white/90 backdrop-blur-lg shadow-lg relative z-20">
         <div className="w-full max-w-[1600px] mx-auto px-4 md:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-start gap-4 w-full md:w-auto">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => window.history.back()}
+                className="shrink-0 mt-1"
               >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Zurück zur Liga
+                <ArrowLeft className="w-4 h-4 md:mr-2" />
+                <span className="hidden md:inline">Zurück zur Liga</span>
               </Button>
-              <div>
-                <h1 className="headline-secondary text-2xl text-weed-coral">{league.name}</h1>
-                <p className="text-sm text-muted-foreground font-medium">
+              <div className="min-w-0 flex-1">
+                <h1 className="headline-secondary text-xl md:text-2xl text-weed-coral break-words leading-tight">{league.name}</h1>
+                <p className="text-sm text-muted-foreground font-medium truncate">
                   Draft - {myTeam.name}
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 md:gap-4 w-full md:w-auto justify-between md:justify-end">
               {/* Timer Display */}
               {timerSeconds !== null && !isNaN(timerSeconds) && timerSeconds >= 0 && (
-                <div className="flex items-center gap-2 px-4 py-2 bg-weed-purple/20 border-2 border-weed-purple rounded-lg shadow-md">
-                  <span className="text-sm font-bold text-weed-purple">
+                <div className="flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-weed-purple/20 border-2 border-weed-purple rounded-lg shadow-md shrink-0">
+                  <span className="text-sm font-bold text-weed-purple whitespace-nowrap">
                     ⏱️ {Math.floor(timerSeconds / 60)}:{String(timerSeconds % 60).padStart(2, '0')}
                   </span>
                 </div>
               )}
               {/* Turn Indicator */}
               {currentTurnTeamName && (
-                <div className={`px-4 py-2 rounded-lg border-2 shadow-md ${
+                <div className={`px-3 py-1.5 md:px-4 md:py-2 rounded-lg border-2 shadow-md flex-1 md:flex-none text-center truncate ${
                   isMyTurn 
                     ? 'bg-weed-green border-weed-green' 
                     : 'bg-weed-coral/20 border-weed-coral'
                 }`}>
-                  <span className={`text-sm font-bold ${
+                  <span className={`text-sm font-bold truncate block ${
                     isMyTurn 
                       ? 'text-black' 
                       : 'text-weed-coral'

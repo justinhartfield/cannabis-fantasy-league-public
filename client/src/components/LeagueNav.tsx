@@ -39,12 +39,12 @@ export function LeagueNav({
           <Button variant="ghost" size="icon" onClick={() => window.history.back()}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <div className="flex items-center gap-3 flex-1">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
               <Trophy className="w-6 h-6 text-primary" />
             </div>
-            <div className="flex-1">
-              <h1 className="text-xl font-bold text-foreground">{leagueName}</h1>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl font-bold text-foreground truncate">{leagueName}</h1>
               <p className="text-sm text-muted-foreground">
                 {teamCount} / {maxTeams} Teams
               </p>
