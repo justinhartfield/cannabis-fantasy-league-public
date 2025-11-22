@@ -98,6 +98,27 @@ const formatAssetDescriptor = (
   }
 };
 
+// Helper functions moved from server/trendScoringEngine.ts to avoid server-side imports in client
+const getStreakTierName = (streakDays: number): string => {
+  if (streakDays >= 21) return '🔥🔥🔥🔥🔥 God Mode';
+  if (streakDays >= 14) return '🔥🔥🔥🔥 Legendary';
+  if (streakDays >= 7) return '🔥🔥🔥 Unstoppable';
+  if (streakDays >= 4) return '🔥🔥 On Fire';
+  if (streakDays >= 2) return '🔥 Hot Streak';
+  return 'No Streak';
+};
+
+const calculateStreakMultiplier = (streakDays: number): number => {
+  if (streakDays < 2) return 1.0; // No streak bonus
+  
+  // Progressive streak tiers with increasing multipliers
+  if (streakDays >= 21) return 3.0;  // 🔥🔥🔥🔥🔥 God Mode: 3x multiplier
+  if (streakDays >= 14) return 2.0;  // 🔥🔥🔥🔥 Legendary: 2x multiplier
+  if (streakDays >= 7) return 1.5;   // 🔥🔥🔥 Unstoppable: 1.5x multiplier
+  if (streakDays >= 4) return 1.25;  // 🔥🔥 On Fire: 1.25x multiplier
+  return 1.1;                         // 🔥 Hot Streak: 1.1x multiplier (2-3 days)
+};
+
 const getComponentTooltipContent = (
   component: ScoringComponent,
   assetType: ScoringBreakdownData["assetType"]
