@@ -242,31 +242,45 @@ export default function LeagueDetail() {
               <CardContent>
                 {league.teams && league.teams.length > 0 ? (
                   <div className="space-y-3">
-                    {league.teams.map((team: any) => (
-                      <div
-                        key={team.id}
-                        className="flex items-center justify-between p-3 rounded-lg bg-background border border-border"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                            <Trophy className="w-5 h-5 text-primary" />
+                    {league.teams.map((team: any) => {
+                      const isCommissionerTeam = team.userId === league.commissionerUserId;
+                      const isMyTeam = team.userId === user?.id;
+                      const subtitleParts = [
+                        isCommissionerTeam ? "Commissioner" : null,
+                        isMyTeam ? "Dein Team" : null,
+                        team.userName || null,
+                      ].filter(Boolean);
+
+                      const subtitle =
+                        subtitleParts.length > 0
+                          ? `${subtitleParts.join(" • ")} • $${team.faabBudget} FAAB`
+                          : `$${team.faabBudget} FAAB`;
+
+                      const displayName =
+                        team.name || team.teamName || team.userName || "Unbenanntes Team";
+
+                      return (
+                        <div
+                          key={team.id}
+                          className="flex items-center justify-between p-3 rounded-lg bg-background border border-border"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                              <Trophy className="w-5 h-5 text-primary" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-foreground">{displayName}</p>
+                              <p className="text-sm text-muted-foreground">{subtitle}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-medium text-foreground">{team.teamName}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {team.userId === league.commissionerId && "Commissioner • "}
-                              {team.userId === user?.id && "Dein Team • "}
-                              ${team.faabBudget} FAAB
-                            </p>
-                          </div>
+                          {isMyTeam && (
+                            <Badge variant="outline" className="bg-primary/10 text-primary border-primary">
+                              Du
+                            </Badge>
+                          )}
                         </div>
-                        {team.userId === user?.id && (
-                          <Badge variant="outline" className="bg-primary/10 text-primary border-primary">
-                            Du
-                          </Badge>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">

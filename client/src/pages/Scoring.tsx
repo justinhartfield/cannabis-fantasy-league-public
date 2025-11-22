@@ -52,6 +52,7 @@ export default function Scoring() {
   const [isCalculating, setIsCalculating] = useState(false);
   const [assetSortBy, setAssetSortBy] = useState<'points' | 'name' | 'type'>('points');
   const [assetFilter, setAssetFilter] = useState<string>('all');
+  const [defaultsApplied, setDefaultsApplied] = useState(false);
 
   // Fetch league data
   const { data: league } = trpc.league.getById.useQuery({ leagueId: leagueId });
@@ -61,6 +62,20 @@ export default function Scoring() {
       setLocation(`/challenge/${leagueId}`);
     }
   }, [league, leagueId, setLocation]);
+
+  useEffect(() => {
+    if (!league || defaultsApplied) {
+      return;
+    }
+
+    const fallbackYear = new Date().getFullYear();
+    const defaultYear = league.seasonYear || fallbackYear;
+    const defaultWeek = Math.max(1, (league.currentWeek ?? 1) - 1);
+
+    setSelectedYear(defaultYear);
+    setSelectedWeek(defaultWeek);
+    setDefaultsApplied(true);
+  }, [league, defaultsApplied]);
   
   // Fetch team scores for selected week
   const { data: weekScores, refetch: refetchScores, isRefetching } = trpc.scoring.getLeagueWeekScores.useQuery({
@@ -154,19 +169,6 @@ export default function Scoring() {
       ...score,
       rank: index + 1,
     }));
-
-  // Get current week number
-  const getCurrentWeek = () => {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), 0, 1);
-    const diff = now.getTime() - start.getTime();
-    const oneWeek = 1000 * 60 * 60 * 24 * 7;
-    return Math.ceil(diff / oneWeek);
-  };
-
-  useEffect(() => {
-    setSelectedWeek(getCurrentWeek());
-  }, []);
 
   if (!league) {
     return (
@@ -316,9 +318,10 @@ export default function Scoring() {
                   <div className="w-16 h-16 rounded-2xl bg-muted/30 mx-auto mb-4 flex items-center justify-center">
                     <Award className="w-8 h-8 text-muted-foreground" />
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    No scores yet for this week
-                  </p>
+                  <div className="space-y-2 text-sm text-muted-foreground">
+                    <p>No scores yet for this week.</p>
+                    <p>Scores appear after weekly stats are synced and scoring has been run for the selected year and week.</p>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -375,7 +378,39 @@ export default function Scoring() {
 
         {/* Scoring Breakdown */}
         <div className="lg:col-span-2">
-          {selectedTeamId && breakdown ? (
+          {!selectedTeamId ? (
+            <Card className="gradient-card border-border/50">
+              <CardContent className="py-20">
+                <div className="text-center max-w-md mx-auto">
+                  <div className="w-20 h-20 rounded-2xl bg-muted/30 mx-auto mb-6 flex items-center justify-center">
+                    <UserCircle className="w-10 h-10 text-muted-foreground" />
+                  </div>
+                  <p className="text-xl font-bold text-foreground mb-2">
+                    Select a Team
+                  </p>
+                  <p className="text-muted-foreground">
+                    Choose a team from the leaderboard to view their detailed scoring breakdown
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : !breakdown ? (
+            <Card className="gradient-card border-border/50">
+              <CardContent className="py-20">
+                <div className="text-center max-w-md mx-auto space-y-4">
+                  <div className="w-20 h-20 rounded-2xl bg-muted/30 mx-auto flex items-center justify-center">
+                    <BarChart3 className="w-10 h-10 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold text-foreground mb-2">Breakdown unavailable</p>
+                    <p className="text-muted-foreground">
+                      Weekly scoring has not completed for this league/week yet. Once stats are synced and scoring runs, the detailed breakdown for the selected team will appear here.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
             <div className="space-y-4">
               <Card>
                 <CardHeader>
@@ -511,22 +546,6 @@ export default function Scoring() {
                 </CardContent>
               </Card>
             </div>
-          ) : (
-            <Card className="gradient-card border-border/50">
-              <CardContent className="py-20">
-                <div className="text-center max-w-md mx-auto">
-                  <div className="w-20 h-20 rounded-2xl bg-muted/30 mx-auto mb-6 flex items-center justify-center">
-                    <UserCircle className="w-10 h-10 text-muted-foreground" />
-                  </div>
-                  <p className="text-xl font-bold text-foreground mb-2">
-                    Select a Team
-                  </p>
-                  <p className="text-muted-foreground">
-                    Choose a team from the leaderboard to view their detailed scoring breakdown
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
           )}
         </div>
       </div>

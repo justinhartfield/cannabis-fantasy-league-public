@@ -11,6 +11,7 @@ import authRouter from "../routes/auth";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { scoringScheduler } from "../scoringScheduler";
+import { seasonScoringScheduler } from "../seasonScoringScheduler";
 import { initDailyChallengeScheduler } from "../dailyChallengeScheduler";
 import { initPredictionScheduler } from "../predictionScheduler";
 import { getDailyStatsScheduler } from "../dailyStatsScheduler";
@@ -81,6 +82,9 @@ async function startServer() {
     // Start scoring scheduler
     scoringScheduler.start();
     console.log('[Scoring] Scheduler started');
+
+    // Start season-long scoring scheduler
+    seasonScoringScheduler.start();
     
     // Start daily challenge scheduler
     initDailyChallengeScheduler();
