@@ -91,52 +91,71 @@
 ### Manufacturer Scoring
 | Component | Formula | Points |
 |-----------|---------|--------|
-| Sales Volume | Sales (g) ÷ 100 | 1 pt per 100g |
-| Growth Rate | Growth % ÷ 10 × 5 | 5 pts per 10% |
-| Market Share | Rank improvement × 10 | 10 pts per rank |
-| Product Diversity | Product count × 2 | 2 pts per product |
-| Top Rank Bonus | Rank #1 | +25 pts |
-| Consistency Bonus | 3+ weeks growth | +15 pts |
-| Decline Penalty | Rank drops 5+ | -20 pts |
+| Supply Index | Derived tier (Powerhouse / High / Steady / Emerging) | 1 pt per internal supply bucket |
+| Growth Rate | Growth % ÷ 5 | 1 pt per 5% |
+| Market Share Gain | Rank improvement × 8 (cap 40) | Up to 40 pts |
+| Product Diversity | Product count × 1 (cap 20) | Up to 20 pts |
+| Rank Bonus | Rank tiers (1 / 2-3 / 4-5 / 6-10) | +30 / +20 / +15 / +10 |
+| Consistency Bonus | Positive growth + rank gain | +10 pts |
+| Decline Penalty | Rank drops ≥4 | -15 pts |
 
 ### Cannabis Strain Scoring
 | Component | Formula | Points |
 |-----------|---------|--------|
-| Favorites | Total favorites ÷ 100 | 1 pt per 100 |
-| Pharmacy Expansion | Pharmacy count × 5 | 5 pts per pharmacy |
-| Product Count | Product count × 3 | 3 pts per product |
+| Favorites | Total favorites ÷ 150 | 1 pt per 150 |
+| Pharmacy Expansion | Pharmacy count × 4 | 4 pts per pharmacy |
+| Product Count | Product count × 2 | 2 pts per product |
 | Price Stability Bonus | ±5% price change | +10 pts |
-| Market Penetration Bonus | >50% market share | +20 pts |
+| Market Penetration Bonus | >50% market share | +15 pts |
 | Price Volatility Penalty | >20% price change | -10 pts |
 
 ### Product Scoring
 | Component | Formula | Points |
 |-----------|---------|--------|
-| Favorite Growth | New favorites × 2 | 2 pts per favorite |
+| Order Activity | Orders × 4 | 4 pts per order |
 | Price Performance | Stability 90%+ | +5 pts |
-| Pharmacy Expansion | New pharmacies × 10 | 10 pts per pharmacy |
-| Order Volume | Volume (g) ÷ 50 | 1 pt per 50g |
+| Pharmacy Expansion | New pharmacies × 6 | 6 pts per pharmacy |
+| Demand Tier | Derived from internal order-volume buckets | 1 pt per demand bucket |
 | Trending Bonus | Top 10 velocity | +15 pts |
-| Premium Tier Bonus | Expensive category | +10 pts |
+| Premium Tier Bonus | Expensive category | +8 pts |
 | Price Crash Penalty | Volatility >70% | -15 pts |
 
 ### Pharmacy Scoring
 | Component | Formula | Points |
 |-----------|---------|--------|
-| Revenue | Revenue (€) ÷ 100 | 1 pt per €100 |
-| Order Count | Orders × 0.5 | 0.5 pts per order |
-| Customer Retention | Retention % ÷ 10 | 1 pt per 10% |
-| Product Variety | Products × 1 | 1 pt per product |
-| High App Usage Bonus | >80% usage | +15 pts |
-| Growth Streak Bonus | 3+ weeks growth | +10 pts |
+| Revenue | Revenue (€) ÷ 800 | 1 pt per €800 |
+| Order Count | Orders × 1.5 | 1.5 pts per order |
+| Customer Retention | (Retention - 75) × 1 | 1 pt per % above 75 |
+| Product Variety | Products ÷ 20 | 1 pt per 20 products |
+| Order Size Profile | Tiered descriptor (Large / Balanced / Micro) | 1 pt per internal bucket |
+| High App Usage Bonus | >60% usage | +5 pts |
+| Growth Bonus | Growth % ÷ 5 × 2 | 2 pts per 5% |
 | Retention Drop Penalty | <50% retention | -15 pts |
+
+### Brand Scoring
+| Component | Formula | Points |
+|-----------|---------|--------|
+| Fan Favorites | Favorites ÷ 200 | Up to 30 pts |
+| Reach | Views ÷ 2,000 | Up to 20 pts |
+| Conversations | Comments × 2 (cap 15) | Up to 15 pts |
+| Affiliate Demand | Clicks × 0.5 (cap 15) | Up to 15 pts |
+| Momentum | Growth signals (favorites / views / clicks) | Up to 20 pts |
+| Engagement Bonus | >8% / >12% | +10 / +15 pts |
+| Sentiment Adjustment | Sentiment ÷ 10 | -10 to +15 pts |
 
 ### Team Bonuses
 | Bonus | Condition | Points |
 |-------|-----------|--------|
-| Perfect Week | All 9 players score 50+ | +50 pts |
-| Balanced Roster | All categories within 20 pts | +25 pts |
-| Comeback | Bottom 3 to top 3 | +30 pts |
+| Perfect Week | All starters beat team median | +50 pts |
+| Position Diversity | Each category contributes 18%-32% | +30 pts |
+| Momentum Master | 3+ assets improve rank | +20 pts |
+| Daily Format Bonuses | Hot Streak (2+ assets ≥3d) / Trend Explosion (≥3×) / Dark Horse (top-10 jump) | +25 / +30 / +20 pts |
+| Weekly Format Bonuses | Consistency King (std dev ≤8%), Steady Climb, Market Leader (≥10% share) | +25 / +20 / +20 pts |
+
+### Balance Mechanics
+- **Dynamic Scarcity Multipliers**: Every scoring run recalculates asset-pool depth (baseline 100 assets). Scarcer positions receive up to a 1.35× boost, while deep pools are gently dampened (min 0.65×).
+- **Metadata-Aware Bonuses**: Asset breakdowns now include rank deltas, streaks, and market-share context so team bonuses can reason about real movement rather than raw points.
+- **Unified Scaling**: All position formulas target 50‑85 pt outputs so the flex spot is a true decision, not an auto-pick.
 
 ---
 
@@ -289,6 +308,17 @@ ws.onmessage = (event) => {
 // - team_score_calculated (multiple)
 // - scores_updated
 ```
+
+### Scoring Simulation & Validation
+
+Use the new analyzer to sanity-check point distributions (supports real data or mock fallback):
+
+```bash
+npx tsx scripts/scoring-simulation.ts --year=2025 --startWeek=1 --endWeek=4 --validate
+# add --mock when DB access isn't available
+```
+
+The tool reports average score, variance, bonus share, and per-position balance, failing the run if the values drift outside the target ranges (500‑750 average, ≤140 std dev, 10‑20% bonus share, ≤15 pt spread across positions).
 
 ---
 

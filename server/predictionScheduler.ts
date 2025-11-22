@@ -1,4 +1,5 @@
 import { generateDailyMatchups, scorePreviousDayMatchups } from './predictionService';
+import { getDataSyncServiceV2 } from './services/dataSyncService';
 
 /**
  * Prediction Streak Scheduler (No Cron Jobs - Free!)
@@ -8,10 +9,12 @@ import { generateDailyMatchups, scorePreviousDayMatchups } from './predictionSer
  * 
  * Handles:
  * - Generating daily matchups at 12:00 AM UTC
- * - Scoring previous day's matchups at 11:59 PM UTC
+ * - Syncing daily stats at 10:00 PM UTC (before scoring)
+ * - Scoring previous day's matchups at 11:00 PM UTC
  */
 
 let lastMatchupGenerationDate: string | null = null;
+let lastStatsSyncDate: string | null = null;
 let lastScoringDate: string | null = null;
 
 /**
@@ -41,7 +44,41 @@ async function checkAndGenerateMatchups() {
 }
 
 /**
+ * Check if we need to sync daily stats for yesterday
+ * This must run BEFORE scoring to ensure we have data to score with
+ */
+async function checkAndSyncStats() {
+  const now = new Date();
+  const today = now.toISOString().split('T')[0];
+  
+  // Only sync once per day
+  if (lastStatsSyncDate === today) {
+    return;
+  }
+  
+  // Check if it's past 10:00 PM UTC (1 hour before scoring)
+  const hour = now.getUTCHours();
+  if (hour >= 22) {
+    console.log('[PredictionScheduler] Syncing daily stats for yesterday...');
+    try {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
+      
+      const syncService = getDataSyncServiceV2();
+      await syncService.syncDailyStats(yesterdayStr);
+      
+      lastStatsSyncDate = today;
+      console.log('[PredictionScheduler] Daily stats sync completed');
+    } catch (error) {
+      console.error('[PredictionScheduler] Error syncing daily stats:', error);
+    }
+  }
+}
+
+/**
  * Check if we need to score yesterday's matchups
+ * This runs AFTER stats sync to ensure we have data
  */
 async function checkAndScoreMatchups() {
   const now = new Date();
@@ -52,7 +89,7 @@ async function checkAndScoreMatchups() {
     return;
   }
   
-  // Check if it's past 11:00 PM UTC (give 1 hour window before midnight)
+  // Check if it's past 11:00 PM UTC (1 hour after stats sync)
   const hour = now.getUTCHours();
   if (hour >= 23) {
     console.log('[PredictionScheduler] Scoring previous day matchups...');
@@ -71,7 +108,8 @@ async function checkAndScoreMatchups() {
  */
 async function schedulerLoop() {
   await checkAndGenerateMatchups();
-  await checkAndScoreMatchups();
+  await checkAndSyncStats(); // Sync stats first
+  await checkAndScoreMatchups(); // Then score
 }
 
 export function initPredictionScheduler() {
@@ -91,6 +129,7 @@ export function initPredictionScheduler() {
   
   console.log('[PredictionScheduler] Scheduled to check every hour');
   console.log('  - Matchup generation: After 12:00 AM UTC');
+  console.log('  - Daily stats sync: After 10:00 PM UTC');
   console.log('  - Scoring: After 11:00 PM UTC');
 }
 

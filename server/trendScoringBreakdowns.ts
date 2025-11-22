@@ -47,13 +47,13 @@ export function buildManufacturerTrendBreakdown(
     {
       category: 'Order Activity',
       value: `${orderCount} orders`,
-      formula: `${orderCount} × 10`,
+      formula: `${orderCount} × 5`,
       points: scoring.orderCountPoints,
     },
     {
       category: 'Trend Bonus',
       value: `${scoring.trendMultiplier.toFixed(2)}x`,
-      formula: `${scoring.trendMultiplier.toFixed(2)} × 100`,
+      formula: `${scoring.trendMultiplier.toFixed(2)} × 25`,
       points: scoring.trendMomentumPoints,
     },
   ];
@@ -165,13 +165,13 @@ export function buildStrainTrendBreakdown(
     {
       category: 'Order Activity',
       value: `${orderCount} orders`,
-      formula: `${orderCount} × 8`,
+      formula: `${orderCount} × 4.5`,
       points: scoring.orderCountPoints,
     },
     {
       category: 'Trend Bonus',
       value: `${scoring.trendMultiplier.toFixed(2)}x`,
-      formula: `${scoring.trendMultiplier.toFixed(2)} × 80`,
+      formula: `${scoring.trendMultiplier.toFixed(2)} × 22`,
       points: scoring.trendMomentumPoints,
     },
   ];
@@ -312,13 +312,13 @@ export function buildProductTrendBreakdown(
     {
       category: 'Order Activity',
       value: `${orderCount} orders`,
-      formula: `${orderCount} × 15`,
+      formula: `${orderCount} × 4`,
       points: scoring.orderCountPoints,
     },
     {
       category: 'Trend Bonus',
       value: `${scoring.trendMultiplier.toFixed(2)}x`,
-      formula: `${scoring.trendMultiplier.toFixed(2)} × 120`,
+      formula: `${scoring.trendMultiplier.toFixed(2)} × 20`,
       points: scoring.trendMomentumPoints,
     },
   ];
@@ -424,13 +424,13 @@ export function buildPharmacyTrendBreakdown(
     {
       category: 'Order Activity',
       value: `${orderCount} orders`,
-      formula: `${orderCount} × 10`,
+      formula: `${orderCount} × 5`,
       points: scoring.orderCountPoints,
     },
     {
       category: 'Trend Bonus',
       value: `${scoring.trendMultiplier.toFixed(2)}x`,
-      formula: `${scoring.trendMultiplier.toFixed(2)} × 100`,
+      formula: `${scoring.trendMultiplier.toFixed(2)} × 25`,
       points: scoring.trendMomentumPoints,
     },
   ];

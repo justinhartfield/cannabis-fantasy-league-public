@@ -37,7 +37,7 @@ import {
   pharmacyDailyChallengeStats,
   brandDailyChallengeStats,
 } from '../drizzle/dailyChallengeSchema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, count } from 'drizzle-orm';
 import { wsManager } from './websocket';
 import { getOrCreateLineup } from './utils/autoLineup';
 import { calculateBrandPoints } from './brandScoring';
@@ -74,6 +74,236 @@ export type BreakdownResult = {
   breakdown: BreakdownDetail;
 };
 
+type AssetType = 'manufacturer' | 'cannabis_strain' | 'product' | 'pharmacy' | 'brand';
+
+type ScarcityMultipliers = Record<AssetType, number>;
+
+type ScoreMetadata = {
+  scopeType: 'weekly' | 'daily';
+  rankDelta?: number;
+  currentRank?: number;
+  previousRank?: number;
+  marketSharePercent?: number;
+  trendMultiplier?: number;
+  streakDays?: number;
+};
+
+type AssetScoreResult = BreakdownResult & {
+  metadata?: ScoreMetadata;
+  scarcityMultiplier?: number;
+};
+
+type PositionPointsMap = {
+  mfg1: number;
+  mfg2: number;
+  cstr1: number;
+  cstr2: number;
+  prd1: number;
+  prd2: number;
+  phm1: number;
+  phm2: number;
+  brd1: number;
+  flex: number;
+};
+
+type TeamBonusEntry = {
+  type: string;
+  condition: string;
+  points: number;
+};
+
+const ASSET_TYPE_LABELS: Record<AssetType, string> = {
+  manufacturer: 'Manufacturer',
+  cannabis_strain: 'Genetics',
+  product: 'Product',
+  pharmacy: 'Pharmacy',
+  brand: 'Brand',
+};
+
+const SCARCITY_BASELINE = 100;
+const MIN_SCARCITY = 0.65;
+const MAX_SCARCITY = 1.35;
+
+const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value));
+
+function computeScarcityMultiplier(totalAssets: number): number {
+  const scarcityFactor = SCARCITY_BASELINE / Math.max(totalAssets, 10);
+  const raw = Math.pow(scarcityFactor, 0.5);
+  return clamp(Number(raw.toFixed(2)), MIN_SCARCITY, MAX_SCARCITY);
+}
+
+async function getScarcityMultipliers(db: Awaited<ReturnType<typeof getDb>>): Promise<ScarcityMultipliers> {
+  if (!db) {
+    return {
+      manufacturer: 1,
+      cannabis_strain: 1,
+      product: 1,
+      pharmacy: 1,
+      brand: 1,
+    };
+  }
+
+  const [
+    [manufacturerResult],
+    [strainResult],
+    [cannabisStrainResult],
+    [pharmacyResult],
+    [brandResult],
+  ] = await Promise.all([
+    db.select({ count: count() }).from(manufacturers),
+    db.select({ count: count() }).from(strains),
+    db.select({ count: count() }).from(cannabisStrains),
+    db.select({ count: count() }).from(pharmacies),
+    db.select({ count: count() }).from(brands),
+  ]);
+
+  return {
+    manufacturer: computeScarcityMultiplier(manufacturerResult?.count ?? 0),
+    cannabis_strain: computeScarcityMultiplier(cannabisStrainResult?.count ?? 0),
+    product: computeScarcityMultiplier(strainResult?.count ?? 0),
+    pharmacy: computeScarcityMultiplier(pharmacyResult?.count ?? 0),
+    brand: computeScarcityMultiplier(brandResult?.count ?? 0),
+  };
+}
+
+function applyScarcityAdjustment(
+  result: AssetScoreResult,
+  assetType: AssetType,
+  multiplier: number
+): AssetScoreResult {
+  const normalizedMultiplier = Number(multiplier?.toFixed(2)) || 1;
+  if (!result?.breakdown || normalizedMultiplier === 1) {
+    return {
+      ...result,
+      scarcityMultiplier: normalizedMultiplier,
+    };
+  }
+
+  const adjustedPoints = Math.round(result.points * normalizedMultiplier);
+  const delta = adjustedPoints - result.points;
+
+  const detail = result.breakdown;
+  detail.bonuses = detail.bonuses || [];
+  detail.penalties = detail.penalties || [];
+
+  if (delta !== 0) {
+    const entry = {
+      type: delta > 0 ? 'Scarcity Boost' : 'Scarcity Dampening',
+      condition: `${ASSET_TYPE_LABELS[assetType]} depth ×${normalizedMultiplier.toFixed(2)}`,
+      points: delta,
+    };
+    if (delta > 0) {
+      detail.bonuses.push(entry);
+    } else {
+      detail.penalties.push(entry);
+    }
+  }
+
+  detail.total = adjustedPoints;
+
+  return {
+    ...result,
+    points: adjustedPoints,
+    breakdown: detail,
+    scarcityMultiplier: normalizedMultiplier,
+  };
+}
+
+const computeMedian = (values: number[]): number => {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 0) {
+    return (sorted[mid - 1] + sorted[mid]) / 2;
+  }
+  return sorted[mid];
+};
+
+const computeStdDev = (values: number[]): number => {
+  if (!values.length) return 0;
+  const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
+  const variance =
+    values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
+  return Math.sqrt(variance);
+};
+
+type MetricDescriptor = {
+  label: string;
+  description: string;
+};
+
+const pickDescriptor = (
+  value: number,
+  tiers: Array<{ min: number; label: string; description: string }>
+): MetricDescriptor => {
+  const tier = tiers.find((entry) => value >= entry.min);
+  return tier || tiers[tiers.length - 1];
+};
+
+const describeSupplyVolume = (grams: number): MetricDescriptor =>
+  pickDescriptor(grams, [
+    { min: 8000, label: 'Powerhouse Supply', description: 'Top-tier output vs. league leaders' },
+    { min: 4000, label: 'High Activity', description: 'Comfortably above the league baseline' },
+    { min: 1500, label: 'Steady Contributor', description: 'Around the league median supply' },
+    { min: 0, label: 'Emerging Output', description: 'Building presence in the market' },
+  ]);
+
+const describeOrderVolume = (grams: number): MetricDescriptor =>
+  pickDescriptor(grams, [
+    { min: 3000, label: 'Surging Demand', description: 'Orders well above market average' },
+    { min: 1500, label: 'Strong Demand', description: 'Healthy order velocity' },
+    { min: 600, label: 'Consistent Demand', description: 'Near market baseline' },
+    { min: 0, label: 'Selective Demand', description: 'Targeted or niche order flow' },
+  ]);
+
+const describeAverageOrderSize = (grams: number): MetricDescriptor =>
+  pickDescriptor(grams, [
+    { min: 55, label: 'Large Format Dispenses', description: 'Serving high-quantity prescriptions' },
+    { min: 30, label: 'Balanced Prescription Size', description: 'Standard medical fulfilment' },
+    { min: 0, label: 'Micro Fulfilment', description: 'Smaller, specialized orders' },
+  ]);
+
+const describeOrderCadence = (orders: number): MetricDescriptor =>
+  pickDescriptor(orders, [
+    { min: 120, label: 'High Throughput', description: 'Significantly above daily cadence' },
+    { min: 60, label: 'Busy Day', description: 'Above the market baseline' },
+    { min: 25, label: 'Steady Flow', description: 'Around the league median' },
+    { min: 0, label: 'Targeted Fulfilment', description: 'Focused or low-volume day' },
+  ]);
+
+const buildDescriptorBreakdown = (
+  primaryCategory: string,
+  descriptor: MetricDescriptor,
+  points: number,
+  info: Array<{ category: string; value: number | string; description: string }> = []
+): BreakdownDetail => {
+  const components: BreakdownComponent[] = [
+    {
+      category: primaryCategory,
+      value: descriptor.label,
+      formula: descriptor.description,
+      points,
+    },
+  ];
+
+  info.forEach((item) => {
+    components.push({
+      category: item.category,
+      value: item.value,
+      formula: item.description,
+      points: 0,
+    });
+  });
+
+  return {
+    components,
+    bonuses: [],
+    penalties: [],
+    subtotal: points,
+    total: points,
+  };
+};
+
 const eurosFromCents = (cents: number): string => (cents / 100).toFixed(2);
 
 function finalizeDailyBreakdown(
@@ -97,6 +327,23 @@ function finalizeDailyBreakdown(
     },
   };
 }
+
+const createEmptyBreakdown = (message?: string): BreakdownDetail => ({
+  components: message
+    ? [
+        {
+          category: message,
+          value: '-',
+          formula: 'No stats available',
+          points: 0,
+        },
+      ]
+    : [],
+  bonuses: [],
+  penalties: [],
+  subtotal: 0,
+  total: 0,
+});
 
 type ManufacturerDailyStat = typeof manufacturerDailyChallengeStats.$inferSelect;
 type StrainDailyStat = typeof strainDailyChallengeStats.$inferSelect;
@@ -260,7 +507,6 @@ export function calculateManufacturerPoints(stats: {
   marketShareRank: number;
   rankChange: number;
   productCount: number;
-  previousWeekGrowth?: number;
 }): { points: number; breakdown: any } {
   const breakdown: any = {
     components: [],
@@ -270,81 +516,81 @@ export function calculateManufacturerPoints(stats: {
     total: 0,
   };
 
-  // 1. Sales Volume: 1 pt per 100g sold
-  const salesPoints = Math.floor(stats.salesVolumeGrams / 100);
+  // 1. Supply Index: 1 pt per 250g sold (hidden behind descriptor)
+  const salesPoints = Math.floor(stats.salesVolumeGrams / 250);
+  const supplyDescriptor = describeSupplyVolume(stats.salesVolumeGrams);
   breakdown.components.push({
-    category: 'Sales Volume',
-    value: stats.salesVolumeGrams,
-    formula: `${stats.salesVolumeGrams}g ÷ 100`,
+    category: 'Supply Index',
+    value: supplyDescriptor.label,
+    formula: supplyDescriptor.description,
     points: salesPoints,
   });
 
-  // 2. Growth Rate: 5 pts per 10% increase
-  const growthPoints = Math.floor((stats.growthRatePercent / 10) * 5);
+  // 2. Growth Rate: 1 pt per 5% increase
+  const growthPoints = Math.floor(stats.growthRatePercent / 5);
   breakdown.components.push({
     category: 'Growth Rate',
     value: stats.growthRatePercent,
-    formula: `${stats.growthRatePercent}% ÷ 10 × 5`,
+    formula: `${stats.growthRatePercent}% ÷ 5`,
     points: growthPoints,
   });
 
-  // 3. Market Share Gain: 10 pts per rank improvement
-  const rankGainPoints = stats.rankChange > 0 ? stats.rankChange * 10 : 0;
-  if (stats.rankChange > 0) {
+  // 3. Product Diversity: 1 pt per product (capped at 20)
+  const diversityPoints = Math.min(20, stats.productCount);
+  breakdown.components.push({
+    category: 'Product Diversity',
+    value: stats.productCount,
+    formula: `${stats.productCount} products × 1`,
+    points: diversityPoints,
+  });
+
+  // 4. Market Share Gain: 8 pts per rank improvement (capped at 40)
+  const rankGainPoints = stats.rankChange > 0 ? Math.min(40, stats.rankChange * 8) : 0;
+  if (rankGainPoints > 0) {
     breakdown.components.push({
       category: 'Market Share Gain',
       value: stats.rankChange,
-      formula: `${stats.rankChange} ranks × 10`,
+      formula: `${stats.rankChange} ranks × 8`,
       points: rankGainPoints,
     });
   }
 
-  // 4. Top Rank Bonus: 25 pts for #1 position
+  // Bonuses
   let topRankBonus = 0;
-  if (stats.marketShareRank === 1) {
-    topRankBonus = 25;
+  if (stats.marketShareRank === 1) topRankBonus = 30;
+  else if (stats.marketShareRank >= 2 && stats.marketShareRank <= 3) topRankBonus = 20;
+  else if (stats.marketShareRank >= 4 && stats.marketShareRank <= 5) topRankBonus = 15;
+  else if (stats.marketShareRank >= 6 && stats.marketShareRank <= 10) topRankBonus = 10;
+  if (topRankBonus > 0) {
     breakdown.bonuses.push({
-      type: 'Top Rank Bonus',
-      condition: 'Rank #1',
-      points: 25,
+      type: 'Rank Bonus',
+      condition: `Rank #${stats.marketShareRank}`,
+      points: topRankBonus,
     });
   }
 
-  // 5. Product Diversity: 2 pts per product
-  const diversityPoints = stats.productCount * 2;
-  breakdown.components.push({
-    category: 'Product Diversity',
-    value: stats.productCount,
-    formula: `${stats.productCount} products × 2`,
-    points: diversityPoints,
-  });
-
-  // 6. Consistency Bonus: 15 pts for 3+ weeks positive growth
   let consistencyBonus = 0;
-  if (stats.previousWeekGrowth && stats.previousWeekGrowth > 0 && stats.growthRatePercent > 0) {
-    // This would require tracking multiple weeks - simplified for now
-    consistencyBonus = 15;
+  if (stats.growthRatePercent >= 5 && stats.rankChange >= 1) {
+    consistencyBonus = 10;
     breakdown.bonuses.push({
       type: 'Consistency Bonus',
-      condition: '3+ weeks positive growth',
-      points: 15,
+      condition: 'Positive growth & rank gain',
+      points: consistencyBonus,
     });
   }
 
   // Penalties
-  // Manufacturer Decline: -20 pts if rank drops 5+ positions
   let declinePenalty = 0;
-  if (stats.rankChange < -5) {
-    declinePenalty = -20;
+  if (stats.rankChange < -3) {
+    declinePenalty = -15;
     breakdown.penalties.push({
-      type: 'Manufacturer Decline',
+      type: 'Rank Slide',
       condition: `Rank dropped ${Math.abs(stats.rankChange)} positions`,
-      points: -20,
+      points: declinePenalty,
     });
   }
 
-  // Calculate totals
-  breakdown.subtotal = salesPoints + growthPoints + rankGainPoints + diversityPoints;
+  breakdown.subtotal = salesPoints + growthPoints + diversityPoints + rankGainPoints;
   breakdown.total = breakdown.subtotal + topRankBonus + consistencyBonus + declinePenalty;
 
   return {
@@ -392,12 +638,12 @@ export function calculateStrainPoints(stats: {
     total: 0,
   };
 
-  // 1. Favorite Growth: 2 pts per new favorite
-  const favoritePoints = stats.favoriteGrowth * 2;
+  // 1. Favorite Growth: 1.5 pts per new favorite
+  const favoritePoints = Math.floor(stats.favoriteGrowth * 1.5);
   breakdown.components.push({
     category: 'Favorite Growth',
     value: stats.favoriteGrowth,
-    formula: `${stats.favoriteGrowth} new favorites × 2`,
+    formula: `${stats.favoriteGrowth} new favorites × 1.5`,
     points: favoritePoints,
   });
 
@@ -417,23 +663,24 @@ export function calculateStrainPoints(stats: {
     points: pricePoints,
   });
 
-  // 3. Pharmacy Expansion: 10 pts per new pharmacy
-  const expansionPoints = stats.pharmacyExpansion * 10;
+  // 3. Pharmacy Expansion: 6 pts per new pharmacy
+  const expansionPoints = stats.pharmacyExpansion * 6;
   if (stats.pharmacyExpansion > 0) {
     breakdown.components.push({
       category: 'Pharmacy Expansion',
       value: stats.pharmacyExpansion,
-      formula: `${stats.pharmacyExpansion} new pharmacies × 10`,
+      formula: `${stats.pharmacyExpansion} new pharmacies × 6`,
       points: expansionPoints,
     });
   }
 
-  // 4. Order Volume: 1 pt per 50g sold
-  const volumePoints = Math.floor(stats.orderVolumeGrams / 50);
+  // 4. Order Volume: 1 pt per 80g sold (reported as demand tier)
+  const volumePoints = Math.floor(stats.orderVolumeGrams / 80);
+  const demandDescriptor = describeOrderVolume(stats.orderVolumeGrams);
   breakdown.components.push({
     category: 'Order Volume',
-    value: stats.orderVolumeGrams,
-    formula: `${stats.orderVolumeGrams}g ÷ 50`,
+    value: demandDescriptor.label,
+    formula: demandDescriptor.description,
     points: volumePoints,
   });
 
@@ -448,12 +695,12 @@ export function calculateStrainPoints(stats: {
     });
   }
 
-  // 6. Price Category: Up to 10 pts for premium tiers
+  // 6. Price Category: Up to 8 pts for premium tiers
   let priceCategoryPoints = 0;
   if (stats.priceCategory === 'expensive') {
-    priceCategoryPoints = 10;
+    priceCategoryPoints = 8;
   } else if (stats.priceCategory === 'above_average') {
-    priceCategoryPoints = 5;
+    priceCategoryPoints = 4;
   }
   if (priceCategoryPoints > 0) {
     breakdown.components.push({
@@ -503,30 +750,30 @@ export function calculateCannabisStrainPoints(stats: {
     total: 0,
   };
 
-  // 1. Favorites: 1 pt per 100 favorites
-  const favoritesPoints = Math.floor(stats.totalFavorites / 100);
+  // 1. Favorites: 1 pt per 150 favorites
+  const favoritesPoints = Math.floor(stats.totalFavorites / 150);
   breakdown.components.push({
     category: 'Aggregate Favorites',
     value: stats.totalFavorites,
-    formula: `${stats.totalFavorites} ÷ 100`,
+    formula: `${stats.totalFavorites} ÷ 150`,
     points: favoritesPoints,
   });
 
-  // 2. Pharmacy Expansion: 5 pts per pharmacy carrying the strain
-  const pharmacyPoints = stats.pharmacyCount * 5;
+  // 2. Pharmacy Expansion: 4 pts per pharmacy carrying the strain
+  const pharmacyPoints = stats.pharmacyCount * 4;
   breakdown.components.push({
     category: 'Pharmacy Expansion',
     value: stats.pharmacyCount,
-    formula: `${stats.pharmacyCount} pharmacies × 5`,
+    formula: `${stats.pharmacyCount} pharmacies × 4`,
     points: pharmacyPoints,
   });
 
-  // 3. Product Count: 3 pts per product using the strain
-  const productPoints = stats.productCount * 3;
+  // 3. Product Count: 2 pts per product using the strain
+  const productPoints = stats.productCount * 2;
   breakdown.components.push({
     category: 'Product Count',
     value: stats.productCount,
-    formula: `${stats.productCount} products × 3`,
+    formula: `${stats.productCount} products × 2`,
     points: productPoints,
   });
 
@@ -541,14 +788,14 @@ export function calculateCannabisStrainPoints(stats: {
     });
   }
 
-  // 5. Market Penetration Bonus: 20 pts for >50% market penetration
+  // 5. Market Penetration Bonus: 15 pts for >50% market penetration
   let marketPenetrationBonus = 0;
   if (stats.marketPenetration > 50) {
-    marketPenetrationBonus = 20;
+    marketPenetrationBonus = 15;
     breakdown.bonuses.push({
       type: 'High Market Penetration',
       condition: `${stats.marketPenetration}% of market`,
-      points: 20,
+      points: 15,
     });
   }
 
@@ -595,44 +842,44 @@ export function calculatePharmacyPoints(stats: {
     total: 0,
   };
 
-  // 1. Weekly Revenue: 1 pt per €500
+  // 1. Weekly Revenue: 1 pt per €800
   const revenueEuros = stats.revenueCents / 100;
-  const revenuePoints = Math.floor(revenueEuros / 500);
+  const revenuePoints = Math.floor(revenueEuros / 800);
   breakdown.components.push({
     category: 'Weekly Revenue',
     value: revenueEuros,
-    formula: `€${revenueEuros.toFixed(2)} ÷ 500`,
+    formula: `€${revenueEuros.toFixed(2)} ÷ 800`,
     points: revenuePoints,
   });
 
-  // 2. Order Count: 2 pts per order
-  const orderPoints = stats.orderCount * 2;
+  // 2. Order Count: 1.5 pts per order
+  const orderPoints = Math.floor(stats.orderCount * 1.5);
   breakdown.components.push({
     category: 'Order Count',
     value: stats.orderCount,
-    formula: `${stats.orderCount} orders × 2`,
+    formula: `${stats.orderCount} orders × 1.5`,
     points: orderPoints,
   });
 
   // 3. Customer Retention: 2 pts per % above baseline (75%)
   const baselineRetention = stats.baselineRetention || 75;
   const retentionBonus = Math.max(0, stats.customerRetentionRate - baselineRetention);
-  const retentionPoints = retentionBonus * 2;
+  const retentionPoints = retentionBonus;
   if (retentionPoints > 0) {
     breakdown.components.push({
       category: 'Customer Retention',
       value: stats.customerRetentionRate,
-      formula: `(${stats.customerRetentionRate}% - ${baselineRetention}%) × 2`,
+      formula: `(${stats.customerRetentionRate}% - ${baselineRetention}%) × 1`,
       points: retentionPoints,
     });
   }
 
-  // 4. Product Variety: 1 pt per 10 products
-  const varietyPoints = Math.floor(stats.productVariety / 10);
+  // 4. Product Variety: 1 pt per 20 products
+  const varietyPoints = Math.floor(stats.productVariety / 20);
   breakdown.components.push({
     category: 'Product Variety',
     value: stats.productVariety,
-    formula: `${stats.productVariety} products ÷ 10`,
+    formula: `${stats.productVariety} products ÷ 20`,
     points: varietyPoints,
   });
 
@@ -647,17 +894,18 @@ export function calculatePharmacyPoints(stats: {
     });
   }
 
-  // 6. Order Size: 1 pt per 10g average
-  const orderSizePoints = Math.floor(stats.avgOrderSizeGrams / 10);
+  // 6. Order Size: 1 pt per 15g average (exposed as tier)
+  const orderSizePoints = Math.floor(stats.avgOrderSizeGrams / 15);
+  const orderSizeDescriptor = describeAverageOrderSize(stats.avgOrderSizeGrams);
   breakdown.components.push({
     category: 'Order Size',
-    value: stats.avgOrderSizeGrams,
-    formula: `${stats.avgOrderSizeGrams}g ÷ 10`,
+    value: orderSizeDescriptor.label,
+    formula: orderSizeDescriptor.description,
     points: orderSizePoints,
   });
 
-  // 7. Growth Bonus: 3 pts per 5% increase
-  const growthPoints = Math.floor((stats.growthRatePercent / 5) * 3);
+  // 7. Growth Bonus: 2 pts per 5% increase
+  const growthPoints = Math.floor((stats.growthRatePercent / 5) * 2);
   if (growthPoints > 0) {
     breakdown.components.push({
       category: 'Growth Bonus',
@@ -697,67 +945,166 @@ export function calculatePharmacyPoints(stats: {
  */
 export function calculateTeamBonuses(
   totalPoints: number,
-  positionPoints: {
-    mfg1: number;
-    mfg2: number;
-    cstr1: number;
-    cstr2: number;
-    prd1: number;
-    prd2: number;
-    phm1: number;
-    phm2: number;
-    brd1: number;
-    flex: number;
-  }
-): { bonuses: any[]; totalBonus: number } {
-  const bonuses: any[] = [];
-  let totalBonus = 0;
+  positionPoints: PositionPointsMap,
+  assetBreakdowns: Array<{
+    position: string;
+    assetType: AssetType;
+    metadata?: ScoreMetadata;
+  }>,
+  scope: ScoreScope
+): { bonuses: TeamBonusEntry[]; totalBonus: number } {
+  const appliedBonuses: TeamBonusEntry[] = [];
+  const baseBonuses: TeamBonusEntry[] = [];
+  let remainingCap = 100;
 
-  // Perfect Week: +50 pts if all starters score >50 pts
   const allScores = Object.values(positionPoints);
-  if (allScores.every(score => score > 50)) {
-    bonuses.push({
+  const median = computeMedian(allScores);
+  if (allScores.every(score => score > 0 && score >= median)) {
+    baseBonuses.push({
       type: 'Perfect Week',
-      condition: 'All starters >50 pts',
+      condition: 'All starters beat team median',
       points: 50,
     });
-    totalBonus += 50;
   }
 
-  // Underdog Victory: +25 pts if win with <600 total
-  // (This would be determined in matchup context)
-
-  // Market Domination: +30 pts if total >500
-  if (totalPoints > 500) {
-    bonuses.push({
-      type: 'Market Domination',
-      condition: 'Total score >500 pts',
-      points: 30,
-    });
-    totalBonus += 30;
-  }
-
-  // Balanced Attack: +20 pts if all asset types contribute >25%
   if (totalPoints > 0) {
-    const mfgTotal = positionPoints.mfg1 + positionPoints.mfg2;
-    const cultivarTotal = positionPoints.cstr1 + positionPoints.cstr2 + positionPoints.prd1 + positionPoints.prd2;
-    const retailTotal = positionPoints.phm1 + positionPoints.phm2 + positionPoints.brd1;
+    const flexEntry = assetBreakdowns.find((entry) => entry.position === 'FLEX');
+    const flexValue = positionPoints.flex;
+    let manufacturerTotal = positionPoints.mfg1 + positionPoints.mfg2;
+    let cultivationTotal = positionPoints.cstr1 + positionPoints.cstr2 + positionPoints.prd1 + positionPoints.prd2;
+    let retailTotal = positionPoints.phm1 + positionPoints.phm2;
+    let brandTotal = positionPoints.brd1;
 
-    const mfgPercent = (mfgTotal / totalPoints) * 100;
-    const cultivarPercent = (cultivarTotal / totalPoints) * 100;
-    const retailPercent = (retailTotal / totalPoints) * 100;
+    if (flexValue > 0 && flexEntry) {
+      if (flexEntry.assetType === 'manufacturer') manufacturerTotal += flexValue;
+      else if (flexEntry.assetType === 'cannabis_strain' || flexEntry.assetType === 'product') cultivationTotal += flexValue;
+      else if (flexEntry.assetType === 'pharmacy') retailTotal += flexValue;
+      else if (flexEntry.assetType === 'brand') brandTotal += flexValue;
+    }
 
-    if (mfgPercent > 25 && cultivarPercent > 25 && retailPercent > 25) {
-      bonuses.push({
-        type: 'Balanced Attack',
-        condition: 'Manufacturers, cultivars, and retail each >25%',
-        points: 20,
+    const groups = [manufacturerTotal, cultivationTotal, retailTotal, brandTotal];
+    const percentages = groups.map((value) => (totalPoints > 0 ? value / totalPoints : 0));
+    const diversityAchieved =
+      percentages.every((percent) => percent >= 0.18 && percent <= 0.32) && groups.every((value) => value > 0);
+
+    if (diversityAchieved) {
+      baseBonuses.push({
+        type: 'Position Diversity',
+        condition: 'All categories contribute 18%-32%',
+        points: 30,
       });
-      totalBonus += 20;
     }
   }
 
-  return { bonuses, totalBonus };
+  const momentumPlayers = assetBreakdowns.filter(
+    (entry) => (entry.metadata?.rankDelta ?? 0) > 0
+  ).length;
+  if (momentumPlayers >= 3) {
+    baseBonuses.push({
+      type: 'Momentum Master',
+      condition: '3+ assets gained rank this period',
+      points: 20,
+    });
+  }
+
+  const formatBonuses = calculateFormatBonuses(scope, assetBreakdowns, positionPoints, totalPoints);
+
+  const appendBonus = (bonus: TeamBonusEntry | null) => {
+    if (!bonus || bonus.points <= 0 || remainingCap <= 0) {
+      return;
+    }
+    const appliedPoints = Math.min(remainingCap, bonus.points);
+    appliedBonuses.push({ ...bonus, points: appliedPoints });
+    remainingCap -= appliedPoints;
+  };
+
+  baseBonuses.forEach(appendBonus);
+  formatBonuses.forEach(appendBonus);
+
+  const totalBonus = appliedBonuses.reduce((sum, bonus) => sum + bonus.points, 0);
+
+  return { bonuses: appliedBonuses, totalBonus };
+}
+
+function calculateFormatBonuses(
+  scope: ScoreScope,
+  assetBreakdowns: Array<{ metadata?: ScoreMetadata }>,
+  positionPoints: PositionPointsMap,
+  totalPoints: number
+): TeamBonusEntry[] {
+  const bonuses: TeamBonusEntry[] = [];
+
+  if (scope.type === 'daily') {
+    const hotStreakCount = assetBreakdowns.filter(
+      (entry) => (entry.metadata?.streakDays ?? 0) >= 3
+    ).length;
+    if (hotStreakCount >= 2) {
+      bonuses.push({
+        type: 'Hot Streak Squad',
+        condition: '2+ assets on 3-day streaks',
+        points: 25,
+      });
+    }
+
+    const hasTrendExplosion = assetBreakdowns.some(
+      (entry) => (entry.metadata?.trendMultiplier ?? 1) >= 3
+    );
+    if (hasTrendExplosion) {
+      bonuses.push({
+        type: 'Trend Explosion',
+        condition: 'At least one asset 3× above baseline',
+        points: 30,
+      });
+    }
+
+    const darkHorse = assetBreakdowns.some((entry) => {
+      const currentRank = entry.metadata?.currentRank ?? 0;
+      const previousRank = entry.metadata?.previousRank ?? 0;
+      return currentRank > 0 && currentRank <= 10 && previousRank - currentRank >= 10;
+    });
+    if (darkHorse) {
+      bonuses.push({
+        type: 'Dark Horse',
+        condition: 'Asset jumped 10+ ranks into top 10',
+        points: 20,
+      });
+    }
+    return bonuses;
+  }
+
+  const values = Object.values(positionPoints);
+  const stdDev = computeStdDev(values);
+  if (totalPoints > 0 && stdDev <= totalPoints * 0.08) {
+    bonuses.push({
+      type: 'Consistency King',
+      condition: 'All starters within 8% variance',
+      points: 25,
+    });
+  }
+
+  const steadyClimbPlayers = assetBreakdowns.filter(
+    (entry) => (entry.metadata?.rankDelta ?? 0) >= 2
+  ).length;
+  if (steadyClimbPlayers >= 2) {
+    bonuses.push({
+      type: 'Steady Climb',
+      condition: '2+ assets gained 2+ ranks',
+      points: 20,
+    });
+  }
+
+  const hasMarketLeader = assetBreakdowns.some(
+    (entry) => (entry.metadata?.marketSharePercent ?? 0) >= 10
+  );
+  if (hasMarketLeader) {
+    bonuses.push({
+      type: 'Market Leader',
+      condition: 'Asset with ≥10% share',
+      points: 20,
+    });
+  }
+
+  return bonuses;
 }
 
 // ============================================================================
@@ -776,6 +1123,7 @@ export async function calculateWeeklyScores(leagueId: number, year: number, week
   }
 
   try {
+    const scarcityMultipliers = await getScarcityMultipliers(db);
     const leagueTeams = await db
       .select()
       .from(teams)
@@ -787,7 +1135,9 @@ export async function calculateWeeklyScores(leagueId: number, year: number, week
 
     for (const team of leagueTeams) {
       try {
-        const points = await calculateTeamScore(team.id, year, week);
+        const points = await calculateTeamScore(team.id, year, week, {
+          scarcityMultipliers,
+        });
         teamScores.push({
           teamId: team.id,
           teamName: team.name,
@@ -825,20 +1175,31 @@ export async function calculateWeeklyScores(leagueId: number, year: number, week
 /**
  * Calculate score for a single team for a specific week
  */
-export async function calculateTeamScore(teamId: number, year: number, week: number): Promise<number> {
+export async function calculateTeamScore(
+  teamId: number,
+  year: number,
+  week: number,
+  options: { scarcityMultipliers?: ScarcityMultipliers } = {}
+): Promise<number> {
   return computeTeamScore({
     teamId,
     lineupYear: year,
     lineupWeek: week,
     scope: { type: 'weekly', year, week },
     persistence: { mode: 'weekly', teamId, year, week },
+    scarcityMultipliers: options.scarcityMultipliers,
   });
 }
 
 /**
  * Calculate score for a single team for a specific challenge day
  */
-export async function calculateTeamDailyScore(teamId: number, challengeId: number, statDate: string): Promise<number> {
+export async function calculateTeamDailyScore(
+  teamId: number,
+  challengeId: number,
+  statDate: string,
+  options: { scarcityMultipliers?: ScarcityMultipliers } = {}
+): Promise<number> {
   console.log(`[calculateTeamDailyScore] Starting calculation for team ${teamId}, challenge ${challengeId}, date ${statDate}`);
   const normalizedDate = new Date(`${statDate}T00:00:00Z`);
   if (Number.isNaN(normalizedDate.getTime())) {
@@ -854,6 +1215,7 @@ export async function calculateTeamDailyScore(teamId: number, challengeId: numbe
     lineupWeek: week,
     scope: { type: 'daily', statDate: dateString },
     persistence: { mode: 'daily', teamId, challengeId, statDate: dateString },
+    scarcityMultipliers: options.scarcityMultipliers,
   });
   console.log(`[calculateTeamDailyScore] Calculated score for team ${teamId}: ${score} points`);
   return score;
@@ -901,13 +1263,17 @@ export async function calculateDailyChallengeScores(challengeId: number, statDat
 
   console.log(`[calculateDailyChallengeScores] Found ${challengeTeams.length} teams in challenge ${challengeId}`);
   console.log(`[calculateDailyChallengeScores] Using stat date: ${statDateString}`);
+
+  const scarcityMultipliers = await getScarcityMultipliers(db);
   
   // Calculate scores for all teams in parallel for better performance
   await Promise.all(
     challengeTeams.map(async (team) => {
       try {
         console.log(`[calculateDailyChallengeScores] Processing team ${team.id} (${team.name})`);
-        await calculateTeamDailyScore(team.id, challengeId, statDateString);
+        await calculateTeamDailyScore(team.id, challengeId, statDateString, {
+          scarcityMultipliers,
+        });
       } catch (error) {
         console.error(`[Scoring] Error calculating daily score for team ${team.id}:`, error);
       }
@@ -945,6 +1311,7 @@ interface TeamScoreComputationOptions {
   lineupWeek: number;
   scope: ScoreScope;
   persistence: TeamScorePersistence;
+  scarcityMultipliers?: ScarcityMultipliers;
 }
 
 async function computeTeamScore(options: TeamScoreComputationOptions): Promise<number> {
@@ -952,6 +1319,8 @@ async function computeTeamScore(options: TeamScoreComputationOptions): Promise<n
   if (!db) {
     throw new Error('Database not available');
   }
+  const scarcityMultipliers =
+    options.scarcityMultipliers ?? (await getScarcityMultipliers(db));
 
   const teamLineup = await getOrCreateLineup(
     options.teamId,
@@ -967,7 +1336,7 @@ async function computeTeamScore(options: TeamScoreComputationOptions): Promise<n
     return 0;
   }
 
-  const positionPoints = {
+  const positionPoints: PositionPointsMap = {
     mfg1: 0,
     mfg2: 0,
     cstr1: 0,
@@ -985,55 +1354,55 @@ async function computeTeamScore(options: TeamScoreComputationOptions): Promise<n
   const scope = options.scope;
 
   if (teamLineup.mfg1Id) {
-    const result = await scoreManufacturer(teamLineup.mfg1Id, scope);
+    const result = await scoreManufacturer(teamLineup.mfg1Id, scope, scarcityMultipliers);
     positionPoints.mfg1 = result.points;
     breakdowns.push({ position: 'MFG1', assetType: 'manufacturer', assetId: teamLineup.mfg1Id, ...result });
   }
 
   if (teamLineup.mfg2Id) {
-    const result = await scoreManufacturer(teamLineup.mfg2Id, scope);
+    const result = await scoreManufacturer(teamLineup.mfg2Id, scope, scarcityMultipliers);
     positionPoints.mfg2 = result.points;
     breakdowns.push({ position: 'MFG2', assetType: 'manufacturer', assetId: teamLineup.mfg2Id, ...result });
   }
 
   if (teamLineup.cstr1Id) {
-    const result = await scoreCannabisStrain(teamLineup.cstr1Id, scope);
+    const result = await scoreCannabisStrain(teamLineup.cstr1Id, scope, scarcityMultipliers);
     positionPoints.cstr1 = result.points;
     breakdowns.push({ position: 'CSTR1', assetType: 'cannabis_strain', assetId: teamLineup.cstr1Id, ...result });
   }
 
   if (teamLineup.cstr2Id) {
-    const result = await scoreCannabisStrain(teamLineup.cstr2Id, scope);
+    const result = await scoreCannabisStrain(teamLineup.cstr2Id, scope, scarcityMultipliers);
     positionPoints.cstr2 = result.points;
     breakdowns.push({ position: 'CSTR2', assetType: 'cannabis_strain', assetId: teamLineup.cstr2Id, ...result });
   }
 
   if (teamLineup.prd1Id) {
-    const result = await scoreProduct(teamLineup.prd1Id, scope);
+    const result = await scoreProduct(teamLineup.prd1Id, scope, scarcityMultipliers);
     positionPoints.prd1 = result.points;
     breakdowns.push({ position: 'PRD1', assetType: 'product', assetId: teamLineup.prd1Id, ...result });
   }
 
   if (teamLineup.prd2Id) {
-    const result = await scoreProduct(teamLineup.prd2Id, scope);
+    const result = await scoreProduct(teamLineup.prd2Id, scope, scarcityMultipliers);
     positionPoints.prd2 = result.points;
     breakdowns.push({ position: 'PRD2', assetType: 'product', assetId: teamLineup.prd2Id, ...result });
   }
 
   if (teamLineup.phm1Id) {
-    const result = await scorePharmacy(teamLineup.phm1Id, scope);
+    const result = await scorePharmacy(teamLineup.phm1Id, scope, scarcityMultipliers);
     positionPoints.phm1 = result.points;
     breakdowns.push({ position: 'PHM1', assetType: 'pharmacy', assetId: teamLineup.phm1Id, ...result });
   }
 
   if (teamLineup.phm2Id) {
-    const result = await scorePharmacy(teamLineup.phm2Id, scope);
+    const result = await scorePharmacy(teamLineup.phm2Id, scope, scarcityMultipliers);
     positionPoints.phm2 = result.points;
     breakdowns.push({ position: 'PHM2', assetType: 'pharmacy', assetId: teamLineup.phm2Id, ...result });
   }
 
   if (teamLineup.brd1Id) {
-    const result = await scoreBrand(teamLineup.brd1Id, scope);
+    const result = await scoreBrand(teamLineup.brd1Id, scope, scarcityMultipliers);
     positionPoints.brd1 = result.points;
     breakdowns.push({ position: 'BRD1', assetType: 'brand', assetId: teamLineup.brd1Id, ...result });
   }
@@ -1041,15 +1410,15 @@ async function computeTeamScore(options: TeamScoreComputationOptions): Promise<n
   if (teamLineup.flexId && teamLineup.flexType) {
     let result;
     if (teamLineup.flexType === 'manufacturer') {
-      result = await scoreManufacturer(teamLineup.flexId, scope);
+      result = await scoreManufacturer(teamLineup.flexId, scope, scarcityMultipliers);
     } else if (teamLineup.flexType === 'brand') {
-      result = await scoreBrand(teamLineup.flexId, scope);
+      result = await scoreBrand(teamLineup.flexId, scope, scarcityMultipliers);
     } else if (teamLineup.flexType === 'cannabis_strain') {
-      result = await scoreCannabisStrain(teamLineup.flexId, scope);
+      result = await scoreCannabisStrain(teamLineup.flexId, scope, scarcityMultipliers);
     } else if (teamLineup.flexType === 'product') {
-      result = await scoreProduct(teamLineup.flexId, scope);
+      result = await scoreProduct(teamLineup.flexId, scope, scarcityMultipliers);
     } else {
-      result = await scorePharmacy(teamLineup.flexId, scope);
+      result = await scorePharmacy(teamLineup.flexId, scope, scarcityMultipliers);
     }
     positionPoints.flex = result.points;
     breakdowns.push({ position: 'FLEX', assetType: teamLineup.flexType, assetId: teamLineup.flexId, ...result });
@@ -1057,7 +1426,12 @@ async function computeTeamScore(options: TeamScoreComputationOptions): Promise<n
 
   const subtotal = Object.values(positionPoints).reduce((sum, pts) => sum + pts, 0);
 
-  const { totalBonus } = calculateTeamBonuses(subtotal, positionPoints);
+  const { bonuses: teamBonuses, totalBonus } = calculateTeamBonuses(
+    subtotal,
+    positionPoints,
+    breakdowns,
+    scope
+  );
 
   const totalPoints = subtotal + totalBonus;
 
@@ -1245,7 +1619,11 @@ async function persistTeamScore(db: Awaited<ReturnType<typeof getDb>>, params: P
 /**
  * Score a manufacturer for a specific week
  */
-async function scoreManufacturer(manufacturerId: number, scope: ScoreScope): Promise<{ points: number; breakdown: any }> {
+async function scoreManufacturer(
+  manufacturerId: number,
+  scope: ScoreScope,
+  scarcityMultipliers: ScarcityMultipliers
+): Promise<AssetScoreResult> {
   const db = await getDb();
   if (!db) {
     throw new Error('Database not available');
@@ -1276,7 +1654,7 @@ async function scoreManufacturer(manufacturerId: number, scope: ScoreScope): Pro
 
   if (stats.length === 0) {
     console.log(`[Scoring] No stats found for manufacturer ${manufacturerId}, scope=${scope.type === 'weekly' ? `${scope.year}-W${scope.week}` : scope.statDate}`);
-    return { points: 0, breakdown: {} };
+    return { points: 0, breakdown: createEmptyBreakdown('No Data') };
   }
 
   const statRecord = stats[0];
@@ -1284,45 +1662,85 @@ async function scoreManufacturer(manufacturerId: number, scope: ScoreScope): Pro
   // For weekly scoring, calculate points using formula
   if (scope.type === 'weekly') {
     const weeklyStat = statRecord as typeof manufacturerWeeklyStats.$inferSelect;
-    return calculateManufacturerPoints({
+    const weeklyResult = calculateManufacturerPoints({
       salesVolumeGrams: weeklyStat.salesVolumeGrams,
       growthRatePercent: weeklyStat.growthRatePercent,
       marketShareRank: weeklyStat.marketShareRank,
       rankChange: weeklyStat.rankChange,
       productCount: weeklyStat.productCount,
     });
+
+    const currentRank = weeklyStat.marketShareRank ?? 0;
+    const rankChange = weeklyStat.rankChange ?? 0;
+    const metadata: ScoreMetadata = {
+      scopeType: 'weekly',
+      rankDelta: rankChange,
+      currentRank,
+      previousRank: currentRank + (rankChange ? rankChange : 0),
+      marketSharePercent: 0,
+    };
+
+    return applyScarcityAdjustment(
+      { ...weeklyResult, metadata },
+      'manufacturer',
+      scarcityMultipliers.manufacturer
+    );
   }
 
-  // For daily challenges, return raw metrics snapshot for trend-based scoring
   const dailyStat = statRecord as ManufacturerDailyStat;
   const points = dailyStat.totalPoints ?? 0;
-
-  const breakdown = {
-    salesVolumeGrams: dailyStat.salesVolumeGrams ?? 0,
-    orderCount: dailyStat.orderCount ?? 0,
-    revenueCents: dailyStat.revenueCents ?? 0,
-    rank: dailyStat.rank ?? 0,
-    previousRank: dailyStat.previousRank ?? 0,
-    // Trend-based fields (may be zero for legacy rows)
-    trendMultiplier: dailyStat.trendMultiplier !== null && dailyStat.trendMultiplier !== undefined
+  const supplyDescriptor = describeSupplyVolume(dailyStat.salesVolumeGrams ?? 0);
+  const trendMultiplier =
+    dailyStat.trendMultiplier !== null && dailyStat.trendMultiplier !== undefined
       ? Number(dailyStat.trendMultiplier)
-      : undefined,
-    consistencyScore: dailyStat.consistencyScore ?? 0,
-    velocityScore: dailyStat.velocityScore ?? 0,
-    streakDays: dailyStat.streakDays ?? 0,
-    marketSharePercent: dailyStat.marketSharePercent !== null && dailyStat.marketSharePercent !== undefined
-      ? Number(dailyStat.marketSharePercent)
-      : 0,
+      : undefined;
+
+  const breakdown = buildDescriptorBreakdown(
+    'Activity Tier',
+    supplyDescriptor,
+    points,
+    [
+      {
+        category: 'Orders Processed',
+        value: dailyStat.orderCount ?? 0,
+        description: 'Raw order count snapshot (orders are safe to display)',
+      },
+      {
+        category: 'Trend Multiplier',
+        value: trendMultiplier ? `${trendMultiplier.toFixed(2)}×` : '–',
+        description: 'Momentum vs. 7-day rolling baseline',
+      },
+    ]
+  );
+
+  const rank = dailyStat.rank ?? 0;
+  const previousRank = dailyStat.previousRank ?? rank;
+  const metadata: ScoreMetadata = {
+    scopeType: 'daily',
+    rankDelta: previousRank - rank,
+    currentRank: rank,
+    previousRank,
+    marketSharePercent: Number(dailyStat.marketSharePercent ?? 0),
+    trendMultiplier: trendMultiplier ?? 1,
+    streakDays: Number(dailyStat.streakDays ?? 0),
   };
 
-  return { points, breakdown };
+  return applyScarcityAdjustment(
+    { points, breakdown, metadata },
+    'manufacturer',
+    scarcityMultipliers.manufacturer
+  );
 }
 
 /**
  * Score a cannabis strain (genetics/cultivar) for a specific week
  * Cannabis strains score based on aggregate metrics across all products using that strain
  */
-async function scoreCannabisStrain(cannabisStrainId: number, scope: ScoreScope): Promise<{ points: number; breakdown: any }> {
+async function scoreCannabisStrain(
+  cannabisStrainId: number,
+  scope: ScoreScope,
+  scarcityMultipliers: ScarcityMultipliers
+): Promise<AssetScoreResult> {
   const db = await getDb();  
   if (!db) {
     throw new Error('Database not available');
@@ -1392,36 +1810,74 @@ async function scoreCannabisStrain(cannabisStrainId: number, scope: ScoreScope):
       .set({ totalPoints: result.points })
       .where(eq(cannabisStrainWeeklyStats.id, weeklyStat.id));
 
-    return result;
+    const metadata: ScoreMetadata = {
+      scopeType: 'weekly',
+      rankDelta: 0,
+      currentRank: 0,
+      previousRank: 0,
+      marketSharePercent: weeklyStat.marketPenetration ?? 0,
+    };
+
+    return applyScarcityAdjustment(
+      { ...result, metadata },
+      'cannabis_strain',
+      scarcityMultipliers.cannabis_strain
+    );
   }
 
-  // For daily challenges, return raw metrics snapshot for trend-based scoring
   const dailyStat = statRecord as StrainDailyStat;
   const points = dailyStat.totalPoints ?? 0;
-
-  const breakdown = {
-    salesVolumeGrams: dailyStat.salesVolumeGrams ?? 0,
-    orderCount: dailyStat.orderCount ?? 0,
-    rank: dailyStat.rank ?? 0,
-    previousRank: dailyStat.previousRank ?? 0,
-    trendMultiplier: dailyStat.trendMultiplier !== null && dailyStat.trendMultiplier !== undefined
+  const supplyDescriptor = describeSupplyVolume(dailyStat.salesVolumeGrams ?? 0);
+  const trendMultiplier =
+    dailyStat.trendMultiplier !== null && dailyStat.trendMultiplier !== undefined
       ? Number(dailyStat.trendMultiplier)
-      : undefined,
-    consistencyScore: dailyStat.consistencyScore ?? 0,
-    velocityScore: dailyStat.velocityScore ?? 0,
-    streakDays: dailyStat.streakDays ?? 0,
-    marketSharePercent: dailyStat.marketSharePercent !== null && dailyStat.marketSharePercent !== undefined
-      ? Number(dailyStat.marketSharePercent)
-      : 0,
+      : undefined;
+
+  const breakdown = buildDescriptorBreakdown(
+    'Supply Tier',
+    supplyDescriptor,
+    points,
+    [
+      {
+        category: 'Orders Captured',
+        value: dailyStat.orderCount ?? 0,
+        description: 'Raw order count snapshot',
+      },
+      {
+        category: 'Trend Multiplier',
+        value: trendMultiplier ? `${trendMultiplier.toFixed(2)}×` : '–',
+        description: 'Momentum vs. rolling baseline',
+      },
+    ]
+  );
+
+  const rank = dailyStat.rank ?? 0;
+  const previousRank = dailyStat.previousRank ?? rank;
+  const metadata: ScoreMetadata = {
+    scopeType: 'daily',
+    rankDelta: previousRank - rank,
+    currentRank: rank,
+    previousRank,
+    marketSharePercent: Number(dailyStat.marketSharePercent ?? 0),
+    trendMultiplier: trendMultiplier ?? 1,
+    streakDays: Number(dailyStat.streakDays ?? 0),
   };
 
-  return { points, breakdown };
+  return applyScarcityAdjustment(
+    { points, breakdown, metadata },
+    'cannabis_strain',
+    scarcityMultipliers.cannabis_strain
+  );
 }
 
 /**
  * Score a product (pharmaceutical product) for a specific week
  */
-async function scoreProduct(productId: number, scope: ScoreScope): Promise<{ points: number; breakdown: any }> {
+async function scoreProduct(
+  productId: number,
+  scope: ScoreScope,
+  scarcityMultipliers: ScarcityMultipliers
+): Promise<AssetScoreResult> {
   const db = await getDb();
   if (!db) {
     throw new Error('Database not available');
@@ -1448,14 +1904,14 @@ async function scoreProduct(productId: number, scope: ScoreScope): Promise<{ poi
 
   if (stats.length === 0) {
     console.log(`[Scoring] No stats found for product ${productId}, scope=${scope.type === 'weekly' ? `${scope.year}-W${scope.week}` : scope.statDate}`);
-    return { points: 0, breakdown: {} };
+    return { points: 0, breakdown: createEmptyBreakdown('No Data') };
   }
 
   const statRecord = stats[0];
 
   if (scope.type === 'weekly') {
     const weeklyStat = statRecord as typeof strainWeeklyStats.$inferSelect;
-    return calculateStrainPoints({
+    const result = calculateStrainPoints({
       favoriteCount: weeklyStat.favoriteCount,
       favoriteGrowth: weeklyStat.favoriteGrowth,
       pharmacyCount: weeklyStat.pharmacyCount,
@@ -1464,34 +1920,75 @@ async function scoreProduct(productId: number, scope: ScoreScope): Promise<{ poi
       priceStability: weeklyStat.priceStability,
       orderVolumeGrams: weeklyStat.orderVolumeGrams,
     });
+
+    const metadata: ScoreMetadata = {
+      scopeType: 'weekly',
+      rankDelta: 0,
+      currentRank: 0,
+      previousRank: 0,
+      marketSharePercent: 0,
+    };
+
+    return applyScarcityAdjustment(
+      { ...result, metadata },
+      'product',
+      scarcityMultipliers.product
+    );
   }
 
   const dailyStat = statRecord as ProductDailyStat;
   const points = dailyStat.totalPoints ?? 0;
-
-  const breakdown = {
-    salesVolumeGrams: dailyStat.salesVolumeGrams ?? 0,
-    orderCount: dailyStat.orderCount ?? 0,
-    rank: dailyStat.rank ?? 0,
-    previousRank: dailyStat.previousRank ?? 0,
-    trendMultiplier: dailyStat.trendMultiplier !== null && dailyStat.trendMultiplier !== undefined
+  const demandDescriptor = describeOrderVolume(dailyStat.salesVolumeGrams ?? 0);
+  const trendMultiplier =
+    dailyStat.trendMultiplier !== null && dailyStat.trendMultiplier !== undefined
       ? Number(dailyStat.trendMultiplier)
-      : undefined,
-    consistencyScore: dailyStat.consistencyScore ?? 0,
-    velocityScore: dailyStat.velocityScore ?? 0,
-    streakDays: dailyStat.streakDays ?? 0,
-    marketSharePercent: dailyStat.marketSharePercent !== null && dailyStat.marketSharePercent !== undefined
-      ? Number(dailyStat.marketSharePercent)
-      : 0,
+      : undefined;
+
+  const breakdown = buildDescriptorBreakdown(
+    'Demand Tier',
+    demandDescriptor,
+    points,
+    [
+      {
+        category: 'Orders Captured',
+        value: dailyStat.orderCount ?? 0,
+        description: 'Raw order count snapshot',
+      },
+      {
+        category: 'Trend Multiplier',
+        value: trendMultiplier ? `${trendMultiplier.toFixed(2)}×` : '–',
+        description: 'Momentum vs. rolling baseline',
+      },
+    ]
+  );
+
+  const rank = dailyStat.rank ?? 0;
+  const previousRank = dailyStat.previousRank ?? rank;
+  const metadata: ScoreMetadata = {
+    scopeType: 'daily',
+    rankDelta: previousRank - rank,
+    currentRank: rank,
+    previousRank,
+    marketSharePercent: Number(dailyStat.marketSharePercent ?? 0),
+    trendMultiplier: trendMultiplier ?? 1,
+    streakDays: Number(dailyStat.streakDays ?? 0),
   };
 
-  return { points, breakdown };
+  return applyScarcityAdjustment(
+    { points, breakdown, metadata },
+    'product',
+    scarcityMultipliers.product
+  );
 }
 
 /**
  * Score a pharmacy for a specific week
  */
-async function scorePharmacy(pharmacyId: number, scope: ScoreScope): Promise<{ points: number; breakdown: any }> {
+async function scorePharmacy(
+  pharmacyId: number,
+  scope: ScoreScope,
+  scarcityMultipliers: ScarcityMultipliers
+): Promise<AssetScoreResult> {
   const db = await getDb();
   if (!db) {
     throw new Error('Database not available');
@@ -1518,7 +2015,7 @@ async function scorePharmacy(pharmacyId: number, scope: ScoreScope): Promise<{ p
 
   if (stats.length === 0) {
     console.log(`[Scoring] No stats found for pharmacy ${pharmacyId}, scope=${scope.type === 'weekly' ? `${scope.year}-W${scope.week}` : scope.statDate}`);
-    return { points: 0, breakdown: {} };
+    return { points: 0, breakdown: createEmptyBreakdown('No Data') };
   }
 
   const statRecord = stats[0];
@@ -1526,7 +2023,7 @@ async function scorePharmacy(pharmacyId: number, scope: ScoreScope): Promise<{ p
   // For weekly scoring, calculate points using formula
   if (scope.type === 'weekly') {
     const weeklyStat = statRecord as typeof pharmacyWeeklyStats.$inferSelect;
-    return calculatePharmacyPoints({
+    const result = calculatePharmacyPoints({
       revenueCents: weeklyStat.revenueCents,
       orderCount: weeklyStat.orderCount,
       avgOrderSizeGrams: weeklyStat.avgOrderSizeGrams,
@@ -1535,35 +2032,80 @@ async function scorePharmacy(pharmacyId: number, scope: ScoreScope): Promise<{ p
       appUsageRate: weeklyStat.appUsageRate,
       growthRatePercent: weeklyStat.growthRatePercent,
     });
+
+    const metadata: ScoreMetadata = {
+      scopeType: 'weekly',
+      rankDelta: 0,
+      currentRank: 0,
+      previousRank: 0,
+      marketSharePercent: 0,
+    };
+
+    return applyScarcityAdjustment(
+      { ...result, metadata },
+      'pharmacy',
+      scarcityMultipliers.pharmacy
+    );
   }
 
-  // For daily challenges, return raw metrics snapshot for trend-based scoring
   const dailyStat = statRecord as PharmacyDailyStat;
   const points = dailyStat.totalPoints ?? 0;
-
-  const breakdown = {
-    orderCount: dailyStat.orderCount ?? 0,
-    revenueCents: dailyStat.revenueCents ?? 0,
-    rank: dailyStat.rank ?? 0,
-    previousRank: dailyStat.previousRank ?? 0,
-    trendMultiplier: dailyStat.trendMultiplier !== null && dailyStat.trendMultiplier !== undefined
+  const cadenceDescriptor = describeOrderCadence(dailyStat.orderCount ?? 0);
+  const trendMultiplier =
+    dailyStat.trendMultiplier !== null && dailyStat.trendMultiplier !== undefined
       ? Number(dailyStat.trendMultiplier)
-      : undefined,
-    consistencyScore: dailyStat.consistencyScore ?? 0,
-    velocityScore: dailyStat.velocityScore ?? 0,
-    streakDays: dailyStat.streakDays ?? 0,
-    marketSharePercent: dailyStat.marketSharePercent !== null && dailyStat.marketSharePercent !== undefined
-      ? Number(dailyStat.marketSharePercent)
-      : 0,
+      : undefined;
+
+  const breakdown = buildDescriptorBreakdown(
+    'Order Cadence',
+    cadenceDescriptor,
+    points,
+    [
+      {
+        category: 'Orders Fulfilled',
+        value: dailyStat.orderCount ?? 0,
+        description: 'Raw order count snapshot',
+      },
+      {
+        category: 'Revenue Snapshot',
+        value: `€${eurosFromCents(dailyStat.revenueCents ?? 0)}`,
+        description: 'Daily revenue capture',
+      },
+      {
+        category: 'Trend Multiplier',
+        value: trendMultiplier ? `${trendMultiplier.toFixed(2)}×` : '–',
+        description: 'Momentum vs. rolling baseline',
+      },
+    ]
+  );
+
+  const rank = dailyStat.rank ?? 0;
+  const previousRank = dailyStat.previousRank ?? rank;
+  const metadata: ScoreMetadata = {
+    scopeType: 'daily',
+    rankDelta: previousRank - rank,
+    currentRank: rank,
+    previousRank,
+    marketSharePercent: Number(dailyStat.marketSharePercent ?? 0),
+    trendMultiplier: trendMultiplier ?? 1,
+    streakDays: Number(dailyStat.streakDays ?? 0),
   };
 
-  return { points, breakdown };
+  return applyScarcityAdjustment(
+    { points, breakdown, metadata },
+    'pharmacy',
+    scarcityMultipliers.pharmacy
+  );
 }
 
 /**
  * Score a brand for a specific week
  */
-async function scoreBrand(brandId: number, scope: ScoreScope): Promise<{ points: number; breakdown: any }> {
+async function scoreBrand(
+  brandId: number,
+  scope: ScoreScope,
+  scarcityMultipliers: ScarcityMultipliers
+): Promise<AssetScoreResult> {
   const db = await getDb();
   if (!db) {
     throw new Error('Database not available');
@@ -1590,7 +2132,7 @@ async function scoreBrand(brandId: number, scope: ScoreScope): Promise<{ points:
 
   if (stats.length === 0) {
     console.log(`[Scoring] No stats found for brand ${brandId}, scope=${scope.type === 'weekly' ? `${scope.year}-W${scope.week}` : scope.statDate}`);
-    return { points: 0, breakdown: {} };
+    return { points: 0, breakdown: createEmptyBreakdown('No Data') };
   }
 
   const statRecord = stats[0];
@@ -1598,7 +2140,7 @@ async function scoreBrand(brandId: number, scope: ScoreScope): Promise<{ points:
   // For weekly scoring, calculate points using formula
   if (scope.type === 'weekly') {
     const weeklyStat = statRecord as typeof brandWeeklyStats.$inferSelect;
-    return calculateBrandPoints({
+    const result = calculateBrandPoints({
       favorites: weeklyStat.favorites,
       favoriteGrowth: weeklyStat.favoriteGrowth,
       views: weeklyStat.views,
@@ -1610,9 +2152,36 @@ async function scoreBrand(brandId: number, scope: ScoreScope): Promise<{ points:
       engagementRate: weeklyStat.engagementRate,
       sentimentScore: weeklyStat.sentimentScore,
     });
+
+    const metadata: ScoreMetadata = {
+      scopeType: 'weekly',
+      rankDelta: 0,
+      currentRank: 0,
+      previousRank: 0,
+      marketSharePercent: 0,
+    };
+
+    return applyScarcityAdjustment(
+      { ...result, metadata },
+      'brand',
+      scarcityMultipliers.brand
+    );
   }
 
-  // For daily challenges, return detailed ratings-based breakdown
   const dailyStat = statRecord as BrandDailyStat;
-  return buildBrandDailyBreakdown(dailyStat);
+  const breakdownResult = buildBrandDailyBreakdown(dailyStat);
+  const rank = dailyStat.rank ?? 0;
+  const metadata: ScoreMetadata = {
+    scopeType: 'daily',
+    rankDelta: 0,
+    currentRank: rank,
+    previousRank: rank,
+    marketSharePercent: 0,
+  };
+
+  return applyScarcityAdjustment(
+    { ...breakdownResult, metadata },
+    'brand',
+    scarcityMultipliers.brand
+  );
 }
