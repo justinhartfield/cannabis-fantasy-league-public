@@ -184,9 +184,17 @@ export function DraftAssetCard({
                 {getCategoryLabel()}
               </Badge>
             </div>
-            <div className="flex items-center gap-2 mt-1">
-              {stats.slice(0, 2).map((stat, idx) => (
-                <div key={idx} className="px-2 py-1 rounded bg-primary/10 border border-primary/20">
+            <div className="flex flex-wrap items-center gap-2 mt-1">
+              {stats.map((stat, idx) => (
+                <div
+                  key={idx}
+                  className={cn(
+                    "px-2 py-1 rounded bg-primary/10 border border-primary/20",
+                    // On very small screens, only show the first two stats
+                    // to give the Draft button and primary info more space.
+                    idx >= 2 && "hidden md:inline-flex"
+                  )}
+                >
                   <span className="text-xs font-semibold text-primary">
                     {stat.label}: {stat.value}
                   </span>
@@ -203,7 +211,7 @@ export function DraftAssetCard({
           onClick={() => onDraft(assetType, assetId, assetName)}
           disabled={buttonConfig.disabled}
           className={cn(
-            "shrink-0 w-full sm:w-auto",
+            "shrink-0 w-full sm:w-auto sm:ml-4",
             urgency === "critical" && "animate-pulse"
           )}
         >

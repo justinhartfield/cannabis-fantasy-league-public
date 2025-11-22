@@ -88,11 +88,13 @@ export default function AcceptInvitation() {
 
   if (!token) {
     return (
-      <div className="container mx-auto p-6 max-w-2xl">
-        <Card>
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md border-2 border-destructive/30 shadow-xl">
           <CardContent className="py-12 text-center">
-            <XCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold mb-2">Invalid Invitation</h2>
+            <div className="w-20 h-20 rounded-2xl bg-destructive/10 mx-auto flex items-center justify-center mb-6">
+              <XCircle className="h-10 w-10 text-destructive" />
+            </div>
+            <h2 className="text-2xl font-bold mb-2 headline-primary text-destructive">Invalid Invitation</h2>
             <p className="text-muted-foreground">
               This invitation link is invalid or incomplete.
             </p>
@@ -104,11 +106,11 @@ export default function AcceptInvitation() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto p-6 max-w-2xl">
-        <Card>
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md border-0 shadow-xl">
           <CardContent className="py-12 text-center">
-            <Loader2 className="h-12 w-12 animate-spin text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">Loading invitation...</p>
+            <Loader2 className="h-12 w-12 animate-spin text-weed-green mx-auto mb-4" />
+            <p className="text-muted-foreground font-medium">Loading invitation...</p>
           </CardContent>
         </Card>
       </div>
@@ -117,13 +119,15 @@ export default function AcceptInvitation() {
 
   if (error) {
     return (
-      <div className="container mx-auto p-6 max-w-2xl">
-        <Card>
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md border-2 border-destructive/30 shadow-xl">
           <CardContent className="py-12 text-center">
-            <XCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold mb-2">Invitation Error</h2>
-            <p className="text-muted-foreground mb-4">{error.message}</p>
-            <Button onClick={() => navigate('/')}>Go Home</Button>
+            <div className="w-20 h-20 rounded-2xl bg-destructive/10 mx-auto flex items-center justify-center mb-6">
+              <XCircle className="h-10 w-10 text-destructive" />
+            </div>
+            <h2 className="text-2xl font-bold mb-2 headline-primary text-destructive">Invitation Error</h2>
+            <p className="text-muted-foreground mb-6">{error.message}</p>
+            <Button onClick={() => setLocation('/')} variant="outline">Go Home</Button>
           </CardContent>
         </Card>
       </div>
@@ -131,67 +135,82 @@ export default function AcceptInvitation() {
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-2xl">
-      <Card>
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <Trophy className="h-16 w-16 text-green-500" />
-          </div>
-          <CardTitle className="text-3xl">You're Invited!</CardTitle>
-          <p className="text-muted-foreground mt-2">
-            Join <strong>{invitation?.leagueName}</strong>
-          </p>
-        </CardHeader>
-
-        <CardContent className="space-y-6">
-          {/* Invitation Details */}
-          <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 space-y-2">
-            <div className="flex items-center gap-2">
-              <Mail className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Invited by:</span>
-              <span className="font-medium">{invitation?.inviterName}</span>
+    <div className="min-h-screen bg-weed-cream flex items-center justify-center p-4">
+      <Card className="w-full max-w-lg border-2 border-weed-green shadow-2xl overflow-hidden">
+        <div className="bg-weed-coral p-8 text-center relative overflow-hidden">
+          <div className="absolute inset-0 pattern-dots opacity-10" />
+          <div className="relative z-10">
+            <div className="w-20 h-20 rounded-2xl bg-white/20 mx-auto flex items-center justify-center mb-4 backdrop-blur-sm shadow-lg transform rotate-3">
+              <Trophy className="h-10 w-10 text-white" />
             </div>
-            <div className="flex items-center gap-2">
-              <Trophy className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">League:</span>
-              <span className="font-medium">{invitation?.leagueName}</span>
+            <CardTitle className="text-4xl headline-primary text-white mb-2 drop-shadow-md">YOU'RE INVITED!</CardTitle>
+            <p className="text-white/90 font-medium text-lg">
+              Join <strong className="text-white underline decoration-weed-green decoration-4 underline-offset-4">{invitation?.leagueName}</strong>
+            </p>
+          </div>
+        </div>
+
+        <CardContent className="p-8 space-y-6 bg-white">
+          {/* Invitation Details */}
+          <div className="bg-gray-50 rounded-xl p-6 border border-gray-100 shadow-sm">
+            <div className="grid gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-weed-green/20 flex items-center justify-center">
+                  <Mail className="h-5 w-5 text-emerald-700" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider">Invited by</p>
+                  <p className="font-bold text-lg">{invitation?.inviterName}</p>
+                </div>
+              </div>
+              <div className="h-px bg-gray-200" />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-weed-purple/10 flex items-center justify-center">
+                  <Trophy className="h-5 w-5 text-weed-purple" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider">League</p>
+                  <p className="font-bold text-lg">{invitation?.leagueName}</p>
+                </div>
+              </div>
             </div>
           </div>
 
           {/* Team Name Input */}
-          <div className="space-y-2">
-            <Label htmlFor="teamName">Team Name *</Label>
+          <div className="space-y-3">
+            <Label htmlFor="teamName" className="text-base font-bold uppercase tracking-wide text-gray-700">Team Name <span className="text-weed-coral">*</span></Label>
             <Input
               id="teamName"
-              placeholder="Enter your team name"
+              placeholder="ENTER YOUR TEAM NAME"
               value={teamName}
               onChange={(e) => setTeamName(e.target.value)}
               maxLength={50}
+              className="h-12 text-lg border-2 border-gray-200 focus:border-weed-green focus:ring-weed-green rounded-lg"
             />
-            <p className="text-xs text-muted-foreground">
-              Choose a unique name for your team
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <CheckCircle className="w-3 h-3 text-weed-green" /> Choose a unique name for your team
             </p>
           </div>
 
           {/* New User Section */}
-          <div className="border-t pt-4">
-            <div className="flex items-center gap-2 mb-4">
+          <div className="border-t border-dashed border-gray-200 pt-6">
+            <div className="flex items-center gap-3 mb-6 bg-gray-50 p-4 rounded-lg border border-gray-100">
               <input
                 type="checkbox"
                 id="newUser"
                 checked={isNewUser}
                 onChange={(e) => setIsNewUser(e.target.checked)}
-                className="rounded"
+                className="w-5 h-5 rounded border-gray-300 text-weed-green focus:ring-weed-green cursor-pointer"
               />
-              <Label htmlFor="newUser" className="cursor-pointer">
+              <Label htmlFor="newUser" className="cursor-pointer font-bold text-gray-700 select-none">
                 I'm a new user (create account)
               </Label>
             </div>
 
             {isNewUser && (
-              <div className="space-y-4 pl-6">
+              <div className="space-y-5 pl-2 animate-in slide-in-from-top-2 duration-300">
                 <div className="space-y-2">
-                  <Label htmlFor="username">Username *</Label>
+                  <Label htmlFor="username" className="font-bold text-gray-700">Username <span className="text-weed-coral">*</span></Label>
                   <Input
                     id="username"
                     placeholder="Choose a username"
@@ -199,11 +218,12 @@ export default function AcceptInvitation() {
                     onChange={(e) => setUsername(e.target.value)}
                     minLength={3}
                     maxLength={30}
+                    className="h-11 border-gray-200 focus:border-weed-green"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password *</Label>
+                  <Label htmlFor="password" className="font-bold text-gray-700">Password <span className="text-weed-coral">*</span></Label>
                   <Input
                     id="password"
                     type="password"
@@ -211,6 +231,7 @@ export default function AcceptInvitation() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     minLength={6}
+                    className="h-11 border-gray-200 focus:border-weed-green"
                   />
                   <p className="text-xs text-muted-foreground">
                     Minimum 6 characters
@@ -222,18 +243,17 @@ export default function AcceptInvitation() {
 
           {/* Expiration Notice */}
           {invitation?.expiresAt && (
-            <div className="text-sm text-muted-foreground text-center">
-              This invitation expires on{' '}
-              {new Date(invitation.expiresAt).toLocaleDateString()}
+            <div className="text-xs text-center py-2 px-4 bg-yellow-50 text-yellow-800 rounded-full font-medium inline-block w-full">
+              ⚠️ Invitation expires {new Date(invitation.expiresAt).toLocaleDateString()}
             </div>
           )}
         </CardContent>
 
-        <CardFooter className="flex gap-4">
+        <CardFooter className="flex flex-col sm:flex-row gap-4 p-8 pt-0 bg-white">
           <Button
             onClick={handleDecline}
             variant="outline"
-            className="flex-1"
+            className="flex-1 h-12 border-2 border-gray-200 hover:bg-gray-50 hover:text-red-600 font-bold uppercase tracking-wide"
             disabled={declineMutation.isLoading}
           >
             {declineMutation.isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -241,11 +261,11 @@ export default function AcceptInvitation() {
           </Button>
           <Button
             onClick={handleAccept}
-            className="flex-1"
+            className="flex-1 h-12 bg-weed-green hover:bg-weed-green/90 text-black font-bold uppercase tracking-wide shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5"
             disabled={acceptMutation.isLoading}
           >
             {acceptMutation.isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Accept & Join League
+            Accept & Join
           </Button>
         </CardFooter>
       </Card>
