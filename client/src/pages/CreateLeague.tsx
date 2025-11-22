@@ -225,7 +225,7 @@ export default function CreateLeague() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {[4, 6, 8, 10, 12, 14, 16].map((num) => (
+                        {[2, 4, 6, 8, 10, 12, 14, 16].map((num) => (
                           <SelectItem key={num} value={num.toString()}>
                             {num} Teams
                           </SelectItem>
@@ -266,7 +266,7 @@ export default function CreateLeague() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {[4, 6, 8].map((num) => (
+                        {[2, 4, 6, 8].map((num) => (
                           <SelectItem key={num} value={num.toString()}>
                             {num} Teams
                           </SelectItem>
