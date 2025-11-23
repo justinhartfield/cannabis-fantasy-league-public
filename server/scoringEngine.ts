@@ -47,6 +47,11 @@ import {
   calculatePharmacyScore as calculateDailyPharmacyScore,
   calculateBrandScore as calculateDailyBrandScore,
 } from './dailyChallengeScoringEngine';
+import {
+  calculateManufacturerTrendScore,
+  calculateStrainTrendScore,
+  calculatePharmacyTrendScore,
+} from './trendScoringEngine';
 import { getWeekDateRange } from './utils/isoWeek';
 
 export type BreakdownComponent = {
@@ -468,8 +473,6 @@ export function calculatePharmacyPoints(
     marketSharePercent: number;
   }
 ): { points: number; breakdown: any } {
-  const { calculatePharmacyTrendScore } = require('./trendScoringEngine');
-
   let dailyTotal = 0;
   const dailyBreakdowns: any[] = [];
 
@@ -485,7 +488,7 @@ export function calculatePharmacyPoints(
       marketSharePercent: Number(dayStat.marketSharePercent ?? 0),
     });
     dailyTotal += dayScore.totalPoints;
-    dailyBreakdowns.push({ date: dayStat.statDate, points: dayScore.totalPoints });
+    dailyBreakdowns.push({ points: dayScore.totalPoints });
   }
 
   const breakdown: any = {
@@ -579,6 +582,52 @@ export function buildBrandDailyBreakdown(statRecord: BrandDailySource): Breakdow
   return finalizeDailyBreakdown(components, bonuses, []);
 }
 
+export function buildPharmacyDailyBreakdown(statRecord: PharmacyDailySource): BreakdownResult {
+  const orderCount = statRecord.orderCount ?? 0;
+  const rank = statRecord.rank ?? 0;
+
+  // Use trend-based scoring exclusively
+  const scoring = calculatePharmacyTrendScore({
+    orderCount,
+    trendMultiplier: Number(statRecord.trendMultiplier ?? 1),
+    currentRank: rank,
+    previousRank: statRecord.previousRank ?? rank,
+    consistencyScore: Number(statRecord.consistencyScore ?? 0),
+    velocityScore: Number(statRecord.velocityScore ?? 0),
+    streakDays: Number(statRecord.streakDays ?? 0),
+    marketSharePercent: Number(statRecord.marketSharePercent ?? 0),
+  });
+
+  // Build the formatted breakdown for display
+  const breakdown: any = {
+    components: [],
+    bonuses: [],
+    penalties: [],
+    subtotal: scoring.totalPoints,
+    total: scoring.totalPoints,
+  };
+
+  breakdown.components.push({
+    category: 'Order Volume',
+    value: orderCount,
+    formula: `${orderCount} orders × 5`,
+    points: scoring.basePoints,
+  });
+
+  if (scoring.trendBonus > 0) {
+    breakdown.bonuses.push({
+      type: 'Trend Bonus',
+      condition: `${Number(statRecord.trendMultiplier ?? 1).toFixed(2)}x multiplier`,
+      points: scoring.trendBonus,
+    });
+  }
+
+  return {
+    points: breakdown.total,
+    breakdown,
+  };
+}
+
 // ============================================================================
 // SCORING FORMULAS
 // ============================================================================
@@ -599,8 +648,6 @@ export function calculateManufacturerPoints(
     streakDays: number;
   }
 ): { points: number; breakdown: any } {
-  const { calculateManufacturerTrendScore } = require('./trendScoringEngine');
-
   let dailyTotal = 0;
   const dailyBreakdowns: any[] = [];
 
@@ -617,7 +664,7 @@ export function calculateManufacturerPoints(
       marketSharePercent: Number(dayStat.marketSharePercent ?? 0),
     });
     dailyTotal += dayScore.totalPoints;
-    dailyBreakdowns.push({ date: dayStat.statDate, points: dayScore.totalPoints });
+    dailyBreakdowns.push({ points: dayScore.totalPoints });
   }
 
   const breakdown: any = {
@@ -729,8 +776,6 @@ export function calculateStrainPoints(
     marketSharePercent: number;
   }
 ): { points: number; breakdown: any } {
-  const { calculateStrainTrendScore } = require('./trendScoringEngine');
-
   let dailyTotal = 0;
   const dailyBreakdowns: any[] = [];
 
@@ -746,7 +791,7 @@ export function calculateStrainPoints(
       marketSharePercent: Number(dayStat.marketSharePercent ?? 0),
     });
     dailyTotal += dayScore.totalPoints;
-    dailyBreakdowns.push({ date: dayStat.statDate, points: dayScore.totalPoints });
+    dailyBreakdowns.push({ points: dayScore.totalPoints });
   }
 
   const breakdown: any = {
@@ -1980,6 +2025,7 @@ async function scoreCannabisStrain(
   // For weekly scoring, calculate points using formula
   if (scope.type === 'weekly') {
     const weeklyStat = statRecord as typeof cannabisStrainWeeklyStats.$inferSelect;
+    const { startDate, endDate } = getWeekDateRange(scope.year, scope.week);
     const result = calculateCannabisStrainPoints({
       totalFavorites: weeklyStat.totalFavorites,
       pharmacyCount: weeklyStat.pharmacyCount,
@@ -2191,8 +2237,8 @@ async function scorePharmacy(
       marketSharePercent: dailyStats.length > 0 ? Number(dailyStats[dailyStats.length - 1].marketSharePercent ?? 0) : 0,
     });
 
-    const currentRank = weeklyStat.rank ?? 0;
-    const previousRank = weeklyStat.previousRank ?? currentRank;
+    const currentRank = dailyStats.length > 0 ? (dailyStats[dailyStats.length - 1].rank ?? 0) : 0;
+    const previousRank = dailyStats.length > 0 ? (dailyStats[dailyStats.length - 1].previousRank ?? currentRank) : currentRank;
 
     const metadata: ScoreMetadata = {
       scopeType: 'weekly',
