@@ -85,13 +85,16 @@ export async function aggregatePharmaciesWithTrends(
       );
 
       // Calculate trend-based score
-      // Calculate trend-based score
+      // If trend data is missing, use precomputed neutral multiplier instead of bad fallback data
       const stats: TrendScoringStats = {
         orderCount: data.orderCount,
-        days1: trendData.trendMetrics?.days1 || data.orderCount, // Fallback to current count if no trend data
-        days7: trendData.trendMetrics?.days7 || data.orderCount, // Fallback to current count if no trend data
+        // Only use trend data if it exists, otherwise let the scoring engine use neutral multiplier
+        days1: trendData.trendMetrics?.days1,
+        days7: trendData.trendMetrics?.days7,
         days14: trendData.trendMetrics?.days14,
         days30: trendData.trendMetrics?.days30,
+        // Use neutral 1.0x multiplier when trend data is missing (prevents 5x hype bonus)
+        trendMultiplier: trendData.trendMetrics ? undefined : 1.0,
         previousRank: trendData.previousRank,
         currentRank: rank,
         streakDays: trendData.streakDays,
@@ -100,10 +103,9 @@ export async function aggregatePharmaciesWithTrends(
       };
 
       if (trendData.trendMetrics === null) {
-        await log('warn', `Missing trend metrics for pharmacy ${name}, using fallback`, {
-          days1: stats.days1,
-          days7: stats.days7,
-          count: data.orderCount
+        await log('warn', `Missing trend metrics for pharmacy ${name}, using neutral 1.0x multiplier`, {
+          orderCount: data.orderCount,
+          rank
         }, logger);
       }
 

@@ -1,13 +1,21 @@
 /**
  * TrendMetrics Data Fetcher
  * 
- * Fetches trend data from the Metabase TrendMetrics collection
+ * Fetches trend data from the Metabase saved questions/cards
  * and provides utilities for calculating advanced scoring metrics.
  */
 
 import { getMetabaseClient } from './metabase';
 import { getDb } from './db';
 import { sql } from 'drizzle-orm';
+
+// Metabase card IDs for trend data
+const TREND_CARDS = {
+  MANUFACTURERS: 123, // Table 123 - Manufacturer trends
+  PHARMACIES: 130,     // Table 130 - Pharmacy trends  
+  STRAINS: 1216,       // Question 1216 - Strain trends
+  PRODUCTS: 1240,      // Question 1240 - Product trends
+};
 
 export interface TrendMetricsData {
   entityId: string;
@@ -42,30 +50,51 @@ export async function fetchTrendMetrics(
   const metabase = getMetabaseClient();
   
   try {
-    const query = `db.TrendMetrics.find({ "entity": "${entityType}", "entityName": "${entityName}" }).limit(1)`;
-    const result = await metabase.executeQuery(query);
+    // Map entity types to their respective Metabase cards
+    const cardIdMap = {
+      'productManufacturer': TREND_CARDS.MANUFACTURERS,
+      'pharmacyName': TREND_CARDS.PHARMACIES,
+      'productStrainName': TREND_CARDS.STRAINS,
+      'productName': TREND_CARDS.PRODUCTS,
+    };
     
-    if (!result || !result.data || result.data.length === 0) {
+    const cardId = cardIdMap[entityType];
+    
+    // Execute the saved question/card
+    const results = await metabase.executeCardQuery(cardId);
+    
+    if (!results || results.length === 0) {
+      console.warn(`[TrendMetricsFetcher] No trend data returned from card ${cardId}`);
       return null;
     }
     
-    const record = result.data[0];
+    // Find the specific entity in the results
+    const record = results.find(r => 
+      (r.entityName === entityName || r.EntityName === entityName) ||
+      (r.name === entityName || r.Name === entityName)
+    );
+    
+    if (!record) {
+      console.debug(`[TrendMetricsFetcher] Entity "${entityName}" not found in card ${cardId} results`);
+      return null;
+    }
+    
     return {
-      entityId: record.entityId || record.EntityId,
-      entityName: record.entityName || record.EntityName,
-      entity: record.entity || record.Entity,
-      days1: Number(record.days1 || record.Days1 || 0),
-      days7: Number(record.days7 || record.Days7 || 0),
-      days14: Number(record.days14 || record.Days14 || 0),
-      days30: Number(record.days30 || record.Days30 || 0),
-      days60: Number(record.days60 || record.Days60 || 0),
-      days90: Number(record.days90 || record.Days90 || 0),
-      days1Rank: Number(record.days1Rank || record.Days1Rank || 0),
-      days7Rank: Number(record.days7Rank || record.Days7Rank || 0),
-      days14Rank: Number(record.days14Rank || record.Days14Rank || 0),
-      days30Rank: Number(record.days30Rank || record.Days30Rank || 0),
-      days60Rank: Number(record.days60Rank || record.Days60Rank || 0),
-      days90Rank: Number(record.days90Rank || record.Days90Rank || 0),
+      entityId: record.entityId || record.EntityId || record.id || String(record.ID || ''),
+      entityName: record.entityName || record.EntityName || record.name || record.Name || entityName,
+      entity: record.entity || record.Entity || entityType,
+      days1: Number(record.days1 || record.Days1 || record['1d'] || 0),
+      days7: Number(record.days7 || record.Days7 || record['7d'] || 0),
+      days14: Number(record.days14 || record.Days14 || record['14d'] || 0),
+      days30: Number(record.days30 || record.Days30 || record['30d'] || 0),
+      days60: Number(record.days60 || record.Days60 || record['60d'] || 0),
+      days90: Number(record.days90 || record.Days90 || record['90d'] || 0),
+      days1Rank: Number(record.days1Rank || record.Days1Rank || record.rank_1d || 0),
+      days7Rank: Number(record.days7Rank || record.Days7Rank || record.rank_7d || 0),
+      days14Rank: Number(record.days14Rank || record.Days14Rank || record.rank_14d || 0),
+      days30Rank: Number(record.days30Rank || record.Days30Rank || record.rank_30d || 0),
+      days60Rank: Number(record.days60Rank || record.Days60Rank || record.rank_60d || 0),
+      days90Rank: Number(record.days90Rank || record.Days90Rank || record.rank_90d || 0),
     };
   } catch (error) {
     console.error(`[TrendMetricsFetcher] Error fetching trend metrics for ${entityName}:`, error);
@@ -75,6 +104,7 @@ export async function fetchTrendMetrics(
 
 /**
  * Fetch TrendMetrics data for multiple entities in batch
+ * This is more efficient than calling fetchTrendMetrics multiple times
  */
 export async function fetchTrendMetricsBatch(
   entityType: 'productManufacturer' | 'pharmacyName' | 'productStrainName' | 'productName',
@@ -84,35 +114,53 @@ export async function fetchTrendMetricsBatch(
   const results = new Map<string, TrendMetricsData>();
   
   try {
-    const query = `db.TrendMetrics.find({ "entity": "${entityType}" })`;
-    const result = await metabase.executeQuery(query);
+    // Map entity types to their respective Metabase cards
+    const cardIdMap = {
+      'productManufacturer': TREND_CARDS.MANUFACTURERS,
+      'pharmacyName': TREND_CARDS.PHARMACIES,
+      'productStrainName': TREND_CARDS.STRAINS,
+      'productName': TREND_CARDS.PRODUCTS,
+    };
     
-    if (!result || !result.data) {
+    const cardId = cardIdMap[entityType];
+    
+    // Execute the saved question/card once to get all entities
+    const allResults = await metabase.executeCardQuery(cardId);
+    
+    if (!allResults || allResults.length === 0) {
+      console.warn(`[TrendMetricsFetcher] No batch trend data returned from card ${cardId}`);
       return results;
     }
     
-    for (const record of result.data) {
-      const name = record.entityName || record.EntityName;
+    console.log(`[TrendMetricsFetcher] Fetched ${allResults.length} records from card ${cardId}`);
+    
+    for (const record of allResults) {
+      const name = record.entityName || record.EntityName || record.name || record.Name;
+      if (!name) continue;
+      
+      // Only include entities we're looking for
       if (entityNames.includes(name)) {
         results.set(name, {
-          entityId: record.entityId || record.EntityId,
+          entityId: record.entityId || record.EntityId || record.id || String(record.ID || ''),
           entityName: name,
-          entity: record.entity || record.Entity,
-          days1: Number(record.days1 || record.Days1 || 0),
-          days7: Number(record.days7 || record.Days7 || 0),
-          days14: Number(record.days14 || record.Days14 || 0),
-          days30: Number(record.days30 || record.Days30 || 0),
-          days60: Number(record.days60 || record.Days60 || 0),
-          days90: Number(record.days90 || record.Days90 || 0),
-          days1Rank: Number(record.days1Rank || record.Days1Rank || 0),
-          days7Rank: Number(record.days7Rank || record.Days7Rank || 0),
-          days14Rank: Number(record.days14Rank || record.Days14Rank || 0),
-          days30Rank: Number(record.days30Rank || record.Days30Rank || 0),
-          days60Rank: Number(record.days60Rank || record.Days60Rank || 0),
-          days90Rank: Number(record.days90Rank || record.Days90Rank || 0),
+          entity: record.entity || record.Entity || entityType,
+          days1: Number(record.days1 || record.Days1 || record['1d'] || 0),
+          days7: Number(record.days7 || record.Days7 || record['7d'] || 0),
+          days14: Number(record.days14 || record.Days14 || record['14d'] || 0),
+          days30: Number(record.days30 || record.Days30 || record['30d'] || 0),
+          days60: Number(record.days60 || record.Days60 || record['60d'] || 0),
+          days90: Number(record.days90 || record.Days90 || record['90d'] || 0),
+          days1Rank: Number(record.days1Rank || record.Days1Rank || record.rank_1d || 0),
+          days7Rank: Number(record.days7Rank || record.Days7Rank || record.rank_7d || 0),
+          days14Rank: Number(record.days14Rank || record.Days14Rank || record.rank_14d || 0),
+          days30Rank: Number(record.days30Rank || record.Days30Rank || record.rank_30d || 0),
+          days60Rank: Number(record.days60Rank || record.Days60Rank || record.rank_60d || 0),
+          days90Rank: Number(record.days90Rank || record.Days90Rank || record.rank_90d || 0),
         });
       }
     }
+    
+    console.log(`[TrendMetricsFetcher] Matched ${results.size} of ${entityNames.length} requested entities`);
   } catch (error) {
     console.error(`[TrendMetricsFetcher] Error fetching batch trend metrics:`, error);
   }
@@ -148,21 +196,10 @@ export async function calculateMarketShare(
   entityType: 'productManufacturer' | 'pharmacyName' | 'productStrainName' | 'productName',
   entityName: string
 ): Promise<number> {
-  const metabase = getMetabaseClient();
-  
   try {
-    // Fetch total market volume
-    const totalQuery = `db.TrendMetrics.aggregate([
-      { $match: { "entity": "${entityType}" } },
-      { $group: { _id: null, total: { $sum: "$days7" } } }
-    ])`;
-    const totalResult = await metabase.executeQuery(totalQuery);
+    // Fetch total market volume using the more efficient batch method
+    const totalVolume = await fetchTotalMarketVolume(entityType);
     
-    if (!totalResult || !totalResult.data || totalResult.data.length === 0) {
-      return 0;
-    }
-    
-    const totalVolume = Number(totalResult.data[0].total || 0);
     if (totalVolume === 0) return 0;
     
     // Fetch entity volume
@@ -296,18 +333,32 @@ export async function fetchTotalMarketVolume(
   const metabase = getMetabaseClient();
   
   try {
-    // Fetch total market volume
-    const totalQuery = `db.TrendMetrics.aggregate([
-      { $match: { "entity": "${entityType}" } },
-      { $group: { _id: null, total: { $sum: "$days7" } } }
-    ])`;
-    const totalResult = await metabase.executeQuery(totalQuery);
+    // Map entity types to their respective Metabase cards
+    const cardIdMap = {
+      'productManufacturer': TREND_CARDS.MANUFACTURERS,
+      'pharmacyName': TREND_CARDS.PHARMACIES,
+      'productStrainName': TREND_CARDS.STRAINS,
+      'productName': TREND_CARDS.PRODUCTS,
+    };
     
-    if (!totalResult || !totalResult.data || totalResult.data.length === 0) {
+    const cardId = cardIdMap[entityType];
+    
+    // Execute the saved question/card and sum all days7 values
+    const results = await metabase.executeCardQuery(cardId);
+    
+    if (!results || results.length === 0) {
+      console.warn(`[TrendMetricsFetcher] No data returned from card ${cardId} for total volume calculation`);
       return 0;
     }
     
-    return Number(totalResult.data[0].total || 0);
+    // Sum all days7 values to get total market volume
+    const totalVolume = results.reduce((sum, record) => {
+      const days7 = Number(record.days7 || record.Days7 || record['7d'] || 0);
+      return sum + days7;
+    }, 0);
+    
+    console.log(`[TrendMetricsFetcher] Total market volume for ${entityType}: ${totalVolume}`);
+    return totalVolume;
   } catch (error) {
     console.error(`[TrendMetricsFetcher] Error calculating total market volume for ${entityType}:`, error);
     return 0;
