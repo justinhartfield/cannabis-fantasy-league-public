@@ -9,7 +9,7 @@ import { Search, TrendingUp, Leaf, Package, Building2, UserCircle, ArrowUpDown }
 import { toast } from "sonner";
 import { DraftAssetCard } from "@/components/DraftAssetCard";
 
-type AssetType = "manufacturer" | "cannabis_strain" | "product" | "pharmacy" | "brand";
+export type AssetType = "manufacturer" | "cannabis_strain" | "product" | "pharmacy" | "brand";
 
 type DailyScoreFields = {
   todayPoints?: number | null;
@@ -50,6 +50,7 @@ interface DraftBoardProps {
   isMyTurn: boolean;
   myRoster: Array<{ assetType: AssetType; assetId: number; name: string }>;
   onDraftPick: (assetType: AssetType, assetId: number) => void;
+  draftedAssets?: Record<AssetType, Set<number>>;
 }
 
 /**
@@ -69,6 +70,7 @@ export default function DraftBoard({
   isMyTurn,
   myRoster,
   onDraftPick,
+  draftedAssets,
 }: DraftBoardProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<AssetType | "all" | "brand">("all");
@@ -141,6 +143,19 @@ export default function DraftBoard({
       }
     });
     return sorted;
+  };
+
+  const isAssetDrafted = (assetType: AssetType, assetId: number) => {
+    if (!draftedAssets) return false;
+    const set = draftedAssets[assetType];
+    return set?.has(assetId) ?? false;
+  };
+
+  const filterDraftedAssets = <T extends { id: number }>(assets: T[], assetType: AssetType) => {
+    if (!draftedAssets) return assets;
+    const draftedSet = draftedAssets[assetType];
+    if (!draftedSet || draftedSet.size === 0) return assets;
+    return assets.filter((asset) => !draftedSet.has(asset.id));
   };
 
   const handleDraft = (assetType: AssetType, assetId: number, assetName: string) => {
@@ -276,7 +291,9 @@ export default function DraftBoard({
                       <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
                         <Building2 className="w-4 h-4" /> Hersteller ({manufacturers.length})
                       </h4>
-                      {sortAssets(manufacturers).slice(0, 10).map((mfg) => (
+                      {filterDraftedAssets(sortAssets(manufacturers), "manufacturer")
+                        .slice(0, 10)
+                        .map((mfg) => (
                         <DraftAssetCard
                           key={`mfg-${mfg.id}`}
                           assetType="manufacturer"
@@ -288,7 +305,10 @@ export default function DraftBoard({
                             { label: "Produkte", value: mfg.productCount },
                           ]}
                           isMyTurn={isMyTurn}
-                          isInMyRoster={myRoster.some(r => r.assetType === "manufacturer" && r.assetId === mfg.id)}
+                          isInMyRoster={
+                            myRoster.some((r) => r.assetType === "manufacturer" && r.assetId === mfg.id) ||
+                            isAssetDrafted("manufacturer", mfg.id)
+                          }
                           onDraft={handleDraft}
                         />
                       ))}
@@ -301,7 +321,9 @@ export default function DraftBoard({
                       <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
                         <Leaf className="w-4 h-4" /> Strains ({cannabisStrains.length})
                       </h4>
-                      {sortAssets(cannabisStrains).slice(0, 10).map((strain) => (
+                      {filterDraftedAssets(sortAssets(cannabisStrains), "cannabis_strain")
+                        .slice(0, 10)
+                        .map((strain) => (
                         <DraftAssetCard
                           key={`strain-${strain.id}`}
                           assetType="cannabis_strain"
@@ -314,7 +336,10 @@ export default function DraftBoard({
                             { label: "Effects", value: Array.isArray(strain.effects) ? strain.effects.slice(0, 2).join(", ") : (strain.effects || "N/A") },
                           ]}
                           isMyTurn={isMyTurn}
-                          isInMyRoster={myRoster.some(r => r.assetType === "cannabis_strain" && r.assetId === strain.id)}
+                          isInMyRoster={
+                            myRoster.some((r) => r.assetType === "cannabis_strain" && r.assetId === strain.id) ||
+                            isAssetDrafted("cannabis_strain", strain.id)
+                          }
                           onDraft={handleDraft}
                         />
                       ))}
@@ -327,7 +352,9 @@ export default function DraftBoard({
                       <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
                         <Package className="w-4 h-4" /> Produkte ({products.length})
                       </h4>
-                      {sortAssets(products).slice(0, 10).map((product) => (
+                      {filterDraftedAssets(sortAssets(products), "product")
+                        .slice(0, 10)
+                        .map((product) => (
                         <DraftAssetCard
                           key={`product-${product.id}`}
                           assetType="product"
@@ -341,7 +368,10 @@ export default function DraftBoard({
                             { label: "Favorites", value: product.favoriteCount },
                           ]}
                           isMyTurn={isMyTurn}
-                          isInMyRoster={myRoster.some(r => r.assetType === "product" && r.assetId === product.id)}
+                          isInMyRoster={
+                            myRoster.some((r) => r.assetType === "product" && r.assetId === product.id) ||
+                            isAssetDrafted("product", product.id)
+                          }
                           onDraft={handleDraft}
                         />
                       ))}
@@ -354,7 +384,9 @@ export default function DraftBoard({
                       <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
                         <Building2 className="w-4 h-4" /> Brands ({brands.length})
                       </h4>
-                      {sortAssets(brands).slice(0, 10).map((brand) => (
+                      {filterDraftedAssets(sortAssets(brands), "brand")
+                        .slice(0, 10)
+                        .map((brand) => (
                         <DraftAssetCard
                           key={`brand-${brand.id}`}
                           assetType="brand"
@@ -367,7 +399,10 @@ export default function DraftBoard({
                             { label: "Views", value: brand.totalViews || 0 },
                           ]}
                           isMyTurn={isMyTurn}
-                          isInMyRoster={myRoster.some(r => r.assetType === "brand" && r.assetId === brand.id)}
+                          isInMyRoster={
+                            myRoster.some((r) => r.assetType === "brand" && r.assetId === brand.id) ||
+                            isAssetDrafted("brand", brand.id)
+                          }
                           onDraft={handleDraft}
                         />
                       ))}
@@ -380,7 +415,9 @@ export default function DraftBoard({
                       <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
                         <Building2 className="w-4 h-4" /> Apotheken ({pharmacies.length})
                       </h4>
-                      {sortAssets(pharmacies).slice(0, 10).map((phm) => (
+                      {filterDraftedAssets(sortAssets(pharmacies), "pharmacy")
+                        .slice(0, 10)
+                        .map((phm) => (
                         <DraftAssetCard
                           key={`pharmacy-${phm.id}`}
                           assetType="pharmacy"
@@ -392,7 +429,10 @@ export default function DraftBoard({
                             { label: "Stadt", value: phm.city },
                           ]}
                           isMyTurn={isMyTurn}
-                          isInMyRoster={myRoster.some(r => r.assetType === "pharmacy" && r.assetId === phm.id)}
+                          isInMyRoster={
+                            myRoster.some((r) => r.assetType === "pharmacy" && r.assetId === phm.id) ||
+                            isAssetDrafted("pharmacy", phm.id)
+                          }
                           onDraft={handleDraft}
                         />
                       ))}
@@ -414,7 +454,7 @@ export default function DraftBoard({
               ) : manufacturers.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">Keine Hersteller gefunden</p>
               ) : (
-                sortAssets(manufacturers).map((mfg) => (
+                filterDraftedAssets(sortAssets(manufacturers), "manufacturer").map((mfg) => (
                   <DraftAssetCard
                     key={mfg.id}
                     assetType="manufacturer"
@@ -426,6 +466,10 @@ export default function DraftBoard({
                       { label: "Produkte", value: mfg.productCount },
                     ]}
                     isMyTurn={isMyTurn}
+                    isInMyRoster={
+                      myRoster.some((r) => r.assetType === "manufacturer" && r.assetId === mfg.id) ||
+                      isAssetDrafted("manufacturer", mfg.id)
+                    }
                     onDraft={handleDraft}
                   />
                 ))
@@ -438,7 +482,7 @@ export default function DraftBoard({
               ) : cannabisStrains.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">Keine Strains gefunden</p>
               ) : (
-                sortAssets(cannabisStrains).map((strain) => (
+                filterDraftedAssets(sortAssets(cannabisStrains), "cannabis_strain").map((strain) => (
                 <DraftAssetCard
                   key={strain.id}
                   assetType="cannabis_strain"
@@ -451,7 +495,10 @@ export default function DraftBoard({
                     { label: "Effects", value: Array.isArray(strain.effects) ? strain.effects.slice(0, 2).join(", ") : (strain.effects || "N/A") },
                   ]}
                   isMyTurn={isMyTurn}
-                  isInMyRoster={myRoster.some(r => r.assetType === "cannabis_strain" && r.assetId === strain.id)}
+                  isInMyRoster={
+                    myRoster.some((r) => r.assetType === "cannabis_strain" && r.assetId === strain.id) ||
+                    isAssetDrafted("cannabis_strain", strain.id)
+                  }
                   onDraft={handleDraft}
                 />
                 ))
@@ -464,7 +511,7 @@ export default function DraftBoard({
               ) : products.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">Keine Produkte gefunden</p>
               ) : (
-                sortAssets(products).map((product) => (
+                filterDraftedAssets(sortAssets(products), "product").map((product) => (
                   <DraftAssetCard
                     key={product.id}
                     assetType="product"
@@ -478,7 +525,10 @@ export default function DraftBoard({
                       { label: "Favorites", value: product.favoriteCount },
                     ]}
                     isMyTurn={isMyTurn}
-                    isInMyRoster={myRoster.some(r => r.assetType === "product" && r.assetId === product.id)}
+                    isInMyRoster={
+                      myRoster.some((r) => r.assetType === "product" && r.assetId === product.id) ||
+                      isAssetDrafted("product", product.id)
+                    }
                     onDraft={handleDraft}
                   />
                 ))
@@ -491,7 +541,7 @@ export default function DraftBoard({
               ) : pharmacies.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">Keine Apotheken gefunden</p>
               ) : (
-                sortAssets(pharmacies).map((phm) => (
+                filterDraftedAssets(sortAssets(pharmacies), "pharmacy").map((phm) => (
                   <DraftAssetCard
                     key={phm.id}
                     assetType="pharmacy"
@@ -503,7 +553,10 @@ export default function DraftBoard({
                       { label: "Stadt", value: phm.city },
                     ]}
                     isMyTurn={isMyTurn}
-                    isInMyRoster={myRoster.some(r => r.assetType === "pharmacy" && r.assetId === phm.id)}
+                    isInMyRoster={
+                      myRoster.some((r) => r.assetType === "pharmacy" && r.assetId === phm.id) ||
+                      isAssetDrafted("pharmacy", phm.id)
+                    }
                     onDraft={handleDraft}
                   />
                 ))
@@ -516,7 +569,7 @@ export default function DraftBoard({
               ) : brands.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">Keine Brands gefunden</p>
               ) : (
-                sortAssets(brands).map((brand) => (
+                filterDraftedAssets(sortAssets(brands), "brand").map((brand) => (
                   <DraftAssetCard
                     key={brand.id}
                     assetType="brand"
@@ -529,7 +582,10 @@ export default function DraftBoard({
                       { label: "Views", value: brand.totalViews || 0 },
                     ]}
                     isMyTurn={isMyTurn}
-                    isInMyRoster={myRoster.some(r => r.assetType === "brand" && r.assetId === brand.id)}
+                    isInMyRoster={
+                      myRoster.some((r) => r.assetType === "brand" && r.assetId === brand.id) ||
+                      isAssetDrafted("brand", brand.id)
+                    }
                     onDraft={handleDraft}
                   />
                 ))

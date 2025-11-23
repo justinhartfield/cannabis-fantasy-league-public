@@ -82,7 +82,7 @@ export type BreakdownResult = {
 
 type AssetType = 'manufacturer' | 'cannabis_strain' | 'product' | 'pharmacy' | 'brand';
 
-type ScarcityMultipliers = Record<AssetType, number>;
+export type ScarcityMultipliers = Record<AssetType, number>;
 
 type ScoreMetadata = {
   scopeType: 'weekly' | 'daily';
@@ -153,7 +153,7 @@ function computeScarcityMultiplier(totalAssets: number): number {
   return clamp(Number(raw.toFixed(2)), MIN_SCARCITY, MAX_SCARCITY);
 }
 
-async function getScarcityMultipliers(db: Awaited<ReturnType<typeof getDb>>): Promise<ScarcityMultipliers> {
+export async function getScarcityMultipliers(db: Awaited<ReturnType<typeof getDb>>): Promise<ScarcityMultipliers> {
   if (!db) {
     return {
       manufacturer: 1,
@@ -376,7 +376,10 @@ type ManufacturerDailySource = Pick<ManufacturerDailyStat, 'salesVolumeGrams' | 
 type StrainDailySource = Pick<StrainDailyStat, 'salesVolumeGrams' | 'orderCount' | 'rank' | 'totalPoints' | 'trendMultiplier' | 'previousRank' | 'consistencyScore' | 'velocityScore' | 'streakDays' | 'marketSharePercent'>;
 type ProductDailySource = Pick<ProductDailyStat, 'salesVolumeGrams' | 'orderCount' | 'rank' | 'totalPoints' | 'trendMultiplier' | 'previousRank' | 'consistencyScore' | 'velocityScore' | 'streakDays' | 'marketSharePercent'>;
 type PharmacyDailySource = Pick<PharmacyDailyStat, 'orderCount' | 'revenueCents' | 'rank' | 'totalPoints' | 'trendMultiplier' | 'previousRank' | 'consistencyScore' | 'velocityScore' | 'streakDays' | 'marketSharePercent'>;
-type BrandDailySource = Pick<BrandDailyStat, 'totalRatings' | 'averageRating' | 'bayesianAverage' | 'veryGoodCount' | 'goodCount' | 'acceptableCount' | 'badCount' | 'veryBadCount' | 'rank' | 'totalPoints'>;
+type BrandDailySource = Pick<BrandDailyStat, 'totalRatings' | 'averageRating' | 'bayesianAverage' | 'veryGoodCount' | 'goodCount' | 'acceptableCount' | 'badCount' | 'veryBadCount' | 'rank' | 'totalPoints'> & {
+  ratingDelta?: number | null;
+  bayesianDelta?: number | string | null;
+};
 
 export function buildManufacturerDailyBreakdown(statRecord: ManufacturerDailySource): BreakdownResult {
   const orderCount = statRecord.orderCount ?? 0;
@@ -633,14 +636,14 @@ export function buildPharmacyDailyBreakdown(statRecord: PharmacyDailySource): Br
     category: 'Order Volume',
     value: orderCount,
     formula: `${orderCount} orders × 5`,
-    points: scoring.basePoints,
+    points: scoring.orderCountPoints ?? 0,
   });
 
-  if (scoring.trendBonus > 0) {
+  if ((scoring.trendMomentumPoints ?? 0) > 0) {
     breakdown.bonuses.push({
       type: 'Trend Bonus',
       condition: `${Number(statRecord.trendMultiplier ?? 1).toFixed(2)}x multiplier`,
-      points: scoring.trendBonus,
+      points: scoring.trendMomentumPoints ?? 0,
     });
   }
 
@@ -1581,6 +1584,42 @@ interface TeamScoreComputationOptions {
   skipPersistence?: boolean;
 }
 
+export async function calculateSeasonTeamDailyScore({
+  teamId,
+  year,
+  week,
+  statDate,
+  scarcityMultipliers,
+}: {
+  teamId: number;
+  year: number;
+  week: number;
+  statDate: string;
+  scarcityMultipliers?: ScarcityMultipliers;
+}): Promise<TeamScoreComputationResult> {
+  const normalizedDate = new Date(`${statDate}T00:00:00Z`);
+  if (Number.isNaN(normalizedDate.getTime())) {
+    throw new Error(`Invalid stat date provided: ${statDate}`);
+  }
+
+  const score = await computeTeamScore({
+    teamId,
+    lineupYear: year,
+    lineupWeek: week,
+    scope: { type: 'daily', statDate },
+    persistence: {
+      mode: 'weekly',
+      teamId,
+      year,
+      week,
+    },
+    scarcityMultipliers,
+    skipPersistence: true,
+  });
+
+  return score;
+}
+
 async function computeTeamScore(options: TeamScoreComputationOptions): Promise<TeamScoreComputationResult> {
   const db = await getDb();
   if (!db) {
@@ -1589,13 +1628,16 @@ async function computeTeamScore(options: TeamScoreComputationOptions): Promise<T
   const scarcityMultipliers =
     options.scarcityMultipliers ?? (await getScarcityMultipliers(db));
 
+  const lineupContext =
+    options.scope.type === 'daily'
+      ? { mode: 'daily' as const, statDate: options.scope.statDate }
+      : { mode: 'weekly' as const };
+
   const teamLineup = await getOrCreateLineup(
     options.teamId,
     options.lineupYear,
     options.lineupWeek,
-    options.persistence.mode === 'daily'
-      ? { mode: 'daily', statDate: options.persistence.statDate }
-      : { mode: 'weekly' }
+    lineupContext
   );
 
   if (!teamLineup) {
@@ -1935,6 +1977,7 @@ async function scoreManufacturer(
     const weeklyStat = statRecord as typeof manufacturerWeeklyStats.$inferSelect;
 
     // 1. Manufacturers
+    const { startDate, endDate } = getWeekDateRange(scope.year, scope.week);
     const dailyStats = await db
       .select()
       .from(manufacturerDailyChallengeStats)
@@ -2167,10 +2210,11 @@ async function scoreProduct(
 
     const currentRank = dailyStats.length > 0 ? (dailyStats[dailyStats.length - 1].rank ?? 0) : 0;
     const previousRank = dailyStats.length > 0 ? (dailyStats[dailyStats.length - 1].previousRank ?? currentRank) : currentRank;
+    const derivedRankChange = previousRank - currentRank;
 
     const metadata: ScoreMetadata = {
       scopeType: 'weekly',
-      rankDelta: previousRank - currentRank,
+      rankDelta: derivedRankChange,
       currentRank,
       previousRank,
       marketSharePercent: dailyStats.length > 0 ? Number(dailyStats[dailyStats.length - 1].marketSharePercent ?? 0) : 0,
@@ -2261,18 +2305,20 @@ async function scorePharmacy(
         lte(pharmacyDailyChallengeStats.statDate, endDate)
       ));
 
+    const latestDaily = dailyStats[dailyStats.length - 1];
+    const currentRank = latestDaily?.rank ?? 0;
+    const previousRank = latestDaily?.previousRank ?? currentRank;
+    const derivedRankChange = previousRank - currentRank;
+
     const { points, breakdown } = calculatePharmacyPoints(dailyStats, {
-      rankChange: weeklyStat.rankChange,
+      rankChange: derivedRankChange,
       streakDays: dailyStats.length > 0 ? Number(dailyStats[dailyStats.length - 1].streakDays ?? 0) : 0,
       marketSharePercent: dailyStats.length > 0 ? Number(dailyStats[dailyStats.length - 1].marketSharePercent ?? 0) : 0,
     });
 
-    const currentRank = dailyStats.length > 0 ? (dailyStats[dailyStats.length - 1].rank ?? 0) : 0;
-    const previousRank = dailyStats.length > 0 ? (dailyStats[dailyStats.length - 1].previousRank ?? currentRank) : currentRank;
-
     const metadata: ScoreMetadata = {
       scopeType: 'weekly',
-      rankDelta: previousRank - currentRank,
+      rankDelta: derivedRankChange,
       currentRank,
       previousRank,
       marketSharePercent: dailyStats.length > 0 ? Number(dailyStats[dailyStats.length - 1].marketSharePercent ?? 0) : 0,

@@ -6,6 +6,8 @@ import { eq, and, or, desc, asc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { autoPopulateLeagueLineups } from "./lineupAutoPopulate";
 import { generateSeasonMatchupsForLeague } from "./matchupService";
+import { calculateSeasonTeamDailyScore, getScarcityMultipliers } from "./scoringEngine";
+import { getWeekDateRange } from "./utils/isoWeek";
 
 /**
  * Matchup Router
@@ -292,6 +294,115 @@ export const matchupRouter = router({
     }),
 
   /**
+   * Get day-by-day scoring totals for each matchup in a given week
+   * (season-long leagues only)
+   */
+  getMatchupDailyScores: protectedProcedure
+    .input(z.object({
+      leagueId: z.number(),
+      year: z.number(),
+      week: z.number().min(1).max(53),
+    }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
+      }
+
+      const league = await db
+        .select({
+          id: leagues.id,
+          leagueType: leagues.leagueType,
+        })
+        .from(leagues)
+        .where(eq(leagues.id, input.leagueId))
+        .limit(1);
+
+      if (league.length === 0) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'League not found' });
+      }
+
+      if (league[0].leagueType !== 'season') {
+        return [];
+      }
+
+      const weekMatchups = await db
+        .select()
+        .from(matchups)
+        .where(and(
+          eq(matchups.leagueId, input.leagueId),
+          eq(matchups.year, input.year),
+          eq(matchups.week, input.week)
+        ));
+
+      if (weekMatchups.length === 0) {
+        return [];
+      }
+
+      const { startDate, endDate } = getWeekDateRange(input.year, input.week);
+      const weekDates = enumerateWeekDates(startDate, endDate);
+
+      const scarcityMultipliers = await getScarcityMultipliers(db);
+
+      const dailyResults = [];
+
+      for (const matchup of weekMatchups) {
+        const dayEntries = [];
+
+        for (const statDate of weekDates) {
+          try {
+            const [team1Score, team2Score] = await Promise.all([
+              calculateSeasonTeamDailyScore({
+                teamId: matchup.team1Id,
+                year: input.year,
+                week: input.week,
+                statDate,
+                scarcityMultipliers,
+              }),
+              calculateSeasonTeamDailyScore({
+                teamId: matchup.team2Id,
+                year: input.year,
+                week: input.week,
+                statDate,
+                scarcityMultipliers,
+              }),
+            ]);
+
+            dayEntries.push({
+              date: statDate,
+              team1Points: team1Score.totalPoints || 0,
+              team2Points: team2Score.totalPoints || 0,
+            });
+          } catch (error) {
+            console.error('[getMatchupDailyScores] Failed to compute daily score', {
+              matchupId: matchup.id,
+              statDate,
+              error,
+            });
+            dayEntries.push({
+              date: statDate,
+              team1Points: 0,
+              team2Points: 0,
+              error: true,
+            });
+          }
+        }
+
+        dailyResults.push({
+          matchupId: matchup.id,
+          leagueId: matchup.leagueId,
+          year: matchup.year,
+          week: matchup.week,
+          team1Id: matchup.team1Id,
+          team2Id: matchup.team2Id,
+          days: dayEntries,
+        });
+      }
+
+      return dailyResults;
+    }),
+
+  /**
    * Update matchup scores from weekly scoring
    * This is called automatically after scoring is complete
    */
@@ -423,3 +534,16 @@ export const matchupRouter = router({
       return matchupsWithOpponents;
     }),
 });
+
+function enumerateWeekDates(startDate: string, endDate: string): string[] {
+  const dates: string[] = [];
+  const current = new Date(`${startDate}T00:00:00Z`);
+  const end = new Date(`${endDate}T00:00:00Z`);
+
+  while (current <= end) {
+    dates.push(current.toISOString().split('T')[0]);
+    current.setUTCDate(current.getUTCDate() + 1);
+  }
+
+  return dates;
+}

@@ -4,13 +4,13 @@ import { trpc } from "@/lib/trpc";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getLoginUrl } from "@/const";
-import DraftBoard from "@/components/DraftBoard";
+import DraftBoard, { type AssetType } from "@/components/DraftBoard";
 // import { DraftPicksGrid } from "@/components/DraftPicksGrid";
 import { MyRoster } from "@/components/MyRoster";
 import { DraftClock } from "@/components/DraftClock";
 import { toast } from "sonner";
 import { useWebSocket } from "@/hooks/useWebSocket";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -39,7 +39,38 @@ export default function Draft() {
   const [currentRound, setCurrentRound] = useState<number>(1);
   const [showDraftCompleteDialog, setShowDraftCompleteDialog] = useState(false);
 
+  type DraftedAssetMap = Record<AssetType, Set<number>>;
+  const createDraftedAssetState = (): DraftedAssetMap => ({
+    manufacturer: new Set<number>(),
+    cannabis_strain: new Set<number>(),
+    product: new Set<number>(),
+    pharmacy: new Set<number>(),
+    brand: new Set<number>(),
+  });
+
+  const [draftedAssets, setDraftedAssets] = useState<DraftedAssetMap>(() =>
+    createDraftedAssetState()
+  );
+
+  const markAssetDrafted = useCallback((assetType: AssetType, assetId: number) => {
+    setDraftedAssets((prev) => {
+      const next: DraftedAssetMap = {
+        manufacturer: new Set(prev.manufacturer),
+        cannabis_strain: new Set(prev.cannabis_strain),
+        product: new Set(prev.product),
+        pharmacy: new Set(prev.pharmacy),
+        brand: new Set(prev.brand),
+      };
+      next[assetType].add(assetId);
+      return next;
+    });
+  }, []);
+
   const leagueId = parseInt(id!);
+
+  useEffect(() => {
+    setDraftedAssets(createDraftedAssetState());
+  }, [leagueId]);
 
   const { data: league, isLoading: leagueLoading } = trpc.league.getById.useQuery(
     { leagueId },
@@ -103,6 +134,7 @@ export default function Draft() {
       }
       
       if (message.type === 'player_picked') {
+        markAssetDrafted(message.assetType as AssetType, message.assetId);
         // Add to recent picks
         setRecentPicks(prev => [
           {
@@ -271,6 +303,7 @@ export default function Draft() {
         assetType,
         assetId,
       });
+      markAssetDrafted(assetType, assetId);
 
       if (import.meta.env.MODE !== "production") {
         console.log("[DraftTiming] draft_mutation_success", {
@@ -405,6 +438,7 @@ export default function Draft() {
                 assetId: r.assetId,
                 name: r.name || "Unknown",
               }))}
+              draftedAssets={draftedAssets}
               onDraftPick={handleDraftPick}
             />
           </div>
