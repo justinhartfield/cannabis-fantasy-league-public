@@ -24,8 +24,14 @@ async function recalculateAllWeeks() {
     for (const league of allLeagues) {
         console.log(`\n[League: ${league.name}] Recalculating scores...`);
 
+        // Get all teams in this league
+        const leagueTeams = await db
+            .select()
+            .from(teams)
+            .where(eq(teams.leagueId, league.id));
+
         // Import the scoring function
-        const { aggregateSeasonWeeklyScores } = await import('./scoringEngine');
+        const { calculateSeasonTeamWeek } = await import('./scoringEngine');
 
         // Recalculate for 2024 weeks 1-52 and 2025 weeks 1-10 (adjust as needed)
         const years = [2024, 2025];
@@ -37,17 +43,20 @@ async function recalculateAllWeeks() {
         for (const year of years) {
             for (const week of weekRanges[year]) {
                 try {
-                    console.log(`  [${year} W${week}] Calculating...`);
-                    const results = await aggregateSeasonWeeklyScores(league.id, year, week);
-                    const totalPoints = results.reduce((sum, r) => sum + r.points, 0);
-                    console.log(`  [${year} W${week}] ✓ Complete (${results.length} teams, ${totalPoints.toFixed(1)} total pts)`);
+                    console.log(`  [${year} W${week}] Calculating for ${leagueTeams.length} teams...`);
+
+                    // Calculate for each team
+                    for (const team of leagueTeams) {
+                        await calculateSeasonTeamWeek(league.id, team.id, year, week);
+                    }
+
+                    console.log(`  [${year} W${week}] ✓ Complete`);
                 } catch (error) {
                     console.error(`  [${year} W${week}] ✗ Error:`, error instanceof Error ? error.message : error);
                 }
             }
         }
     }
-
     console.log('\n✓ Recalculation complete!');
     process.exit(0);
 }
