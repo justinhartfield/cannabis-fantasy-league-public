@@ -28,17 +28,19 @@ export function useWebSocket(options: UseWebSocketOptions) {
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectAttempts = 5;
 
+  const isDev = import.meta.env.DEV;
+
   const connect = useCallback(() => {
     // Prevent connection with invalid userId
     if (!userId || userId === 0) {
-      console.log('[WebSocket] Cannot connect: invalid userId');
+      if (isDev) console.log('[WebSocket] Cannot connect: invalid userId');
       return;
     }
 
     // Prevent multiple simultaneous connection attempts
     if (wsRef.current?.readyState === WebSocket.OPEN || 
         wsRef.current?.readyState === WebSocket.CONNECTING) {
-      console.log('[WebSocket] Already connected or connecting');
+      if (isDev) console.log('[WebSocket] Already connected or connecting');
       return;
     }
 
@@ -51,13 +53,13 @@ export function useWebSocket(options: UseWebSocketOptions) {
       if (leagueId) url += `&leagueId=${leagueId}`;
       if (teamId) url += `&teamId=${teamId}`;
 
-      console.log('[WebSocket] Connecting to:', url);
+      if (isDev) console.log('[WebSocket] Connecting to:', url);
       
       const ws = new WebSocket(url);
       wsRef.current = ws;
 
       ws.onopen = () => {
-        console.log('[WebSocket] Connected');
+        if (isDev) console.log('[WebSocket] Connected');
         setIsConnected(true);
         setConnectionError(null);
         reconnectAttemptsRef.current = 0;
@@ -67,7 +69,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
       ws.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
-          console.log('[WebSocket] Received:', message.type);
+          if (isDev) console.log('[WebSocket] Received:', message.type);
           onMessage?.(message);
         } catch (error) {
           console.error('[WebSocket] Error parsing message:', error);
@@ -80,7 +82,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
       };
 
       ws.onclose = () => {
-        console.log('[WebSocket] Disconnected');
+        if (isDev) console.log('[WebSocket] Disconnected');
         setIsConnected(false);
         onDisconnect?.();
 
@@ -88,7 +90,11 @@ export function useWebSocket(options: UseWebSocketOptions) {
         if (reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectAttemptsRef.current++;
           const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
-          console.log(`[WebSocket] Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
+          if (isDev) {
+            console.log(
+              `[WebSocket] Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`
+            );
+          }
           
           reconnectTimeoutRef.current = setTimeout(() => {
             connect();
@@ -101,7 +107,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
       console.error('[WebSocket] Connection error:', error);
       setConnectionError('Failed to connect');
     }
-  }, [userId, leagueId, teamId, onMessage, onConnect, onDisconnect]);
+  }, [userId, leagueId, teamId, onMessage, onConnect, onDisconnect, isDev]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {

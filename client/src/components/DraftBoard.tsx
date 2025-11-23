@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, TrendingUp, Leaf, Package, Building2, UserCircle, ArrowUpDown } from "lucide-react";
 import { toast } from "sonner";
@@ -175,112 +173,125 @@ export default function DraftBoard({
   return (
     <div className="space-y-6">
       {/* Draft Status */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>Draft - Pick #{currentPick}</span>
-            {isMyTurn && (
-              <Badge variant="default" className="animate-pulse">
-                Dein Zug!
-              </Badge>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {/* Roster Needs */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mb-4">
-            <div className="text-center p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
-              <Building2 className="w-4 h-4 mx-auto mb-1 text-blue-500" />
-              <p className="text-xs text-muted-foreground">Hersteller</p>
-              <p className="text-lg font-bold text-foreground">{rosterCounts.manufacturer}/2</p>
-            </div>
-            <div className="text-center p-2 rounded-lg bg-purple-500/10 border border-purple-500/20">
-              <Leaf className="w-4 h-4 mx-auto mb-1 text-purple-500" />
-              <p className="text-xs text-muted-foreground">Strains</p>
-              <p className="text-lg font-bold text-foreground">{rosterCounts.cannabis_strain}/2</p>
-            </div>
-            <div className="text-center p-2 rounded-lg bg-pink-500/10 border border-pink-500/20">
-              <Package className="w-4 h-4 mx-auto mb-1 text-pink-500" />
-              <p className="text-xs text-muted-foreground">Produkte</p>
-              <p className="text-lg font-bold text-foreground">{rosterCounts.product}/2</p>
-            </div>
-            <div className="text-center p-2 rounded-lg bg-green-500/10 border border-green-500/20">
-              <Building2 className="w-4 h-4 mx-auto mb-1 text-green-500" />
-              <p className="text-xs text-muted-foreground">Apotheken</p>
-              <p className="text-lg font-bold text-foreground">{rosterCounts.pharmacy}/2</p>
-            </div>
-            <div className="text-center p-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
-              <Building2 className="w-4 h-4 mx-auto mb-1 text-yellow-500" />
-              <p className="text-xs text-muted-foreground">Brands</p>
-              <p className="text-lg font-bold text-foreground">{rosterCounts.brand}/1</p>
-            </div>
-            <div className="text-center p-2 rounded-lg bg-orange-500/10 border border-orange-500/20">
-              <UserCircle className="w-4 h-4 mx-auto mb-1 text-orange-500" />
-              <p className="text-xs text-muted-foreground">Flex</p>
-              <p className="text-lg font-bold text-foreground">{Math.max(0, myRoster.length - (rosterCounts.manufacturer + rosterCounts.cannabis_strain + rosterCounts.product + rosterCounts.pharmacy + rosterCounts.brand))}/1</p>
-            </div>
+      <div className="rounded-[32px] border border-white/10 bg-gradient-to-br from-[#2c1140] via-[#1c0f2a] to-[#14091f] p-6 text-white shadow-[0_25px_60px_rgba(10,5,20,0.6)]">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.4em] text-white/50">Pick #{currentPick}</p>
+            <h2 className="text-2xl font-semibold">Draft Board</h2>
+            <p className="text-sm text-white/70">Fülle jede Kategorie, um dein Team zu komplettieren.</p>
           </div>
+          {isMyTurn && (
+            <span className="inline-flex items-center gap-2 rounded-full bg-[#cfff4d] px-4 py-2 text-sm font-semibold text-black shadow-[0_10px_30px_rgba(207,255,77,0.4)]">
+              Dein Zug!
+            </span>
+          )}
+        </div>
 
-          {/* Search */}
-          <div className="space-y-2">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Suche nach Name..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            {/* Sorting Controls */}
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Button
-                variant={sortBy === "name" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSortBy("name")}
-                className="w-full sm:w-auto"
-              >
-                Nach Name
-              </Button>
-              <Button
-                variant={sortBy === "stats" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSortBy("stats")}
-                className="w-full sm:w-auto"
-              >
-                Nach Stats
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={toggleSort}
-                className="w-full sm:w-auto"
-              >
-                <ArrowUpDown className="w-4 h-4 mr-1" />
-                {sortOrder === "asc" ? "Aufsteigend" : "Absteigend"}
-              </Button>
-            </div>
+        {/* Roster Needs */}
+        <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-center">
+            <Building2 className="w-5 h-5 mx-auto mb-2 text-blue-300" />
+            <p className="text-[11px] uppercase tracking-wide text-white/60">Hersteller</p>
+            <p className="text-xl font-bold">{rosterCounts.manufacturer}/2</p>
           </div>
-        </CardContent>
-      </Card>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-center">
+            <Leaf className="w-5 h-5 mx-auto mb-2 text-purple-300" />
+            <p className="text-[11px] uppercase tracking-wide text-white/60">Strains</p>
+            <p className="text-xl font-bold">{rosterCounts.cannabis_strain}/2</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-center">
+            <Package className="w-5 h-5 mx-auto mb-2 text-pink-300" />
+            <p className="text-[11px] uppercase tracking-wide text-white/60">Produkte</p>
+            <p className="text-xl font-bold">{rosterCounts.product}/2</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-center">
+            <Building2 className="w-5 h-5 mx-auto mb-2 text-green-300" />
+            <p className="text-[11px] uppercase tracking-wide text-white/60">Apotheken</p>
+            <p className="text-xl font-bold">{rosterCounts.pharmacy}/2</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-center">
+            <Building2 className="w-5 h-5 mx-auto mb-2 text-yellow-200" />
+            <p className="text-[11px] uppercase tracking-wide text-white/60">Brands</p>
+            <p className="text-xl font-bold">{rosterCounts.brand}/1</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-center">
+            <UserCircle className="w-5 h-5 mx-auto mb-2 text-orange-200" />
+            <p className="text-[11px] uppercase tracking-wide text-white/60">Flex</p>
+            <p className="text-xl font-bold">
+              {Math.max(
+                0,
+                myRoster.length -
+                  (rosterCounts.manufacturer +
+                    rosterCounts.cannabis_strain +
+                    rosterCounts.product +
+                    rosterCounts.pharmacy +
+                    rosterCounts.brand)
+              )}
+              /1
+            </p>
+          </div>
+        </div>
+
+        {/* Search */}
+        <div className="mt-6 space-y-3">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
+            <Input
+              placeholder="Spieler oder Brand suchen..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-11 rounded-full bg-white/10 border-white/20 text-white placeholder:text-white/60 focus-visible:ring-[#cfff4d]"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setSortBy("name")}
+              className={cn(
+                "px-4 py-2 rounded-full text-sm font-semibold transition",
+                sortBy === "name" ? "bg-[#cfff4d] text-black" : "bg-white/10 text-white/70"
+              )}
+            >
+              Nach Name
+            </button>
+            <button
+              onClick={() => setSortBy("stats")}
+              className={cn(
+                "px-4 py-2 rounded-full text-sm font-semibold transition",
+                sortBy === "stats" ? "bg-[#cfff4d] text-black" : "bg-white/10 text-white/70"
+              )}
+            >
+              Nach Stats
+            </button>
+            <button
+              onClick={toggleSort}
+              className="px-4 py-2 rounded-full text-sm font-semibold bg-white/10 text-white/70 flex items-center gap-2"
+            >
+              <ArrowUpDown className="w-4 h-4" />
+              {sortOrder === "asc" ? "Aufsteigend" : "Absteigend"}
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Available Assets */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Verfügbare Spieler</CardTitle>
+      <Card className="rounded-[32px] border-0 bg-white/90 shadow-[0_20px_50px_rgba(137,110,196,0.18)]">
+        <CardHeader className="pb-0">
+          <CardTitle className="text-[#2c1941]">Verfügbare Spieler</CardTitle>
         </CardHeader>
         <CardContent>
           <Tabs value={selectedCategory} onValueChange={(v) => setSelectedCategory(v as any)}>
-            <TabsList className="w-full inline-flex overflow-x-auto">
-              <TabsTrigger value="all" className="flex-shrink-0">Alle</TabsTrigger>
-              <TabsTrigger value="manufacturer" className="flex-shrink-0">Hersteller</TabsTrigger>
-              <TabsTrigger value="cannabis_strain" className="flex-shrink-0">Strains</TabsTrigger>
-              <TabsTrigger value="product" className="flex-shrink-0">Produkte</TabsTrigger>
-              <TabsTrigger value="pharmacy" className="flex-shrink-0">Apotheken</TabsTrigger>
-              <TabsTrigger value="brand" className="flex-shrink-0">Brands</TabsTrigger>
+            <TabsList className="w-full inline-flex overflow-x-auto rounded-full bg-[#f2e9ff] p-1 gap-2">
+              <TabsTrigger value="all" className="flex-shrink-0 rounded-full data-[state=active]:bg-white data-[state=active]:text-[#2c1941]">
+                Alle
+              </TabsTrigger>
+              <TabsTrigger value="manufacturer" className="flex-shrink-0 rounded-full data-[state=active]:bg-white data-[state=active]:text-[#2c1941]">Hersteller</TabsTrigger>
+              <TabsTrigger value="cannabis_strain" className="flex-shrink-0 rounded-full data-[state=active]:bg-white data-[state=active]:text-[#2c1941]">Strains</TabsTrigger>
+              <TabsTrigger value="product" className="flex-shrink-0 rounded-full data-[state=active]:bg-white data-[state=active]:text-[#2c1941]">Produkte</TabsTrigger>
+              <TabsTrigger value="pharmacy" className="flex-shrink-0 rounded-full data-[state=active]:bg-white data-[state=active]:text-[#2c1941]">Apotheken</TabsTrigger>
+              <TabsTrigger value="brand" className="flex-shrink-0 rounded-full data-[state=active]:bg-white data-[state=active]:text-[#2c1941]">Brands</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="all" className="space-y-2 mt-4">
+            <TabsContent value="all" className="space-y-2 mt-6">
               {isLoading ? (
                 <p className="text-sm text-muted-foreground text-center py-8">Lädt...</p>
               ) : (

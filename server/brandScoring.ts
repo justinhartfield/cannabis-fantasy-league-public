@@ -106,24 +106,13 @@ export function calculateBrandPoints(stats: {
   }
 
   const sentimentAdjustment = clamp(Math.floor(stats.sentimentScore / 10), -10, 15);
-  if (sentimentAdjustment !== 0) {
-    const targetArray = sentimentAdjustment > 0 ? breakdown.bonuses : breakdown.penalties;
-    targetArray.push({
-      type: sentimentAdjustment > 0 ? 'Positive Sentiment' : 'Negative Sentiment',
+  if (sentimentAdjustment > 0) {
+    breakdown.bonuses.push({
+      type: 'Positive Sentiment',
       condition: `Score: ${stats.sentimentScore}`,
       points: sentimentAdjustment,
     });
     breakdown.subtotal += sentimentAdjustment;
-  }
-
-  // Declining interest penalty
-  if (stats.favoriteGrowth < -50) {
-    breakdown.penalties.push({
-      type: 'Declining Interest',
-      condition: `${stats.favoriteGrowth} favorites lost`,
-      points: -10,
-    });
-    breakdown.subtotal -= 10;
   }
 
   breakdown.total = Math.max(0, breakdown.subtotal);

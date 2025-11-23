@@ -200,8 +200,14 @@ function applyScarcityAdjustment(
     };
   }
 
-  const adjustedPoints = Math.round(result.points * normalizedMultiplier);
-  const delta = adjustedPoints - result.points;
+  let adjustedPoints = Math.round(result.points * normalizedMultiplier);
+  let delta = adjustedPoints - result.points;
+  const isWeeklyScope = result.metadata?.scopeType === 'weekly';
+
+  if (delta < 0 && isWeeklyScope) {
+    adjustedPoints = result.points;
+    delta = 0;
+  }
 
   const detail = result.breakdown;
   detail.bonuses = detail.bonuses || [];
@@ -218,6 +224,9 @@ function applyScarcityAdjustment(
     } else {
       detail.penalties.push(entry);
     }
+  } else if (isWeeklyScope) {
+    // Ensure we don't carry any previous scarcity penalties into weekly totals
+    detail.penalties = [];
   }
 
   detail.total = adjustedPoints;
@@ -755,17 +764,6 @@ export function calculateManufacturerPoints(
     breakdown.total += rankBonus;
   }
 
-  // Rank Slide Penalty
-  if (weeklyContext.rankChange < -3) {
-    const penalty = -15;
-    breakdown.penalties.push({
-      type: 'Rank Slide',
-      condition: `Lost ${Math.abs(weeklyContext.rankChange)} spots`,
-      points: penalty,
-    });
-    breakdown.total += penalty;
-  }
-
   return { points: breakdown.total, breakdown };
 }
 
@@ -930,21 +928,9 @@ export function calculateCannabisStrainPoints(stats: {
     });
   }
 
-  // Penalties
-  // Price Volatility: -10 pts for >20% price change
-  let volatilityPenalty = 0;
-  if (Math.abs(stats.avgPriceChange) > 20) {
-    volatilityPenalty = -10;
-    breakdown.penalties.push({
-      type: 'Price Volatility',
-      condition: `${Math.abs(stats.avgPriceChange)}% change`,
-      points: -10,
-    });
-  }
-
   // Calculate totals
   breakdown.subtotal = favoritesPoints + pharmacyPoints + productPoints;
-  breakdown.total = breakdown.subtotal + priceStabilityBonus + marketPenetrationBonus + volatilityPenalty;
+  breakdown.total = breakdown.subtotal + priceStabilityBonus + marketPenetrationBonus;
 
   return {
     points: breakdown.total,
@@ -1286,6 +1272,8 @@ async function aggregateTeamWeekFromDaily(params: TeamAggregationParams): Promis
       skipPersistence: true,
     });
 
+    removePenaltyImpact(dailyResult);
+
     totalPoints += dailyResult.totalPoints;
     totalTeamBonus += dailyResult.teamBonusTotal;
     addPositionPoints(aggregatedPositionPoints, dailyResult.positionPoints);
@@ -1357,6 +1345,51 @@ function addPositionPoints(target: PositionPointsMap, source: PositionPointsMap)
   target.phm2 += source.phm2;
   target.brd1 += source.brd1;
   target.flex += source.flex;
+}
+
+const POSITION_LABEL_TO_KEY: Record<string, keyof PositionPointsMap> = {
+  MFG1: 'mfg1',
+  MFG2: 'mfg2',
+  CSTR1: 'cstr1',
+  CSTR2: 'cstr2',
+  PRD1: 'prd1',
+  PRD2: 'prd2',
+  PHM1: 'phm1',
+  PHM2: 'phm2',
+  BRD1: 'brd1',
+  FLEX: 'flex',
+};
+
+function removePenaltyImpact(result: TeamScoreComputationResult) {
+  let totalRefund = 0;
+  const positionRefunds: Partial<Record<keyof PositionPointsMap, number>> = {};
+
+  result.breakdowns.forEach((entry) => {
+    const penaltyTotal =
+      entry.breakdown.penalties?.reduce((sum, penalty) => sum + (penalty.points || 0), 0) ?? 0;
+
+    entry.breakdown.penalties = [];
+
+    if (penaltyTotal >= 0) {
+      return;
+    }
+
+    const refund = -penaltyTotal;
+    totalRefund += refund;
+    entry.points += refund;
+    entry.breakdown.total += refund;
+
+    const positionKey = POSITION_LABEL_TO_KEY[entry.position];
+    if (positionKey) {
+      positionRefunds[positionKey] = (positionRefunds[positionKey] ?? 0) + refund;
+    }
+  });
+
+  (Object.keys(positionRefunds) as Array<keyof PositionPointsMap>).forEach((key) => {
+    result.positionPoints[key] += positionRefunds[key] ?? 0;
+  });
+
+  result.totalPoints += totalRefund;
 }
 
 function getOrCreateBreakdownAccumulator(

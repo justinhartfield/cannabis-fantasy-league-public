@@ -124,7 +124,6 @@ export default function Draft() {
     teamId: myTeam?.id,
     autoConnect: isAuthenticated && !!user,
     onMessage: (message) => {
-      console.log('[Draft] WebSocket message:', message);
       if (import.meta.env.MODE !== "production") {
         console.log('[DraftTiming] ws_message', {
           type: message.type,
@@ -134,7 +133,8 @@ export default function Draft() {
       }
       
       if (message.type === 'player_picked') {
-        markAssetDrafted(message.assetType as AssetType, message.assetId);
+        const assetType = message.assetType as AssetType;
+        markAssetDrafted(assetType, message.assetId);
         // Add to recent picks
         setRecentPicks(prev => [
           {
@@ -149,15 +149,10 @@ export default function Draft() {
         // Show toast notification
         toast.success(`${message.teamName} drafted ${message.assetName}`);
 
-        // Refetch roster to update UI (Draft Board now uses Recent Picks from WebSocket)
-        refetchRoster();
-        // refetchAllPicks(); // Removed - using Recent Picks instead
-        // Invalidate available players queries to remove drafted player
-        utils.draft.getAvailableManufacturers.invalidate();
-        utils.draft.getAvailableCannabisStrains.invalidate();
-        utils.draft.getAvailableProducts.invalidate();
-        utils.draft.getAvailablePharmacies.invalidate();
-        utils.draft.getAvailableBrands.invalidate();
+        if (message.teamId === myTeam?.id) {
+          refetchRoster();
+        }
+        invalidateAvailableByType(assetType);
       } else if (message.type === 'next_pick') {
         setCurrentTurnTeamId(message.teamId);
         setCurrentTurnTeamName(message.teamName);
@@ -192,7 +187,10 @@ export default function Draft() {
         setTimerSeconds(message.remaining);
       } else if (message.type === 'auto_pick') {
         toast.warning(`Auto-picked ${message.assetName} for ${message.teamName}`);
-        refetchRoster();
+        if (message.teamId === myTeam?.id) {
+          refetchRoster();
+        }
+        invalidateAvailableByType(message.assetType as AssetType);
       }
     },
     onConnect: () => {
@@ -231,15 +229,30 @@ export default function Draft() {
 
   const utils = trpc.useUtils();
 
+  const invalidateAvailableByType = useCallback((assetType: AssetType) => {
+    switch (assetType) {
+      case "manufacturer":
+        utils.draft.getAvailableManufacturers.invalidate();
+        break;
+      case "cannabis_strain":
+        utils.draft.getAvailableCannabisStrains.invalidate();
+        break;
+      case "product":
+        utils.draft.getAvailableProducts.invalidate();
+        break;
+      case "pharmacy":
+        utils.draft.getAvailablePharmacies.invalidate();
+        break;
+      case "brand":
+        utils.draft.getAvailableBrands.invalidate();
+        break;
+    }
+  }, [utils]);
+
   const makeDraftPickMutation = trpc.draft.makeDraftPick.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       toast.success("Draft Pick erfolgreich!");
-      // Invalidate all available players queries to remove drafted player
-      utils.draft.getAvailableManufacturers.invalidate();
-      utils.draft.getAvailableCannabisStrains.invalidate();
-      utils.draft.getAvailableProducts.invalidate();
-      utils.draft.getAvailablePharmacies.invalidate();
-      utils.draft.getAvailableBrands.invalidate();
+      invalidateAvailableByType(variables.assetType as AssetType);
     },
     onError: (error) => {
       toast.error(`Draft Pick fehlgeschlagen: ${error.message}`);
@@ -330,7 +343,7 @@ export default function Draft() {
   };
 
   return (
-    <div className="min-h-screen bg-weed-cream pattern-dots relative">
+    <div className="min-h-screen bg-gradient-to-b from-[#fdf6e9] via-[#f8eedb] to-[#f4e4c9] relative">
       {/* Draft Complete Dialog */}
       <Dialog open={showDraftCompleteDialog} onOpenChange={setShowDraftCompleteDialog}>
         <DialogContent className="sm:max-w-md">
@@ -356,49 +369,42 @@ export default function Draft() {
       </Dialog>
 
       {/* Header */}
-      <div className="border-b-4 border-weed-green bg-white/90 backdrop-blur-lg shadow-lg relative z-20">
-        <div className="w-full max-w-[1600px] mx-auto px-4 md:px-6 lg:px-8 py-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-start gap-4 w-full md:w-auto">
-              <Button
-                variant="ghost"
-                size="sm"
+      <div className="relative z-20">
+        <div className="w-full max-w-[1600px] mx-auto px-4 md:px-6 lg:px-8 py-8">
+          <div className="rounded-[36px] bg-white/85 backdrop-blur shadow-[0_20px_60px_rgba(20,15,45,0.12)] px-6 py-6 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-4 w-full">
+              <button
                 onClick={() => window.history.back()}
-                className="shrink-0 mt-1"
+                className="inline-flex items-center gap-2 rounded-full bg-[#f0e8d5] px-4 py-2 text-sm font-semibold text-[#3c2c53] transition hover:bg-[#e7ddc5]"
               >
-                <ArrowLeft className="w-4 h-4 md:mr-2" />
-                <span className="hidden md:inline">Zurück zur Liga</span>
-              </Button>
+                <ArrowLeft className="w-4 h-4" />
+                Zurück
+              </button>
               <div className="min-w-0 flex-1">
-                <h1 className="headline-secondary text-lg md:text-2xl text-weed-coral break-words leading-tight">{league.name}</h1>
-                <p className="text-sm text-muted-foreground font-medium truncate">
-                  Draft - {myTeam.name}
+                <p className="text-xs uppercase tracking-[0.4em] text-[#c38eff]">Live Draft</p>
+                <h1 className="text-2xl md:text-3xl font-bold text-[#2c1941] leading-tight">
+                  {league.name}
+                </h1>
+                <p className="text-sm text-[#6c5b7b]">
+                  Draft • {myTeam.name}
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2 md:gap-4 w-full md:w-auto justify-between md:justify-end">
-              {/* Timer Display */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end w-full">
               {timerSeconds !== null && !isNaN(timerSeconds) && timerSeconds >= 0 && (
-                <div className="flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-weed-purple/20 border-2 border-weed-purple rounded-lg shadow-md shrink-0">
-                  <span className="text-sm font-bold text-weed-purple whitespace-nowrap">
-                    ⏱️ {Math.floor(timerSeconds / 60)}:{String(timerSeconds % 60).padStart(2, '0')}
-                  </span>
+                <div className="rounded-[18px] bg-[#2f1546] text-white px-4 py-3 shadow-inner flex items-center gap-2 text-sm font-semibold">
+                  ⏱️ {Math.floor(timerSeconds / 60)}:{String(timerSeconds % 60).padStart(2, "0")}
                 </div>
               )}
-              {/* Turn Indicator */}
               {currentTurnTeamName && (
-                <div className={`px-3 py-1.5 md:px-4 md:py-2 rounded-lg border-2 shadow-md flex-1 md:flex-none text-center truncate ${
-                  isMyTurn 
-                    ? 'bg-weed-green border-weed-green' 
-                    : 'bg-weed-coral/20 border-weed-coral'
-                }`}>
-                  <span className={`text-sm font-bold truncate block ${
-                    isMyTurn 
-                      ? 'text-black' 
-                      : 'text-weed-coral'
-                  }`}>
-                    {isMyTurn ? '🎯 Dein Zug!' : `${currentTurnTeamName} ist dran`}
-                  </span>
+                <div
+                  className={`rounded-[18px] px-5 py-3 text-center text-sm font-semibold ${
+                    isMyTurn
+                      ? "bg-gradient-to-r from-[#cfff4d] to-[#8dff8c] text-black shadow-[0_10px_30px_rgba(207,255,77,0.5)]"
+                      : "bg-[#f1d9ff] text-[#8d4bff]"
+                  }`}
+                >
+                  {isMyTurn ? "🎯 Dein Zug!" : `${currentTurnTeamName} ist dran`}
                 </div>
               )}
             </div>
@@ -407,8 +413,8 @@ export default function Draft() {
       </div>
 
       {/* Draft Board */}
-      <div className="w-full max-w-[1600px] mx-auto px-4 md:px-6 lg:px-8 py-8 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="w-full max-w-[1600px] mx-auto px-4 md:px-6 lg:px-8 pb-12 relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-[2.4fr_1fr] gap-6">
           {/* Mobile: Draft Clock first */}
           <div className="lg:hidden order-1">
             {timerSeconds !== null && currentTurnTeamName && (
@@ -491,7 +497,7 @@ export default function Draft() {
           </div>
 
           {/* Desktop: Draft Board (Recent Picks) + Draft Board - 3 cols on desktop */}
-          <div className="hidden lg:block lg:col-span-3 lg:order-1">
+          <div className="hidden lg:block lg:order-1">
             <div className="space-y-6">
               {/* Draft Board - Reskinned Recent Picks */}
               <div className="bg-weed-purple border-2 border-weed-green shadow-xl rounded-lg p-4">
@@ -534,13 +540,14 @@ export default function Draft() {
               assetId: r.assetId,
               name: r.name || "Unknown",
             }))}
+            draftedAssets={draftedAssets}
             onDraftPick={handleDraftPick}
           />
             </div>
           </div>
 
           {/* Desktop: Sidebar - 1 col on desktop */}
-          <div className="hidden lg:block lg:col-span-1 lg:order-2 space-y-6">
+          <div className="hidden lg:block lg:order-2 space-y-6">
             {/* Draft Clock */}
             {timerSeconds !== null && currentTurnTeamName && (
               <DraftClock
