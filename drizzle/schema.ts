@@ -766,7 +766,7 @@ export const dailyMatchups = pgTable("dailyMatchups", {
 	winnerId: integer(),
 	entityAPoints: integer(),
 	entityBPoints: integer(),
-	isScored: integer().default(0).notNull(),
+	isScored: boolean("isScored").default(false).notNull(),
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
 (table) => [
@@ -780,7 +780,7 @@ export const userPredictions = pgTable("userPredictions", {
 	userId: integer().notNull(),
 	matchupId: integer().notNull(),
 	predictedWinnerId: integer().notNull(),
-	isCorrect: integer(),
+	isCorrect: boolean("isCorrect"),
 	submittedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },

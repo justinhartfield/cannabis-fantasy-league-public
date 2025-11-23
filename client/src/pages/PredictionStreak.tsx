@@ -163,7 +163,7 @@ export default function PredictionStreak() {
                 className="flex items-center justify-between rounded-2xl border border-white/5 bg-black/30 px-4 py-2 text-sm"
               >
                 <div className="flex items-center gap-2">
-                  {result.userPrediction?.isCorrect === 1 ? (
+                  {result.userPrediction?.isCorrect ? (
                     <CheckCircle className="h-4 w-4 text-weed-green" />
                   ) : (
                     <XCircle className="h-4 w-4 text-red-400" />

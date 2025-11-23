@@ -69,7 +69,7 @@ export async function generateDailyMatchups(): Promise<void> {
         entityBId: pair.entityB.id,
         entityAName: pair.entityA.name,
         entityBName: pair.entityB.name,
-        isScored: 0,
+        isScored: false,
       });
     }
 
@@ -399,10 +399,12 @@ export async function scorePreviousDayMatchups(): Promise<void> {
     const matchups = await db
       .select()
       .from(dailyMatchups)
-      .where(and(
-        eq(dailyMatchups.matchupDate, yesterdayStr),
-        eq(dailyMatchups.isScored, 0)
-      ));
+      .where(
+        and(
+          eq(dailyMatchups.matchupDate, yesterdayStr),
+          eq(dailyMatchups.isScored, false)
+        )
+      );
 
     console.log(`[PredictionService] Found ${matchups.length} matchups to score`);
 
@@ -610,7 +612,7 @@ async function scoreMatchup(matchup: any): Promise<void> {
         winnerId, 
         entityAPoints,
         entityBPoints,
-        isScored: 1 
+        isScored: true 
       })
       .where(eq(dailyMatchups.id, matchup.id));
 
@@ -635,9 +637,9 @@ export async function updateUserPredictionsForMatchup(
       .where(eq(userPredictions.matchupId, matchupId));
 
     for (const prediction of predictions) {
-      const isCorrect = prediction.predictedWinnerId === winnerId ? 1 : 0;
+      const isCorrect = prediction.predictedWinnerId === winnerId;
 
-      // Idempotency check: if already correct, skip
+      // Idempotency check
       if (prediction.isCorrect === isCorrect) {
         continue;
       }
@@ -647,7 +649,7 @@ export async function updateUserPredictionsForMatchup(
         .set({ isCorrect })
         .where(eq(userPredictions.id, prediction.id));
 
-      await updateUserStreak(prediction.userId, isCorrect === 1, matchupDate);
+      await updateUserStreak(prediction.userId, isCorrect, matchupDate);
     }
   } catch (error) {
     console.error(`[PredictionService] Error updating predictions for matchup ${matchupId}:`, error);

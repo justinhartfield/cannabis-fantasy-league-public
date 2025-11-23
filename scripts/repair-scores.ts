@@ -20,10 +20,10 @@ async function main() {
   console.log(`Targeting date: ${yesterdayStr}`);
 
   // 1. Reset matchups for yesterday
-  // We set isScored = 0 so scorePreviousDayMatchups picks them up
+  // We set isScored = false so scorePreviousDayMatchups picks them up
   const result = await db.update(dailyMatchups)
     .set({
-      isScored: 0,
+      isScored: false,
       winnerId: null,
       entityAPoints: null,
       entityBPoints: null

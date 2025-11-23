@@ -105,7 +105,7 @@ export const predictionRouter = router({
       .from(dailyMatchups)
       .where(and(
         eq(dailyMatchups.matchupDate, yesterdayStr),
-        eq(dailyMatchups.isScored, 1)
+        eq(dailyMatchups.isScored, true)
       ))
       .orderBy(dailyMatchups.id);
 
@@ -126,7 +126,8 @@ export const predictionRouter = router({
     // Lazy Repair: Check for data inconsistencies and fix them
     for (const result of results) {
       if (result.winnerId !== null && result.userPrediction) {
-        const calculatedIsCorrect = result.userPrediction.predictedWinnerId === result.winnerId ? 1 : 0;
+        const calculatedIsCorrect =
+          result.userPrediction.predictedWinnerId === result.winnerId;
         
         // If stored isCorrect is invalid (null or mismatch), fix it
         if (result.userPrediction.isCorrect !== calculatedIsCorrect) {
@@ -142,12 +143,13 @@ export const predictionRouter = router({
               // Use the ID from the original prediction object before modification
               // (The modification above only changed the in-memory property, ID is same)
               const predictionId = result.userPrediction!.id;
-              
-              await db.update(userPredictions)
+
+              await db
+                .update(userPredictions)
                 .set({ isCorrect: calculatedIsCorrect })
                 .where(eq(userPredictions.id, predictionId));
-              
-              await updateUserStreak(userId, calculatedIsCorrect === 1, yesterdayStr);
+
+              await updateUserStreak(userId, calculatedIsCorrect, yesterdayStr);
             } catch (err) {
               console.error(`[PredictionRouter] Failed to repair prediction ${result.userPrediction!.id}:`, err);
             }
@@ -156,7 +158,7 @@ export const predictionRouter = router({
       }
     }
 
-    const correctCount = results.filter(r => r.userPrediction?.isCorrect === 1).length;
+    const correctCount = results.filter(r => r.userPrediction?.isCorrect === true).length;
     const totalCount = results.filter(r => r.userPrediction !== null).length;
 
     return {
@@ -318,10 +320,12 @@ export const predictionRouter = router({
     const correctPredictions = await db
       .select({ count: sql<number>`count(*)` })
       .from(userPredictions)
-      .where(and(
-        eq(userPredictions.userId, userId),
-        eq(userPredictions.isCorrect, 1)
-      ));
+      .where(
+        and(
+          eq(userPredictions.userId, userId),
+          eq(userPredictions.isCorrect, true)
+        )
+      );
 
     const total = totalPredictions[0]?.count || 0;
     const correct = correctPredictions[0]?.count || 0;
