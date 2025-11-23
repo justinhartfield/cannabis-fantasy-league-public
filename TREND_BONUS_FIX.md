@@ -87,6 +87,10 @@ if (trendData.trendMetrics === null) {
 2. ✅ `server/dailyChallengeAggregatorV2.ts`
    - Fixed manufacturer fallback logic (lines 181-200)
    - Fixed strain fallback logic (lines 336-355)
+   - **Fixed brand ratings fetch** (lines 572-650):
+     - Added fallback when date parameters fail
+     - Improved logging for debugging
+     - Added axios import for better error handling
 
 3. ✅ `server/aggregateProductsV2.ts`
    - Fixed product fallback logic (lines 98-119)
@@ -96,10 +100,53 @@ if (trendData.trendMetrics === null) {
 
 ## Metabase Cards Used
 
+### Trend Data (Order-based)
 - **Manufacturers**: Table 123
 - **Pharmacies**: Table 130
 - **Strains**: [Question 1216](https://bi.weed.de/question/1216-strain-trends)
 - **Products**: [Question 1240](https://bi.weed.de/question/1240-product-trends)
+
+### Brand Ratings (Rating-based)
+- **Brand Today**: Card 1278 (brand-indv-today)
+- **Brand Yesterday**: Card 1287 (brand-indv-yesterday-modified)
+
+**Note**: Brands use a different aggregation system based on ratings data, not orders or trend metrics.
+
+## Brand Ratings Issue (Separate from Trend Bonus)
+
+During testing, we discovered that **brands weren't updating at all** because the brand ratings data wasn't being fetched. This is a separate issue from the trend bonus problem.
+
+### The Brand Problem
+
+Brands use a completely different aggregation system:
+- They aggregate from **ratings data**, not orders or trend metrics
+- They fetch from Metabase cards 1278 and 1287 with date parameters
+- The query was returning empty results: `[warn] No brand ratings data found`
+
+### Brand Fix Applied
+
+**Updated `fetchBrandRatings()` method**:
+1. **Better parameter format**: Changed from `['absolute-date', date]` array format to simple string `date`
+2. **Fallback mechanism**: If parameterized query fails, tries without parameters
+3. **Enhanced logging**: Added detailed logging to track what's happening
+4. **Better error handling**: Added axios error details for debugging
+
+```typescript
+// Try with parameters first
+try {
+  todayResults = await metabase.executeCardQuery(1278, { UpdatedAt: statDate });
+} catch (error) {
+  // Fall back to fetching without parameters
+  todayResults = await metabase.executeCardQuery(1278);
+}
+```
+
+### Why Brands Are Different
+
+- **Manufacturers/Strains/Products/Pharmacies**: Use order volume + trend data
+- **Brands**: Use ratings (totalRatings, bayesianAverage, rating deltas)
+
+This is by design - brands are evaluated on community engagement, not sales.
 
 ## Expected Behavior After Fix
 

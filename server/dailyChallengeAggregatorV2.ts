@@ -8,6 +8,7 @@
 
 import { getDb } from './db';
 import { getMetabaseClient } from './metabase';
+import axios from 'axios';
 import {
   calculateManufacturerScore as calculateOldManufacturerScore,
   calculateStrainScore as calculateOldStrainScore,
@@ -592,15 +593,38 @@ export class DailyChallengeAggregatorV2 {
       yesterday.setDate(yesterday.getDate() - 1);
       const yesterdayStr = yesterday.toISOString().split('T')[0];
       
-      // Fetch both today and yesterday in parallel
-      const [todayResults, yesterdayResults] = await Promise.all([
-        this.metabase.executeCardQuery(BRAND_TODAY_CARD_ID, {
-          UpdatedAt: ['absolute-date', statDate],
-        }),
-        this.metabase.executeCardQuery(BRAND_YESTERDAY_CARD_ID, {
-          UpdatedAt: ['absolute-date', yesterdayStr],
-        }),
-      ]);
+      console.log(`[Brand Ratings] Fetching for date ${statDate} (yesterday: ${yesterdayStr})`);
+      
+      // Try fetching with parameters first, then fall back to fetching without parameters
+      let todayResults: any[] = [];
+      let yesterdayResults: any[] = [];
+      
+      try {
+        // Attempt with date parameters
+        [todayResults, yesterdayResults] = await Promise.all([
+          this.metabase.executeCardQuery(BRAND_TODAY_CARD_ID, {
+            UpdatedAt: statDate,
+          }),
+          this.metabase.executeCardQuery(BRAND_YESTERDAY_CARD_ID, {
+            UpdatedAt: yesterdayStr,
+          }),
+        ]);
+      } catch (paramError) {
+        console.warn(`[Brand Ratings] Parameterized query failed, trying without parameters...`, paramError);
+        // Fall back to fetching without parameters (will get all data, filter client-side)
+        [todayResults, yesterdayResults] = await Promise.all([
+          this.metabase.executeCardQuery(BRAND_TODAY_CARD_ID),
+          this.metabase.executeCardQuery(BRAND_YESTERDAY_CARD_ID),
+        ]);
+      }
+      
+      console.log(`[Brand Ratings] Fetched ${todayResults.length} today, ${yesterdayResults.length} yesterday`);
+      
+      // If no results, return empty array
+      if (!todayResults || todayResults.length === 0) {
+        console.warn(`[Brand Ratings] No data returned for ${statDate}`);
+        return [];
+      }
       
       // Build a map of yesterday's data by brand name
       const yesterdayMap = new Map<string, any>();
@@ -615,7 +639,7 @@ export class DailyChallengeAggregatorV2 {
       }
       
       // Map today's results and compute deltas
-      return todayResults.map((row: any) => {
+      const results = todayResults.map((row: any) => {
         const name = row.Name || row.name;
         const todayTotal = parseInt(row['Sum of TotalRatings'] || row.totalRatings || '0');
         const todayBayesian = parseFloat(row['Average of BayesianAverage'] || row.bayesianAverage || '0');
@@ -638,9 +662,15 @@ export class DailyChallengeAggregatorV2 {
           ratingDelta: Math.max(0, todayTotal - yesterdayTotal),
           bayesianDelta: Number((todayBayesian - yesterdayBayesian).toFixed(2)),
         };
-      });
+      }).filter(r => r.name); // Filter out entries without names
+      
+      console.log(`[Brand Ratings] Processed ${results.length} brands with ratings data`);
+      return results;
     } catch (error) {
       console.error('[DailyChallengeAggregatorV2] Error fetching brand ratings:', error);
+      if (axios.isAxiosError(error) && error.response) {
+        console.error('[Brand Ratings] API error details:', error.response.data);
+      }
       return [];
     }
   }
