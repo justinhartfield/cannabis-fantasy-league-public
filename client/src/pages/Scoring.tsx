@@ -323,11 +323,11 @@ export default function Scoring() {
   // 2. Cumulative live calculation (cumulativeLiveScores) - if official scores are 0
   // 3. Official weekly scores (weekScores)
   const useLiveCalculation = weekScores && weekScores.every(s => s.points === 0) && cumulativeLiveScores && cumulativeLiveScores.some(s => s.points > 0);
-  
-  const displayScores = liveScores.length > 0 
-    ? liveScores 
-    : useLiveCalculation 
-      ? cumulativeLiveScores 
+
+  const displayScores = liveScores.length > 0
+    ? liveScores
+    : useLiveCalculation
+      ? cumulativeLiveScores
       : weekScores || [];
   const dedupedBreakdowns = useMemo(() => {
     if (!breakdown?.breakdowns) {
@@ -376,7 +376,7 @@ export default function Scoring() {
         hasTeam={!!userTeam}
         currentPage="scoring"
       />
-      
+
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -390,364 +390,366 @@ export default function Scoring() {
                 Live scores and detailed performance breakdowns
               </p>
             </div>
-          
-          {/* WebSocket Status & Actions */}
-          <div className="flex items-center gap-3">
-            <Badge 
-              variant={isConnected ? "default" : "secondary"} 
-              className={`flex items-center gap-2 ${isConnected ? 'gradient-primary text-white' : 'bg-muted'}`}
-            >
-              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-white pulse-live' : 'bg-gray-400'}`} />
-              {isConnected ? 'LIVE' : 'Offline'}
-            </Badge>
-            
-            {/* Progress Bar */}
-            <div className="w-full lg:w-auto min-w-[250px]">
-              <WeekProgressBar year={selectedYear} week={selectedWeek} />
-            </div>
 
-            {user?.role === 'admin' && (
+            {/* WebSocket Status & Actions */}
+            <div className="flex items-center gap-3">
+              <Badge
+                variant={isConnected ? "default" : "secondary"}
+                className={`flex items-center gap-2 ${isConnected ? 'gradient-primary text-white' : 'bg-muted'}`}
+              >
+                <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-white pulse-live' : 'bg-gray-400'}`} />
+                {isConnected ? 'LIVE' : 'Offline'}
+              </Badge>
+
+              {/* Progress Bar */}
+              <div className="w-full lg:w-auto min-w-[250px]">
+                <WeekProgressBar year={selectedYear} week={selectedWeek} />
+              </div>
+
+              {user?.role === 'admin' && (
+                <Button
+                  onClick={handleCalculateScores}
+                  disabled={isCalculating}
+                  variant="outline"
+                  size="sm"
+                  className="border-border/50"
+                >
+                  {isCalculating ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      Calculating...
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-4 h-4 mr-2" />
+                      Recalculate scores
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Week Selector */}
+        <Card className="mb-6 gradient-card border-border/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-foreground">
+              <Calendar className="w-5 h-5 text-[#FF2D55]" />
+              Select Week
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-muted-foreground">
+                  Year:
+                </label>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => {
+                    manualSelectionRef.current = true;
+                    setSelectedYear(parseInt(e.target.value));
+                  }}
+                  className="px-4 py-2 border border-border/50 rounded-lg bg-card text-foreground"
+                >
+                  <option value={2024}>2024</option>
+                  <option value={2025}>2025</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-muted-foreground">
+                  Week:
+                </label>
+                <select
+                  value={selectedWeek}
+                  onChange={(e) => {
+                    manualSelectionRef.current = true;
+                    setSelectedWeek(parseInt(e.target.value));
+                  }}
+                  className="px-4 py-2 border border-border/50 rounded-lg bg-card text-foreground"
+                >
+                  {Array.from({ length: 52 }, (_, i) => i + 1).map((week) => (
+                    <option key={week} value={week}>
+                      Week {week}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <Button
-                onClick={handleCalculateScores}
-                disabled={isCalculating}
+                onClick={() => refetchScores()}
+                disabled={isRefetching}
                 variant="outline"
                 size="sm"
-                className="border-border/50"
+                className="ml-auto border-border/50"
               >
-                {isCalculating ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                    Calculating...
-                  </>
-                ) : (
-                  <>
-                    <Zap className="w-4 h-4 mr-2" />
-                    Recalculate scores
-                  </>
-                )}
+                <RefreshCw className={`w-4 h-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
+                {isRefetching ? "Refreshing..." : "Refresh"}
               </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Main Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Leaderboard */}
+          <div className="lg:col-span-1">
+            <Card className="gradient-card border-border/50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-foreground">
+                  <Award className="w-5 h-5 text-[#FFD700]" />
+                  Leaderboard
+                </CardTitle>
+                <CardDescription>
+                  {selectedYear} - Week {selectedWeek}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {rankedScores.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 rounded-2xl bg-muted/30 mx-auto mb-4 flex items-center justify-center">
+                      <Award className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                    <div className="space-y-2 text-sm text-muted-foreground">
+                      <p>No scores yet for this week.</p>
+                      <p>
+                        Scores appear after weekly stats are synced and scoring has been run
+                        for the selected year and week.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {rankedScores.map((score) => (
+                      <button
+                        key={score.teamId}
+                        onClick={() => setSelectedTeamId(score.teamId)}
+                        className={`w-full p-4 rounded-xl border transition-all card-hover-lift text-left ${selectedTeamId === score.teamId
+                            ? 'bg-primary/10 border-primary glow-primary'
+                            : 'bg-card/50 border-border/50 hover:border-primary/30'
+                          } ${score.rank === 1 ? 'winner-celebration' : ''}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg ${score.rank === 1 ? 'rank-gold text-white' :
+                                score.rank === 2 ? 'rank-silver text-white' :
+                                  score.rank === 3 ? 'rank-bronze text-white' :
+                                    'bg-muted text-muted-foreground'
+                              }`}>
+                              {score.rank}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className={`font-bold truncate ${score.rank <= 3 ? 'text-gradient-primary' : 'text-foreground'
+                                }`}>
+                                {score.teamName}
+                              </div>
+                              {isCalculating && liveScores.find(s => s.teamId === score.teamId) && (
+                                <Badge variant="secondary" className="text-xs mt-1 gradient-primary text-white">
+                                  <Zap className="w-3 h-3 mr-1" />
+                                  Live
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className={`text-3xl font-bold score-animate ${score.rank === 1 ? 'text-gradient-primary' : 'text-foreground'
+                              }`}>
+                              {score.points?.toFixed(1) || '0.0'}
+                            </div>
+                            <div className="text-xs text-muted-foreground uppercase">pts</div>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Scoring Breakdown */}
+          <div className="lg:col-span-2">
+            {!selectedTeamId ? (
+              <Card className="gradient-card border-border/50">
+                <CardContent className="py-20">
+                  <div className="text-center max-w-md mx-auto">
+                    <div className="w-20 h-20 rounded-2xl bg-muted/30 mx-auto mb-6 flex items-center justify-center">
+                      <UserCircle className="w-10 h-10 text-muted-foreground" />
+                    </div>
+                    <p className="text-xl font-bold text-foreground mb-2">
+                      Select a Team
+                    </p>
+                    <p className="text-muted-foreground">
+                      Choose a team from the leaderboard to view their detailed scoring breakdown
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : !breakdown ? (
+              <Card className="gradient-card border-border/50">
+                <CardContent className="py-20">
+                  <div className="text-center max-w-md mx-auto space-y-4">
+                    <div className="w-20 h-20 rounded-2xl bg-muted/30 mx-auto flex items-center justify-center">
+                      <BarChart3 className="w-10 h-10 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold text-foreground mb-2">Live Scoring Active</p>
+                      <p className="text-muted-foreground">
+                        Scores are being calculated. If you see 0.0, partial stats for this week may not be synced yet.
+                        Check back later or click "Calculate Scores" to force an update.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <BarChart3 className="w-5 h-5" />
+                      Scoring Breakdown
+                    </CardTitle>
+                    <CardDescription>
+                      Detailed points breakdown for {rankedScores.find(s => s.teamId === selectedTeamId)?.teamName}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                      <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                        <div className="text-sm text-muted-foreground mb-1">Manufacturers</div>
+                        <div className="text-2xl font-bold text-foreground">
+                          {(breakdown.score.mfg1Points || 0) + (breakdown.score.mfg2Points || 0)}
+                        </div>
+                      </div>
+                      <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20">
+                        <div className="text-sm text-muted-foreground mb-1">Strains</div>
+                        <div className="text-2xl font-bold text-foreground">
+                          {(breakdown.score.cstr1Points || 0) + (breakdown.score.cstr2Points || 0)}
+                        </div>
+                      </div>
+                      <div className="p-4 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                        <div className="text-sm text-muted-foreground mb-1">Products</div>
+                        <div className="text-2xl font-bold text-foreground">
+                          {(breakdown.score.prd1Points || 0) + (breakdown.score.prd2Points || 0)}
+                        </div>
+                      </div>
+                      <div className="p-4 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                        <div className="text-sm text-muted-foreground mb-1">Pharmacies</div>
+                        <div className="text-2xl font-bold text-foreground">
+                          {(breakdown.score.phm1Points || 0) + (breakdown.score.phm2Points || 0)}
+                        </div>
+                      </div>
+                      <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                        <div className="text-sm text-muted-foreground mb-1">Brands</div>
+                        <div className="text-2xl font-bold text-foreground">
+                          {breakdown.score.brd1Points || 0}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Visual Enhancements */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+                      <CategoryBarChart
+                        categories={[
+                          { name: 'Manufacturers', points: (breakdown.score.mfg1Points || 0) + (breakdown.score.mfg2Points || 0), color: 'bg-blue-500' },
+                          { name: 'Strains', points: (breakdown.score.cstr1Points || 0) + (breakdown.score.cstr2Points || 0), color: 'bg-green-500' },
+                          { name: 'Products', points: (breakdown.score.prd1Points || 0) + (breakdown.score.prd2Points || 0), color: 'bg-purple-500' },
+                          { name: 'Pharmacies', points: (breakdown.score.phm1Points || 0) + (breakdown.score.phm2Points || 0), color: 'bg-orange-500' },
+                          { name: 'Brands', points: breakdown.score.brd1Points || 0, color: 'bg-yellow-500' },
+                        ]}
+                        totalPoints={breakdown.score.totalPoints || 0}
+                      />
+                      <TopPerformersPanel
+                        performers={dedupedBreakdowns
+                          .map((b: any) => ({
+                            assetName: b.assetName || `${b.assetType} #${b.assetId}`,
+                            assetType: b.assetType,
+                            points: b.totalPoints || 0,
+                            category: b.assetType === 'manufacturer' ? 'Manufacturer' :
+                              b.assetType === 'cannabis_strain' ? 'Strain' :
+                                b.assetType === 'product' ? 'Product' :
+                                  b.assetType === 'pharmacy' ? 'Pharmacy' : 'Brand',
+                          }))
+                          .sort((a: any, b: any) => b.points - a.points)
+                        }
+                      />
+                    </div>
+
+                    {/* Individual Asset Breakdowns */}
+                    <div className="mb-4 flex items-center gap-4 p-4 bg-muted/50 rounded-lg border border-border">
+                      <div className="flex items-center gap-2">
+                        <label className="text-sm font-medium">Sort by:</label>
+                        <select
+                          value={assetSortBy}
+                          onChange={(e) => setAssetSortBy(e.target.value as 'points' | 'name' | 'type')}
+                          className="px-3 py-1.5 text-sm border rounded-md bg-background"
+                        >
+                          <option value="points">Points (High to Low)</option>
+                          <option value="name">Name (A-Z)</option>
+                          <option value="type">Type</option>
+                        </select>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <label className="text-sm font-medium">Filter:</label>
+                        <select
+                          value={assetFilter}
+                          onChange={(e) => setAssetFilter(e.target.value)}
+                          className="px-3 py-1.5 text-sm border rounded-md bg-background"
+                        >
+                          <option value="all">All Assets</option>
+                          <option value="manufacturer">Manufacturers</option>
+                          <option value="cannabis_strain">Strains</option>
+                          <option value="product">Products</option>
+                          <option value="pharmacy">Pharmacies</option>
+                          <option value="brand">Brands</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      {dedupedBreakdowns
+                        .filter((b: any) => assetFilter === 'all' || b.assetType === assetFilter)
+                        .sort((a: any, b: any) => {
+                          if (assetSortBy === 'points') {
+                            return (b.totalPoints || 0) - (a.totalPoints || 0);
+                          } else if (assetSortBy === 'name') {
+                            const nameA = a.assetName || `${a.assetType} #${a.assetId}`;
+                            const nameB = b.assetName || `${b.assetType} #${b.assetId}`;
+                            return nameA.localeCompare(nameB);
+                          } else {
+                            return a.assetType.localeCompare(b.assetType);
+                          }
+                        })
+                        .map((assetBreakdown: any, index: number) => (
+                          <ScoringBreakdown
+                            key={index}
+                            data={{
+                              assetName: assetBreakdown.assetName || `${assetBreakdown.assetType} #${assetBreakdown.assetId}`,
+                              assetType: assetBreakdown.assetType,
+                              components: assetBreakdown.breakdown?.components || [],
+                              bonuses: assetBreakdown.breakdown?.bonuses || [],
+                              penalties: assetBreakdown.breakdown?.penalties || [],
+                              subtotal: assetBreakdown.breakdown?.subtotal || 0,
+                              total: assetBreakdown.totalPoints || 0,
+                              // Pass metadata for flair display
+                              trendMultiplier: assetBreakdown.breakdown?.trendMultiplier,
+                              streakDays: assetBreakdown.breakdown?.streakDays,
+                              marketSharePercent: assetBreakdown.breakdown?.marketSharePercent,
+                              consistencyScore: assetBreakdown.breakdown?.consistencyScore,
+                              velocityScore: assetBreakdown.breakdown?.velocityScore,
+                            }}
+                          />
+                        ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             )}
           </div>
         </div>
       </div>
-
-      {/* Week Selector */}
-      <Card className="mb-6 gradient-card border-border/50">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-foreground">
-            <Calendar className="w-5 h-5 text-[#FF2D55]" />
-            Select Week
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4 flex-wrap">
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-muted-foreground">
-                Year:
-              </label>
-              <select
-                value={selectedYear}
-                onChange={(e) => {
-                  manualSelectionRef.current = true;
-                  setSelectedYear(parseInt(e.target.value));
-                }}
-                className="px-4 py-2 border border-border/50 rounded-lg bg-card text-foreground"
-              >
-                <option value={2024}>2024</option>
-                <option value={2025}>2025</option>
-              </select>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-muted-foreground">
-                Week:
-              </label>
-              <select
-                value={selectedWeek}
-                onChange={(e) => {
-                  manualSelectionRef.current = true;
-                  setSelectedWeek(parseInt(e.target.value));
-                }}
-                className="px-4 py-2 border border-border/50 rounded-lg bg-card text-foreground"
-              >
-                {Array.from({ length: 52 }, (_, i) => i + 1).map((week) => (
-                  <option key={week} value={week}>
-                    Week {week}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <Button
-              onClick={() => refetchScores()}
-              disabled={isRefetching}
-              variant="outline"
-              size="sm"
-              className="ml-auto border-border/50"
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
-              {isRefetching ? "Refreshing..." : "Refresh"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Leaderboard */}
-        <div className="lg:col-span-1">
-          <Card className="gradient-card border-border/50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-foreground">
-                <Award className="w-5 h-5 text-[#FFD700]" />
-                Leaderboard
-              </CardTitle>
-              <CardDescription>
-                {selectedYear} - Week {selectedWeek}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {rankedScores.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 rounded-2xl bg-muted/30 mx-auto mb-4 flex items-center justify-center">
-                    <Award className="w-8 h-8 text-muted-foreground" />
-                  </div>
-                  <div className="space-y-2 text-sm text-muted-foreground">
-                    <p>No scores yet for this week.</p>
-                    <p>
-                      Scores appear after weekly stats are synced and scoring has been run
-                      for the selected year and week.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {rankedScores.map((score) => (
-                    <button
-                      key={score.teamId}
-                      onClick={() => setSelectedTeamId(score.teamId)}
-                      className={`w-full p-4 rounded-xl border transition-all card-hover-lift text-left ${
-                        selectedTeamId === score.teamId
-                          ? 'bg-primary/10 border-primary glow-primary'
-                          : 'bg-card/50 border-border/50 hover:border-primary/30'
-                      } ${score.rank === 1 ? 'winner-celebration' : ''}`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg ${
-                            score.rank === 1 ? 'rank-gold text-white' :
-                            score.rank === 2 ? 'rank-silver text-white' :
-                            score.rank === 3 ? 'rank-bronze text-white' :
-                            'bg-muted text-muted-foreground'
-                          }`}>
-                            {score.rank}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className={`font-bold truncate ${
-                              score.rank <= 3 ? 'text-gradient-primary' : 'text-foreground'
-                            }`}>
-                              {score.teamName}
-                            </div>
-                            {isCalculating && liveScores.find(s => s.teamId === score.teamId) && (
-                              <Badge variant="secondary" className="text-xs mt-1 gradient-primary text-white">
-                                <Zap className="w-3 h-3 mr-1" />
-                                Live
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className={`text-3xl font-bold score-animate ${
-                            score.rank === 1 ? 'text-gradient-primary' : 'text-foreground'
-                          }`}>
-                            {score.points?.toFixed(1) || '0.0'}
-                          </div>
-                          <div className="text-xs text-muted-foreground uppercase">pts</div>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Scoring Breakdown */}
-        <div className="lg:col-span-2">
-          {!selectedTeamId ? (
-            <Card className="gradient-card border-border/50">
-              <CardContent className="py-20">
-                <div className="text-center max-w-md mx-auto">
-                  <div className="w-20 h-20 rounded-2xl bg-muted/30 mx-auto mb-6 flex items-center justify-center">
-                    <UserCircle className="w-10 h-10 text-muted-foreground" />
-                  </div>
-                  <p className="text-xl font-bold text-foreground mb-2">
-                    Select a Team
-                  </p>
-                  <p className="text-muted-foreground">
-                    Choose a team from the leaderboard to view their detailed scoring breakdown
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ) : !breakdown ? (
-            <Card className="gradient-card border-border/50">
-              <CardContent className="py-20">
-                <div className="text-center max-w-md mx-auto space-y-4">
-                  <div className="w-20 h-20 rounded-2xl bg-muted/30 mx-auto flex items-center justify-center">
-                    <BarChart3 className="w-10 h-10 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <p className="text-xl font-bold text-foreground mb-2">Live Scoring Active</p>
-                    <p className="text-muted-foreground">
-                      Scores are being calculated. If you see 0.0, partial stats for this week may not be synced yet. 
-                      Check back later or click "Calculate Scores" to force an update.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <BarChart3 className="w-5 h-5" />
-                    Scoring Breakdown
-                  </CardTitle>
-                  <CardDescription>
-                    Detailed points breakdown for {rankedScores.find(s => s.teamId === selectedTeamId)?.teamName}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-                    <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                      <div className="text-sm text-muted-foreground mb-1">Manufacturers</div>
-                      <div className="text-2xl font-bold text-foreground">
-                        {(breakdown.score.mfg1Points || 0) + (breakdown.score.mfg2Points || 0)}
-                      </div>
-                    </div>
-                    <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20">
-                      <div className="text-sm text-muted-foreground mb-1">Strains</div>
-                      <div className="text-2xl font-bold text-foreground">
-                        {(breakdown.score.cstr1Points || 0) + (breakdown.score.cstr2Points || 0)}
-                      </div>
-                    </div>
-                    <div className="p-4 rounded-lg bg-purple-500/10 border border-purple-500/20">
-                      <div className="text-sm text-muted-foreground mb-1">Products</div>
-                      <div className="text-2xl font-bold text-foreground">
-                        {(breakdown.score.prd1Points || 0) + (breakdown.score.prd2Points || 0)}
-                      </div>
-                    </div>
-                    <div className="p-4 rounded-lg bg-orange-500/10 border border-orange-500/20">
-                      <div className="text-sm text-muted-foreground mb-1">Pharmacies</div>
-                      <div className="text-2xl font-bold text-foreground">
-                        {(breakdown.score.phm1Points || 0) + (breakdown.score.phm2Points || 0)}
-                      </div>
-                    </div>
-                    <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
-                      <div className="text-sm text-muted-foreground mb-1">Brands</div>
-                      <div className="text-2xl font-bold text-foreground">
-                        {breakdown.score.brd1Points || 0}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Visual Enhancements */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-                    <CategoryBarChart
-                      categories={[
-                        { name: 'Manufacturers', points: (breakdown.score.mfg1Points || 0) + (breakdown.score.mfg2Points || 0), color: 'bg-blue-500' },
-                        { name: 'Strains', points: (breakdown.score.cstr1Points || 0) + (breakdown.score.cstr2Points || 0), color: 'bg-green-500' },
-                        { name: 'Products', points: (breakdown.score.prd1Points || 0) + (breakdown.score.prd2Points || 0), color: 'bg-purple-500' },
-                        { name: 'Pharmacies', points: (breakdown.score.phm1Points || 0) + (breakdown.score.phm2Points || 0), color: 'bg-orange-500' },
-                        { name: 'Brands', points: breakdown.score.brd1Points || 0, color: 'bg-yellow-500' },
-                      ]}
-                      totalPoints={breakdown.score.totalPoints || 0}
-                    />
-                    <TopPerformersPanel
-                      performers={dedupedBreakdowns
-                        .map((b: any) => ({
-                          assetName: b.assetName || `${b.assetType} #${b.assetId}`,
-                          assetType: b.assetType,
-                          points: b.totalPoints || 0,
-                          category: b.assetType === 'manufacturer' ? 'Manufacturer' :
-                                   b.assetType === 'cannabis_strain' ? 'Strain' :
-                                   b.assetType === 'product' ? 'Product' :
-                                   b.assetType === 'pharmacy' ? 'Pharmacy' : 'Brand',
-                        }))
-                        .sort((a: any, b: any) => b.points - a.points)
-                      }
-                    />
-                  </div>
-
-                  {/* Individual Asset Breakdowns */}
-                  <div className="mb-4 flex items-center gap-4 p-4 bg-muted/50 rounded-lg border border-border">
-                    <div className="flex items-center gap-2">
-                      <label className="text-sm font-medium">Sort by:</label>
-                      <select
-                        value={assetSortBy}
-                        onChange={(e) => setAssetSortBy(e.target.value as 'points' | 'name' | 'type')}
-                        className="px-3 py-1.5 text-sm border rounded-md bg-background"
-                      >
-                        <option value="points">Points (High to Low)</option>
-                        <option value="name">Name (A-Z)</option>
-                        <option value="type">Type</option>
-                      </select>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <label className="text-sm font-medium">Filter:</label>
-                      <select
-                        value={assetFilter}
-                        onChange={(e) => setAssetFilter(e.target.value)}
-                        className="px-3 py-1.5 text-sm border rounded-md bg-background"
-                      >
-                        <option value="all">All Assets</option>
-                        <option value="manufacturer">Manufacturers</option>
-                        <option value="cannabis_strain">Strains</option>
-                        <option value="product">Products</option>
-                        <option value="pharmacy">Pharmacies</option>
-                        <option value="brand">Brands</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    {dedupedBreakdowns
-                      .filter((b: any) => assetFilter === 'all' || b.assetType === assetFilter)
-                      .sort((a: any, b: any) => {
-                        if (assetSortBy === 'points') {
-                          return (b.totalPoints || 0) - (a.totalPoints || 0);
-                        } else if (assetSortBy === 'name') {
-                          const nameA = a.assetName || `${a.assetType} #${a.assetId}`;
-                          const nameB = b.assetName || `${b.assetType} #${b.assetId}`;
-                          return nameA.localeCompare(nameB);
-                        } else {
-                          return a.assetType.localeCompare(b.assetType);
-                        }
-                      })
-                      .map((assetBreakdown: any, index: number) => (
-                      <ScoringBreakdown
-                        key={index}
-                        data={{
-                          assetName: assetBreakdown.assetName || `${assetBreakdown.assetType} #${assetBreakdown.assetId}`,
-                          assetType: assetBreakdown.assetType,
-                          components: assetBreakdown.breakdown?.components || [],
-                          bonuses: assetBreakdown.breakdown?.bonuses || [],
-                          penalties: assetBreakdown.breakdown?.penalties || [],
-                          subtotal: assetBreakdown.breakdown?.subtotal || 0,
-                          total: assetBreakdown.totalPoints || 0,
-                        }}
-                      />
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
     </div>
   );
 }

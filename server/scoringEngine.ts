@@ -566,15 +566,21 @@ export function calculateManufacturerPoints(stats: {
     bonuses: [],
     penalties: [],
     total: 0,
+    // Metadata for frontend display
+    streakDays: stats.streakDays || 0,
+    marketSharePercent: stats.marketSharePercent || 0,
+    trendMultiplier: (stats.previousSalesVolumeGrams && stats.previousSalesVolumeGrams > 0)
+      ? Number((stats.salesVolumeGrams / stats.previousSalesVolumeGrams).toFixed(2))
+      : 1.0,
   };
 
-  // 1. Sales Volume: 1 pt per 100g (Transparent)
+  // 1. Sales Volume: 1 pt per 100g (Transparent but Obscured)
   // Previously: 1 pt per 250g (Hidden)
   const salesPoints = Math.floor(stats.salesVolumeGrams / 100);
   breakdown.components.push({
     category: 'Sales Volume',
-    value: stats.salesVolumeGrams,
-    formula: `${stats.salesVolumeGrams}g ÷ 100`,
+    value: 'Confidential', // Obscured for legal reasons
+    formula: `Volume Index × 1`, // Obscured formula
     points: salesPoints,
   });
 
@@ -732,15 +738,20 @@ export function calculateStrainPoints(stats: {
     bonuses: [],
     penalties: [],
     total: 0,
+    // Metadata for frontend display
+    trendMultiplier: (stats.previousOrderVolumeGrams && stats.previousOrderVolumeGrams > 0)
+      ? Number((stats.orderVolumeGrams / stats.previousOrderVolumeGrams).toFixed(2))
+      : 1.0,
+    isTrending: stats.isTrending || false,
   };
 
-  // 1. Order Volume: 1 pt per 200g (Transparent)
+  // 1. Order Volume: 1 pt per 200g (Transparent but Obscured)
   // Previously: 1 pt per 800g (Hidden)
   const volumePoints = Math.floor(stats.orderVolumeGrams / 200);
   breakdown.components.push({
     category: 'Order Volume',
-    value: stats.orderVolumeGrams,
-    formula: `${stats.orderVolumeGrams}g ÷ 200`,
+    value: 'Confidential', // Obscured for legal reasons
+    formula: `Volume Index × 1`, // Obscured formula
     points: volumePoints,
   });
 
@@ -2010,18 +2021,18 @@ async function scoreManufacturer(
 
     // Fetch additional metrics from daily stats for the week
     // We need orderCount (sum) and streakDays (max/latest)
-    const weekDates = getWeekDateRange(scope.year, scope.week);
+    const { startDate, endDate } = getWeekDateRange(scope.year, scope.week);
     const dailyAgg = await db
       .select({
-        orderCount: sum(manufacturerDailyStats.orderCount),
-        streakDays: max(manufacturerDailyStats.streakDays), // Use max to get the peak streak
-        marketSharePercent: sql<number>`MAX(${manufacturerDailyStats.marketSharePercent})`, // Use max to get peak share
+        orderCount: sum(manufacturerDailyChallengeStats.orderCount),
+        streakDays: max(manufacturerDailyChallengeStats.streakDays), // Use max to get the peak streak
+        marketSharePercent: sql<number>`MAX(${manufacturerDailyChallengeStats.marketSharePercent})`, // Use max to get peak share
       })
-      .from(manufacturerDailyStats)
+      .from(manufacturerDailyChallengeStats)
       .where(and(
-        eq(manufacturerDailyStats.manufacturerId, manufacturerId),
-        gte(manufacturerDailyStats.statDate, weekDates.start),
-        lte(manufacturerDailyStats.statDate, weekDates.end)
+        eq(manufacturerDailyChallengeStats.manufacturerId, manufacturerId),
+        gte(manufacturerDailyChallengeStats.statDate, startDate),
+        lte(manufacturerDailyChallengeStats.statDate, endDate)
       ));
 
     const additionalStats = dailyAgg[0] || {};
@@ -2237,16 +2248,16 @@ async function scoreProduct(
   if (scope.type === 'weekly') {
     const weeklyStat = statRecord as typeof strainWeeklyStats.$inferSelect;
     // Fetch additional metrics from daily stats
-    const weekDates = getWeekDateRange(scope.year, scope.week);
+    const { startDate, endDate } = getWeekDateRange(scope.year, scope.week);
     const dailyAgg = await db
       .select({
-        orderCount: sum(strainDailyStats.orderCount), // Note: using strainDailyStats as it maps to strainWeeklyStats
+        orderCount: sum(strainDailyChallengeStats.orderCount), // Note: using strainDailyStats as it maps to strainWeeklyStats
       })
-      .from(strainDailyStats)
+      .from(strainDailyChallengeStats)
       .where(and(
-        eq(strainDailyStats.strainId, productId),
-        gte(strainDailyStats.statDate, weekDates.start),
-        lte(strainDailyStats.statDate, weekDates.end)
+        eq(strainDailyChallengeStats.strainId, productId),
+        gte(strainDailyChallengeStats.statDate, startDate),
+        lte(strainDailyChallengeStats.statDate, endDate)
       ));
 
     const additionalStats = dailyAgg[0] || {};
@@ -2344,16 +2355,16 @@ async function scorePharmacy(
   if (scope.type === 'weekly') {
     const weeklyStat = statRecord as typeof pharmacyWeeklyStats.$inferSelect;
     // Fetch additional metrics from daily stats
-    const weekDates = getWeekDateRange(scope.year, scope.week);
+    const { startDate, endDate } = getWeekDateRange(scope.year, scope.week);
     const dailyAgg = await db
       .select({
-        orderCount: sum(pharmacyDailyStats.orderCount),
+        orderCount: sum(pharmacyDailyChallengeStats.orderCount),
       })
-      .from(pharmacyDailyStats)
+      .from(pharmacyDailyChallengeStats)
       .where(and(
-        eq(pharmacyDailyStats.pharmacyId, pharmacyId),
-        gte(pharmacyDailyStats.statDate, weekDates.start),
-        lte(pharmacyDailyStats.statDate, weekDates.end)
+        eq(pharmacyDailyChallengeStats.pharmacyId, pharmacyId),
+        gte(pharmacyDailyChallengeStats.statDate, startDate),
+        lte(pharmacyDailyChallengeStats.statDate, endDate)
       ));
 
     const additionalStats = dailyAgg[0] || {};
