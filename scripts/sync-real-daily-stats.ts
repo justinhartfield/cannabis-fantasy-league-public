@@ -2,6 +2,7 @@ import { getDb } from '../server/db';
 import { manufacturers, products, cannabisStrains, pharmacies, manufacturerDailyStats, productDailyStats, strainDailyStats, pharmacyDailyStats } from '../drizzle/schema';
 import { MetabaseClient } from '../server/lib/metabase-client-v2';
 import { eq, and } from 'drizzle-orm';
+import { isBrandMigrationName } from '../shared/brandMigration';
 
 async function syncDailyStats(date: Date) {
   const db = await getDb();
@@ -31,6 +32,10 @@ async function syncDailyStats(date: Date) {
     console.log('🏭 Syncing manufacturers...');
     let manufacturerCount = 0;
     for (const stat of manufacturerStats) {
+      if (isBrandMigrationName(stat.name)) {
+        console.log(`ℹ️  Skipping ${stat.name} (tracked as brand)`);
+        continue;
+      }
       // Find manufacturer by name
       const [manufacturer] = await db
         .select()

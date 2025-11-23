@@ -52,7 +52,7 @@ function invalidateCachedScores(challengeId: number, statDate: string): void {
 
 import {
   calculateWeeklyScores,
-  calculateTeamScore,
+  calculateSeasonTeamWeek,
   calculateDailyChallengeScores,
   buildManufacturerDailyBreakdown,
   buildStrainDailyBreakdown,
@@ -216,7 +216,7 @@ export const scoringRouter = router({
       }
 
       try {
-        const totalPoints = await calculateTeamScore(input.teamId, input.year, input.week);
+        const totalPoints = await calculateSeasonTeamWeek(team[0].leagueId, input.teamId, input.year, input.week);
         return {
           success: true,
           totalPoints,

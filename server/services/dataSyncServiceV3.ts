@@ -15,6 +15,7 @@ import {
 import { eq } from 'drizzle-orm';
 import { createSyncJob } from './syncLogger';
 import { getMetabaseDailyStatsClient } from '../lib/metabase-daily-stats';
+import { isBrandMigrationName } from '../../shared/brandMigration';
 
 export class DataSyncServiceV3 {
   /**
@@ -50,6 +51,10 @@ export class DataSyncServiceV3 {
       await logger.info(`Received ${manufacturerStats.length} manufacturers with data`);
 
       for (const stats of manufacturerStats) {
+        if (isBrandMigrationName(stats.manufacturerName)) {
+          await logger.info(`[BrandMigration] Skipping ${stats.manufacturerName} in real manufacturer stats (treated as brand)`);
+          continue;
+        }
         // Find manufacturer by name
         const mfgRecords = await db.select().from(manufacturers)
           .where(eq(manufacturers.name, stats.manufacturerName))

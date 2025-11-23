@@ -11,6 +11,7 @@ import {
 } from '../drizzle/schema';
 import { MetabaseClient } from '../server/lib/metabase-client-v2';
 import { eq } from 'drizzle-orm';
+import { isBrandMigrationName } from '../shared/brandMigration';
 
 // Scoring formula: (salesVolumeGrams / 10) rounded
 function calculatePoints(salesVolumeGrams: number): number {
@@ -46,6 +47,10 @@ async function syncDailyStats(date: Date) {
     console.log('🏭 Syncing manufacturers...');
     let manufacturerCount = 0;
     for (const stat of manufacturerStats) {
+      if (isBrandMigrationName(stat.name)) {
+        console.log(`ℹ️  Skipping ${stat.name} (tracked as brand)`);
+        continue;
+      }
       const [manufacturer] = await db
         .select()
         .from(manufacturers)

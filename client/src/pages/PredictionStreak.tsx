@@ -12,7 +12,6 @@ import {
   Snowflake,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useTranslation } from "@/contexts/LanguageContext";
 
 interface Prediction {
   matchupId: number;
@@ -20,10 +19,8 @@ interface Prediction {
 }
 
 export default function PredictionStreak() {
-
   const utils = trpc.useUtils();
   const [predictions, setPredictions] = useState<Map<number, number>>(new Map());
-  const { t: tPrediction } = useTranslation("prediction");
 
   const { data: matchupsData, isLoading: matchupsLoading } = trpc.prediction.getDailyMatchups.useQuery();
   const { data: resultsData } = trpc.prediction.getYesterdayResults.useQuery();
@@ -31,15 +28,11 @@ export default function PredictionStreak() {
 
   const submitMutation = trpc.prediction.submitPredictions.useMutation({
     onSuccess: () => {
-      toast.success(tPrediction("submitSuccess"));
+      toast.success("Predictions submitted! Check back tomorrow to see how you did.");
       utils.prediction.getDailyMatchups.invalidate();
     },
     onError: (error) => {
-      toast.error(
-        tPrediction("submitError", {
-          replacements: { message: error.message },
-        })
-      );
+      toast.error(`Submission failed: ${error.message}`);
     },
   });
 
@@ -47,16 +40,14 @@ export default function PredictionStreak() {
     trpc.prediction.activateStreakFreeze.useMutation({
       onSuccess: (data) => {
         if (data.alreadyActive) {
-          toast.info(tPrediction("freezeAlreadyActive"));
+          toast.info("You already have an active streak freeze for today.");
         } else {
-          toast.success(tPrediction("freezeActivated"));
+          toast.success("Streak freeze activated for today. One loss will not break your streak.");
         }
         utils.prediction.getUserStats.invalidate();
       },
       onError: (error) => {
-        toast.error(
-          error.message || tPrediction("errors.freezeFailed")
-        );
+        toast.error(error.message || "Failed to activate streak freeze.");
       },
     });
 
@@ -83,7 +74,7 @@ export default function PredictionStreak() {
     }
 
     if (allPredictions.length !== matchupsData.matchups.length) {
-      toast.error(tPrediction("errors.incomplete"));
+      toast.error("Please make a prediction for all matchups.");
       return;
     }
 
@@ -106,10 +97,10 @@ export default function PredictionStreak() {
           <span className="text-5xl">🏆</span>
           <div>
             <h1 className="text-3xl font-bold text-foreground headline-primary">
-              {tPrediction("title")}
+              Prediction Streak
             </h1>
             <p className="text-muted-foreground">
-              {tPrediction("subtitle")}
+              Pick the winners and build your streak
             </p>
           </div>
         </div>
@@ -120,7 +111,7 @@ export default function PredictionStreak() {
             <div className="flex items-center gap-2 mb-1">
               <Zap className="w-4 h-4 text-orange-500" />
                 <span className="text-sm text-muted-foreground">
-                  {tPrediction("stats.current")}
+                  Current Streak
                 </span>
             </div>
             <p className="text-2xl font-bold text-foreground">
@@ -132,7 +123,7 @@ export default function PredictionStreak() {
             <div className="flex items-center gap-2 mb-1">
               <Trophy className="w-4 h-4 text-yellow-500" />
                 <span className="text-sm text-muted-foreground">
-                  {tPrediction("stats.best")}
+                  Best Streak
                 </span>
             </div>
             <p className="text-2xl font-bold text-foreground">
@@ -144,7 +135,7 @@ export default function PredictionStreak() {
             <div className="flex items-center gap-2 mb-1">
               <TrendingUp className="w-4 h-4 text-green-500" />
                 <span className="text-sm text-muted-foreground">
-                  {tPrediction("stats.accuracy")}
+                  Accuracy
                 </span>
             </div>
             <p className="text-2xl font-bold text-foreground">
@@ -156,7 +147,7 @@ export default function PredictionStreak() {
             <div className="flex items-center gap-2 mb-1">
               <CheckCircle className="w-4 h-4 text-blue-500" />
                 <span className="text-sm text-muted-foreground">
-                  {tPrediction("stats.total")}
+                  Total Correct
                 </span>
             </div>
             <p className="text-2xl font-bold text-foreground">
@@ -168,7 +159,7 @@ export default function PredictionStreak() {
             <div className="flex items-center gap-2 mb-1">
               <Snowflake className="w-4 h-4 text-cyan-500" />
                 <span className="text-sm text-muted-foreground">
-                  {tPrediction("stats.freezes")}
+                  Streak Freezes
                 </span>
             </div>
             <p className="text-2xl font-bold text-foreground mb-2">
@@ -187,12 +178,12 @@ export default function PredictionStreak() {
               {activateFreezeMutation.isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    {tPrediction("stats.activating")}
+                    Activating...
                 </>
               ) : (
                 <>
                   <Zap className="w-4 h-4 mr-2" />
-                    {tPrediction("stats.activate")}
+                    Activate for today
                 </>
               )}
             </Button>
@@ -206,23 +197,16 @@ export default function PredictionStreak() {
           <div className="flex items-center gap-3 mb-4">
             <Trophy className="w-10 h-10 text-yellow-500" />
             <h2 className="text-xl font-bold text-foreground headline-primary">
-              {tPrediction("results.title")}
+              Yesterday's Results
             </h2>
           </div>
           <Card className="p-4">
             <div className="flex items-center justify-between mb-4">
               <span className="text-sm text-muted-foreground">
-                {tPrediction("results.summary", {
-                  replacements: {
-                    correct: resultsData.correctCount,
-                    total: resultsData.totalCount,
-                  },
-                })}
+                You got {resultsData.correctCount} out of {resultsData.totalCount} correct
               </span>
               <span className="text-lg font-bold text-foreground">
-                {tPrediction("results.accuracy", {
-                  replacements: { value: resultsData.accuracy.toFixed(0) },
-                })}
+                {resultsData.accuracy.toFixed(0)}% accuracy
               </span>
             </div>
             <div className="space-y-2">
@@ -239,14 +223,10 @@ export default function PredictionStreak() {
                     </span>
                   </div>
                   <span className="text-xs text-muted-foreground">
-                    {tPrediction("results.winner", {
-                      replacements: {
-                        name:
-                          result.winnerId === result.entityAId
-                            ? result.entityAName
-                            : result.entityBName,
-                      },
-                    })}
+                    Winner:{" "}
+                    {result.winnerId === result.entityAId
+                      ? result.entityAName
+                      : result.entityBName}
                   </span>
                 </div>
               ))}
@@ -258,13 +238,13 @@ export default function PredictionStreak() {
       {/* Today's Matchups */}
       <section>
         <h2 className="text-xl font-bold text-foreground mb-4">
-          {tPrediction("matchups.title")}
+          Today's Matchups
         </h2>
         
         {!matchupsData?.matchups || matchupsData.matchups.length === 0 ? (
           <Card className="p-8 text-center">
             <p className="text-muted-foreground">
-              {tPrediction("matchups.empty")}
+              No matchups available today. Check back tomorrow!
             </p>
           </Card>
         ) : (
@@ -350,17 +330,12 @@ export default function PredictionStreak() {
                 {submitMutation.isPending ? (
                   <>
                     <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    {tPrediction("matchups.submitPending")}
+                    Submitting...
                   </>
                 ) : (
                   <>
                     <Zap className="w-5 h-5 mr-2" />
-                    {tPrediction("matchups.submitCta", {
-                      replacements: {
-                        current: predictions.size,
-                        total: matchupsData.matchups.length,
-                      },
-                    })}
+                    Submit Predictions ({predictions.size}/{matchupsData.matchups.length})
                   </>
                 )}
               </Button>
@@ -369,7 +344,7 @@ export default function PredictionStreak() {
             {matchupsData.hasSubmitted && (
               <Card className="p-4 bg-green-500/10 border-green-500/20">
                 <p className="text-center text-green-600 dark:text-green-400 font-medium">
-                  {tPrediction("matchups.submitted")}
+                  ✓ Predictions submitted! Check back tomorrow to see your results.
                 </p>
               </Card>
             )}

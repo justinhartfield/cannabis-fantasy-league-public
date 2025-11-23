@@ -35,7 +35,6 @@ import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { LeagueNav } from "@/components/LeagueNav";
-import { useTranslation } from "@/contexts/LanguageContext";
 
 interface TeamScore {
   teamId: number;
@@ -74,8 +73,6 @@ export default function Scoring() {
   const [, setLocation] = useLocation();
   const leagueId = parseInt(id!);
   const { user } = useAuth();
-  const { t: tScoring } = useTranslation("scoring");
-  const { t: tNav } = useTranslation("nav");
 
   const [selectedWeek, setSelectedWeek] = useState<number>(1);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
@@ -144,14 +141,12 @@ export default function Scoring() {
   // Manual score calculation mutation (admin only)
   const calculateScoresMutation = trpc.scoring.calculateLeagueWeek.useMutation({
     onSuccess: () => {
-      toast.success(tScoring("calculateSuccess"));
+      toast.success("Scores calculated successfully!");
       refetchScores();
       setIsCalculating(false);
     },
     onError: (error) => {
-      toast.error(
-        tScoring("calculateError", { replacements: { message: error.message } })
-      );
+      toast.error(`Failed to calculate scores: ${error.message}`);
       setIsCalculating(false);
     },
   });
@@ -294,28 +289,18 @@ export default function Scoring() {
           }];
         });
 
-        toast.info(
-          tScoring("liveUpdate", {
-            replacements: {
-              team: message.teamName,
-              points: message.points,
-            },
-          }),
-          {
-            duration: 3000,
-          }
-        );
+        toast.info(`${message.teamName} scored ${message.points} points!`, {
+          duration: 3000,
+        });
       } else if (message.type === 'scores_updated') {
         // Final scores update
-        toast.success(tScoring("liveAllUpdated"), {
+        toast.success("All scores updated!", {
           duration: 5000,
         });
         refetchScores();
         setLiveScores([]);
       } else if (message.type === 'scoring_complete') {
-        toast.success(
-          tScoring("weekComplete", { replacements: { week: message.week } })
-        );
+        toast.success(`Scoring complete for Week ${message.week}!`);
         refetchScores();
       }
     },
@@ -432,12 +417,12 @@ export default function Scoring() {
                 {isCalculating ? (
                   <>
                     <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                    {tScoring("calculatingLabel")}
+                    Calculating...
                   </>
                 ) : (
                   <>
                     <Zap className="w-4 h-4 mr-2" />
-                    {tScoring("calculateButton")}
+                    Recalculate scores
                   </>
                 )}
               </Button>
@@ -451,14 +436,14 @@ export default function Scoring() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-foreground">
             <Calendar className="w-5 h-5 text-[#FF2D55]" />
-            {tScoring("selectWeekTitle")}
+            Select Week
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-4 flex-wrap">
             <div className="flex items-center gap-2">
               <label className="text-sm font-medium text-muted-foreground">
-                {tScoring("yearSelectorLabel")}:
+                Year:
               </label>
               <select
                 value={selectedYear}
@@ -475,7 +460,7 @@ export default function Scoring() {
             
             <div className="flex items-center gap-2">
               <label className="text-sm font-medium text-muted-foreground">
-                {tScoring("weekSelectorLabel")}:
+                Week:
               </label>
               <select
                 value={selectedWeek}
@@ -487,7 +472,7 @@ export default function Scoring() {
               >
                 {Array.from({ length: 52 }, (_, i) => i + 1).map((week) => (
                   <option key={week} value={week}>
-                    {tScoring("weekSelectorLabel")} {week}
+                    Week {week}
                   </option>
                 ))}
               </select>
@@ -501,7 +486,7 @@ export default function Scoring() {
               className="ml-auto border-border/50"
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
-              {isRefetching ? tScoring("refreshing") : tScoring("refresh")}
+              {isRefetching ? "Refreshing..." : "Refresh"}
             </Button>
           </div>
         </CardContent>
@@ -515,10 +500,10 @@ export default function Scoring() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-foreground">
                 <Award className="w-5 h-5 text-[#FFD700]" />
-                {tNav("leaderboard")}
+                Leaderboard
               </CardTitle>
               <CardDescription>
-                {selectedYear} - {tScoring("weekSelectorLabel")} {selectedWeek}
+                {selectedYear} - Week {selectedWeek}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -528,8 +513,11 @@ export default function Scoring() {
                     <Award className="w-8 h-8 text-muted-foreground" />
                   </div>
                   <div className="space-y-2 text-sm text-muted-foreground">
-                    <p>{tScoring("leaderboardEmptyTitle")}</p>
-                    <p>{tScoring("leaderboardEmptyDescription")}</p>
+                    <p>No scores yet for this week.</p>
+                    <p>
+                      Scores appear after weekly stats are synced and scoring has been run
+                      for the selected year and week.
+                    </p>
                   </div>
                 </div>
               ) : (

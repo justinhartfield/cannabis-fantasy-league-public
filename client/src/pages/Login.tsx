@@ -1,7 +1,6 @@
 import { APP_LOGO, APP_TITLE } from "@/const";
 import { Leaf } from "lucide-react";
 import { SignIn } from "@clerk/clerk-react";
-import { useTranslation } from "@/contexts/LanguageContext";
 
 /**
  * Login Page - Clerk Authentication
@@ -9,11 +8,7 @@ import { useTranslation } from "@/contexts/LanguageContext";
  * Uses Clerk's SignIn component for authentication
  */
 export default function Login() {
-  const { t: tLogin } = useTranslation("login");
-  const { t: tHome } = useTranslation("home");
-  const footerCopy = tHome("footer.disclaimer", {
-    replacements: { year: new Date().getFullYear(), appTitle: APP_TITLE },
-  });
+  const footerCopy = `© ${new Date().getFullYear()} ${APP_TITLE}. First fantasy league for medical cannabis in Germany 🇩🇪`;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4 relative">
@@ -40,7 +35,7 @@ export default function Login() {
               {APP_TITLE}
             </h1>
             <p className="body-text text-muted-foreground">
-              {tLogin("subtitle")}
+              Welcome back! Sign in to continue your journey.
             </p>
           </div>
 

@@ -47,6 +47,7 @@ import {
   calculatePharmacyScore as calculateDailyPharmacyScore,
   calculateBrandScore as calculateDailyBrandScore,
 } from './dailyChallengeScoringEngine';
+import { getWeekDateRange } from './utils/isoWeek';
 
 export type BreakdownComponent = {
   category: string;
@@ -110,6 +111,21 @@ type TeamBonusEntry = {
   type: string;
   condition: string;
   points: number;
+};
+
+type TeamScoreComputationResult = {
+  totalPoints: number;
+  positionPoints: PositionPointsMap;
+  breakdowns: Array<{
+    position: string;
+    assetType: AssetType;
+    assetId: number;
+    breakdown: BreakdownDetail;
+    points: number;
+    metadata?: ScoreMetadata;
+  }>;
+  teamBonusTotal: number;
+  teamBonuses: TeamBonusEntry[];
 };
 
 const ASSET_TYPE_LABELS: Record<AssetType, string> = {
@@ -1116,50 +1132,25 @@ function calculateFormatBonuses(
 
 /**
  * Calculate scores for all teams in a league for a specific week
+ * using daily-style scoring aggregated across the ISO week.
  */
 export async function calculateWeeklyScores(leagueId: number, year: number, week: number): Promise<void> {
-  console.log(`[Scoring] Calculating scores for league ${leagueId}, ${year}-W${week}...`);
-
-  const db = await getDb();
-  if (!db) {
-    throw new Error('Database not available');
-  }
+  console.log(`[Scoring] Calculating season scores from daily stats for league ${leagueId}, ${year}-W${week}...`);
 
   try {
-    const scarcityMultipliers = await getScarcityMultipliers(db);
-    const leagueTeams = await db
-      .select()
-      .from(teams)
-      .where(eq(teams.leagueId, leagueId));
+    const teamScores = await aggregateSeasonWeeklyScores(leagueId, year, week);
 
-    console.log(`[Scoring] Found ${leagueTeams.length} teams to score`);
-
-    const teamScores: Array<{ teamId: number; teamName: string; points: number }> = [];
-
-    for (const team of leagueTeams) {
-      try {
-        const points = await calculateTeamScore(team.id, year, week, {
-          scarcityMultipliers,
-        });
-        teamScores.push({
-          teamId: team.id,
-          teamName: team.name,
-          points,
-        });
-        
-        wsManager.broadcastToLeague(leagueId, {
-          type: 'team_score_calculated',
-          teamId: team.id,
-          teamName: team.name,
-          points,
-          year,
-          week,
-          timestamp: Date.now(),
-        });
-      } catch (error) {
-        console.error(`[Scoring] Error calculating score for team ${team.id}:`, error);
-      }
-    }
+    teamScores.forEach((score) => {
+      wsManager.broadcastToLeague(leagueId, {
+        type: 'team_score_calculated',
+        teamId: score.teamId,
+        teamName: score.teamName,
+        points: score.points,
+        year,
+        week,
+        timestamp: Date.now(),
+      });
+    });
 
     wsManager.notifyScoresUpdated(leagueId, {
       week,
@@ -1176,22 +1167,280 @@ export async function calculateWeeklyScores(leagueId: number, year: number, week
 }
 
 /**
- * Calculate score for a single team for a specific week
+ * Calculate scores for a single team in a league for a specific week.
  */
-export async function calculateTeamScore(
+export async function calculateSeasonTeamWeek(
+  leagueId: number,
   teamId: number,
   year: number,
-  week: number,
-  options: { scarcityMultipliers?: ScarcityMultipliers } = {}
+  week: number
 ): Promise<number> {
-  return computeTeamScore({
-    teamId,
-    lineupYear: year,
-    lineupWeek: week,
-    scope: { type: 'weekly', year, week },
-    persistence: { mode: 'weekly', teamId, year, week },
-    scarcityMultipliers: options.scarcityMultipliers,
+  const results = await aggregateSeasonWeeklyScores(leagueId, year, week, { teamIds: [teamId] });
+  const match = results.find((result) => result.teamId === teamId);
+  return match?.points ?? 0;
+}
+
+type AggregateWeeklyOptions = {
+  teamIds?: number[];
+};
+
+async function aggregateSeasonWeeklyScores(
+  leagueId: number,
+  year: number,
+  week: number,
+  options: AggregateWeeklyOptions = {}
+): Promise<Array<{ teamId: number; teamName: string; points: number }>> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error('Database not available');
+  }
+
+  const leagueTeams = await db
+    .select({
+      id: teams.id,
+      name: teams.name,
+    })
+    .from(teams)
+    .where(eq(teams.leagueId, leagueId));
+
+  const targetTeams = options.teamIds?.length
+    ? leagueTeams.filter((team) => options.teamIds!.includes(team.id))
+    : leagueTeams;
+
+  if (targetTeams.length === 0) {
+    console.warn(`[Scoring] No teams to score for league ${leagueId}`);
+    return [];
+  }
+
+  const scarcityMultipliers = await getScarcityMultipliers(db);
+  const { startDate, endDate } = getWeekDateRange(year, week);
+  const weekDates = enumerateWeekDates(startDate, endDate);
+
+  const results: Array<{ teamId: number; teamName: string; points: number }> = [];
+
+  for (const team of targetTeams) {
+    try {
+      const totalPoints = await aggregateTeamWeekFromDaily({
+        db,
+        team,
+        leagueId,
+        year,
+        week,
+        weekDates,
+        scarcityMultipliers,
+      });
+      results.push({
+        teamId: team.id,
+        teamName: team.name,
+        points: totalPoints,
+      });
+    } catch (error) {
+      console.error(`[Scoring] Error calculating score for team ${team.id}:`, error);
+    }
+  }
+
+  return results;
+}
+
+type TeamAggregationParams = {
+  db: Awaited<ReturnType<typeof getDb>>;
+  team: { id: number; name: string };
+  leagueId: number;
+  year: number;
+  week: number;
+  weekDates: string[];
+  scarcityMultipliers: ScarcityMultipliers;
+};
+
+async function aggregateTeamWeekFromDaily(params: TeamAggregationParams): Promise<number> {
+  const aggregatedPositionPoints = createEmptyPositionPoints();
+  const breakdownAccumulators = new Map<string, BreakdownAccumulator>();
+  let totalPoints = 0;
+  let totalTeamBonus = 0;
+
+  for (const statDate of params.weekDates) {
+    const dailyResult = await computeTeamScore({
+      teamId: params.team.id,
+      lineupYear: params.year,
+      lineupWeek: params.week,
+      scope: { type: 'daily', statDate },
+      persistence: { mode: 'daily', teamId: params.team.id, challengeId: params.leagueId, statDate },
+      scarcityMultipliers: params.scarcityMultipliers,
+      skipPersistence: true,
+    });
+
+    totalPoints += dailyResult.totalPoints;
+    totalTeamBonus += dailyResult.teamBonusTotal;
+    addPositionPoints(aggregatedPositionPoints, dailyResult.positionPoints);
+
+    for (const breakdown of dailyResult.breakdowns) {
+      const accumulator = getOrCreateBreakdownAccumulator(
+        breakdownAccumulators,
+        breakdown.position,
+        breakdown.assetType,
+        breakdown.assetId
+      );
+      accumulator.totalPoints += breakdown.points;
+      accumulateBreakdownDetail(accumulator, breakdown.breakdown);
+    }
+  }
+
+  const aggregatedBreakdowns = Array.from(breakdownAccumulators.values()).map(finalizeBreakdownAccumulator);
+
+  await persistTeamScore(params.db, {
+    persistence: { mode: 'weekly', teamId: params.team.id, year: params.year, week: params.week },
+    positionPoints: aggregatedPositionPoints,
+    totalPoints,
+    totalBonus: totalTeamBonus,
+    breakdowns: aggregatedBreakdowns.map((entry) => ({
+      position: entry.position,
+      assetType: entry.assetType,
+      assetId: entry.assetId,
+      breakdown: entry.breakdown,
+      points: entry.breakdown.total,
+    })),
   });
+
+  return totalPoints;
+}
+
+type BreakdownAccumulator = {
+  position: string;
+  assetType: AssetType;
+  assetId: number;
+  components: Map<string, BreakdownComponent>;
+  bonuses: Map<string, BreakdownBonus>;
+  penalties: Map<string, BreakdownBonus>;
+  totalPoints: number;
+};
+
+function createEmptyPositionPoints(): PositionPointsMap {
+  return {
+    mfg1: 0,
+    mfg2: 0,
+    cstr1: 0,
+    cstr2: 0,
+    prd1: 0,
+    prd2: 0,
+    phm1: 0,
+    phm2: 0,
+    brd1: 0,
+    flex: 0,
+  };
+}
+
+function addPositionPoints(target: PositionPointsMap, source: PositionPointsMap) {
+  target.mfg1 += source.mfg1;
+  target.mfg2 += source.mfg2;
+  target.cstr1 += source.cstr1;
+  target.cstr2 += source.cstr2;
+  target.prd1 += source.prd1;
+  target.prd2 += source.prd2;
+  target.phm1 += source.phm1;
+  target.phm2 += source.phm2;
+  target.brd1 += source.brd1;
+  target.flex += source.flex;
+}
+
+function getOrCreateBreakdownAccumulator(
+  map: Map<string, BreakdownAccumulator>,
+  position: string,
+  assetType: AssetType,
+  assetId: number
+): BreakdownAccumulator {
+  const existing = map.get(position);
+  if (existing) {
+    return existing;
+  }
+  const accumulator: BreakdownAccumulator = {
+    position,
+    assetType,
+    assetId,
+    components: new Map(),
+    bonuses: new Map(),
+    penalties: new Map(),
+    totalPoints: 0,
+  };
+  map.set(position, accumulator);
+  return accumulator;
+}
+
+function accumulateBreakdownDetail(target: BreakdownAccumulator, detail: BreakdownDetail) {
+  detail.components.forEach((component) => {
+    const key = `${component.category}|${component.formula ?? ''}`;
+    const existing =
+      target.components.get(key) ??
+      {
+        category: component.category,
+        value: typeof component.value === 'number' ? component.value : 'Weekly aggregate',
+        formula: component.formula ? `${component.formula} (weekly sum)` : `${component.category} (weekly sum)`,
+        points: 0,
+      };
+    existing.points += component.points || 0;
+    target.components.set(key, existing);
+  });
+
+  detail.bonuses?.forEach((bonus) => {
+    const key = `${bonus.type}|${bonus.condition}`;
+    const existing =
+      target.bonuses.get(key) ??
+      {
+        type: bonus.type,
+        condition: bonus.condition,
+        points: 0,
+      };
+    existing.points += bonus.points || 0;
+    target.bonuses.set(key, existing);
+  });
+
+  detail.penalties?.forEach((penalty) => {
+    const key = `${penalty.type}|${penalty.condition}`;
+    const existing =
+      target.penalties.get(key) ??
+      {
+        type: penalty.type,
+        condition: penalty.condition,
+        points: 0,
+      };
+    existing.points += penalty.points || 0;
+    target.penalties.set(key, existing);
+  });
+}
+
+function finalizeBreakdownAccumulator(acc: BreakdownAccumulator) {
+  const components = Array.from(acc.components.values());
+  const bonuses = Array.from(acc.bonuses.values());
+  const penalties = Array.from(acc.penalties.values());
+  const subtotal = components.reduce((sum, component) => sum + (component.points || 0), 0);
+  const bonusTotal = bonuses.reduce((sum, bonus) => sum + (bonus.points || 0), 0);
+  const penaltyTotal = penalties.reduce((sum, penalty) => sum + (penalty.points || 0), 0);
+  const total = subtotal + bonusTotal + penaltyTotal;
+
+  return {
+    position: acc.position,
+    assetType: acc.assetType,
+    assetId: acc.assetId,
+    breakdown: {
+      components,
+      bonuses,
+      penalties,
+      subtotal,
+      total,
+    },
+  };
+}
+
+function enumerateWeekDates(startDate: string, endDate: string): string[] {
+  const dates: string[] = [];
+  const current = new Date(`${startDate}T00:00:00Z`);
+  const end = new Date(`${endDate}T00:00:00Z`);
+
+  while (current <= end) {
+    dates.push(current.toISOString().split('T')[0]);
+    current.setUTCDate(current.getUTCDate() + 1);
+  }
+
+  return dates;
 }
 
 /**
@@ -1220,8 +1469,8 @@ export async function calculateTeamDailyScore(
     persistence: { mode: 'daily', teamId, challengeId, statDate: dateString },
     scarcityMultipliers: options.scarcityMultipliers,
   });
-  console.log(`[calculateTeamDailyScore] Calculated score for team ${teamId}: ${score} points`);
-  return score;
+  console.log(`[calculateTeamDailyScore] Calculated score for team ${teamId}: ${score.totalPoints} points`);
+  return score.totalPoints;
 }
 
 /**
@@ -1315,9 +1564,10 @@ interface TeamScoreComputationOptions {
   scope: ScoreScope;
   persistence: TeamScorePersistence;
   scarcityMultipliers?: ScarcityMultipliers;
+  skipPersistence?: boolean;
 }
 
-async function computeTeamScore(options: TeamScoreComputationOptions): Promise<number> {
+async function computeTeamScore(options: TeamScoreComputationOptions): Promise<TeamScoreComputationResult> {
   const db = await getDb();
   if (!db) {
     throw new Error('Database not available');
@@ -1438,17 +1688,27 @@ async function computeTeamScore(options: TeamScoreComputationOptions): Promise<n
 
   const totalPoints = subtotal + totalBonus;
 
-  await persistTeamScore(db, {
-    persistence: options.persistence,
-    positionPoints,
+  const result: TeamScoreComputationResult = {
     totalPoints,
-    totalBonus,
+    positionPoints,
     breakdowns,
-  });
+    teamBonusTotal: totalBonus,
+    teamBonuses,
+  };
+
+  if (!options.skipPersistence) {
+    await persistTeamScore(db, {
+      persistence: options.persistence,
+      positionPoints,
+      totalPoints,
+      totalBonus,
+      breakdowns,
+    });
+  }
 
   console.log(`[Scoring] Team ${options.teamId} scored ${totalPoints} points (${options.persistence.mode})`);
 
-  return totalPoints;
+  return result;
 }
 
 interface PersistScoreParams {

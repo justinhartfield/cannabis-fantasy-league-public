@@ -31,13 +31,11 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 import { getLoginUrl } from "@/const";
-import { useTranslation } from "@/contexts/LanguageContext";
 
 export default function CreateLeague() {
   const [, setLocation] = useLocation();
   const { user, loading: authLoading, isAuthenticated } = useAuth();
   const createLeague = trpc.league.create.useMutation();
-  const { t: tCreate } = useTranslation("createLeague");
 
   const [formData, setFormData] = useState({
     name: "",
@@ -72,16 +70,16 @@ export default function CreateLeague() {
     e.preventDefault();
 
     if (!formData.name.trim()) {
-      toast.error(tCreate("nameRequired"));
+      toast.error("Please enter a league name");
       return;
     }
 
     try {
       const result = await createLeague.mutateAsync(formData);
-      toast.success(tCreate("successToast"));
+      toast.success("League created successfully!");
       setLocation(`/league/${result.leagueId}`);
     } catch (error: any) {
-      toast.error(error.message || tCreate("errorToast"));
+      toast.error(error.message || "Failed to create league");
     }
   };
 
@@ -100,7 +98,7 @@ export default function CreateLeague() {
               <Trophy className="w-12 h-12 text-yellow-500" />
               <div>
                   <h1 className="text-xl font-bold text-foreground headline-primary">
-                    {tCreate("headerTitle")}
+                    Create New League
                   </h1>
                 <p className="text-sm text-muted-foreground">
                   {formData.leagueType === "season" ? "Saison-Modus" : "Daily Challenge"}
@@ -117,13 +115,13 @@ export default function CreateLeague() {
           {/* Basic Information */}
           <Card className="bg-card border-border">
             <CardHeader>
-              <CardTitle className="text-card-foreground flex items-center gap-2">
-                <Settings className="w-5 h-5" />
-                  {tCreate("basicInfo")}
-              </CardTitle>
-              <CardDescription className="text-muted-foreground">
-                  {tCreate("basicInfoDescription")}
-              </CardDescription>
+                <CardTitle className="text-card-foreground flex items-center gap-2">
+                  <Settings className="w-5 h-5" />
+                  Basic Information
+                </CardTitle>
+                <CardDescription className="text-muted-foreground">
+                  Set the basic information for your league.
+                </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* League Type Toggle */}

@@ -26,6 +26,7 @@ import {
 } from '../../drizzle/schema';
 import { eq, sql, and } from 'drizzle-orm';
 import { createSyncJob, SyncLogger } from './syncLogger';
+import { isBrandMigrationName } from '../../shared/brandMigration';
 
 export class DataSyncServiceV2 {
   /**
@@ -270,6 +271,10 @@ export class DataSyncServiceV2 {
 
       for (const mfg of mfgData) {
         try {
+          if (isBrandMigrationName(mfg.name)) {
+            await logger.info(`[BrandMigration] Skipping ${mfg.name} during manufacturer sync (treated as brand)`);
+            continue;
+          }
           // Check if exists
           const db = await getDb();
           if (!db) throw new Error('Database not available');

@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trophy, Users, TrendingUp, Zap, Leaf, ArrowRight } from "lucide-react";
 import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
-import { useTranslation } from "@/contexts/LanguageContext";
 import { Link } from "wouter";
 
 /**
@@ -13,10 +12,7 @@ import { Link } from "wouter";
  */
 export default function Home() {
   const { isAuthenticated, loading } = useAuth();
-  const { t: tHome } = useTranslation("home");
-  const footerCopy = tHome("footer.disclaimer", {
-    replacements: { year: new Date().getFullYear(), appTitle: APP_TITLE },
-  });
+  const footerCopy = `© ${new Date().getFullYear()} ${APP_TITLE}. First fantasy league for medical cannabis in Germany 🇩🇪`;
 
   if (loading) {
     return (
@@ -54,7 +50,7 @@ export default function Home() {
 
             {/* Subheadline */}
             <p className="text-xl md:text-2xl text-white/90 max-w-2xl mx-auto body-text">
-              {tHome("hero.subheading")}
+              Germany's first fantasy league for medical cannabis. Build your dream portfolio, compete with friends, and dominate the leaderboard! 🇩🇪
             </p>
 
             {/* CTA Buttons */}
@@ -68,7 +64,7 @@ export default function Home() {
                   else window.location.href = "/login";
                 }}
               >
-                {tHome("hero.getStarted")}
+                Get Started
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
               <Button
@@ -78,7 +74,7 @@ export default function Home() {
                 asChild
               >
                 <Link href="/dashboard">
-                  {tHome("hero.viewDashboard")}
+                  View Dashboard
                 </Link>
               </Button>
             </div>
@@ -91,10 +87,10 @@ export default function Home() {
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="headline-primary text-4xl md:text-5xl text-weed-coral mb-4">
-              {tHome("features.title")}
+              Why Play?
             </h2>
             <p className="text-lg text-muted-foreground dark:text-white/70 max-w-2xl mx-auto">
-              {tHome("features.subtitle")}
+              Experience the future of cannabis education through gamification
             </p>
           </div>
 
@@ -106,12 +102,12 @@ export default function Home() {
                   <Trophy className="h-8 w-8 text-weed-green" />
                 </div>
                 <CardTitle className="text-black">
-                  {tHome("features.items.compete.title")}
+                  Compete & Win
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-black/80 body-text">
-                  {tHome("features.items.compete.description")}
+                  Build your fantasy team and compete in season-long leagues or daily challenges.
                 </p>
               </CardContent>
             </Card>
@@ -123,12 +119,12 @@ export default function Home() {
                   <Users className="h-8 w-8 text-black" />
                 </div>
                 <CardTitle className="text-white">
-                  {tHome("features.items.friends.title")}
+                  Play with Friends
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-white/80 body-text">
-                  {tHome("features.items.friends.description")}
+                  Create private leagues and invite your crew for friendly competition.
                 </p>
               </CardContent>
             </Card>
@@ -140,12 +136,12 @@ export default function Home() {
                   <TrendingUp className="h-8 w-8 text-weed-pink" />
                 </div>
                 <CardTitle className="text-white">
-                  {tHome("features.items.track.title")}
+                  Track Performance
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-white/80 body-text">
-                  {tHome("features.items.track.description")}
+                  Real-time stats, live scoring, and detailed analytics for your portfolio.
                 </p>
               </CardContent>
             </Card>
@@ -157,12 +153,12 @@ export default function Home() {
                   <Zap className="h-8 w-8 text-black" />
                 </div>
                 <CardTitle className="text-white">
-                  {tHome("features.items.daily.title")}
+                  Daily Challenges
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-white/80 body-text">
-                  {tHome("features.items.daily.description")}
+                  24-hour head-to-head battles with instant results and rewards.
                 </p>
               </CardContent>
             </Card>
@@ -175,10 +171,10 @@ export default function Home() {
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="headline-primary text-4xl md:text-5xl text-weed-purple dark:text-weed-green mb-4">
-              {tHome("howItWorks.title")}
+              How It Works
             </h2>
             <p className="text-lg text-muted-foreground dark:text-white/70 max-w-2xl mx-auto">
-              {tHome("howItWorks.subtitle")}
+              Get started in three simple steps
             </p>
           </div>
 
@@ -190,10 +186,10 @@ export default function Home() {
               </div>
               <div>
                 <h3 className="headline-secondary text-2xl text-foreground dark:text-white mb-2">
-                  {tHome("howItWorks.steps.create.title")}
+                  Create Your League
                 </h3>
                 <p className="body-text text-muted-foreground dark:text-white/70">
-                  {tHome("howItWorks.steps.create.description")}
+                  Choose between season-long leagues or daily challenges. Set your rules, invite friends, and get ready to draft.
                 </p>
               </div>
             </div>
@@ -205,10 +201,10 @@ export default function Home() {
               </div>
               <div>
                 <h3 className="headline-secondary text-2xl text-foreground dark:text-white mb-2">
-                  {tHome("howItWorks.steps.draft.title")}
+                  Draft Your Team
                 </h3>
                 <p className="body-text text-muted-foreground dark:text-white/70">
-                  {tHome("howItWorks.steps.draft.description")}
+                  Select manufacturers, strains, and products to build your winning portfolio. Strategy is everything!
                 </p>
               </div>
             </div>
@@ -220,10 +216,10 @@ export default function Home() {
               </div>
               <div>
                 <h3 className="headline-secondary text-2xl text-foreground dark:text-white mb-2">
-                  {tHome("howItWorks.steps.compete.title")}
+                  Compete & Win
                 </h3>
                 <p className="body-text text-muted-foreground dark:text-white/70">
-                  {tHome("howItWorks.steps.compete.description")}
+                  Track your team's performance, make strategic moves, and climb the leaderboard to claim victory!
                 </p>
               </div>
             </div>
@@ -239,10 +235,10 @@ export default function Home() {
               <Leaf className="h-20 w-20 text-weed-green" />
             </div>
             <h2 className="headline-primary text-4xl md:text-6xl text-white">
-              {tHome("cta.title")}
+              Ready to Play?
             </h2>
             <p className="text-xl text-white/90 body-text">
-              {tHome("cta.subtitle")}
+              Join Germany's most innovative cannabis fantasy league today!
             </p>
             <Button
               size="lg"
@@ -253,7 +249,7 @@ export default function Home() {
                 else window.location.href = "/login";
               }}
             >
-              {tHome("cta.primary")}
+              Start Your Journey
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
           </div>

@@ -10,6 +10,7 @@ import { getMetabaseClient } from './metabase';
 import { getCannabisStrainStatsCalculator } from './cannabisStrainStatsCalculator';
 import { manufacturers, strains, pharmacies, cannabisStrains, brands } from '../drizzle/schema';
 import { eq } from 'drizzle-orm';
+import { isBrandMigrationName } from '../shared/brandMigration';
 
 export class DataSyncService {
   /**
@@ -32,6 +33,10 @@ export class DataSyncService {
 
       for (const mfg of manufacturerData) {
         try {
+          if (isBrandMigrationName(mfg.name)) {
+            console.log(`[DataSync] Skipping ${mfg.name} (handled as brand)`);
+            continue;
+          }
           // Check if manufacturer exists
           const existing = await db
             .select()
