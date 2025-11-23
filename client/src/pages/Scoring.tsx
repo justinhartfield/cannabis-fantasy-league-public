@@ -132,11 +132,13 @@ export default function Scoring() {
   // Fetch scoring breakdown for selected team
   const { data: breakdown, isLoading: isLoadingBreakdown } = trpc.scoring.getTeamBreakdown.useQuery(
     {
-      teamId: selectedTeamId!,
+      // Always coerce to a number so we don't accidentally send a string ID
+      teamId: Number(selectedTeamId),
       year: selectedYear,
       week: selectedWeek,
     },
     {
+      // Only enable the query when we actually have a selected team and valid context
       enabled: !!selectedTeamId && !!user && !!selectedYear && !!selectedWeek,
     }
   );
@@ -359,6 +361,18 @@ export default function Scoring() {
       rank: index + 1,
     }));
 
+  // Auto-select the top-ranked team once scores are available so the scoring
+  // breakdown becomes immediately visible without requiring an extra click.
+  useEffect(() => {
+    if (!rankedScores.length || selectedTeamId) {
+      return;
+    }
+    const topTeamId = rankedScores[0]?.teamId;
+    if (topTeamId) {
+      setSelectedTeamId(Number(topTeamId));
+    }
+  }, [rankedScores, selectedTeamId]);
+
   if (!league) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -532,7 +546,7 @@ export default function Scoring() {
                     {rankedScores.map((score) => (
                       <button
                         key={score.teamId}
-                        onClick={() => setSelectedTeamId(score.teamId)}
+                        onClick={() => setSelectedTeamId(Number(score.teamId))}
                         className={`w-full p-4 rounded-xl border transition-all card-hover-lift text-left ${selectedTeamId === score.teamId
                           ? 'bg-primary/10 border-primary glow-primary'
                           : 'bg-card/50 border-border/50 hover:border-primary/30'
