@@ -482,6 +482,17 @@ export default function DailyChallenge() {
 
   const isLive = league.status === "active";
 
+  const copyLeagueCode = () => {
+    if (!league?.leagueCode) return;
+    try {
+      navigator.clipboard.writeText(league.leagueCode);
+      toast.success("League code copied!");
+    } catch (error) {
+      console.error("Failed to copy league code", error);
+      toast.error("Unable to copy league code");
+    }
+  };
+
   return (
     <div className="min-h-screen gradient-dark">
       {/* Coin Flip Overlay */}
