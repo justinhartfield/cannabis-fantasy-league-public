@@ -381,18 +381,50 @@ type ProductDailyStat = typeof productDailyChallengeStats.$inferSelect;
 type PharmacyDailyStat = typeof pharmacyDailyChallengeStats.$inferSelect;
 type BrandDailyStat = typeof brandDailyChallengeStats.$inferSelect;
 
-type ManufacturerDailySource = Pick<ManufacturerDailyStat, 'salesVolumeGrams' | 'orderCount' | 'revenueCents' | 'rank' | 'totalPoints' | 'trendMultiplier' | 'previousRank' | 'consistencyScore' | 'velocityScore' | 'streakDays' | 'marketSharePercent'>;
-type StrainDailySource = Pick<StrainDailyStat, 'salesVolumeGrams' | 'orderCount' | 'rank' | 'totalPoints' | 'trendMultiplier' | 'previousRank' | 'consistencyScore' | 'velocityScore' | 'streakDays' | 'marketSharePercent'>;
-type ProductDailySource = Pick<ProductDailyStat, 'salesVolumeGrams' | 'orderCount' | 'rank' | 'totalPoints' | 'trendMultiplier' | 'previousRank' | 'consistencyScore' | 'velocityScore' | 'streakDays' | 'marketSharePercent'>;
-type PharmacyDailySource = Pick<PharmacyDailyStat, 'orderCount' | 'revenueCents' | 'rank' | 'totalPoints' | 'trendMultiplier' | 'previousRank' | 'consistencyScore' | 'velocityScore' | 'streakDays' | 'marketSharePercent'>;
+type ManufacturerDailySource = Pick<ManufacturerDailyStat, 'manufacturerId' | 'statDate' | 'salesVolumeGrams' | 'orderCount' | 'revenueCents' | 'rank' | 'totalPoints' | 'trendMultiplier' | 'previousRank' | 'consistencyScore' | 'velocityScore' | 'streakDays' | 'marketSharePercent'>;
+type StrainDailySource = Pick<StrainDailyStat, 'strainId' | 'statDate' | 'salesVolumeGrams' | 'orderCount' | 'rank' | 'totalPoints' | 'trendMultiplier' | 'previousRank' | 'consistencyScore' | 'velocityScore' | 'streakDays' | 'marketSharePercent'>;
+type ProductDailySource = Pick<ProductDailyStat, 'productId' | 'statDate' | 'salesVolumeGrams' | 'orderCount' | 'rank' | 'totalPoints' | 'trendMultiplier' | 'previousRank' | 'consistencyScore' | 'velocityScore' | 'streakDays' | 'marketSharePercent'>;
+type PharmacyDailySource = Pick<PharmacyDailyStat, 'pharmacyId' | 'statDate' | 'orderCount' | 'revenueCents' | 'rank' | 'totalPoints' | 'trendMultiplier' | 'previousRank' | 'consistencyScore' | 'velocityScore' | 'streakDays' | 'marketSharePercent'>;
 type BrandDailySource = Pick<BrandDailyStat, 'totalRatings' | 'averageRating' | 'bayesianAverage' | 'veryGoodCount' | 'goodCount' | 'acceptableCount' | 'badCount' | 'veryBadCount' | 'rank' | 'totalPoints'> & {
   ratingDelta?: number | null;
   bayesianDelta?: number | string | null;
 };
 
+type TrendMultiplierContext = {
+  assetType: string;
+  assetId?: number | null;
+  statDate?: string | null;
+};
+
+function resolveTrendMultiplier(
+  rawValue: unknown,
+  context: TrendMultiplierContext
+): number {
+  const numericValue = Number(rawValue);
+  if (!rawValue || Number.isNaN(numericValue) || numericValue === 0) {
+    const details = [
+      context.assetId !== undefined && context.assetId !== null ? `id=${context.assetId}` : null,
+      context.statDate ? `date=${context.statDate}` : null,
+    ].filter(Boolean);
+    console.warn(
+      `[TrendScoring] Missing trendMultiplier for ${context.assetType}${details.length ? ` (${details.join(', ')})` : ''
+      }; defaulting to 1.0x`
+    );
+    return 1;
+  }
+
+  return numericValue;
+}
+
 export function buildManufacturerDailyBreakdown(statRecord: ManufacturerDailySource): BreakdownResult {
   const orderCount = statRecord.orderCount ?? 0;
   const rank = statRecord.rank ?? 0;
+
+  const trendMultiplier = resolveTrendMultiplier(statRecord.trendMultiplier, {
+    assetType: 'manufacturer',
+    assetId: statRecord.manufacturerId ?? null,
+    statDate: statRecord.statDate ?? null,
+  });
 
   // Use trend-based scoring exclusively
   const { calculateManufacturerTrendScore } = require('./trendScoringEngine');
@@ -401,7 +433,7 @@ export function buildManufacturerDailyBreakdown(statRecord: ManufacturerDailySou
   // Calculate the trend score breakdown
   const scoring = calculateManufacturerTrendScore({
     orderCount,
-    trendMultiplier: Number(statRecord.trendMultiplier ?? 1),
+    trendMultiplier,
     rank,
     previousRank: statRecord.previousRank ?? rank,
     consistencyScore: Number(statRecord.consistencyScore ?? 0),
@@ -424,6 +456,12 @@ export function buildStrainDailyBreakdown(statRecord: StrainDailySource): Breakd
   const orderCount = statRecord.orderCount ?? 0;
   const rank = statRecord.rank ?? 0;
 
+  const trendMultiplier = resolveTrendMultiplier(statRecord.trendMultiplier, {
+    assetType: 'strain',
+    assetId: statRecord.strainId ?? null,
+    statDate: statRecord.statDate ?? null,
+  });
+
   // Use trend-based scoring exclusively
   const { calculateStrainTrendScore } = require('./trendScoringEngine');
   const { buildStrainTrendBreakdown } = require('./trendScoringBreakdowns');
@@ -431,7 +469,7 @@ export function buildStrainDailyBreakdown(statRecord: StrainDailySource): Breakd
   // Calculate the trend score breakdown
   const scoring = calculateStrainTrendScore({
     orderCount,
-    trendMultiplier: Number(statRecord.trendMultiplier ?? 1),
+    trendMultiplier,
     rank,
     previousRank: statRecord.previousRank ?? rank,
     consistencyScore: Number(statRecord.consistencyScore ?? 0),
@@ -454,12 +492,18 @@ export function buildProductDailyBreakdown(statRecord: ProductDailySource): Brea
   const orderCount = statRecord.orderCount ?? 0;
   const rank = statRecord.rank ?? 0;
 
+  const trendMultiplier = resolveTrendMultiplier(statRecord.trendMultiplier, {
+    assetType: 'product',
+    assetId: statRecord.productId ?? null,
+    statDate: statRecord.statDate ?? null,
+  });
+
   const { calculateProductTrendScore } = require('./trendScoringEngine');
   const { buildProductTrendBreakdown } = require('./trendScoringBreakdowns');
 
   const scoring = calculateProductTrendScore({
     orderCount,
-    trendMultiplier: Number(statRecord.trendMultiplier ?? 1),
+    trendMultiplier,
     rank,
     previousRank: statRecord.previousRank ?? rank,
     consistencyScore: Number(statRecord.consistencyScore ?? 0),
@@ -487,11 +531,18 @@ export function calculatePharmacyPoints(
 ): { points: number; breakdown: any } {
   let dailyTotal = 0;
   const dailyBreakdowns: any[] = [];
+  let latestTrendMultiplier = 1;
 
   for (const dayStat of dailyStats) {
+    const dayTrendMultiplier = resolveTrendMultiplier(dayStat.trendMultiplier, {
+      assetType: 'pharmacy',
+      assetId: dayStat.pharmacyId ?? null,
+      statDate: dayStat.statDate ?? null,
+    });
+
     const dayScore = calculatePharmacyTrendScore({
       orderCount: dayStat.orderCount ?? 0,
-      trendMultiplier: Number(dayStat.trendMultiplier ?? 1),
+      trendMultiplier: dayTrendMultiplier,
       currentRank: dayStat.rank ?? 0,
       previousRank: dayStat.previousRank ?? (dayStat.rank ?? 0),
       consistencyScore: Number(dayStat.consistencyScore ?? 0),
@@ -501,6 +552,7 @@ export function calculatePharmacyPoints(
     });
     dailyTotal += dayScore.totalPoints;
     dailyBreakdowns.push({ points: dayScore.totalPoints });
+    latestTrendMultiplier = dayTrendMultiplier;
   }
 
   const breakdown: any = {
@@ -510,7 +562,7 @@ export function calculatePharmacyPoints(
     subtotal: dailyTotal,
     total: dailyTotal,
     // Metadata
-    trendMultiplier: dailyStats.length > 0 ? Number(dailyStats[dailyStats.length - 1].trendMultiplier ?? 1) : 1,
+    trendMultiplier: dailyStats.length > 0 ? latestTrendMultiplier : 1,
     streakDays: weeklyContext.streakDays,
     marketSharePercent: weeklyContext.marketSharePercent,
   };
@@ -620,10 +672,16 @@ export function buildPharmacyDailyBreakdown(statRecord: PharmacyDailySource): Br
   const orderCount = statRecord.orderCount ?? 0;
   const rank = statRecord.rank ?? 0;
 
+  const trendMultiplier = resolveTrendMultiplier(statRecord.trendMultiplier, {
+    assetType: 'pharmacy',
+    assetId: statRecord.pharmacyId ?? null,
+    statDate: statRecord.statDate ?? null,
+  });
+
   // Use trend-based scoring exclusively
   const scoring = calculatePharmacyTrendScore({
     orderCount,
-    trendMultiplier: Number(statRecord.trendMultiplier ?? 1),
+    trendMultiplier,
     currentRank: rank,
     previousRank: statRecord.previousRank ?? rank,
     consistencyScore: Number(statRecord.consistencyScore ?? 0),
@@ -651,7 +709,7 @@ export function buildPharmacyDailyBreakdown(statRecord: PharmacyDailySource): Br
   if ((scoring.trendMomentumPoints ?? 0) > 0) {
     breakdown.bonuses.push({
       type: 'Trend Bonus',
-      condition: `${Number(statRecord.trendMultiplier ?? 1).toFixed(2)}x multiplier`,
+      condition: `${trendMultiplier.toFixed(2)}x multiplier`,
       points: scoring.trendMomentumPoints ?? 0,
     });
   }
@@ -684,12 +742,19 @@ export function calculateManufacturerPoints(
 ): { points: number; breakdown: any } {
   let dailyTotal = 0;
   const dailyBreakdowns: any[] = [];
+  let latestTrendMultiplier = 1;
 
   // 1. Aggregate Daily Scores
   for (const dayStat of dailyStats) {
+    const dayTrendMultiplier = resolveTrendMultiplier(dayStat.trendMultiplier, {
+      assetType: 'manufacturer',
+      assetId: dayStat.manufacturerId ?? null,
+      statDate: dayStat.statDate ?? null,
+    });
+
     const dayScore = calculateManufacturerTrendScore({
       orderCount: dayStat.orderCount ?? 0,
-      trendMultiplier: Number(dayStat.trendMultiplier ?? 1),
+      trendMultiplier: dayTrendMultiplier,
       currentRank: dayStat.rank ?? 0,
       previousRank: dayStat.previousRank ?? (dayStat.rank ?? 0),
       consistencyScore: Number(dayStat.consistencyScore ?? 0),
@@ -699,6 +764,7 @@ export function calculateManufacturerPoints(
     });
     dailyTotal += dayScore.totalPoints;
     dailyBreakdowns.push({ points: dayScore.totalPoints });
+    latestTrendMultiplier = dayTrendMultiplier;
   }
 
   const breakdown: any = {
@@ -710,7 +776,7 @@ export function calculateManufacturerPoints(
     // Metadata for frontend
     streakDays: weeklyContext.streakDays,
     marketSharePercent: weeklyContext.marketSharePercent,
-    trendMultiplier: dailyStats.length > 0 ? Number(dailyStats[dailyStats.length - 1].trendMultiplier ?? 1) : 1,
+    trendMultiplier: dailyStats.length > 0 ? latestTrendMultiplier : 1,
   };
 
   // Add Daily Performance Component
@@ -801,11 +867,18 @@ export function calculateStrainPoints(
 ): { points: number; breakdown: any } {
   let dailyTotal = 0;
   const dailyBreakdowns: any[] = [];
+  let latestTrendMultiplier = 1;
 
   for (const dayStat of dailyStats) {
+    const dayTrendMultiplier = resolveTrendMultiplier(dayStat.trendMultiplier, {
+      assetType: 'strain',
+      assetId: dayStat.strainId ?? null,
+      statDate: dayStat.statDate ?? null,
+    });
+
     const dayScore = calculateStrainTrendScore({
       orderCount: dayStat.orderCount ?? 0,
-      trendMultiplier: Number(dayStat.trendMultiplier ?? 1),
+      trendMultiplier: dayTrendMultiplier,
       currentRank: dayStat.rank ?? 0,
       previousRank: dayStat.previousRank ?? (dayStat.rank ?? 0),
       consistencyScore: Number(dayStat.consistencyScore ?? 0),
@@ -815,6 +888,7 @@ export function calculateStrainPoints(
     });
     dailyTotal += dayScore.totalPoints;
     dailyBreakdowns.push({ points: dayScore.totalPoints });
+    latestTrendMultiplier = dayTrendMultiplier;
   }
 
   const breakdown: any = {
@@ -824,7 +898,7 @@ export function calculateStrainPoints(
     subtotal: dailyTotal,
     total: dailyTotal,
     // Metadata
-    trendMultiplier: dailyStats.length > 0 ? Number(dailyStats[dailyStats.length - 1].trendMultiplier ?? 1) : 1,
+    trendMultiplier: dailyStats.length > 0 ? latestTrendMultiplier : 1,
     isTrending: weeklyContext.isTrending,
     streakDays: weeklyContext.streakDays,
   };
@@ -2055,7 +2129,11 @@ async function scoreManufacturer(
     currentRank: rank,
     previousRank,
     marketSharePercent: Number(dailyStat.marketSharePercent ?? 0),
-    trendMultiplier: Number(dailyStat.trendMultiplier ?? 1) || 1,
+    trendMultiplier: resolveTrendMultiplier(dailyStat.trendMultiplier, {
+      assetType: 'manufacturer',
+      assetId: dailyStat.manufacturerId ?? null,
+      statDate: dailyStat.statDate ?? null,
+    }),
     streakDays: Number(dailyStat.streakDays ?? 0),
   };
 
@@ -2171,7 +2249,11 @@ async function scoreCannabisStrain(
     currentRank: rank,
     previousRank,
     marketSharePercent: Number(dailyStat.marketSharePercent ?? 0),
-    trendMultiplier: Number(dailyStat.trendMultiplier ?? 1) || 1,
+    trendMultiplier: resolveTrendMultiplier(dailyStat.trendMultiplier, {
+      assetType: 'cannabis_strain',
+      assetId: dailyStat.strainId ?? null,
+      statDate: dailyStat.statDate ?? null,
+    }),
     streakDays: Number(dailyStat.streakDays ?? 0),
   };
 
@@ -2244,6 +2326,14 @@ async function scoreProduct(
     const currentRank = dailyStats.length > 0 ? (dailyStats[dailyStats.length - 1].rank ?? 0) : 0;
     const previousRank = dailyStats.length > 0 ? (dailyStats[dailyStats.length - 1].previousRank ?? currentRank) : currentRank;
     const derivedRankChange = previousRank - currentRank;
+    const latestDaily = dailyStats[dailyStats.length - 1];
+    const latestTrendMultiplier = latestDaily
+      ? resolveTrendMultiplier(latestDaily.trendMultiplier, {
+          assetType: 'product',
+          assetId: latestDaily.strainId ?? productId ?? null,
+          statDate: latestDaily.statDate ?? null,
+        })
+      : 1;
 
     const metadata: ScoreMetadata = {
       scopeType: 'weekly',
@@ -2251,7 +2341,7 @@ async function scoreProduct(
       currentRank,
       previousRank,
       marketSharePercent: dailyStats.length > 0 ? Number(dailyStats[dailyStats.length - 1].marketSharePercent ?? 0) : 0,
-      trendMultiplier: dailyStats.length > 0 ? Number(dailyStats[dailyStats.length - 1].trendMultiplier ?? 1) : 1,
+      trendMultiplier: dailyStats.length > 0 ? latestTrendMultiplier : 1,
       streakDays: dailyStats.length > 0 ? Number(dailyStats[dailyStats.length - 1].streakDays ?? 0) : 0,
     };
 
@@ -2273,7 +2363,11 @@ async function scoreProduct(
     currentRank: rank,
     previousRank,
     marketSharePercent: Number(dailyStat.marketSharePercent ?? 0),
-    trendMultiplier: Number(dailyStat.trendMultiplier ?? 1) || 1,
+    trendMultiplier: resolveTrendMultiplier(dailyStat.trendMultiplier, {
+      assetType: 'product',
+      assetId: dailyStat.productId ?? null,
+      statDate: dailyStat.statDate ?? null,
+    }),
     streakDays: Number(dailyStat.streakDays ?? 0),
   };
 
@@ -2342,6 +2436,13 @@ async function scorePharmacy(
     const currentRank = latestDaily?.rank ?? 0;
     const previousRank = latestDaily?.previousRank ?? currentRank;
     const derivedRankChange = previousRank - currentRank;
+    const latestTrendMultiplier = latestDaily
+      ? resolveTrendMultiplier(latestDaily.trendMultiplier, {
+          assetType: 'pharmacy',
+          assetId: latestDaily.pharmacyId ?? pharmacyId ?? null,
+          statDate: latestDaily.statDate ?? null,
+        })
+      : 1;
 
     const { points, breakdown } = calculatePharmacyPoints(dailyStats, {
       rankChange: derivedRankChange,
@@ -2355,7 +2456,7 @@ async function scorePharmacy(
       currentRank,
       previousRank,
       marketSharePercent: dailyStats.length > 0 ? Number(dailyStats[dailyStats.length - 1].marketSharePercent ?? 0) : 0,
-      trendMultiplier: dailyStats.length > 0 ? Number(dailyStats[dailyStats.length - 1].trendMultiplier ?? 1) : 1,
+      trendMultiplier: dailyStats.length > 0 ? latestTrendMultiplier : 1,
       streakDays: dailyStats.length > 0 ? Number(dailyStats[dailyStats.length - 1].streakDays ?? 0) : 0,
     };
 
@@ -2377,7 +2478,11 @@ async function scorePharmacy(
     currentRank: rank,
     previousRank,
     marketSharePercent: Number(dailyStat.marketSharePercent ?? 0),
-    trendMultiplier: Number(dailyStat.trendMultiplier ?? 1) || 1,
+    trendMultiplier: resolveTrendMultiplier(dailyStat.trendMultiplier, {
+      assetType: 'pharmacy',
+      assetId: dailyStat.pharmacyId ?? null,
+      statDate: dailyStat.statDate ?? null,
+    }),
     streakDays: Number(dailyStat.streakDays ?? 0),
   };
 

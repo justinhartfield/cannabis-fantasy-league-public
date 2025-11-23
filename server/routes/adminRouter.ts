@@ -10,6 +10,7 @@ import { syncJobs, syncLogs, cannabisStrains, brands, manufacturers, dailyTeamSc
 import { eq, desc, sql, gte, and } from 'drizzle-orm';
 import { z } from 'zod';
 import { createSyncJob } from '../services/syncLogger';
+import { dailyChallengeAggregatorV2 } from '../dailyChallengeAggregatorV2';
 import {
   manufacturerDailyChallengeStats,
   strainDailyChallengeStats,
@@ -132,31 +133,48 @@ export const adminRouter = router({
    * Trigger daily challenge stats sync (Metabase order aggregation)
    */
   syncDailyChallengeStats: adminProcedure
-    .input(z.object({
-      statDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-    }).optional())
+    .input(
+      z.object({
+        statDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        useLegacy: z.boolean().optional(),
+      }).optional()
+    )
     .mutation(async ({ ctx, input }) => {
       const statDate = input?.statDate || new Date().toISOString().split('T')[0];
+      const useLegacy = input?.useLegacy ?? false;
       const logger = await createSyncJob('sync-daily-challenge');
 
       try {
-        await logger.updateJobStatus('running', `Starting daily challenge sync for ${statDate}`);
+        await logger.updateJobStatus(
+          'running',
+          `Starting daily challenge sync for ${statDate} (${useLegacy ? 'legacy' : 'trend'} aggregator)`
+        );
 
-        const { dailyChallengeAggregator } = await import('../dailyChallengeAggregator');
-        const summary = await dailyChallengeAggregator.aggregateForDate(statDate, {
-          logger: {
-            info: (message, metadata) => logger.info(message, metadata),
-            warn: (message, metadata) => logger.warn(message, metadata),
-            error: (message, metadata) => logger.error(message, metadata),
-          },
-        });
+        const summary = useLegacy
+          ? await import('../dailyChallengeAggregator').then(({ dailyChallengeAggregator }) =>
+              dailyChallengeAggregator.aggregateForDate(statDate, {
+                logger: {
+                  info: (message, metadata) => logger.info(message, metadata),
+                  warn: (message, metadata) => logger.warn(message, metadata),
+                  error: (message, metadata) => logger.error(message, metadata),
+                },
+              })
+            )
+          : await dailyChallengeAggregatorV2.aggregateForDate(statDate, {
+              logger: {
+                info: (message, metadata) => logger.info(message, metadata),
+                warn: (message, metadata) => logger.warn(message, metadata),
+                error: (message, metadata) => logger.error(message, metadata),
+              },
+              useTrendScoring: true,
+            });
 
-        await logger.info('Daily challenge stats sync complete', summary);
+        await logger.info('Daily challenge stats sync complete', { ...summary, useLegacy });
         await logger.updateJobStatus('completed', `Daily challenge stats synced for ${statDate}`);
 
         return {
           success: true,
-          message: `Daily challenge stats sync started for ${statDate}`,
+          message: `Daily challenge stats sync started for ${statDate} (${useLegacy ? 'legacy' : 'trend'})`,
           statDate,
           summary,
         };

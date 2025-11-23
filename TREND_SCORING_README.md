@@ -95,6 +95,20 @@ npm run tsx scripts/sync-daily-stats.ts -- --date=YYYY-MM-DD --useTrendScoring
 - The `--useTrendScoring` flag enables the new scoring logic.
 - The `--date` flag specifies the date to aggregate.
 
+### Step 2.5: Backfill Trend Multipliers (Optional but Recommended)
+
+If you notice `Trend Bonus` multipliers stuck at `1.0x`, run the dedicated backfill helper to rerun the trend-aware aggregator over a date range. This will repopulate `trendMultiplier`, `consistencyScore`, and related columns for every entity.
+
+```bash
+# Single day
+pnpm tsx scripts/backfill-trend-multipliers.ts --date=2025-02-01
+
+# Date range (inclusive)
+pnpm tsx scripts/backfill-trend-multipliers.ts --start=2025-01-20 --end=2025-01-31
+```
+
+Behind the scenes this script calls `dailyChallengeAggregatorV2.aggregateForDate()` for each date in the window with the new trend scoring enabled, ensuring the multiplier data is refreshed without touching the legacy aggregator.
+
 ### Step 3: Enable the New Frontend Display
 
 The `ScoringBreakdownV2.tsx` component has a `useTrendDisplay` prop that toggles the new display. To enable it, you can either set the default to `true` or pass it from the parent component (e.g., `DailyChallenge.tsx`).
