@@ -49,7 +49,7 @@ interface ScoringBreakdownProps {
  * 
  * Displays detailed scoring breakdown for a player/asset:
  * - Points per category
- * - Bonuses and penalties
+ * - Bonuses
  * - Comparison with league average
  * - Weekly trends
  */
@@ -184,36 +184,6 @@ export default function ScoringBreakdown({
           </div>
         )}
 
-        {/* Penalties */}
-        {data.penalties.length > 0 && (
-          <div className="space-y-2">
-            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <TrendingDown className="w-4 h-4 text-red-600" />
-              Strafen
-            </h4>
-            <div className="space-y-1">
-              {data.penalties.map((penalty, idx) => (
-                <div
-                  key={idx}
-                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 rounded-md bg-red-500/5 border border-red-500/20 gap-2"
-                >
-                  <div>
-                    <div className="text-sm font-medium text-foreground">
-                      {penalty.type}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {penalty.condition}
-                    </div>
-                  </div>
-                  <div className="text-sm font-semibold text-red-600">
-                    {penalty.points}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Subtotal */}
         <div className="border-t border-border pt-3 mt-3">
           <div className="flex items-center justify-between p-3 rounded-md bg-muted/80">
@@ -227,9 +197,6 @@ export default function ScoringBreakdown({
                 ))}
                 {data.bonuses.length > 0 && data.bonuses.map((b, i) => (
                   <span key={`b${i}`}> + {b.points}</span>
-                ))}
-                {data.penalties.length > 0 && data.penalties.map((p, i) => (
-                  <span key={`p${i}`}> {p.points}</span>
                 ))}
               </div>
             </div>

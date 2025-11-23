@@ -80,14 +80,14 @@ export function DraftAssetCard({
   // Get card styling based on state
   const getCardStyle = () => {
     if (isDrafted || isInMyRoster) {
-      return "bg-muted/50 border-muted opacity-60";
-    }
-    
-    if (!isMyTurn) {
-      return "bg-card border-border hover:bg-accent/30";
+      return "opacity-40 pointer-events-none";
     }
 
-    return "bg-card border-border hover:bg-accent/50";
+    if (!isMyTurn) {
+      return "opacity-80";
+    }
+
+    return "hover:border-[#cfff4d]/60";
   };
 
   // Get button variant and text
@@ -130,63 +130,60 @@ export function DraftAssetCard({
   const buttonConfig = getButtonConfig();
 
   return (
-    <div className={cn(
-      "p-4 rounded-lg border transition-all duration-300",
-      getCardStyle()
-    )}>
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        {/* Asset Info */}
-        <div className="flex items-center gap-3 flex-1 min-w-0 w-full sm:w-auto">
+    <div
+      className={cn(
+        "rounded-[26px] border border-white/10 bg-gradient-to-br from-[#2b103f] to-[#1c0c29] p-4 text-white shadow-[0_15px_35px_rgba(12,4,20,0.45)] transition",
+        getCardStyle()
+      )}
+    >
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
           {showImage ? (
-            <img 
-              src={imageUrl || ""} 
+            <img
+              src={imageUrl || ""}
               alt={assetName}
-              className="w-10 h-10 object-contain rounded-md bg-muted"
+              className="w-12 h-12 object-contain rounded-2xl bg-white/10 p-1"
               onError={() => setImageError(true)}
             />
           ) : (
-            <div className="p-2 bg-muted rounded-lg">
+            <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center">
               {getIcon()}
             </div>
           )}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <p className="font-bold text-foreground truncate">{assetName}</p>
-              <Badge variant="outline" className="text-xs shrink-0">
-                {getCategoryLabel()}
-              </Badge>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 mt-1">
-              {stats.map((stat, idx) => (
-                <div
-                  key={idx}
-                  className={cn(
-                    "px-2 py-1 rounded bg-primary/10 border border-primary/20",
-                    // On very small screens, only show the first two stats
-                    // to give the Draft button and primary info more space.
-                    idx >= 2 && "hidden md:inline-flex"
-                  )}
-                >
-                  <span className="text-xs font-semibold text-primary">
-                    {stat.label}: {stat.value}
-                  </span>
-                </div>
-              ))}
-            </div>
+          <div className="min-w-0">
+            <p className="text-lg font-semibold truncate">{assetName}</p>
+            <span className="text-xs uppercase tracking-[0.3em] text-white/60">
+              {getCategoryLabel()}
+            </span>
           </div>
         </div>
 
-        {/* Draft Button */}
         <Button
           size="sm"
-          variant={buttonConfig.variant}
+          variant="ghost"
           onClick={() => onDraft(assetType, assetId, assetName)}
           disabled={buttonConfig.disabled}
-          className="shrink-0 w-full sm:w-auto sm:ml-4"
+          className={cn(
+            "rounded-full px-5 py-2 text-sm font-semibold transition shadow-[0_10px_25px_rgba(207,255,77,0.35)]",
+            buttonConfig.disabled
+              ? "bg-white/10 text-white/40 cursor-not-allowed shadow-none"
+              : "bg-[#cfff4d] text-black hover:bg-[#b7f237]"
+          )}
         >
           {buttonConfig.icon}
           {buttonConfig.text}
         </Button>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {stats.map((stat, idx) => (
+          <div
+            key={`${stat.label}-${idx}`}
+            className="rounded-full bg-white/10 px-3 py-1 text-xs text-white/80"
+          >
+            {stat.label}: {stat.value}
+          </div>
+        ))}
       </div>
     </div>
   );

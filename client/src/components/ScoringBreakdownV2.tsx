@@ -363,30 +363,6 @@ export default function ScoringBreakdownV2({
           </div>
         )}
 
-        {data.penalties.length > 0 && (
-          <div className="space-y-2">
-            <div className="text-xs uppercase tracking-[0.35em] text-white/45">Penalties</div>
-            <div className="space-y-2">
-              {data.penalties.map((penalty, idx) => (
-                <div
-                  key={idx}
-                  className="rounded-2xl border border-red-500/25 bg-red-500/15 px-4 py-3 flex items-center justify-between"
-                >
-                  <div>
-                    <div className="font-semibold text-sm">{penalty.type}</div>
-                    <div className="text-xs text-red-200">
-                      {penalty.condition}
-                    </div>
-                  </div>
-                  <div className="text-right text-red-300 font-bold">
-                    {penalty.points}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         <div className="flex items-center justify-between pt-2 border-t border-white/10">
           <div>
             <div className="text-xs uppercase tracking-[0.35em] text-white/45">
@@ -617,56 +593,6 @@ export default function ScoringBreakdownV2({
           </div>
         )}
 
-        {/* Penalties */}
-        {data.penalties.length > 0 && (
-          <div className="space-y-1.5">
-            <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5 uppercase tracking-wide">
-              <TrendingDown className="w-4 h-4 text-red-600" />
-              Strafen
-            </h4>
-            <div className="space-y-1">
-              {data.penalties.map((penalty, idx) => (
-                <div
-                  key={idx}
-                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-2 py-1.5 rounded-md bg-red-500/5 border border-red-500/20 gap-2"
-                >
-                  <div>
-                    <div className="text-sm font-medium text-foreground flex items-center gap-2">
-                      {penalty.type}
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-red-500/10 hover:bg-red-500/20 text-red-600 transition-colors">
-                              <span className="text-xs font-bold">i</span>
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent side="right" className="max-w-xs">
-                            <div className="space-y-1">
-                              <p className="font-semibold">{penalty.type}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {penalty.condition}
-                              </p>
-                              <p className="text-xs">
-                                Penalty: {penalty.points} points
-                              </p>
-                            </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {penalty.condition}
-                    </div>
-                  </div>
-                  <div className="text-xs font-semibold text-red-600">
-                    {penalty.points}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Subtotal */}
         <div className="border-t border-border pt-2 mt-2">
           <div className="flex items-center justify-between p-2 rounded-md bg-muted/70">
@@ -674,7 +600,6 @@ export default function ScoringBreakdownV2({
               <div className="text-sm font-semibold text-foreground leading-tight">Gesamtpunktzahl</div>
               <div className="text-[11px] text-muted-foreground mt-0.5">
                 {data.components.length} Komponenten + {data.bonuses.length} Boni
-                {data.penalties.length > 0 && ` - ${data.penalties.length} Strafen`}
               </div>
             </div>
             <div className="text-xl font-bold text-foreground">{data.total}</div>

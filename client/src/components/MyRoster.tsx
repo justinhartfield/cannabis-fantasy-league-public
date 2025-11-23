@@ -1,9 +1,7 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Building2, Leaf, Package, UserCircle, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type AssetType = "manufacturer" | "cannabis_strain" | "product" | "pharmacy";
+type AssetType = "manufacturer" | "cannabis_strain" | "product" | "pharmacy" | "brand";
 
 interface RosterItem {
   assetType: AssetType;
@@ -73,40 +71,50 @@ export function MyRoster({ roster, teamName }: MyRosterProps) {
   };
 
   // Position slot component
-  const PositionSlot = ({ 
-    type, 
-    label, 
-    current, 
-    max, 
-    colorClass 
-  }: { 
-    type: AssetType; 
-    label: string; 
-    current: number; 
-    max: number; 
-    colorClass: string;
+  type SlotColor = "blue" | "purple" | "pink" | "green" | "yellow";
+
+  const slotPalette: Record<SlotColor, { border: string; icon: string }> = {
+    blue: { border: "border-blue-400/40 bg-blue-500/10", icon: "text-blue-200" },
+    purple: { border: "border-purple-400/40 bg-purple-500/10", icon: "text-purple-200" },
+    pink: { border: "border-pink-400/40 bg-pink-500/10", icon: "text-pink-200" },
+    green: { border: "border-green-400/40 bg-green-500/10", icon: "text-green-200" },
+    yellow: { border: "border-yellow-400/40 bg-yellow-500/10", icon: "text-yellow-200" },
+  };
+
+  const PositionSlot = ({
+    type,
+    label,
+    current,
+    max,
+    colorClass,
+  }: {
+    type: AssetType;
+    label: string;
+    current: number;
+    max: number;
+    colorClass: SlotColor;
   }) => {
     const items = roster.filter((r) => r.assetType === type);
     const isFilled = current >= max;
 
     return (
-      <div className={cn(
-        "p-3 rounded-lg border transition-colors",
-        isFilled 
-          ? `bg-${colorClass}-50 dark:bg-${colorClass}-950/20 border-${colorClass}-500/50`
-          : "bg-muted/30 border-border"
-      )}>
-        <div className="flex items-center justify-between mb-2">
+      <div
+        className={cn(
+          "p-3 rounded-2xl border transition-colors",
+          slotPalette[colorClass].border,
+          !isFilled && "bg-white/5 border-white/10"
+        )}
+      >
+        <div className="flex items-center justify-between mb-2 text-sm">
           <div className="flex items-center gap-2">
             {getIcon(type)}
-            <span className="text-sm font-medium text-foreground">{label}</span>
+            <span className={cn("text-xs uppercase tracking-wide", slotPalette[colorClass].icon)}>
+              {label}
+            </span>
           </div>
-          <Badge 
-            variant={isFilled ? "default" : "outline"}
-            className="text-xs"
-          >
+          <span className="text-xs text-white/70">
             {current}/{max}
-          </Badge>
+          </span>
         </div>
         
         <div className="space-y-1">
@@ -143,98 +151,78 @@ export function MyRoster({ roster, teamName }: MyRosterProps) {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <span className="flex items-center gap-2">
-            <UserCircle className="w-5 h-5" />
-            {teamName}
-          </span>
-          <Badge variant="outline">
-            {totalPicks}/{maxPicks} Picks
-          </Badge>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Progress Bar */}
-        <div>
-          <div className="flex items-center justify-between text-sm mb-2">
-            <span className="text-muted-foreground">Roster Progress</span>
-            <span className="font-medium text-foreground">{Math.round(progress)}%</span>
-          </div>
-          <div className="h-2 bg-muted rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-500"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
+    <div className="rounded-[32px] border border-white/10 bg-gradient-to-br from-[#1a0f28] to-[#2d0f3f] p-5 text-white shadow-[0_20px_40px_rgba(10,6,25,0.55)]">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-lg font-semibold">
+          <UserCircle className="w-5 h-5" />
+          {teamName}
         </div>
+        <span className="text-xs uppercase tracking-[0.3em] text-white/60">
+          {totalPicks}/{maxPicks} Picks
+        </span>
+      </div>
 
-        {/* Position Slots */}
-        <div className="space-y-3">
-          <PositionSlot
-            type="manufacturer"
-            label="Hersteller"
-            current={counts.manufacturer}
-            max={2}
-            colorClass="blue"
-          />
-          <PositionSlot
-            type="cannabis_strain"
-            label="Strains"
-            current={counts.cannabis_strain}
-            max={2}
-            colorClass="purple"
-          />
-          <PositionSlot
-            type="product"
-            label="Produkte"
-            current={counts.product}
-            max={2}
-            colorClass="pink"
-          />
-          <PositionSlot
-            type="pharmacy"
-            label="Apotheken"
-            current={counts.pharmacy}
-            max={2}
-            colorClass="green"
-          />
-          <PositionSlot
-            type="brand"
-            label="Brands"
-            current={counts.brand}
-            max={1}
-            colorClass="yellow"
+      <div className="mt-5">
+        <div className="flex items-center justify-between text-sm text-white/70 mb-2">
+          <span>Roster Progress</span>
+          <span className="font-semibold text-white">{Math.round(progress)}%</span>
+        </div>
+        <div className="h-2.5 rounded-full bg-white/10 overflow-hidden">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-[#cfff4d] via-[#8df6a2] to-[#6be1ff] transition-all duration-500"
+            style={{ width: `${progress}%` }}
           />
         </div>
+      </div>
 
-        {/* Flex Slot */}
-        <div className="p-3 rounded-lg border bg-orange-50 dark:bg-orange-950/20 border-orange-500/50">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <UserCircle className="w-4 h-4 text-orange-500" />
-              <span className="text-sm font-medium text-foreground">Flex</span>
-            </div>
-            <Badge variant="outline" className="text-xs">
-              {Math.max(0, totalPicks - 9)}/1
-            </Badge>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Any category (10th pick)
-          </p>
+      <div className="mt-5 space-y-3">
+        <PositionSlot
+          type="manufacturer"
+          label="Hersteller"
+          current={counts.manufacturer}
+          max={2}
+          colorClass="blue"
+        />
+        <PositionSlot
+          type="cannabis_strain"
+          label="Strains"
+          current={counts.cannabis_strain}
+          max={2}
+          colorClass="purple"
+        />
+        <PositionSlot
+          type="product"
+          label="Produkte"
+          current={counts.product}
+          max={2}
+          colorClass="pink"
+        />
+        <PositionSlot
+          type="pharmacy"
+          label="Apotheken"
+          current={counts.pharmacy}
+          max={2}
+          colorClass="green"
+        />
+        <PositionSlot
+          type="brand"
+          label="Brands"
+          current={counts.brand}
+          max={1}
+          colorClass="yellow"
+        />
+      </div>
+
+      <div className="mt-5 rounded-2xl border border-dashed border-white/20 p-3 text-sm text-white/70">
+        Flex Slot • {Math.max(0, totalPicks - 9)}/1 genutzt
+      </div>
+
+      {totalPicks === maxPicks && (
+        <div className="mt-4 rounded-2xl border border-green-400/40 bg-green-500/15 p-3 text-center text-sm font-semibold text-green-200">
+          <CheckCircle2 className="w-5 h-5 mx-auto mb-1" />
+          Roster Complete!
         </div>
-
-        {/* Draft Status */}
-        {totalPicks === maxPicks && (
-          <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-500 text-center">
-            <CheckCircle2 className="w-6 h-6 mx-auto mb-1 text-green-500" />
-            <p className="text-sm font-medium text-green-700 dark:text-green-400">
-              Roster Complete!
-            </p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 }

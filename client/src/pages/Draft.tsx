@@ -297,7 +297,7 @@ export default function Draft() {
   // Check if it's the user's turn
   const isMyTurn = currentTurnTeamId === myTeam.id;
 
-  const handleDraftPick = async (assetType: "manufacturer" | "cannabis_strain" | "product" | "pharmacy", assetId: number) => {
+  const handleDraftPick = async (assetType: AssetType, assetId: number) => {
     try {
       const clickTime = Date.now();
       if (import.meta.env.MODE !== "production") {

@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
-import { Clock, Pause, Play, AlertCircle } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+import { Clock, Pause, AlertCircle } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface DraftClockProps {
   pickNumber: number;
@@ -89,89 +87,63 @@ export function DraftClock({
   const colors = getColorScheme();
 
   return (
-    <Card className="bg-weed-purple border-2 border-weed-green transition-colors duration-300">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="headline-secondary text-lg font-semibold flex items-center gap-2 text-white">
-            <Clock className={`h-5 w-5 text-weed-green ${urgency === "critical" ? "animate-pulse" : ""}`} />
-            <span className="uppercase">Draft Clock</span>
-          </CardTitle>
-          {isPaused && (
-            <Badge variant="outline" className="flex items-center gap-1">
-              <Pause className="h-3 w-3" />
-              Paused
-            </Badge>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Current Pick Info */}
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-white/70">Pick #{pickNumber}</p>
-            <p className="text-sm text-white/70">Round {round}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-sm font-medium text-white">{teamName}</p>
-            {isYourTurn && (
-              <Badge className={`${colors.badge} text-white`}>
-                Your Turn!
-              </Badge>
-            )}
-          </div>
-        </div>
-
-        {/* Timer Display */}
-        <div className="text-center">
-          <div className="headline-primary text-6xl font-bold text-weed-green font-mono">
-            {formatTime(displayTime)}
-          </div>
-          <p className="text-sm text-white/70 mt-1">
-            {isPaused ? "Timer Paused" : "Time Remaining"}
+    <div className="rounded-[32px] border border-white/10 bg-gradient-to-br from-[#1a0f28] to-[#2f0f42] p-6 text-white shadow-[0_25px_55px_rgba(10,6,25,0.6)]">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-[0.4em] text-white/50">Draft Clock</p>
+          <p className="text-sm text-white/70">
+            Pick #{pickNumber} • Runde {round}
           </p>
         </div>
+        {isPaused && (
+          <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold">
+            <Pause className="w-3 h-3" />
+            Pausiert
+          </span>
+        )}
+      </div>
 
-        {/* Progress Bar */}
-        <div className="space-y-2">
-          <Progress 
-            value={progress} 
-            className="h-3"
-            indicatorClassName={colors.progress}
-          />
-          <div className="flex justify-between text-xs text-white/70">
-            <span>0:00</span>
-            <span>{formatTime(timeLimit)}</span>
-          </div>
+      <div className="mt-6 text-center">
+        <Clock className="w-6 h-6 mx-auto text-[#cfff4d]" />
+        <div className="mt-3 text-6xl font-black text-[#cfff4d] font-mono tracking-wider">
+          {formatTime(displayTime)}
         </div>
+        <p className="mt-1 text-sm text-white/70">
+          {isPaused ? "Timer pausiert" : "Verbleibende Zeit"}
+        </p>
+        <p className="mt-2 text-sm font-semibold">
+          {isYourTurn ? `${teamName} ist am Zug` : `Warten auf ${teamName}`}
+        </p>
+      </div>
 
-        {/* Urgency Warning */}
-        {urgency === "critical" && (
-          <div className="flex items-center gap-2 p-3 bg-red-100 dark:bg-red-900/30 rounded-md border border-red-300 dark:border-red-700">
-            <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0" />
-            <p className="text-sm text-red-700 dark:text-red-300 font-medium">
-              Time running out! Make your pick now or auto-pick will trigger.
-            </p>
-          </div>
-        )}
+      <div className="mt-6 space-y-2">
+        <div className="h-3 w-full rounded-full bg-white/15 overflow-hidden">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-[#cfff4d] via-[#8df6a2] to-[#6be1ff] transition-all duration-500"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        <div className="flex justify-between text-xs text-white/60">
+          <span>0:00</span>
+          <span>{formatTime(timeLimit)}</span>
+        </div>
+      </div>
 
-        {urgency === "warning" && (
-          <div className="flex items-center gap-2 p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-md border border-yellow-300 dark:border-yellow-700">
-            <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0" />
-            <p className="text-sm text-yellow-700 dark:text-yellow-300 font-medium">
-              Less than 30 seconds remaining!
-            </p>
-          </div>
-        )}
-
-        {/* Auto-pick Notice */}
-        {!isYourTurn && (
-          <div className="text-center">
-            <p className="text-sm text-white/80">
-              Waiting for {teamName} to make their pick...
-            </p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      {(urgency === "critical" || urgency === "warning") && (
+        <div
+          className={cn(
+            "mt-5 flex items-center gap-2 rounded-2xl border px-3 py-3 text-sm font-medium",
+            urgency === "critical"
+              ? "border-red-400 bg-red-500/10 text-red-200"
+              : "border-yellow-400 bg-yellow-500/10 text-yellow-100"
+          )}
+        >
+          <AlertCircle className="w-5 h-5 flex-shrink-0" />
+          {urgency === "critical"
+            ? "Letzte Sekunden! Jetzt picken oder Auto-Pick wird aktiv."
+            : "Unter 30 Sekunden – beeil dich mit dem Pick!"}
+        </div>
+      )}
+    </div>
   );
 }
