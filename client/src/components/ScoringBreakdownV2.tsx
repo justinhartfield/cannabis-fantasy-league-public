@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Minus, Trophy, BarChart3, Flame, Zap, Target, TrendingUpDown } from "lucide-react";
@@ -50,6 +51,11 @@ interface ScoringBreakdownProps {
   weeklyTrend?: number[];
   useTrendDisplay?: boolean; // Toggle between old and new display
   variant?: "classic" | "app";
+  // Optional ISO week context (season-long leagues)
+  weekContext?: {
+    year: number;
+    week: number;
+  };
 }
 
 type ComponentTooltipDetails = {
@@ -72,6 +78,55 @@ const TREND_BASE_POINTS: Record<ScoringBreakdownData["assetType"], number> = {
   product: 120,
   pharmacy: 100,
   brand: 100,
+};
+
+const WEEKDAY_LABELS_DE = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+
+const getWeekDateRange = (
+  year: number,
+  week: number
+): { startDate: string; endDate: string } => {
+  const simple = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
+  const dow = simple.getUTCDay();
+  const isoWeekStart = new Date(simple);
+
+  if (dow <= 4) {
+    isoWeekStart.setUTCDate(simple.getUTCDate() - simple.getUTCDay() + 1);
+  } else {
+    isoWeekStart.setUTCDate(simple.getUTCDate() + 8 - simple.getUTCDay());
+  }
+
+  const startDate = isoWeekStart.toISOString().split("T")[0];
+
+  const isoWeekEnd = new Date(isoWeekStart);
+  isoWeekEnd.setUTCDate(isoWeekEnd.getUTCDate() + 6);
+  const endDate = isoWeekEnd.toISOString().split("T")[0];
+
+  return { startDate, endDate };
+};
+
+const enumerateWeekDates = (startDate: string, endDate: string): string[] => {
+  const dates: string[] = [];
+  const current = new Date(`${startDate}T00:00:00Z`);
+  const end = new Date(`${endDate}T00:00:00Z`);
+
+  while (current <= end) {
+    dates.push(current.toISOString().split("T")[0]);
+    current.setUTCDate(current.getUTCDate() + 1);
+  }
+
+  return dates;
+};
+
+const formatStatDateLabel = (isoDate: string): string => {
+  const date = new Date(`${isoDate}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return isoDate;
+
+  const weekday = WEEKDAY_LABELS_DE[date.getUTCDay()] ?? "";
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+
+  return `${weekday} ${day}.${month}.`;
 };
 
 const parseMultiplierValue = (value: number | string): number => {
@@ -173,6 +228,7 @@ export default function ScoringBreakdownV2({
   weeklyTrend,
   useTrendDisplay = true,
   variant = "classic",
+  weekContext,
 }: ScoringBreakdownProps) {
   const getAssetTypeColor = (type: string) => {
     switch (type) {
@@ -233,6 +289,13 @@ export default function ScoringBreakdownV2({
   };
 
   const vsLeagueAverage = leagueAverage ? data.total - leagueAverage : null;
+
+  const orderActivityDateLabels = useMemo(() => {
+    if (!weekContext) return null;
+    const { startDate, endDate } = getWeekDateRange(weekContext.year, weekContext.week);
+    const dates = enumerateWeekDates(startDate, endDate);
+    return dates.map(formatStatDateLabel);
+  }, [weekContext?.year, weekContext?.week]);
 
   if (variant === "app") {
     return (
@@ -312,25 +375,48 @@ export default function ScoringBreakdownV2({
             Scoring-Komponenten
           </div>
           <div className="grid gap-2">
-            {data.components.map((component, idx) => (
-              <div
-                key={idx}
-                className="flex items-center justify-between rounded-2xl bg-white/5 border border-white/10 px-4 py-3"
-              >
-                <div>
-                  <div className="text-sm font-semibold">{component.category}</div>
-                  <div className="text-xs text-white/70">
-                    {component.value} · {component.formula}
+            {data.components.map((component, idx) => {
+              const orderActivityIndex =
+                component.category === "Order Activity"
+                  ? data.components
+                      .slice(0, idx)
+                      .filter((c) => c.category === "Order Activity").length
+                  : null;
+
+              const dateLabel =
+                orderActivityIndex !== null &&
+                orderActivityDateLabels &&
+                orderActivityDateLabels[orderActivityIndex] !== undefined
+                  ? orderActivityDateLabels[orderActivityIndex]
+                  : null;
+
+              return (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between rounded-2xl bg-white/5 border border-white/10 px-4 py-3"
+                >
+                  <div>
+                    <div className="text-sm font-semibold">
+                      {component.category}
+                      {dateLabel && (
+                        <span className="ml-2 text-xs font-normal text-white/60">
+                          {dateLabel}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-white/70">
+                      {component.value} · {component.formula}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold">{component.points}</div>
+                    <div className="text-[11px] uppercase tracking-wider text-white/60">
+                      pts
+                    </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-2xl font-bold">{component.points}</div>
-                  <div className="text-[11px] uppercase tracking-wider text-white/60">
-                    pts
-                  </div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 

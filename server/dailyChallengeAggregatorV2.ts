@@ -21,10 +21,10 @@ import {
   calculatePharmacyTrendScore,
 } from './trendScoringEngine';
 import { pLimit } from './utils/concurrency';
-import { 
-  fetchTotalMarketVolume, 
-  fetchTrendMetricsBatch, 
-  fetchTrendDataForScoring 
+import {
+  fetchTotalMarketVolume,
+  fetchTrendMetricsBatch,
+  fetchTrendDataForScoring
 } from './trendMetricsFetcher';
 import {
   manufacturerDailyChallengeStats,
@@ -178,20 +178,37 @@ export class DailyChallengeAggregatorV2 {
         );
 
         // Calculate trend-based score
-        const trendScore = calculateManufacturerTrendScore({
+        const stats: TrendScoringStats = {
           orderCount: data.orderCount,
-          days1: trendData.trendMetrics?.days1 || 0,
-          days7: trendData.trendMetrics?.days7 || 0,
+          days1: trendData.trendMetrics?.days1 || data.orderCount, // Fallback to current count if no trend data
+          days7: trendData.trendMetrics?.days7 || data.orderCount, // Fallback to current count if no trend data
           days14: trendData.trendMetrics?.days14,
+          days30: trendData.trendMetrics?.days30,
           previousRank: trendData.previousRank,
           currentRank: rank,
           streakDays: trendData.streakDays,
           marketSharePercent: trendData.marketShare,
           dailyVolumes: trendData.dailyVolumes,
-        });
+        };
 
+        if (trendData.trendMetrics === null) {
+          await this.log('warn', `Missing trend metrics for ${name}, using fallback`, {
+            days1: stats.days1,
+            days7: stats.days7,
+            count: data.orderCount
+          }, logger);
+        }
+
+        const trendScore = calculateManufacturerTrendScore(stats);
         // Safeguard: trendMultiplier should never be 0 (minimum is 1.0 for neutral)
         const safeTrendMultiplier = trendScore.trendMultiplier || 1.0;
+
+        if (safeTrendMultiplier === 1.0 && trendScore.trendMultiplier !== 1.0) {
+          await this.log('warn', `Trend multiplier defaulted to 1.0 for manufacturer ${name}`, {
+            calculated: trendScore.trendMultiplier,
+            trendMetrics: trendData.trendMetrics,
+          }, logger);
+        }
 
         // Also calculate old score for comparison
         const oldScore = calculateOldManufacturerScore(data, rank);
@@ -279,7 +296,7 @@ export class DailyChallengeAggregatorV2 {
     }
 
     const sorted = Array.from(stats.entries()).sort((a, b) => b[1].salesVolumeGrams - a[1].salesVolumeGrams);
-    
+
     // Prefetch data for optimization
     const allNames = sorted.map(([name]) => name);
     const [totalVolume, batchTrendMetrics] = await Promise.all([
@@ -313,20 +330,38 @@ export class DailyChallengeAggregatorV2 {
           batchTrendMetrics.get(name)
         );
 
-        const trendScore = calculateStrainTrendScore({
+        const stats: TrendScoringStats = {
           orderCount: data.orderCount,
-          days1: trendData.trendMetrics?.days1 || 0,
-          days7: trendData.trendMetrics?.days7 || 0,
+          days1: trendData.trendMetrics?.days1 || data.orderCount, // Fallback to current count if no trend data
+          days7: trendData.trendMetrics?.days7 || data.orderCount, // Fallback to current count if no trend data
           days14: trendData.trendMetrics?.days14,
+          days30: trendData.trendMetrics?.days30,
           previousRank: trendData.previousRank,
           currentRank: rank,
           streakDays: trendData.streakDays,
           marketSharePercent: trendData.marketShare,
           dailyVolumes: trendData.dailyVolumes,
-        });
+        };
+
+        if (trendData.trendMetrics === null) {
+          await this.log('warn', `Missing trend metrics for strain ${name}, using fallback`, {
+            days1: stats.days1,
+            days7: stats.days7,
+            count: data.orderCount
+          }, logger);
+        }
+
+        const trendScore = calculateStrainTrendScore(stats);
 
         // Safeguard: trendMultiplier should never be 0 (minimum is 1.0 for neutral)
         const safeTrendMultiplier = trendScore.trendMultiplier || 1.0;
+
+        if (safeTrendMultiplier === 1.0 && trendScore.trendMultiplier !== 1.0) {
+          await this.log('warn', `Trend multiplier defaulted to 1.0 for strain ${name}`, {
+            calculated: trendScore.trendMultiplier,
+            trendMetrics: trendData.trendMetrics,
+          }, logger);
+        }
 
         await db
           .insert(strainDailyChallengeStats)
@@ -388,7 +423,7 @@ export class DailyChallengeAggregatorV2 {
     // Fetch from Metabase question that aggregates brand ratings
     // Note: The ratings are cumulative, not daily, so we use the latest snapshot
     const ratingsData = await this.fetchBrandRatings();
-    
+
     if (!ratingsData || ratingsData.length === 0) {
       await this.log('warn', 'No brand ratings data found', undefined, logger);
       return { processed: 0, skipped: 0 };
@@ -552,9 +587,9 @@ export class DailyChallengeAggregatorV2 {
       // We need to execute it as a card query
       // For now, we'll use a placeholder card ID - you'll need to save the query and get the ID
       const BRAND_RATINGS_CARD_ID = 1265; // TODO: Update with actual saved question ID
-      
+
       const result = await this.metabase.executeCardQuery(BRAND_RATINGS_CARD_ID, {});
-      
+
       return result.map((row: any) => ({
         name: row.Name || row.name,
         totalRatings: parseInt(row['Sum of TotalRatings'] || row.totalRatings || '0'),
@@ -585,11 +620,14 @@ export class DailyChallengeAggregatorV2 {
     await this.log('info', `Starting aggregation for ${dateString}`, { useTrendScoring }, logger);
 
     const db = await getDb();
+    if (!db) {
+      throw new Error('Database not available');
+    }
 
     // Fetch orders from Metabase using Card 1267 (date-filtered)
     await this.log('info', `Fetching orders from Metabase for ${dateString}...`, undefined, logger);
     let orders: OrderRecord[] = [];
-    
+
     try {
       // Try date-filtered card first (Card 1267)
       orders = await this.metabase.executeCardQuery(1267, { date: dateString }) as OrderRecord[];

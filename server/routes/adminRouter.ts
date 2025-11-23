@@ -25,13 +25,13 @@ export const adminRouter = router({
   syncStrains: adminProcedure.mutation(async ({ ctx }) => {
 
     const syncService = getDataSyncServiceV2();
-    
+
     try {
       // Run sync in background (don't await)
       syncService.syncStrains().catch(err => {
         console.error('[Admin] Strain sync background error:', err);
       });
-      
+
       return {
         success: true,
         message: 'Strain sync started successfully',
@@ -52,13 +52,13 @@ export const adminRouter = router({
   syncBrands: adminProcedure.mutation(async ({ ctx }) => {
 
     const syncService = getDataSyncServiceV2();
-    
+
     try {
       // Run sync in background (don't await)
       syncService.syncBrands().catch(err => {
         console.error('[Admin] Brand sync background error:', err);
       });
-      
+
       return {
         success: true,
         message: 'Brand sync started successfully',
@@ -79,13 +79,13 @@ export const adminRouter = router({
   syncManufacturers: adminProcedure.mutation(async ({ ctx }) => {
 
     const syncService = getDataSyncServiceV2();
-    
+
     try {
       // Run sync in background (don't await)
       syncService.syncManufacturers().catch(err => {
         console.error('[Admin] Manufacturer sync background error:', err);
       });
-      
+
       return {
         success: true,
         message: 'Manufacturer sync started successfully',
@@ -152,22 +152,22 @@ export const adminRouter = router({
 
         const summary = useLegacy
           ? await import('../dailyChallengeAggregator').then(({ dailyChallengeAggregator }) =>
-              dailyChallengeAggregator.aggregateForDate(statDate, {
-                logger: {
-                  info: (message, metadata) => logger.info(message, metadata),
-                  warn: (message, metadata) => logger.warn(message, metadata),
-                  error: (message, metadata) => logger.error(message, metadata),
-                },
-              })
-            )
-          : await dailyChallengeAggregatorV2.aggregateForDate(statDate, {
+            dailyChallengeAggregator.aggregateForDate(statDate, {
               logger: {
                 info: (message, metadata) => logger.info(message, metadata),
                 warn: (message, metadata) => logger.warn(message, metadata),
                 error: (message, metadata) => logger.error(message, metadata),
               },
-              useTrendScoring: true,
-            });
+            })
+          )
+          : await dailyChallengeAggregatorV2.aggregateForDate(statDate, {
+            logger: {
+              info: (message, metadata) => logger.info(message, metadata),
+              warn: (message, metadata) => logger.warn(message, metadata),
+              error: (message, metadata) => logger.error(message, metadata),
+            },
+            useTrendScoring: true,
+          });
 
         await logger.info('Daily challenge stats sync complete', { ...summary, useLegacy });
         await logger.updateJobStatus('completed', `Daily challenge stats synced for ${statDate}`);
@@ -194,18 +194,94 @@ export const adminRouter = router({
     }),
 
   /**
+   * Backfill daily challenge stats for a date range
+   */
+  backfillDailyChallengeStats: adminProcedure
+    .input(
+      z.object({
+        startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        useLegacy: z.boolean().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { startDate, endDate, useLegacy } = input;
+      const logger = await createSyncJob('backfill-daily-challenge');
+
+      try {
+        await logger.updateJobStatus(
+          'running',
+          `Starting backfill from ${startDate} to ${endDate} (${useLegacy ? 'legacy' : 'trend'})`
+        );
+
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        const results = [];
+
+        for (let d = start; d <= end; d.setDate(d.getDate() + 1)) {
+          const dateStr = d.toISOString().split('T')[0];
+          await logger.info(`Processing ${dateStr}...`);
+
+          try {
+            const summary = useLegacy
+              ? await import('../dailyChallengeAggregator').then(({ dailyChallengeAggregator }) =>
+                dailyChallengeAggregator.aggregateForDate(dateStr, {
+                  logger: {
+                    info: (message, metadata) => logger.info(message, metadata),
+                    warn: (message, metadata) => logger.warn(message, metadata),
+                    error: (message, metadata) => logger.error(message, metadata),
+                  },
+                })
+              )
+              : await dailyChallengeAggregatorV2.aggregateForDate(dateStr, {
+                logger: {
+                  info: (message, metadata) => logger.info(message, metadata),
+                  warn: (message, metadata) => logger.warn(message, metadata),
+                  error: (message, metadata) => logger.error(message, metadata),
+                },
+                useTrendScoring: true,
+              });
+            results.push({ date: dateStr, success: true, summary });
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            await logger.error(`Failed to process ${dateStr}`, { error: msg });
+            results.push({ date: dateStr, success: false, error: msg });
+          }
+        }
+
+        await logger.updateJobStatus('completed', `Backfill completed from ${startDate} to ${endDate}`);
+
+        return {
+          success: true,
+          message: `Backfill completed`,
+          results,
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        await logger.error('Backfill failed', { error: errorMessage });
+        await logger.updateJobStatus('failed', errorMessage);
+
+        return {
+          success: false,
+          message: 'Backfill failed',
+          error: errorMessage,
+        };
+      }
+    }),
+
+  /**
    * Trigger products sync
    */
   syncProducts: adminProcedure.mutation(async ({ ctx }) => {
 
     const syncService = getDataSyncServiceV2();
-    
+
     try {
       // Run sync in background (don't await)
       syncService.syncProducts().catch(err => {
         console.error('[Admin] Products sync background error:', err);
       });
-      
+
       return {
         success: true,
         message: 'Products sync started successfully',
@@ -226,13 +302,13 @@ export const adminRouter = router({
   syncAll: adminProcedure.mutation(async ({ ctx }) => {
 
     const syncService = getDataSyncServiceV2();
-    
+
     try {
       // Run sync in background (don't await)
       syncService.syncAll().catch(err => {
         console.error('[Admin] Full sync background error:', err);
       });
-      
+
       return {
         success: true,
         message: 'Full data sync started successfully',
@@ -257,13 +333,13 @@ export const adminRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       const syncService = getDataSyncServiceV2();
-      
+
       try {
         // Run sync in background (don't await fully)
         syncService.syncWeeklyStats(input.year, input.week).catch(err => {
           console.error('[Admin] Weekly stats sync background error:', err);
         });
-        
+
         return {
           success: true,
           message: `Weekly stats sync started for ${input.year}-W${input.week}`,
@@ -287,8 +363,8 @@ export const adminRouter = router({
     }))
     .query(async ({ ctx, input }) => {
       const db = await getDb();
-    if (!db) throw new Error('Database not available');
-    const jobs = await db
+      if (!db) throw new Error('Database not available');
+      const jobs = await db
         .select()
         .from(syncJobs)
         .orderBy(desc(syncJobs.createdAt))
@@ -326,11 +402,11 @@ export const adminRouter = router({
     const [strainCount] = await db
       .select({ count: sql<number>`count(*)` })
       .from(cannabisStrains);
-    
+
     const [brandCount] = await db
       .select({ count: sql<number>`count(*)` })
       .from(brands);
-    
+
     const [mfgCount] = await db
       .select({ count: sql<number>`count(*)` })
       .from(manufacturers);

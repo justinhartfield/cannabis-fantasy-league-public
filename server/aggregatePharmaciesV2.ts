@@ -2,7 +2,7 @@
  * Pharmacy aggregation with trend-based scoring for aggregator V2
  */
 
-import { calculatePharmacyTrendScore } from './trendScoringEngine';
+import { calculatePharmacyTrendScore, TrendScoringStats } from './trendScoringEngine';
 import { calculatePharmacyScore as calculateOldPharmacyScore } from './dailyChallengeScoringEngine';
 import { fetchTrendDataForScoring, fetchTotalMarketVolume, fetchTrendMetricsBatch } from './trendMetricsFetcher';
 import { pharmacyDailyChallengeStats } from '../drizzle/dailyChallengeSchema';
@@ -26,8 +26,8 @@ export async function aggregatePharmaciesWithTrends(
   logger?: AggregationLogger,
   logFn?: (level: string, message: string, metadata?: any, logger?: any) => Promise<void>
 ): Promise<EntityAggregationSummary> {
-  const log = logFn || (async () => {});
-  
+  const log = logFn || (async () => { });
+
   await log('info', 'Aggregating pharmacies with trend-based scoring...', undefined, logger);
 
   // Group by pharmacy
@@ -85,21 +85,39 @@ export async function aggregatePharmaciesWithTrends(
       );
 
       // Calculate trend-based score
-      const trendScore = calculatePharmacyTrendScore({
+      // Calculate trend-based score
+      const stats: TrendScoringStats = {
         orderCount: data.orderCount,
-        days1: trendData.trendMetrics?.days1 ?? 0,
-        days7: trendData.trendMetrics?.days7 ?? 0,
-        days14: trendData.trendMetrics?.days14 ?? 0,
-        days30: trendData.trendMetrics?.days30 ?? 0,
+        days1: trendData.trendMetrics?.days1 || data.orderCount, // Fallback to current count if no trend data
+        days7: trendData.trendMetrics?.days7 || data.orderCount, // Fallback to current count if no trend data
+        days14: trendData.trendMetrics?.days14,
+        days30: trendData.trendMetrics?.days30,
+        previousRank: trendData.previousRank,
         currentRank: rank,
-        previousRank: trendData.previousRank ?? rank,
-        streakDays: trendData.streakDays ?? 0,
-        marketSharePercent: trendData.marketShare ?? 0,
+        streakDays: trendData.streakDays,
+        marketSharePercent: trendData.marketShare,
         dailyVolumes: trendData.dailyVolumes,
-      });
+      };
+
+      if (trendData.trendMetrics === null) {
+        await log('warn', `Missing trend metrics for pharmacy ${name}, using fallback`, {
+          days1: stats.days1,
+          days7: stats.days7,
+          count: data.orderCount
+        }, logger);
+      }
+
+      const trendScore = calculatePharmacyTrendScore(stats);
 
       // Safeguard: trendMultiplier should never be 0 (minimum is 1.0 for neutral)
       const safeTrendMultiplier = trendScore.trendMultiplier || 1.0;
+
+      if (safeTrendMultiplier === 1.0 && trendScore.trendMultiplier !== 1.0) {
+        await log('warn', `Trend multiplier defaulted to 1.0 for pharmacy ${name}`, {
+          calculated: trendScore.trendMultiplier,
+          trendMetrics: trendData.trendMetrics,
+        }, logger);
+      }
 
       // Also calculate old score for comparison
       const oldScore = calculateOldPharmacyScore(data, rank);

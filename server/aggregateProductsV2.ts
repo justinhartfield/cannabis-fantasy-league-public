@@ -2,7 +2,7 @@
  * Product aggregation with trend-based scoring for aggregator V2
  */
 
-import { calculateProductTrendScore } from './trendScoringEngine';
+import { calculateProductTrendScore, TrendScoringStats } from './trendScoringEngine';
 import { calculateProductScore as calculateOldProductScore } from './dailyChallengeScoringEngine';
 import { fetchTrendDataForScoring, fetchTotalMarketVolume, fetchTrendMetricsBatch } from './trendMetricsFetcher';
 import { productDailyChallengeStats } from '../drizzle/dailyChallengeSchema';
@@ -25,18 +25,18 @@ export async function aggregateProductsWithTrends(
   logger?: AggregationLogger,
   logFn?: (level: string, message: string, metadata?: any, logger?: any) => Promise<void>
 ): Promise<EntityAggregationSummary> {
-  const log = logFn || (async () => {});
-  
+  const log = logFn || (async () => { });
+
   await log('info', 'Aggregating products with trend-based scoring...', undefined, logger);
 
   // Products use Metabase Card 1269 (today) instead of order records
   // because order.Product contains MongoDB IDs, not names
   const { getMetabaseClient } = await import('./metabase');
   const metabase = getMetabaseClient();
-  
+
   const isToday = dateString === new Date().toISOString().split('T')[0];
   let productData;
-  
+
   if (isToday) {
     await log('info', 'Using today\'s products query (card 1269)', undefined, logger);
     productData = await metabase.executeCardQuery(1269);
@@ -44,9 +44,9 @@ export async function aggregateProductsWithTrends(
     await log('info', 'Using yesterday\'s products query (public)', undefined, logger);
     productData = await metabase.executePublicQuery('56623750-b096-445c-a130-7518fd629491');
   }
-  
+
   await log('info', `Fetched ${productData.length} products from Metabase`, undefined, logger);
-  
+
   const sorted = productData; // Already sorted by Metabase query
 
   // Prefetch data for optimization
@@ -61,7 +61,7 @@ export async function aggregateProductsWithTrends(
 
   await pLimit(sorted, 20, async (item, index) => {
     const rank = index + 1;
-    
+
     // Metabase query returns: Name, Quantity (grams), Sales, Orders, etc.
     const name = item.Name;
     if (!name) {
@@ -96,21 +96,39 @@ export async function aggregateProductsWithTrends(
       );
 
       // Calculate trend-based score
-      const trendScore = calculateProductTrendScore({
+      // Calculate trend-based score
+      const stats: TrendScoringStats = {
         orderCount,
-        days1: trendData.trendMetrics?.days1 ?? 0,
-        days7: trendData.trendMetrics?.days7 ?? 0,
-        days14: trendData.trendMetrics?.days14 ?? 0,
-        days30: trendData.trendMetrics?.days30 ?? 0,
+        days1: trendData.trendMetrics?.days1 || orderCount, // Fallback to current count if no trend data
+        days7: trendData.trendMetrics?.days7 || orderCount, // Fallback to current count if no trend data
+        days14: trendData.trendMetrics?.days14,
+        days30: trendData.trendMetrics?.days30,
+        previousRank: trendData.previousRank,
         currentRank: rank,
-        previousRank: trendData.previousRank ?? rank,
-        streakDays: trendData.streakDays ?? 0,
-        marketSharePercent: trendData.marketShare ?? 0,
+        streakDays: trendData.streakDays,
+        marketSharePercent: trendData.marketShare,
         dailyVolumes: trendData.dailyVolumes,
-      });
+      };
+
+      if (trendData.trendMetrics === null) {
+        await log('warn', `Missing trend metrics for product ${name}, using fallback`, {
+          days1: stats.days1,
+          days7: stats.days7,
+          count: orderCount
+        }, logger);
+      }
+
+      const trendScore = calculateProductTrendScore(stats);
 
       // Safeguard: trendMultiplier should never be 0 (minimum is 1.0 for neutral)
       const safeTrendMultiplier = trendScore.trendMultiplier || 1.0;
+
+      if (safeTrendMultiplier === 1.0 && trendScore.trendMultiplier !== 1.0) {
+        await log('warn', `Trend multiplier defaulted to 1.0 for product ${name}`, {
+          calculated: trendScore.trendMultiplier,
+          trendMetrics: trendData.trendMetrics,
+        }, logger);
+      }
 
       // Also calculate old score for comparison
       const oldScore = calculateOldProductScore({ salesVolumeGrams, orderCount }, rank);
