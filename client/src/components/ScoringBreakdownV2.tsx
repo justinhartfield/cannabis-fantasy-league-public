@@ -49,6 +49,7 @@ interface ScoringBreakdownProps {
   leagueAverage?: number;
   weeklyTrend?: number[];
   useTrendDisplay?: boolean; // Toggle between old and new display
+  variant?: "classic" | "app";
 }
 
 type ComponentTooltipDetails = {
@@ -171,6 +172,7 @@ export default function ScoringBreakdownV2({
   leagueAverage,
   weeklyTrend,
   useTrendDisplay = true,
+  variant = "classic",
 }: ScoringBreakdownProps) {
   const getAssetTypeColor = (type: string) => {
     switch (type) {
@@ -231,6 +233,175 @@ export default function ScoringBreakdownV2({
   };
 
   const vsLeagueAverage = leagueAverage ? data.total - leagueAverage : null;
+
+  if (variant === "app") {
+    return (
+      <div className="rounded-[28px] bg-[#2b0d3f] text-white p-5 space-y-4 border border-white/10 shadow-[0_20px_40px_rgba(0,0,0,0.35)]">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            {data.imageUrl ? (
+              <img
+                src={data.imageUrl}
+                alt={data.assetName}
+                className="w-14 h-14 rounded-2xl object-cover border border-white/20"
+                onError={(e) => (e.currentTarget.style.display = "none")}
+              />
+            ) : (
+                <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center">
+                  <BarChart3 className="w-6 h-6 text-white/80" />
+                </div>
+            )
+            }
+            <div>
+              <div className="text-[11px] uppercase tracking-[0.35em] text-white/50">
+                {getAssetTypeLabel(data.assetType)}
+              </div>
+              <div className="text-2xl font-semibold">{data.assetName}</div>
+              {useTrendDisplay && data.trendMultiplier && (
+                <div className="mt-1 inline-flex items-center gap-2 text-xs text-white/70">
+                  <span className="px-2 py-0.5 rounded-full bg-white/10 flex items-center gap-1">
+                    {getTrendIcon(data.trendMultiplier)}
+                    {data.trendMultiplier.toFixed(2)}x Momentum
+                  </span>
+                  {data.streakDays && (
+                    <span className="px-2 py-0.5 rounded-full bg-white/10 flex items-center gap-1">
+                      <Flame className="w-3 h-3 text-orange-300" />
+                      {data.streakDays}d Streak
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-4xl font-black">{Number(data.total).toFixed(0)}</div>
+            <div className="text-xs uppercase tracking-[0.3em] text-white/50">
+              Punkte
+            </div>
+          </div>
+        </div>
+
+        {useTrendDisplay && (data.consistencyScore || data.velocityScore || data.marketSharePercent) && (
+          <div className="grid grid-cols-3 gap-3">
+            {data.consistencyScore !== undefined && (
+              <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center">
+                <div className="text-[11px] uppercase tracking-wide text-white/50">Consistency</div>
+                <div className="text-lg font-bold">{data.consistencyScore ?? "--"}</div>
+              </div>
+            )}
+            {data.velocityScore !== undefined && (
+              <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center">
+                <div className="text-[11px] uppercase tracking-wide text-white/50">Velocity</div>
+                <div className="text-lg font-bold">
+                  {data.velocityScore && data.velocityScore > 0 ? "+" : ""}
+                  {data.velocityScore ?? "--"}
+                </div>
+              </div>
+            )}
+            {data.marketSharePercent !== undefined && (
+              <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center">
+                <div className="text-[11px] uppercase tracking-wide text-white/50">Share</div>
+                <div className="text-lg font-bold">{data.marketSharePercent?.toFixed(1)}%</div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <div className="text-xs uppercase tracking-[0.35em] text-white/45">
+            Scoring-Komponenten
+          </div>
+          <div className="grid gap-2">
+            {data.components.map((component, idx) => (
+              <div
+                key={idx}
+                className="flex items-center justify-between rounded-2xl bg-white/5 border border-white/10 px-4 py-3"
+              >
+                <div>
+                  <div className="text-sm font-semibold">{component.category}</div>
+                  <div className="text-xs text-white/70">
+                    {component.value} · {component.formula}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-bold">{component.points}</div>
+                  <div className="text-[11px] uppercase tracking-wider text-white/60">
+                    pts
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {data.bonuses.length > 0 && (
+          <div className="space-y-2">
+            <div className="text-xs uppercase tracking-[0.35em] text-white/45">Boni</div>
+            <div className="space-y-2">
+              {data.bonuses.map((bonus, idx) => (
+                <div key={idx} className="rounded-2xl border border-white/10 bg-white/3 px-4 py-3 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
+                      {getBonusIcon(bonus.type)}
+                    </div>
+                    <div>
+                      <div className="font-semibold text-sm">{bonus.type}</div>
+                      <div className="text-xs text-white/60">{bonus.condition}</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xl font-bold text-green-300">
+                      +{bonus.points}
+                    </div>
+                    <div className="text-[11px] uppercase text-white/60">
+                      pts
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {data.penalties.length > 0 && (
+          <div className="space-y-2">
+            <div className="text-xs uppercase tracking-[0.35em] text-white/45">Penalties</div>
+            <div className="space-y-2">
+              {data.penalties.map((penalty, idx) => (
+                <div
+                  key={idx}
+                  className="rounded-2xl border border-red-500/25 bg-red-500/15 px-4 py-3 flex items-center justify-between"
+                >
+                  <div>
+                    <div className="font-semibold text-sm">{penalty.type}</div>
+                    <div className="text-xs text-red-200">
+                      {penalty.condition}
+                    </div>
+                  </div>
+                  <div className="text-right text-red-300 font-bold">
+                    {penalty.points}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between pt-2 border-t border-white/10">
+          <div>
+            <div className="text-xs uppercase tracking-[0.35em] text-white/45">
+              Gesamtpunktzahl
+            </div>
+            <div className="text-sm text-white/60">
+              {data.components.length} Komponenten
+              {data.bonuses.length > 0 && ` + ${data.bonuses.length} Boni`}
+            </div>
+          </div>
+          <div className="text-3xl font-black">{Number(data.total).toFixed(0)}</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Card className="bg-card border-border text-sm shadow-sm">

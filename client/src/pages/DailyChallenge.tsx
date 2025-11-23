@@ -732,126 +732,102 @@ export default function DailyChallenge() {
 
 
         {/* Leaderboard */}
-        <Card className="rounded-[28px] border-white/10 bg-white/5 slide-in-bottom">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-foreground">
-              <Trophy className="w-5 h-5 text-primary" />
-              Leaderboard
-            </CardTitle>
-            <CardDescription>
-              Woche {currentWeek} • {currentYear}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {sortedScores.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Keine Scores verfügbar.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {sortedScores.map((team: TeamScore) => (
+        <div className="rounded-[32px] bg-[#2a1027] border border-white/10 p-5 text-white space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-xs uppercase tracking-[0.4em] text-white/40">
+                Leaderboard
+              </div>
+              <div className="text-sm text-white/70">
+                Woche {currentWeek} • {currentYear}
+              </div>
+            </div>
+            <Trophy className="w-6 h-6 text-[#9dff58]" />
+          </div>
+          {sortedScores.length === 0 ? (
+            <p className="text-sm text-white/60 text-center py-4">
+              Keine Scores verfügbar.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {sortedScores.slice(0, 5).map((team: TeamScore, index) => {
+                const isSelected = selectedTeamId === team.teamId;
+                const rankBadge =
+                  index === 0
+                    ? "bg-[#cfff4d] text-black"
+                    : "bg-white/10 text-white";
+                return (
                   <button
                     key={team.teamId}
                     onClick={() => setSelectedTeamId(team.teamId)}
                     className={cn(
-                      "w-full p-3 rounded-lg border transition-all text-left card-hover-lift",
-                      selectedTeamId === team.teamId
-                        ? "bg-primary/10 border-primary glow-primary"
-                        : "bg-card/60 border-border/50 hover:border-primary/30"
+                      "w-full rounded-[24px] px-4 py-4 flex items-center justify-between border border-white/10 transition-all",
+                      isSelected ? "ring-2 ring-[#cfff4d]" : "bg-white/5 hover:bg-white/10"
                     )}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={cn(
-                            "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg",
-                            team.rank === 1
-                              ? "rank-gold text-white"
-                              : team.rank === 2
-                              ? "rank-silver text-white"
-                              : team.rank === 3
-                              ? "rank-bronze text-white"
-                              : "bg-muted text-muted-foreground"
-                          )}
-                        >
-                          {team.rank}
-                        </div>
-                        <TeamAvatar avatarUrl={team.userAvatarUrl} teamName={team.teamName} userName={team.userName} size="md" />
-                        <div>
-                          <div
-                            className={cn(
-                              "font-semibold truncate",
-                              team.rank === 1 ? "text-gradient-primary" : "text-foreground"
-                            )}
-                          >
-                            {team.teamName}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            Punkte
-                          </div>
-                        </div>
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={cn(
+                          "w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm",
+                          rankBadge
+                        )}
+                      >
+                        {team.rank}
+                      </span>
+                      <TeamAvatar
+                        avatarUrl={team.userAvatarUrl}
+                        teamName={team.teamName}
+                        userName={team.userName}
+                        size="sm"
+                      />
+                      <div className="text-left">
+                        <div className="font-semibold text-base">{team.teamName}</div>
+                        <div className="text-xs text-white/60">Total Points</div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-2xl font-bold text-foreground">
-                          {team.points?.toFixed(1) ?? "0.0"}
-                        </div>
-                        <div className="text-xs text-muted-foreground uppercase">
-                          Total
-                        </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold">{team.points?.toFixed(1) ?? "0.0"}</div>
+                      <div className="text-[11px] uppercase tracking-[0.3em] text-white/50">
+                        pts
                       </div>
                     </div>
                   </button>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         {/* Top Performers */}
         {topPerformers.length > 0 && (
-          <div>
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+          <div className="space-y-3">
+            <div className="text-xs uppercase tracking-[0.4em] text-white/40">
               Game Leaders
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {topPerformers.map((performer, index) => (
-                <Card
+            </div>
+            <div className="grid gap-3">
+              {topPerformers.slice(0, 3).map((performer, index) => (
+                <div
                   key={`${performer.name}-${index}`}
-                  className="rounded-[24px] border-white/10 bg-white/5 card-hover-lift slide-in-bottom"
-                  style={{ animationDelay: `${index * 0.1}s` }}
+                  className="rounded-[26px] bg-[#2c101c] border border-white/10 px-5 py-4 flex items-center justify-between"
                 >
-                  <CardContent className="p-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Badge>#{index + 1}</Badge>
-                      <TrendIndicator value={performer.total} showPercentage={false} />
-                    </div>
-                    <div className="flex items-center gap-3">
-                      {performer.imageUrl && (
-                        <img 
-                          src={performer.imageUrl} 
-                          alt={performer.name}
-                          className="w-12 h-12 rounded-lg object-cover flex-shrink-0 border-2 border-border"
-                          onError={(e) => e.currentTarget.style.display = 'none'}
-                        />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="text-lg font-bold text-foreground truncate">
-                          {performer.name}
-                        </div>
-                        <div className="text-xs text-muted-foreground uppercase">
-                          {performer.type}
-                        </div>
+                  <div className="flex items-center gap-4">
+                    <span className="px-3 py-1 rounded-full bg-[#cfff4d] text-black text-sm font-semibold">
+                      #{index + 1}
+                    </span>
+                    <div>
+                      <div className="text-lg font-semibold">{performer.name}</div>
+                      <div className="text-xs uppercase text-white/60">
+                        {performer.type} • {performer.breakdown?.components?.length || 0} Komponenten
                       </div>
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      {performer.breakdown?.components?.length || 0} Komponenten
-                    </div>
-                    <div className="text-3xl font-bold text-gradient-secondary">
+                  </div>
+                  <div className="text-right">
+                    <div className="text-3xl font-bold text-[#ff744d]">
                       {performer.total.toFixed(1)}
                     </div>
-                  </CardContent>
-                </Card>
+                    <div className="text-xs text-white/50">Total</div>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
@@ -914,6 +890,7 @@ export default function DailyChallenge() {
                             leagueAverage={item.leagueAverage}
                             weeklyTrend={item.weeklyTrend}
                             useTrendDisplay={true}
+                            variant="app"
                           />
                         </div>
                       ))}

@@ -1211,41 +1211,49 @@ async function aggregateSeasonWeeklyScores(
   const { startDate, endDate } = getWeekDateRange(year, week);
   const weekDates = enumerateWeekDates(startDate, endDate);
 
-  // REFACTORED: Use unified weekly scoring instead of aggregating daily scores
-  // This allows us to use weekly metrics (growth, rank change) + aggregated daily metrics
+  // IMPORTANT:
+  // For now we aggregate season-long weekly scores directly from the
+  // daily challenge stats so that scoring works even if the dedicated
+  // *WeeklyStats tables have not been populated yet.
+  // This function will:
+  //   - compute a daily-style score for each day in the ISO week
+  //   - aggregate position points and breakdowns across the week
+  //   - persist a single weeklyTeamScores row + scoringBreakdowns
+  // This matches the behaviour of getLeagueLiveScores but stores the
+  // results in the canonical weekly tables used by the Scoring page.
   const teamScores = await Promise.all(
     targetTeams.map(async (team) => {
       try {
-        const result = await computeTeamScore({
-          teamId: team.id,
-          lineupYear: year,
-          lineupWeek: week,
-          scope: { type: 'weekly', year, week },
-          persistence: { mode: 'weekly', teamId: team.id, year, week },
+        const totalPoints = await aggregateTeamWeekFromDaily({
+          db,
+          team,
+          leagueId,
+          year,
+          week,
+          weekDates,
           scarcityMultipliers,
         });
 
         return {
           teamId: team.id,
           teamName: team.name,
-          points: result.totalPoints,
-          breakdown: result.breakdowns,
+          points: totalPoints,
         };
       } catch (error) {
-        console.error(`[Scoring] Error calculating weekly score for team ${team.id}:`, error);
+        console.error(
+          `[Scoring] Error aggregating weekly score from daily stats for team ${team.id}:`,
+          error
+        );
         return {
           teamId: team.id,
           teamName: team.name,
           points: 0,
-          breakdown: [],
         };
       }
     })
   );
 
-  // Filter out teams that had errors and return only the points for now
-  // The full breakdown will be persisted by computeTeamScore
-  return teamScores.map(({ teamId, teamName, points }) => ({ teamId, teamName, points }));
+  return teamScores;
 }
 
 type TeamAggregationParams = {
