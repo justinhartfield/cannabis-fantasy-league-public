@@ -453,15 +453,6 @@ export class DailyChallengeAggregatorV2 {
       }
 
       const previousStat = previousStatsByBrand.get(brand.id);
-      const ratingDelta = Math.max(
-        0,
-        brandData.totalRatings - (previousStat?.totalRatings ?? brandData.totalRatings)
-      );
-      const previousBayesian = previousStat ? Number(previousStat.bayesianAverage ?? 0) : null;
-      const bayesianDelta =
-        previousBayesian !== null
-          ? Number((brandData.bayesianAverage - previousBayesian).toFixed(2))
-          : 0;
 
       const scoring = calculateDailyBrandScore({
         totalRatings: brandData.totalRatings,
@@ -472,8 +463,6 @@ export class DailyChallengeAggregatorV2 {
         acceptableCount: brandData.acceptableCount,
         badCount: brandData.badCount,
         veryBadCount: brandData.veryBadCount,
-        ratingDelta,
-        bayesianDelta,
       }, rank);
 
       await db
@@ -491,8 +480,6 @@ export class DailyChallengeAggregatorV2 {
           veryBadCount: brandData.veryBadCount,
           totalPoints: scoring.totalPoints,
           rank,
-          ratingDelta,
-          bayesianDelta: bayesianDelta.toFixed(2),
           createdAt: new Date(),
           updatedAt: new Date(),
         })
@@ -509,8 +496,6 @@ export class DailyChallengeAggregatorV2 {
             veryBadCount: brandData.veryBadCount,
             totalPoints: scoring.totalPoints,
             rank,
-            ratingDelta,
-            bayesianDelta: bayesianDelta.toFixed(2),
             updatedAt: new Date(),
           },
         });

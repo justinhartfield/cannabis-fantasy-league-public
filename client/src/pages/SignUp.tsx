@@ -1,63 +1,121 @@
 import { APP_LOGO, APP_TITLE } from "@/const";
-import { Leaf } from "lucide-react";
+import { Flame, Leaf, Trophy, Users, Zap } from "lucide-react";
 import { SignUp } from "@clerk/clerk-react";
 
 /**
  * Sign Up Page - Clerk Authentication
  * 
- * Uses Clerk's SignUp component for user registration
+ * Cannabis Fantasy League themed sign up with vibrant design
  */
 export default function SignUpPage() {
   const footerCopy = `© ${new Date().getFullYear()} ${APP_TITLE}. First fantasy league for medical cannabis in Germany 🇩🇪`;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-weed-cream dark:bg-weed-burgundy pattern-dots p-4 relative">
-      {/* Floating Wayfinder Characters */}
-      <img src="https://framerusercontent.com/images/NbcObVXzQHvPqgg7j0Lqz8Oc.gif" alt="Wayfinder" className="absolute top-10 left-10 w-24 h-24 opacity-80 hidden md:block" />
-      <img src="https://framerusercontent.com/images/PZMqPnSPRfHqoqnWJwL4sDKY.gif" alt="Wayfinder" className="absolute bottom-10 right-10 w-24 h-24 opacity-80 hidden md:block" />
-      <div className="w-full max-w-md">
-        <div className="bg-white dark:bg-weed-purple rounded-2xl shadow-2xl p-8 space-y-8">
-          {/* Logo and Title */}
-          <div className="text-center space-y-4">
-            <div className="flex justify-center">
-              <div className="relative">
-                <img
-                  src={APP_LOGO}
-                  alt={APP_TITLE}
-                  className="h-24 w-24 rounded-2xl object-cover shadow-lg ring-4 ring-weed-green"
-                />
-                <div className="absolute -bottom-2 -right-2 bg-weed-green rounded-full p-2 shadow-lg">
-                  <Leaf className="h-6 w-6 text-black" />
+    <div className="min-h-screen bg-gradient-to-br from-[#0d0d0f] via-[#1c1b22] to-[#0d0d0f] p-4 relative overflow-hidden">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 pattern-grid opacity-20" />
+      <div className="absolute top-20 right-20 w-64 h-64 bg-weed-coral/10 rounded-full blur-[100px] animate-pulse" />
+      <div className="absolute bottom-20 left-20 w-64 h-64 bg-purple-500/10 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '1s' }} />
+      
+      {/* Floating Icons */}
+      <div className="absolute top-16 left-16 opacity-20 hidden md:block">
+        <Trophy className="h-16 w-16 text-weed-coral animate-bounce" style={{ animationDuration: '3s' }} />
+      </div>
+      <div className="absolute top-32 right-24 opacity-20 hidden md:block">
+        <Users className="h-12 w-12 text-weed-green animate-bounce" style={{ animationDuration: '4s', animationDelay: '0.5s' }} />
+      </div>
+      <div className="absolute bottom-28 right-16 opacity-20 hidden md:block">
+        <Zap className="h-14 w-14 text-purple-400 animate-bounce" style={{ animationDuration: '3.5s', animationDelay: '1s' }} />
+      </div>
+      <div className="absolute bottom-16 left-24 opacity-20 hidden md:block">
+        <Leaf className="h-10 w-10 text-weed-green animate-bounce" style={{ animationDuration: '4.5s', animationDelay: '1.5s' }} />
+      </div>
+
+      <div className="relative flex items-center justify-center min-h-screen">
+        <div className="w-full max-w-md">
+          {/* Main Card */}
+          <div className="rounded-[32px] bg-gradient-to-br from-[#1f1b2e] to-[#2d1f33] p-8 shadow-[0_25px_75px_rgba(0,0,0,0.45)] backdrop-blur-xl border border-white/10 space-y-8">
+            {/* Logo and Branding */}
+            <div className="text-center space-y-6">
+              <div className="flex justify-center">
+                <div className="relative group">
+                  <div className="absolute inset-0 bg-gradient-to-r from-weed-coral to-purple-500 rounded-3xl blur-xl opacity-50 group-hover:opacity-75 transition"></div>
+                  <div className="relative">
+                    <img
+                      src={APP_LOGO}
+                      alt={APP_TITLE}
+                      className="h-24 w-24 rounded-3xl object-cover shadow-2xl ring-4 ring-weed-coral"
+                    />
+                    <div className="absolute -bottom-2 -right-2 bg-weed-coral rounded-full p-2 shadow-lg animate-pulse">
+                      <Leaf className="h-6 w-6 text-white" />
+                    </div>
+                  </div>
                 </div>
               </div>
+              
+              <div className="space-y-3">
+                <h1 className="headline-primary text-4xl text-white">
+                  {APP_TITLE}
+                </h1>
+                <p className="text-sm text-white/60 uppercase tracking-[0.4em]">
+                  Join The Revolution
+                </p>
+                <p className="body-text text-white/70 max-w-sm mx-auto">
+                  Create your account and start building your dream cannabis portfolio today!
+                </p>
+              </div>
             </div>
-            <h1 className="headline-primary text-4xl text-weed-coral">
-              {APP_TITLE}
-            </h1>
-            <p className="body-text text-muted-foreground dark:text-white/70">
-              Join the first fantasy league for medical cannabis in Germany!
-            </p>
+
+            {/* Feature Highlights */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-2xl bg-gradient-to-br from-weed-coral/20 to-transparent border border-weed-coral/30 p-3 text-center">
+                <Trophy className="h-6 w-6 text-weed-coral mx-auto mb-1" />
+                <p className="text-xs text-white/70 font-semibold">Draft</p>
+              </div>
+              <div className="rounded-2xl bg-gradient-to-br from-weed-green/20 to-transparent border border-weed-green/30 p-3 text-center">
+                <Users className="h-6 w-6 text-weed-green mx-auto mb-1" />
+                <p className="text-xs text-white/70 font-semibold">Compete</p>
+              </div>
+              <div className="rounded-2xl bg-gradient-to-br from-purple-500/20 to-transparent border border-purple-500/30 p-3 text-center">
+                <Flame className="h-6 w-6 text-purple-400 mx-auto mb-1" />
+                <p className="text-xs text-white/70 font-semibold">Win Big</p>
+              </div>
+            </div>
+
+            {/* Clerk SignUp Component */}
+            <div className="flex justify-center">
+              <SignUp 
+                routing="hash"
+                signInUrl="/login"
+                afterSignUpUrl="/"
+                appearance={{
+                  elements: {
+                    rootBox: "w-full",
+                    card: "shadow-none bg-transparent",
+                    formButtonPrimary: "bg-weed-coral hover:bg-weed-coral/80 text-white font-semibold",
+                    formFieldInput: "bg-black/40 border-white/10 text-white focus:ring-weed-coral",
+                    footerActionLink: "text-weed-coral hover:text-weed-coral/80",
+                    identityPreviewText: "text-white",
+                    formFieldLabel: "text-white/80",
+                    dividerLine: "bg-white/10",
+                    dividerText: "text-white/50",
+                    socialButtonsBlockButton: "bg-black/40 border-white/10 text-white hover:bg-black/60",
+                    socialButtonsBlockButtonText: "text-white font-medium",
+                    formFieldInputShowPasswordButton: "text-white/60 hover:text-white",
+                    otpCodeFieldInput: "bg-black/40 border-white/10 text-white",
+                    formResendCodeLink: "text-weed-coral hover:text-weed-coral/80",
+                    headerTitle: "text-white",
+                    headerSubtitle: "text-white/70",
+                  }
+                }}
+              />
+            </div>
           </div>
 
-          {/* Clerk SignUp Component */}
-          <div className="flex justify-center">
-            <SignUp 
-              routing="hash"
-              signInUrl="/login"
-              afterSignUpUrl="/"
-              appearance={{
-                elements: {
-                  rootBox: "w-full",
-                  card: "shadow-none bg-transparent",
-                }
-              }}
-            />
+          {/* Footer */}
+          <div className="text-center mt-6 space-y-3">
+            <p className="text-white/40 text-sm font-medium">{footerCopy}</p>
           </div>
-        </div>
-
-        {/* Footer */}
-        <div className="text-center mt-6 text-muted-foreground dark:text-white/60 text-sm">
-          <p className="font-medium">{footerCopy}</p>
         </div>
       </div>
     </div>

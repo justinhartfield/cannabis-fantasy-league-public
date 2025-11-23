@@ -224,7 +224,7 @@ function applyScarcityAdjustment(
   multiplier: number
 ): AssetScoreResult {
   // ELIMINATE PENALTIES: Clamp multiplier to minimum 1.0
-  const effectiveMultiplier = Math.max(1.0, normalizedMultiplier);
+  const effectiveMultiplier = Math.max(1.0, multiplier);
 
   if (!result?.breakdown || effectiveMultiplier === 1.0) {
     return {
@@ -255,7 +255,7 @@ function applyScarcityAdjustment(
     ...result,
     points: adjustedPoints,
     breakdown: detail,
-    scarcityMultiplier: normalizedMultiplier,
+    scarcityMultiplier: effectiveMultiplier,
   };
 }
 
@@ -623,9 +623,6 @@ export function buildBrandDailyBreakdown(statRecord: BrandDailySource): Breakdow
   const averageRating = Number(statRecord.averageRating ?? 0);
   const bayesianAverage = Number(statRecord.bayesianAverage ?? 0);
   const rank = statRecord.rank ?? 0;
-  const storedPoints = statRecord.totalPoints ?? 0;
-  const ratingDelta = statRecord.ratingDelta ?? 0;
-  const bayesianDelta = Number(statRecord.bayesianDelta ?? 0);
 
   const scoreParts = calculateDailyBrandScore(
     {
@@ -637,8 +634,6 @@ export function buildBrandDailyBreakdown(statRecord: BrandDailySource): Breakdow
       acceptableCount: statRecord.acceptableCount ?? 0,
       badCount: statRecord.badCount ?? 0,
       veryBadCount: statRecord.veryBadCount ?? 0,
-      ratingDelta,
-      bayesianDelta,
     },
     rank
   );
@@ -657,24 +652,6 @@ export function buildBrandDailyBreakdown(statRecord: BrandDailySource): Breakdow
       points: scoreParts.ratingQualityPoints ?? 0,
     },
   ];
-
-  if ((scoreParts.ratingDeltaPoints ?? 0) > 0) {
-    components.push({
-      category: 'New Ratings Momentum',
-      value: ratingDelta,
-      formula: `${ratingDelta} new ratings × 75`,
-      points: scoreParts.ratingDeltaPoints ?? 0,
-    });
-  }
-
-  if ((scoreParts.ratingTrendPoints ?? 0) > 0) {
-    components.push({
-      category: 'Rating Trend',
-      value: bayesianDelta.toFixed(2),
-      formula: `Positive avg change ${bayesianDelta.toFixed(2)} × 100`,
-      points: scoreParts.ratingTrendPoints ?? 0,
-    });
-  }
 
   const bonuses: BreakdownBonus[] = [];
   if (scoreParts.rankBonusPoints) {
