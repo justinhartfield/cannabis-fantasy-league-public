@@ -369,6 +369,7 @@ type BrandDailyStat = typeof brandDailyChallengeStats.$inferSelect;
 
 type ManufacturerDailySource = Pick<ManufacturerDailyStat, 'salesVolumeGrams' | 'orderCount' | 'revenueCents' | 'rank' | 'totalPoints' | 'trendMultiplier' | 'previousRank' | 'consistencyScore' | 'velocityScore' | 'streakDays' | 'marketSharePercent'>;
 type StrainDailySource = Pick<StrainDailyStat, 'salesVolumeGrams' | 'orderCount' | 'rank' | 'totalPoints' | 'trendMultiplier' | 'previousRank' | 'consistencyScore' | 'velocityScore' | 'streakDays' | 'marketSharePercent'>;
+type ProductDailySource = Pick<ProductDailyStat, 'salesVolumeGrams' | 'orderCount' | 'rank' | 'totalPoints' | 'trendMultiplier' | 'previousRank' | 'consistencyScore' | 'velocityScore' | 'streakDays' | 'marketSharePercent'>;
 type PharmacyDailySource = Pick<PharmacyDailyStat, 'orderCount' | 'revenueCents' | 'rank' | 'totalPoints' | 'trendMultiplier' | 'previousRank' | 'consistencyScore' | 'velocityScore' | 'streakDays' | 'marketSharePercent'>;
 type BrandDailySource = Pick<BrandDailyStat, 'totalRatings' | 'averageRating' | 'bayesianAverage' | 'veryGoodCount' | 'goodCount' | 'acceptableCount' | 'badCount' | 'veryBadCount' | 'rank' | 'totalPoints'>;
 
@@ -424,6 +425,33 @@ export function buildStrainDailyBreakdown(statRecord: StrainDailySource): Breakd
   
   // Build the formatted breakdown for display
   return buildStrainTrendBreakdown(
+    scoring,
+    orderCount,
+    rank,
+    statRecord.previousRank ?? rank,
+    Number(statRecord.streakDays ?? 0)
+  );
+}
+
+export function buildProductDailyBreakdown(statRecord: ProductDailySource): BreakdownResult {
+  const orderCount = statRecord.orderCount ?? 0;
+  const rank = statRecord.rank ?? 0;
+
+  const { calculateProductTrendScore } = require('./trendScoringEngine');
+  const { buildProductTrendBreakdown } = require('./trendScoringBreakdowns');
+
+  const scoring = calculateProductTrendScore({
+    orderCount,
+    trendMultiplier: Number(statRecord.trendMultiplier ?? 1),
+    rank,
+    previousRank: statRecord.previousRank ?? rank,
+    consistencyScore: Number(statRecord.consistencyScore ?? 0),
+    velocityScore: Number(statRecord.velocityScore ?? 0),
+    streakDays: Number(statRecord.streakDays ?? 0),
+    marketSharePercent: Number(statRecord.marketSharePercent ?? 0),
+  });
+
+  return buildProductTrendBreakdown(
     scoring,
     orderCount,
     rank,
@@ -1586,7 +1614,14 @@ async function computeTeamScore(options: TeamScoreComputationOptions): Promise<T
 
   if (!teamLineup) {
     console.log(`[Scoring] No lineup available for team ${options.teamId}, ctx=${options.lineupYear}-W${options.lineupWeek}`);
-    return 0;
+    const emptyPositionPoints = createEmptyPositionPoints();
+    return {
+      totalPoints: 0,
+      positionPoints: emptyPositionPoints,
+      breakdowns: [],
+      teamBonusTotal: 0,
+      teamBonuses: [],
+    };
   }
 
   const positionPoints: PositionPointsMap = {
@@ -1938,30 +1973,7 @@ async function scoreManufacturer(
   }
 
   const dailyStat = statRecord as ManufacturerDailyStat;
-  const points = dailyStat.totalPoints ?? 0;
-  const supplyDescriptor = describeSupplyVolume(dailyStat.salesVolumeGrams ?? 0);
-  const trendMultiplier =
-    dailyStat.trendMultiplier !== null && dailyStat.trendMultiplier !== undefined
-      ? Number(dailyStat.trendMultiplier)
-      : undefined;
-
-  const breakdown = buildDescriptorBreakdown(
-    'Activity Tier',
-    supplyDescriptor,
-    points,
-    [
-      {
-        category: 'Orders Processed',
-        value: dailyStat.orderCount ?? 0,
-        description: 'Raw order count snapshot (orders are safe to display)',
-      },
-      {
-        category: 'Trend Multiplier',
-        value: trendMultiplier ? `${trendMultiplier.toFixed(2)}×` : '–',
-        description: 'Momentum vs. 7-day rolling baseline',
-      },
-    ]
-  );
+  const breakdownResult = buildManufacturerDailyBreakdown(dailyStat);
 
   const rank = dailyStat.rank ?? 0;
   const previousRank = dailyStat.previousRank ?? rank;
@@ -1971,12 +1983,12 @@ async function scoreManufacturer(
     currentRank: rank,
     previousRank,
     marketSharePercent: Number(dailyStat.marketSharePercent ?? 0),
-    trendMultiplier: trendMultiplier ?? 1,
+    trendMultiplier: Number(dailyStat.trendMultiplier ?? 1) || 1,
     streakDays: Number(dailyStat.streakDays ?? 0),
   };
 
   return applyScarcityAdjustment(
-    { points, breakdown, metadata },
+    { ...breakdownResult, metadata },
     'manufacturer',
     scarcityMultipliers.manufacturer
   );
@@ -2076,30 +2088,7 @@ async function scoreCannabisStrain(
   }
 
   const dailyStat = statRecord as StrainDailyStat;
-  const points = dailyStat.totalPoints ?? 0;
-  const supplyDescriptor = describeSupplyVolume(dailyStat.salesVolumeGrams ?? 0);
-  const trendMultiplier =
-    dailyStat.trendMultiplier !== null && dailyStat.trendMultiplier !== undefined
-      ? Number(dailyStat.trendMultiplier)
-      : undefined;
-
-  const breakdown = buildDescriptorBreakdown(
-    'Supply Tier',
-    supplyDescriptor,
-    points,
-    [
-      {
-        category: 'Orders Captured',
-        value: dailyStat.orderCount ?? 0,
-        description: 'Raw order count snapshot',
-      },
-      {
-        category: 'Trend Multiplier',
-        value: trendMultiplier ? `${trendMultiplier.toFixed(2)}×` : '–',
-        description: 'Momentum vs. rolling baseline',
-      },
-    ]
-  );
+  const breakdownResult = buildStrainDailyBreakdown(dailyStat);
 
   const rank = dailyStat.rank ?? 0;
   const previousRank = dailyStat.previousRank ?? rank;
@@ -2109,12 +2098,12 @@ async function scoreCannabisStrain(
     currentRank: rank,
     previousRank,
     marketSharePercent: Number(dailyStat.marketSharePercent ?? 0),
-    trendMultiplier: trendMultiplier ?? 1,
+    trendMultiplier: Number(dailyStat.trendMultiplier ?? 1) || 1,
     streakDays: Number(dailyStat.streakDays ?? 0),
   };
 
   return applyScarcityAdjustment(
-    { points, breakdown, metadata },
+    { ...breakdownResult, metadata },
     'cannabis_strain',
     scarcityMultipliers.cannabis_strain
   );
@@ -2187,30 +2176,7 @@ async function scoreProduct(
   }
 
   const dailyStat = statRecord as ProductDailyStat;
-  const points = dailyStat.totalPoints ?? 0;
-  const demandDescriptor = describeOrderVolume(dailyStat.salesVolumeGrams ?? 0);
-  const trendMultiplier =
-    dailyStat.trendMultiplier !== null && dailyStat.trendMultiplier !== undefined
-      ? Number(dailyStat.trendMultiplier)
-      : undefined;
-
-  const breakdown = buildDescriptorBreakdown(
-    'Demand Tier',
-    demandDescriptor,
-    points,
-    [
-      {
-        category: 'Orders Captured',
-        value: dailyStat.orderCount ?? 0,
-        description: 'Raw order count snapshot',
-      },
-      {
-        category: 'Trend Multiplier',
-        value: trendMultiplier ? `${trendMultiplier.toFixed(2)}×` : '–',
-        description: 'Momentum vs. rolling baseline',
-      },
-    ]
-  );
+  const breakdownResult = buildProductDailyBreakdown(dailyStat);
 
   const rank = dailyStat.rank ?? 0;
   const previousRank = dailyStat.previousRank ?? rank;
@@ -2220,12 +2186,12 @@ async function scoreProduct(
     currentRank: rank,
     previousRank,
     marketSharePercent: Number(dailyStat.marketSharePercent ?? 0),
-    trendMultiplier: trendMultiplier ?? 1,
+    trendMultiplier: Number(dailyStat.trendMultiplier ?? 1) || 1,
     streakDays: Number(dailyStat.streakDays ?? 0),
   };
 
   return applyScarcityAdjustment(
-    { points, breakdown, metadata },
+    { ...breakdownResult, metadata },
     'product',
     scarcityMultipliers.product
   );
@@ -2299,35 +2265,7 @@ async function scorePharmacy(
   }
 
   const dailyStat = statRecord as PharmacyDailyStat;
-  const points = dailyStat.totalPoints ?? 0;
-  const cadenceDescriptor = describeOrderCadence(dailyStat.orderCount ?? 0);
-  const trendMultiplier =
-    dailyStat.trendMultiplier !== null && dailyStat.trendMultiplier !== undefined
-      ? Number(dailyStat.trendMultiplier)
-      : undefined;
-
-  const breakdown = buildDescriptorBreakdown(
-    'Order Cadence',
-    cadenceDescriptor,
-    points,
-    [
-      {
-        category: 'Orders Fulfilled',
-        value: dailyStat.orderCount ?? 0,
-        description: 'Raw order count snapshot',
-      },
-      {
-        category: 'Revenue Snapshot',
-        value: `€${eurosFromCents(dailyStat.revenueCents ?? 0)}`,
-        description: 'Daily revenue capture',
-      },
-      {
-        category: 'Trend Multiplier',
-        value: trendMultiplier ? `${trendMultiplier.toFixed(2)}×` : '–',
-        description: 'Momentum vs. rolling baseline',
-      },
-    ]
-  );
+  const breakdownResult = buildPharmacyDailyBreakdown(dailyStat);
 
   const rank = dailyStat.rank ?? 0;
   const previousRank = dailyStat.previousRank ?? rank;
@@ -2337,12 +2275,12 @@ async function scorePharmacy(
     currentRank: rank,
     previousRank,
     marketSharePercent: Number(dailyStat.marketSharePercent ?? 0),
-    trendMultiplier: trendMultiplier ?? 1,
+    trendMultiplier: Number(dailyStat.trendMultiplier ?? 1) || 1,
     streakDays: Number(dailyStat.streakDays ?? 0),
   };
 
   return applyScarcityAdjustment(
-    { points, breakdown, metadata },
+    { ...breakdownResult, metadata },
     'pharmacy',
     scarcityMultipliers.pharmacy
   );

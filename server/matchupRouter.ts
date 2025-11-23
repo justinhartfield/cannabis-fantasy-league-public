@@ -224,6 +224,32 @@ export const matchupRouter = router({
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
       }
 
+      const [leagueInfo] = await db
+        .select({
+          status: leagues.status,
+          currentWeek: leagues.currentWeek,
+          seasonStartDate: leagues.seasonStartDate,
+          draftCompleted: leagues.draftCompleted,
+        })
+        .from(leagues)
+        .where(eq(leagues.id, input.leagueId))
+        .limit(1);
+
+      const now = new Date();
+      const seasonStartDate = leagueInfo?.seasonStartDate
+        ? new Date(leagueInfo.seasonStartDate)
+        : null;
+      const hasSeasonStarted = Boolean(
+        leagueInfo &&
+          (leagueInfo.status === 'active' ||
+            leagueInfo.draftCompleted === 1 ||
+            (seasonStartDate ? seasonStartDate.getTime() <= now.getTime() : false))
+      );
+      const isCurrentWeekActive =
+        !!leagueInfo &&
+        hasSeasonStarted &&
+        leagueInfo.currentWeek === input.week;
+
       const weekMatchups = await db
         .select()
         .from(matchups)
@@ -250,6 +276,12 @@ export const matchupRouter = router({
 
           return {
             ...matchup,
+            status:
+              matchup.status === 'final'
+                ? 'final'
+                : isCurrentWeekActive
+                  ? 'in_progress'
+                  : matchup.status,
             team1: team1[0],
             team2: team2[0],
           };

@@ -233,24 +233,24 @@ export default function ScoringBreakdownV2({
   const vsLeagueAverage = leagueAverage ? data.total - leagueAverage : null;
 
   return (
-    <Card className="bg-card border-border">
-      <CardHeader>
-        <div className="flex flex-col sm:flex-row items-start sm:items-start justify-between gap-4">
-          <div className="flex items-center gap-3 flex-1 w-full sm:w-auto">
+    <Card className="bg-card border-border text-sm shadow-sm">
+      <CardHeader className="px-4 py-3 pb-2">
+        <div className="flex flex-col sm:flex-row items-start sm:items-start justify-between gap-3">
+          <div className="flex items-center gap-2.5 flex-1 w-full sm:w-auto">
             {data.imageUrl && (
               <img 
                 src={data.imageUrl} 
                 alt={data.assetName}
-                className="w-12 h-12 rounded-lg object-cover flex-shrink-0 border-2 border-border"
+                className="w-10 h-10 rounded-lg object-cover flex-shrink-0 border border-border"
                 onError={(e) => e.currentTarget.style.display = 'none'}
               />
             )}
             <div>
-              <CardTitle className="text-card-foreground flex items-center gap-2">
+              <CardTitle className="text-card-foreground flex items-center gap-2 text-base">
                 {!data.imageUrl && <BarChart3 className="w-5 h-5" />}
                 {data.assetName}
               </CardTitle>
-              <CardDescription className="text-muted-foreground mt-1 flex items-center gap-2">
+              <CardDescription className="text-xs text-muted-foreground mt-1 flex items-center gap-2 flex-wrap">
                 <Badge variant="outline" className={getAssetTypeColor(data.assetType)}>
                   {getAssetTypeLabel(data.assetType)}
                 </Badge>
@@ -290,43 +290,43 @@ export default function ScoringBreakdownV2({
             </div>
           </div>
           <div className="text-left sm:text-right w-full sm:w-auto">
-            <div className="text-3xl font-bold text-foreground">{data.total}</div>
-            <div className="text-sm text-muted-foreground">Punkte</div>
+            <div className="text-2xl font-bold text-foreground">{data.total}</div>
+            <div className="text-xs text-muted-foreground">Punkte</div>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3 px-4 py-3">
         {/* Trend Metrics Summary (New) */}
         {useTrendDisplay && (data.trendMultiplier || data.consistencyScore || data.velocityScore || data.marketSharePercent) && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-3 rounded-lg bg-muted/30 border border-border">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-2 rounded-lg bg-muted/30 border border-border">
             {data.trendMultiplier && (
               <div className="text-center">
-                <div className="text-xs text-muted-foreground mb-1">Momentum</div>
-                <div className={`text-lg font-bold ${getTrendColor(data.trendMultiplier)}`}>
+                <div className="text-[11px] text-muted-foreground mb-0.5">Momentum</div>
+                <div className={`text-base font-bold ${getTrendColor(data.trendMultiplier)}`}>
                   {data.trendMultiplier.toFixed(1)}x
                 </div>
               </div>
             )}
             {data.consistencyScore !== undefined && data.consistencyScore > 0 && (
               <div className="text-center">
-                <div className="text-xs text-muted-foreground mb-1">Consistency</div>
-                <div className="text-lg font-bold text-blue-500">
+                <div className="text-[11px] text-muted-foreground mb-0.5">Consistency</div>
+                <div className="text-base font-bold text-blue-500">
                   {data.consistencyScore}/100
                 </div>
               </div>
             )}
             {data.velocityScore !== undefined && data.velocityScore !== 0 && (
               <div className="text-center">
-                <div className="text-xs text-muted-foreground mb-1">Velocity</div>
-                <div className={`text-lg font-bold ${data.velocityScore > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                <div className="text-[11px] text-muted-foreground mb-0.5">Velocity</div>
+                <div className={`text-base font-bold ${data.velocityScore > 0 ? 'text-green-500' : 'text-red-500'}`}>
                   {data.velocityScore > 0 ? '+' : ''}{data.velocityScore}
                 </div>
               </div>
             )}
             {data.marketSharePercent !== undefined && data.marketSharePercent > 0 && (
               <div className="text-center">
-                <div className="text-xs text-muted-foreground mb-1">Market Share</div>
-                <div className="text-lg font-bold text-purple-500">
+                <div className="text-[11px] text-muted-foreground mb-0.5">Market Share</div>
+                <div className="text-base font-bold text-purple-500">
                   {data.marketSharePercent.toFixed(1)}%
                 </div>
               </div>
@@ -335,8 +335,8 @@ export default function ScoringBreakdownV2({
         )}
 
         {/* Components */}
-        <div className="space-y-2">
-          <h4 className="text-sm font-semibold text-foreground">Scoring-Komponenten</h4>
+        <div className="space-y-1.5">
+          <h4 className="text-xs font-semibold text-foreground uppercase tracking-wide">Scoring-Komponenten</h4>
           <div className="space-y-1">
             {data.components.map((component, idx) => {
               const tooltipContent = getComponentTooltipContent(
@@ -347,7 +347,7 @@ export default function ScoringBreakdownV2({
               return (
                 <div
                   key={idx}
-                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 rounded-md bg-muted/50 gap-2"
+                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-2 py-1.5 rounded-md bg-muted/50 gap-2"
                 >
                   <div className="flex-1 w-full sm:w-auto">
                     <div className="text-sm font-medium text-foreground mb-1 flex items-center gap-2">
@@ -382,7 +382,7 @@ export default function ScoringBreakdownV2({
                     </div>
                   </div>
                   <div className="text-left sm:text-right w-full sm:w-auto">
-                    <div className="text-lg font-bold text-foreground">
+                    <div className="text-base font-bold text-foreground">
                       {component.points}
                     </div>
                     <div className="text-xs text-muted-foreground">pts</div>
@@ -395,8 +395,8 @@ export default function ScoringBreakdownV2({
 
         {/* Bonuses */}
         {data.bonuses.length > 0 && (
-          <div className="space-y-2">
-            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          <div className="space-y-1.5">
+            <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5 uppercase tracking-wide">
               <TrendingUp className="w-4 h-4 text-green-600" />
               Boni
             </h4>
@@ -404,7 +404,7 @@ export default function ScoringBreakdownV2({
               {data.bonuses.map((bonus, idx) => (
                 <div
                   key={idx}
-                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 rounded-md bg-green-500/5 border border-green-500/20 gap-2"
+                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-2 py-1.5 rounded-md bg-green-500/5 border border-green-500/20 gap-2"
                 >
                   <div className="flex items-center gap-2">
                     {getBonusIcon(bonus.type)}
@@ -437,7 +437,7 @@ export default function ScoringBreakdownV2({
                       </div>
                     </div>
                   </div>
-                  <div className="text-sm font-semibold text-green-600">
+                  <div className="text-xs font-semibold text-green-600">
                     +{bonus.points}
                   </div>
                 </div>
@@ -448,8 +448,8 @@ export default function ScoringBreakdownV2({
 
         {/* Penalties */}
         {data.penalties.length > 0 && (
-          <div className="space-y-2">
-            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          <div className="space-y-1.5">
+            <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5 uppercase tracking-wide">
               <TrendingDown className="w-4 h-4 text-red-600" />
               Strafen
             </h4>
@@ -457,7 +457,7 @@ export default function ScoringBreakdownV2({
               {data.penalties.map((penalty, idx) => (
                 <div
                   key={idx}
-                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 rounded-md bg-red-500/5 border border-red-500/20 gap-2"
+                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-2 py-1.5 rounded-md bg-red-500/5 border border-red-500/20 gap-2"
                 >
                   <div>
                     <div className="text-sm font-medium text-foreground flex items-center gap-2">
@@ -487,7 +487,7 @@ export default function ScoringBreakdownV2({
                       {penalty.condition}
                     </div>
                   </div>
-                  <div className="text-sm font-semibold text-red-600">
+                  <div className="text-xs font-semibold text-red-600">
                     {penalty.points}
                   </div>
                 </div>
@@ -497,29 +497,29 @@ export default function ScoringBreakdownV2({
         )}
 
         {/* Subtotal */}
-        <div className="border-t border-border pt-3 mt-3">
-          <div className="flex items-center justify-between p-3 rounded-md bg-muted/80">
+        <div className="border-t border-border pt-2 mt-2">
+          <div className="flex items-center justify-between p-2 rounded-md bg-muted/70">
             <div>
-              <div className="text-sm font-semibold text-foreground">Gesamtpunktzahl</div>
-              <div className="text-xs text-muted-foreground mt-1">
+              <div className="text-sm font-semibold text-foreground leading-tight">Gesamtpunktzahl</div>
+              <div className="text-[11px] text-muted-foreground mt-0.5">
                 {data.components.length} Komponenten + {data.bonuses.length} Boni
                 {data.penalties.length > 0 && ` - ${data.penalties.length} Strafen`}
               </div>
             </div>
-            <div className="text-2xl font-bold text-foreground">{data.total}</div>
+            <div className="text-xl font-bold text-foreground">{data.total}</div>
           </div>
         </div>
 
         {/* League Average Comparison */}
         {vsLeagueAverage !== null && (
-          <div className="flex items-center justify-between p-3 rounded-md bg-primary/5 border border-primary/20">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between p-2 rounded-md bg-primary/5 border border-primary/20">
+            <div className="flex items-center gap-1.5">
               <Trophy className="w-4 h-4 text-primary" />
-              <div className="text-sm font-medium text-foreground">
+              <div className="text-xs font-medium text-foreground uppercase tracking-wide">
                 vs. Liga-Durchschnitt
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 text-sm">
               {vsLeagueAverage > 0 ? (
                 <>
                   <TrendingUp className="w-4 h-4 text-green-600" />
@@ -549,8 +549,8 @@ export default function ScoringBreakdownV2({
         {/* Weekly Trend */}
         {weeklyTrend && weeklyTrend.length > 0 && (
           <div className="space-y-2">
-            <h4 className="text-sm font-semibold text-foreground">Wöchentlicher Trend</h4>
-            <div className="flex items-end gap-1 h-20">
+            <h4 className="text-xs font-semibold text-foreground uppercase tracking-wide">Wöchentlicher Trend</h4>
+            <div className="flex items-end gap-1 h-14">
               {weeklyTrend.map((points, idx) => {
                 const maxPoints = Math.max(...weeklyTrend);
                 const height = maxPoints > 0 ? (points / maxPoints) * 100 : 0;
