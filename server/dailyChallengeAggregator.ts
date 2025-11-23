@@ -733,7 +733,7 @@ export class DailyChallengeAggregator {
       const BRAND_RATINGS_CARD_ID = 1278; // brand-indv-today (per-day stats)
       
       const result = await this.metabase.executeCardQuery(BRAND_RATINGS_CARD_ID, {
-        stat_date: statDate,
+        UpdatedAt: ['absolute-date', statDate],
       });
       
       return result.map((row: any) => ({
