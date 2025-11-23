@@ -577,6 +577,20 @@ export default function ScoringBreakdownV2({
                 data.assetType
               );
 
+              const orderActivityIndex =
+                component.category === "Order Activity"
+                  ? data.components
+                      .slice(0, idx)
+                      .filter((c) => c.category === "Order Activity").length
+                  : null;
+
+              const dateLabel =
+                orderActivityIndex !== null &&
+                orderActivityDateLabels &&
+                orderActivityDateLabels[orderActivityIndex] !== undefined
+                  ? orderActivityDateLabels[orderActivityIndex]
+                  : null;
+
               return (
                 <div
                   key={idx}
@@ -585,6 +599,11 @@ export default function ScoringBreakdownV2({
                   <div className="flex-1 w-full sm:w-auto">
                     <div className="text-sm font-medium text-foreground mb-1 flex items-center gap-2">
                       {component.category}
+                      {dateLabel && (
+                        <span className="ml-2 text-[11px] font-normal text-muted-foreground">
+                          {dateLabel}
+                        </span>
+                      )}
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
