@@ -30,7 +30,6 @@ interface ScoringBreakdownData {
   imageUrl?: string | null;
   components: ScoringComponent[];
   bonuses: ScoringBonus[];
-  bonuses: ScoringBonus[];
   subtotal: number;
   total: number;
   // New trend-based fields
