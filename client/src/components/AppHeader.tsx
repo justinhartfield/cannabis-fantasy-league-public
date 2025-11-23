@@ -22,7 +22,7 @@ export function AppHeader() {
 
         <Link href="/" className="flex flex-col items-center gap-0 text-center">
           <span className="text-xs uppercase tracking-[0.3em] text-white/60">
-            CannaLeague
+            WEED.DE
           </span>
           <span className="text-lg font-bold tracking-wide text-white">
             {APP_TITLE}
