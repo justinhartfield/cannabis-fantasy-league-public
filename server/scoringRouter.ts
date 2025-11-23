@@ -280,7 +280,7 @@ export const scoringRouter = router({
       }
 
       // Get the score record
-      const scores = await db
+      let scores = await db
         .select()
         .from(weeklyTeamScores)
         .where(and(
@@ -290,8 +290,47 @@ export const scoringRouter = router({
         ))
         .limit(1);
 
+      // If no weekly score exists yet, build a \"live\" weekly score on the fly
+      // using the same daily stats that power live scoring.
       if (scores.length === 0) {
-        return null;
+        // Look up the league for this team so we can run a single-team weekly scoring pass
+        const teamLeague = await db
+          .select({ leagueId: teams.leagueId })
+          .from(teams)
+          .where(eq(teams.id, input.teamId))
+          .limit(1);
+
+        if (teamLeague.length === 0) {
+          return null;
+        }
+
+        try {
+          // This computes and persists a weeklyTeamScores row (and breakdowns) for just this team
+          await calculateSeasonTeamWeek(
+            teamLeague[0].leagueId,
+            input.teamId,
+            input.year,
+            input.week
+          );
+
+          // Re-load the freshly created score
+          scores = await db
+            .select()
+            .from(weeklyTeamScores)
+            .where(and(
+              eq(weeklyTeamScores.teamId, input.teamId),
+              eq(weeklyTeamScores.year, input.year),
+              eq(weeklyTeamScores.week, input.week)
+            ))
+            .limit(1);
+        } catch (error) {
+          console.error('[getTeamBreakdown] Error computing live weekly score:', error);
+          return null;
+        }
+
+        if (scores.length === 0) {
+          return null;
+        }
       }
 
       const score = scores[0];

@@ -113,6 +113,8 @@ export const brandDailyChallengeStats = pgTable("brandDailyChallengeStats", {
   veryBadCount: integer().default(0).notNull(),
   totalPoints: integer().default(0).notNull(),
   rank: integer().default(0),
+  ratingDelta: integer().default(0).notNull(),
+  bayesianDelta: decimal({ precision: 4, scale: 2 }).default('0').notNull(),
   createdAt: timestamp({ withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp({ withTimezone: true }).defaultNow().notNull(),
 }, (table) => [

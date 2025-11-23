@@ -19,6 +19,8 @@ export interface DailyChallengeStats {
   acceptableCount?: number;
   badCount?: number;
   veryBadCount?: number;
+  ratingDelta?: number;
+  bayesianDelta?: number | string;
 }
 
 export interface ScoringBreakdown {
@@ -27,6 +29,8 @@ export interface ScoringBreakdown {
   revenuePoints: number;
   ratingCountPoints?: number;
   ratingQualityPoints?: number;
+  ratingDeltaPoints?: number;
+  ratingTrendPoints?: number;
   rankBonusPoints: number;
   totalPoints: number;
 }
@@ -200,12 +204,20 @@ export function calculateBrandScore(
   const totalRatings = stats.totalRatings || 0;
   const averageRating = parseFloat(stats.averageRating?.toString() || '0');
   const bayesianAverage = parseFloat(stats.bayesianAverage?.toString() || '0');
+  const ratingDelta = Math.max(0, stats.ratingDelta || 0);
+  const bayesianDelta = parseFloat(stats.bayesianDelta?.toString() || '0');
 
   // Rating Count: 10 points per rating received
   const ratingCountPoints = totalRatings * 10;
 
   // Rating Quality: 20 points per star (based on Bayesian average to prevent gaming)
   const ratingQualityPoints = Math.floor(bayesianAverage * 20);
+
+  // Daily rating delta bonus: emphasize fresh activity
+  const ratingDeltaPoints = ratingDelta * 75;
+
+  // Reward improvements in Bayesian average (positive deltas only)
+  const ratingTrendPoints = bayesianDelta > 0 ? Math.round(bayesianDelta * 100) : 0;
 
   // Tiered Rank Bonuses for top 10 brands
   let rankBonusPoints = 0;
@@ -215,7 +227,12 @@ export function calculateBrandScore(
   else if (rank >= 4 && rank <= 5) rankBonusPoints = 15;
   else if (rank >= 6 && rank <= 10) rankBonusPoints = 10;
 
-  const totalPoints = ratingCountPoints + ratingQualityPoints + rankBonusPoints;
+  const totalPoints =
+    ratingCountPoints +
+    ratingQualityPoints +
+    ratingDeltaPoints +
+    ratingTrendPoints +
+    rankBonusPoints;
 
   return {
     salesVolumePoints: 0,
@@ -223,6 +240,8 @@ export function calculateBrandScore(
     revenuePoints: 0,
     ratingCountPoints,
     ratingQualityPoints,
+    ratingDeltaPoints,
+    ratingTrendPoints,
     rankBonusPoints,
     totalPoints,
   };

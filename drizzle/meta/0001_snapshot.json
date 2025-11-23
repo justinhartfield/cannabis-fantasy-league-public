@@ -4364,6 +4364,20 @@
           "notNull": false,
           "default": 0
         },
+        "ratingDelta": {
+          "name": "ratingDelta",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "bayesianDelta": {
+          "name": "bayesianDelta",
+          "type": "numeric(4, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
         "createdAt": {
           "name": "createdAt",
           "type": "timestamp with time zone",

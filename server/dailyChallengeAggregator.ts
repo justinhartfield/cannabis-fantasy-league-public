@@ -20,6 +20,7 @@ import {
   pharmacyDailyChallengeStats,
   brandDailyChallengeStats,
 } from '../drizzle/dailyChallengeSchema';
+import { eq, lt, sql } from 'drizzle-orm';
 
 interface OrderRecord {
   ID: string;
@@ -616,6 +617,8 @@ export class DailyChallengeAggregator {
       .filter(b => b.totalRatings > 0) // Only include brands with ratings
       .sort((a, b) => b.totalRatings - a.totalRatings);
 
+    const previousStatsByBrand = await this.getPreviousBrandSnapshot(db, dateString);
+
     let processed = 0;
     let skipped = 0;
 
@@ -633,6 +636,17 @@ export class DailyChallengeAggregator {
         continue;
       }
 
+      const previousStat = previousStatsByBrand.get(brand.id);
+      const ratingDelta = Math.max(
+        0,
+        brandData.totalRatings - (previousStat?.totalRatings ?? brandData.totalRatings)
+      );
+      const previousBayesian = previousStat ? Number(previousStat.bayesianAverage ?? 0) : null;
+      const bayesianDelta =
+        previousBayesian !== null
+          ? Number((brandData.bayesianAverage - previousBayesian).toFixed(2))
+          : 0;
+
       const scoring = calculateBrandScore({
         totalRatings: brandData.totalRatings,
         averageRating: brandData.averageRating,
@@ -642,6 +656,8 @@ export class DailyChallengeAggregator {
         acceptableCount: brandData.acceptableCount,
         badCount: brandData.badCount,
         veryBadCount: brandData.veryBadCount,
+        ratingDelta,
+        bayesianDelta,
       }, rank);
 
       await db
@@ -659,6 +675,8 @@ export class DailyChallengeAggregator {
           veryBadCount: brandData.veryBadCount,
           totalPoints: scoring.totalPoints,
           rank,
+          ratingDelta,
+          bayesianDelta: bayesianDelta.toFixed(2),
           createdAt: new Date(),
           updatedAt: new Date(),
         })
@@ -675,6 +693,8 @@ export class DailyChallengeAggregator {
             veryBadCount: brandData.veryBadCount,
             totalPoints: scoring.totalPoints,
             rank,
+            ratingDelta,
+            bayesianDelta: bayesianDelta.toFixed(2),
             updatedAt: new Date(),
           },
         });
@@ -729,6 +749,46 @@ export class DailyChallengeAggregator {
       console.error('[DailyChallengeAggregator] Error fetching brand ratings:', error);
       return [];
     }
+  }
+
+  private async getPreviousBrandSnapshot(
+    db: Database,
+    statDate: string
+  ): Promise<
+    Map<
+      number,
+      {
+        brandId: number;
+        totalRatings: number;
+        bayesianAverage: string | null;
+        rank: number | null;
+      }
+    >
+  > {
+    const previousDateResult = await db
+      .select({
+        date: sql<string | null>`max(${brandDailyChallengeStats.statDate})`,
+      })
+      .from(brandDailyChallengeStats)
+      .where(lt(brandDailyChallengeStats.statDate, statDate))
+      .limit(1);
+
+    const previousDate = previousDateResult[0]?.date;
+    if (!previousDate) {
+      return new Map();
+    }
+
+    const previousStats = await db
+      .select({
+        brandId: brandDailyChallengeStats.brandId,
+        totalRatings: brandDailyChallengeStats.totalRatings,
+        bayesianAverage: brandDailyChallengeStats.bayesianAverage,
+        rank: brandDailyChallengeStats.rank,
+      })
+      .from(brandDailyChallengeStats)
+      .where(eq(brandDailyChallengeStats.statDate, previousDate));
+
+    return new Map(previousStats.map((stat) => [stat.brandId, stat]));
   }
 }
 
