@@ -18,7 +18,18 @@ import { toast } from "sonner";
 import { getLoginUrl } from "@/const";
 import { cn } from "@/lib/utils";
 
-const DEFAULT_LEADERS = ["GreenThumb", "BlazeMaster", "HighRoller"];
+type LeaderboardPlayer = {
+  rank?: number;
+  name: string;
+  currentStreak?: number;
+  longestStreak?: number;
+};
+
+const DEFAULT_LEADERS: LeaderboardPlayer[] = [
+  { name: "GreenThumb", currentStreak: 5, longestStreak: 12 },
+  { name: "BlazeMaster", currentStreak: 4, longestStreak: 10 },
+  { name: "HighRoller", currentStreak: 3, longestStreak: 9 },
+];
 
 export default function Dashboard() {
   const { user, loading: authLoading, isAuthenticated } = useAuth();
@@ -31,6 +42,10 @@ export default function Dashboard() {
     { enabled: isAuthenticated }
   );
   const { data: stats } = trpc.stats.getStats.useQuery();
+  const {
+    data: predictionLeaders,
+    isLoading: predictionLeadersLoading,
+  } = trpc.prediction.getLeaderboard.useQuery({ limit: 3 });
 
   const joinLeagueMutation = trpc.league.joinByCode.useMutation({
     onSuccess: (data) => {
@@ -85,10 +100,9 @@ export default function Dashboard() {
   const seasonLeagues = myLeagues?.filter((league) => league.leagueType !== "challenge") ?? [];
   const challengeLeagues = myLeagues?.filter((league) => league.leagueType === "challenge") ?? [];
 
-  const leaderboardPreview =
-    seasonLeagues.length > 0
-      ? seasonLeagues.slice(0, 3).map((league) => league.name)
-      : DEFAULT_LEADERS;
+  const leaderboardPlayers: LeaderboardPlayer[] =
+    predictionLeaders?.leaderboard?.slice(0, 3) ?? DEFAULT_LEADERS;
+  const leaderboardLoading = predictionLeadersLoading && !predictionLeaders;
 
   const statHighlights = [
     {
@@ -171,12 +185,12 @@ export default function Dashboard() {
         <div className="grid gap-3 sm:grid-cols-2">
           <Link
             href="/league/create"
-            className="flex items-center justify-between rounded-2xl bg-gradient-to-r from-weed-green to-emerald-400 px-5 py-4 text-left text-black transition hover:scale-[1.01]"
+            className="flex items-center justify-between rounded-2xl bg-gradient-to-r from-weed-green to-emerald-400 px-5 py-4 text-left text-white transition hover:scale-[1.01]"
           >
             <div>
               <p className="text-xs uppercase tracking-widest">Quick Action</p>
               <p className="text-lg font-semibold">Create New League</p>
-              <p className="text-sm text-black/70">Season or daily challenge</p>
+              <p className="text-sm text-white/80">Season or daily challenge</p>
             </div>
             <ArrowRight className="h-6 w-6" />
           </Link>
@@ -231,25 +245,46 @@ export default function Dashboard() {
               See all
             </Link>
           </div>
-          <ul className="space-y-3">
-            {leaderboardPreview.map((name, index) => (
-              <li
-                key={name}
-                className="flex items-center justify-between rounded-2xl bg-black/30 px-4 py-3 text-white"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-lg font-bold">
-                    {index + 1}
+          {leaderboardLoading ? (
+            <div className="flex justify-center py-6">
+              <Loader2 className="h-5 w-5 animate-spin text-weed-green" />
+            </div>
+          ) : (
+            <ul className="space-y-3">
+              {leaderboardPlayers.map((player, index) => {
+                const rankDisplay = player.rank ?? index + 1;
+                const current = player.currentStreak ?? 0;
+                const best = player.longestStreak ?? 0;
+                return (
+                <li
+                  key={`${player.name}-${index}`}
+                  className="flex items-center justify-between rounded-2xl bg-black/30 px-4 py-3 text-white"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-lg font-bold">
+                      {rankDisplay}
+                    </div>
+                    <div>
+                      <p className="text-base font-semibold">
+                        {player.name}
+                      </p>
+                      <p className="text-xs text-white/50">
+                        Current streak: {current} • Best {best}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-base font-semibold">{name}</p>
-                    <p className="text-xs text-white/50">Active season league</p>
+                  <div className="text-right text-sm text-white/60">
+                    <p className="font-semibold text-white">
+                      {current} 🔥
+                    </p>
+                    <p className="text-xs text-white/50">
+                      Best {best}
+                    </p>
                   </div>
-                </div>
-                <ChevronRight className="h-5 w-5 text-white/40" />
-              </li>
-            ))}
-          </ul>
+                </li>
+              )})}
+            </ul>
+          )}
         </div>
 
         <Link
