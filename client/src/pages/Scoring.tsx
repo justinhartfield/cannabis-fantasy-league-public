@@ -105,7 +105,8 @@ export default function Scoring() {
         week: selectedWeek,
       },
       {
-        enabled: !!leagueId,
+        // Only query once we know the league and have an authenticated user
+        enabled: !!leagueId && !!user,
       }
     );
 
@@ -118,8 +119,10 @@ export default function Scoring() {
         week: selectedWeek,
       },
       {
+        // Only query when authenticated, and only for empty official scores
         enabled:
           !!leagueId &&
+          !!user &&
           !!weekScores &&
           weekScores.every((s) => s.points === 0),
         refetchInterval: 60000, // Refresh every minute
@@ -168,7 +171,7 @@ export default function Scoring() {
     const now = new Date();
     const { year: isoYear, week: isoWeek } = getIsoYearWeek(now);
 
-    // For season-long leagues, always default to the current ISO week
+    // For season-long leagues, default to the current ISO week
     // For any other league type, fall back to the previous league week as before
     const defaultYear = league.leagueType === "season"
       ? isoYear
@@ -244,7 +247,10 @@ export default function Scoring() {
       !defaultsApplied ||
       manualSelectionRef.current ||
       !weekScores ||
-      weekScores.length === 0
+      weekScores.length === 0 ||
+      // For season-long leagues, do NOT auto-step backwards through weeks.
+      // We only load the week the user has selected (defaulting to current ISO week).
+      league?.leagueType === "season"
     ) {
       return;
     }
