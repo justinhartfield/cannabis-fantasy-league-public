@@ -4,11 +4,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Trophy, TrendingUp, Users, Medal } from "lucide-react";
+import { Trophy, TrendingUp, Users, Medal, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Entity Types
 type EntityType = 'all' | 'manufacturer' | 'pharmacy' | 'brand' | 'product' | 'strain';
+
+type LeaderboardPlayer = {
+  id?: string;
+  name: string;
+  currentStreak?: number;
+  longestStreak?: number;
+  rank?: number;
+};
 
 const Leaderboard = () => {
   const [activeTab, setActiveTab] = useState("daily");
@@ -27,6 +35,12 @@ const Leaderboard = () => {
     limit: 20,
   }, {
     enabled: activeTab === "hof"
+  });
+
+  const topSquadsQuery = trpc.prediction.getLeaderboard.useQuery({
+    limit: 5,
+  }, {
+    enabled: activeTab === "hof",
   });
 
   // Components for rendering
@@ -126,6 +140,66 @@ const Leaderboard = () => {
       ))}
     </div>
   );
+
+  const TopSquadsList = ({
+    players,
+    loading,
+  }: {
+    players: LeaderboardPlayer[];
+    loading: boolean;
+  }) => {
+    if (loading) {
+      return (
+        <div className="flex justify-center py-6 text-muted-foreground">
+          <Loader2 className="mr-2 h-4 w-4 animate-spin text-weed-green" />
+          Loading squads...
+        </div>
+      );
+    }
+
+    if (!players.length) {
+      return (
+        <div className="text-center py-8 text-muted-foreground">
+          No streak data yet. Jump into the daily game to claim a spot.
+        </div>
+      );
+    }
+
+    return (
+      <ul className="space-y-3">
+        {players.map((player, index) => {
+          const rankDisplay = player.rank ?? index + 1;
+          const current = player.currentStreak ?? 0;
+          const best = player.longestStreak ?? 0;
+
+          return (
+            <li
+              key={player.id ?? `${player.name}-${index}`}
+              className="flex items-center justify-between rounded-2xl bg-black/30 px-4 py-3 text-white"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-lg font-bold text-white/80">
+                  {rankDisplay}
+                </div>
+                <div>
+                  <p className="text-base font-semibold">{player.name}</p>
+                  <p className="text-xs text-white/50">
+                    Current streak: {current} • Best {best}
+                  </p>
+                </div>
+              </div>
+              <div className="text-right text-sm text-white/60">
+                <p className="font-semibold text-white">
+                  {current} 🔥
+                </p>
+                <p className="text-xs text-white/50">Best {best}</p>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    );
+  };
 
   // Filter controls
   const EntityFilters = () => (
@@ -249,7 +323,7 @@ const Leaderboard = () => {
           {hallOfFameQuery.isLoading ? (
             <div className="flex justify-center py-12">Loading...</div>
           ) : (
-            <div className="grid lg:grid-cols-2 gap-8">
+            <div className="grid gap-8 lg:grid-cols-2 xl:grid-cols-3">
               <Card className={cn(cardBase, "border-yellow-500/20 bg-gradient-to-br from-yellow-500/5 to-transparent")}>
                 <CardHeader>
                   <div className="flex items-center gap-3">
@@ -277,6 +351,24 @@ const Leaderboard = () => {
                 </CardHeader>
                 <CardContent>
                   <TeamList data={hallOfFameQuery.data?.weeklyHighScores || []} type="weekly" />
+                </CardContent>
+              </Card>
+
+              <Card className={cn(cardBase, "border-weed-green/30 bg-gradient-to-br from-weed-green/10 to-transparent")}>
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <Users className="w-8 h-8 text-weed-green" />
+                    <div>
+                      <CardTitle>Top Squads</CardTitle>
+                      <p className="text-sm text-muted-foreground mt-1">Streak leaders from the daily game</p>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <TopSquadsList
+                    players={topSquadsQuery.data?.leaderboard || []}
+                    loading={topSquadsQuery.isLoading}
+                  />
                 </CardContent>
               </Card>
             </div>
