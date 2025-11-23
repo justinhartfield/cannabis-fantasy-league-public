@@ -45,9 +45,11 @@ export default function Lineup() {
   );
 
   // Fetch scoring breakdown
+  const showScoringBreakdown = !!league && league.leagueType === "challenge";
+
   const { data: scoringData, isLoading: scoringLoading } = trpc.scoring.getTeamBreakdown.useQuery(
     { teamId: myTeam?.id || 0, year: currentYear, week: currentWeek },
-    { enabled: !!myTeam && !!league }
+    { enabled: showScoringBreakdown && !!myTeam && !!league }
   );
 
   // Mutations
@@ -145,13 +147,19 @@ export default function Lineup() {
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="lineup" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6 bg-card/50 border border-border/50">
+          <TabsList
+            className={`grid w-full ${
+              showScoringBreakdown ? "grid-cols-2" : "grid-cols-1"
+            } mb-6 bg-card/50 border border-border/50`}
+          >
             <TabsTrigger value="lineup" className="data-[state=active]:gradient-primary data-[state=active]:text-white">
               Set Lineup
             </TabsTrigger>
-            <TabsTrigger value="scoring" className="data-[state=active]:gradient-primary data-[state=active]:text-white">
-              Scoring Breakdown
-            </TabsTrigger>
+            {showScoringBreakdown && (
+              <TabsTrigger value="scoring" className="data-[state=active]:gradient-primary data-[state=active]:text-white">
+                Scoring Breakdown
+              </TabsTrigger>
+            )}
           </TabsList>
           
           <TabsContent value="lineup">
@@ -180,46 +188,52 @@ export default function Lineup() {
             />
           </TabsContent>
           
-          <TabsContent value="scoring">
-            {scoringData && scoringData.breakdowns && scoringData.breakdowns.length > 0 ? (
-              <div className="grid gap-4 md:gap-6">
-                {scoringData.breakdowns
-                  .filter((breakdown: any) => breakdown.assetId !== null && breakdown.assetId !== undefined)
-                  .map((breakdown: any, index: number) => (
-                  <ScoringBreakdown
-                    key={index}
-                    data={{
-                      assetName: breakdown.assetName || "Unknown",
-                      assetType: breakdown.assetType,
-                      components: breakdown.components || [],
-                      bonuses: breakdown.bonuses || [],
-                      penalties: breakdown.penalties || [],
-                      subtotal: breakdown.subtotal || 0,
-                      total: breakdown.totalPoints || 0,
-                    }}
-                    leagueAverage={breakdown.leagueAverage}
-                    weeklyTrend={breakdown.weeklyTrend}
-                  />
-                ))}
-              </div>
-            ) : (
-              <Card className="gradient-card border-border/50">
-                <CardContent className="py-20 text-center">
-                  <div className="max-w-md mx-auto">
-                    <div className="w-16 h-16 rounded-2xl bg-muted/30 mx-auto mb-4 flex items-center justify-center">
-                      <Activity className="w-8 h-8 text-muted-foreground" />
+          {showScoringBreakdown && (
+            <TabsContent value="scoring">
+              {scoringLoading ? (
+                <div className="flex items-center justify-center py-20">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              ) : scoringData && scoringData.breakdowns && scoringData.breakdowns.length > 0 ? (
+                <div className="grid gap-4 md:gap-6">
+                  {scoringData.breakdowns
+                    .filter((breakdown: any) => breakdown.assetId !== null && breakdown.assetId !== undefined)
+                    .map((breakdown: any, index: number) => (
+                    <ScoringBreakdown
+                      key={index}
+                      data={{
+                        assetName: breakdown.assetName || "Unknown",
+                        assetType: breakdown.assetType,
+                        components: breakdown.components || [],
+                        bonuses: breakdown.bonuses || [],
+                        penalties: breakdown.penalties || [],
+                        subtotal: breakdown.subtotal || 0,
+                        total: breakdown.totalPoints || 0,
+                      }}
+                      leagueAverage={breakdown.leagueAverage}
+                      weeklyTrend={breakdown.weeklyTrend}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <Card className="gradient-card border-border/50">
+                  <CardContent className="py-20 text-center">
+                    <div className="max-w-md mx-auto">
+                      <div className="w-16 h-16 rounded-2xl bg-muted/30 mx-auto mb-4 flex items-center justify-center">
+                        <Activity className="w-8 h-8 text-muted-foreground" />
+                      </div>
+                      <p className="text-lg font-semibold text-foreground mb-2">
+                        No Scoring Data Yet
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Scoring data will be available after the week concludes.
+                      </p>
                     </div>
-                    <p className="text-lg font-semibold text-foreground mb-2">
-                      No Scoring Data Yet
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Scoring data will be available after the week concludes.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </div>

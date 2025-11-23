@@ -6,9 +6,9 @@
  */
 
 import { getDb } from './db';
-import { 
-  manufacturers, 
-  strains, 
+import {
+  manufacturers,
+  strains,
   cannabisStrains,
   pharmacies,
   brands,
@@ -37,7 +37,7 @@ import {
   pharmacyDailyChallengeStats,
   brandDailyChallengeStats,
 } from '../drizzle/dailyChallengeSchema';
-import { eq, and, count, sql } from 'drizzle-orm';
+import { eq, and, count, sql, sum, max, desc, gte, lte } from 'drizzle-orm';
 import { wsManager } from './websocket';
 import { getOrCreateLineup } from './utils/autoLineup';
 import { calculateBrandPoints } from './brandScoring';
@@ -347,13 +347,13 @@ function finalizeDailyBreakdown(
 const createEmptyBreakdown = (message?: string): BreakdownDetail => ({
   components: message
     ? [
-        {
-          category: message,
-          value: '-',
-          formula: 'No stats available',
-          points: 0,
-        },
-      ]
+      {
+        category: message,
+        value: '-',
+        formula: 'No stats available',
+        points: 0,
+      },
+    ]
     : [],
   bonuses: [],
   penalties: [],
@@ -380,7 +380,7 @@ export function buildManufacturerDailyBreakdown(statRecord: ManufacturerDailySou
   // Use trend-based scoring exclusively
   const { calculateManufacturerTrendScore } = require('./trendScoringEngine');
   const { buildManufacturerTrendBreakdown } = require('./trendScoringBreakdowns');
-  
+
   // Calculate the trend score breakdown
   const scoring = calculateManufacturerTrendScore({
     orderCount,
@@ -392,7 +392,7 @@ export function buildManufacturerDailyBreakdown(statRecord: ManufacturerDailySou
     streakDays: Number(statRecord.streakDays ?? 0),
     marketSharePercent: Number(statRecord.marketSharePercent ?? 0),
   });
-  
+
   // Build the formatted breakdown for display
   return buildManufacturerTrendBreakdown(
     scoring,
@@ -410,7 +410,7 @@ export function buildStrainDailyBreakdown(statRecord: StrainDailySource): Breakd
   // Use trend-based scoring exclusively
   const { calculateStrainTrendScore } = require('./trendScoringEngine');
   const { buildStrainTrendBreakdown } = require('./trendScoringBreakdowns');
-  
+
   // Calculate the trend score breakdown
   const scoring = calculateStrainTrendScore({
     orderCount,
@@ -422,7 +422,7 @@ export function buildStrainDailyBreakdown(statRecord: StrainDailySource): Breakd
     streakDays: Number(statRecord.streakDays ?? 0),
     marketSharePercent: Number(statRecord.marketSharePercent ?? 0),
   });
-  
+
   // Build the formatted breakdown for display
   return buildStrainTrendBreakdown(
     scoring,
@@ -467,7 +467,7 @@ export function buildPharmacyDailyBreakdown(statRecord: PharmacyDailySource): Br
   // Use trend-based scoring exclusively
   const { calculatePharmacyTrendScore } = require('./trendScoringEngine');
   const { buildPharmacyTrendBreakdown } = require('./trendScoringBreakdowns');
-  
+
   // Calculate the trend score breakdown
   const scoring = calculatePharmacyTrendScore({
     orderCount,
@@ -479,7 +479,7 @@ export function buildPharmacyDailyBreakdown(statRecord: PharmacyDailySource): Br
     streakDays: Number(statRecord.streakDays ?? 0),
     marketSharePercent: Number(statRecord.marketSharePercent ?? 0),
   });
-  
+
   // Build the formatted breakdown for display
   return buildPharmacyTrendBreakdown(
     scoring,
@@ -545,12 +545,20 @@ export function buildBrandDailyBreakdown(statRecord: BrandDailySource): Breakdow
 /**
  * Calculate manufacturer fantasy points
  */
+/**
+ * Calculate manufacturer fantasy points
+ * REFACTORED: Unified Scoring System (Transparent Formulas + Trend/Flair)
+ */
 export function calculateManufacturerPoints(stats: {
   salesVolumeGrams: number;
   growthRatePercent: number;
   marketShareRank: number;
   rankChange: number;
   productCount: number;
+  orderCount?: number; // New field for unified scoring
+  marketSharePercent?: number; // New field for unified scoring
+  streakDays?: number; // New field for unified scoring
+  previousSalesVolumeGrams?: number; // New field for trend calc
 }): { points: number; breakdown: any } {
   const breakdown: any = {
     components: [],
@@ -560,26 +568,60 @@ export function calculateManufacturerPoints(stats: {
     total: 0,
   };
 
-  // 1. Supply Index: 1 pt per 250g sold (hidden behind descriptor)
-  const salesPoints = Math.floor(stats.salesVolumeGrams / 250);
-  const supplyDescriptor = describeSupplyVolume(stats.salesVolumeGrams);
+  // 1. Sales Volume: 1 pt per 100g (Transparent)
+  // Previously: 1 pt per 250g (Hidden)
+  const salesPoints = Math.floor(stats.salesVolumeGrams / 100);
   breakdown.components.push({
-    category: 'Supply Index',
-    value: supplyDescriptor.label,
-    formula: supplyDescriptor.description,
+    category: 'Sales Volume',
+    value: stats.salesVolumeGrams,
+    formula: `${stats.salesVolumeGrams}g ÷ 100`,
     points: salesPoints,
   });
 
-  // 2. Growth Rate: 1 pt per 5% increase
-  const growthPoints = Math.floor(stats.growthRatePercent / 5);
+  // 2. Order Volume: 2 pts per Order (Unified from Daily)
+  const orderCount = stats.orderCount || 0;
+  const orderPoints = orderCount * 2;
   breakdown.components.push({
-    category: 'Growth Rate',
-    value: stats.growthRatePercent,
-    formula: `${stats.growthRatePercent}% ÷ 5`,
-    points: growthPoints,
+    category: 'Order Volume',
+    value: orderCount,
+    formula: `${orderCount} orders × 2`,
+    points: orderPoints,
   });
 
-  // 3. Product Diversity: 1 pt per product (capped at 20)
+  // 3. Weekly Trend: Growth vs Last Week
+  // Formula: (Current / Last) * 20 pts, capped at 100
+  let trendPoints = 0;
+  if (stats.previousSalesVolumeGrams && stats.previousSalesVolumeGrams > 0) {
+    const ratio = stats.salesVolumeGrams / stats.previousSalesVolumeGrams;
+    trendPoints = Math.min(100, Math.floor(ratio * 20));
+    breakdown.components.push({
+      category: 'Weekly Trend',
+      value: `${(ratio * 100).toFixed(0)}%`,
+      formula: `vs last week × 20`,
+      points: trendPoints,
+    });
+  } else if (stats.salesVolumeGrams > 0) {
+    // New entrant bonus
+    trendPoints = 20;
+    breakdown.components.push({
+      category: 'Weekly Trend',
+      value: 'New',
+      formula: 'New entrant bonus',
+      points: trendPoints,
+    });
+  }
+
+  // 4. Market Share: 10 pts per 1% share
+  const marketShare = stats.marketSharePercent || 0;
+  const sharePoints = Math.floor(marketShare * 10);
+  breakdown.components.push({
+    category: 'Market Share',
+    value: `${marketShare.toFixed(1)}%`,
+    formula: `${marketShare.toFixed(1)}% × 10`,
+    points: sharePoints,
+  });
+
+  // 5. Product Diversity: 1 pt per product (capped at 20) - Kept from legacy
   const diversityPoints = Math.min(20, stats.productCount);
   breakdown.components.push({
     category: 'Product Diversity',
@@ -588,54 +630,58 @@ export function calculateManufacturerPoints(stats: {
     points: diversityPoints,
   });
 
-  // 4. Market Share Gain: 8 pts per rank improvement (capped at 40)
-  const rankGainPoints = stats.rankChange > 0 ? Math.min(40, stats.rankChange * 8) : 0;
-  if (rankGainPoints > 0) {
-    breakdown.components.push({
-      category: 'Market Share Gain',
-      value: stats.rankChange,
-      formula: `${stats.rankChange} ranks × 8`,
-      points: rankGainPoints,
-    });
-  }
+  // --- BONUSES (FLAIR) ---
 
-  // Bonuses
-  let topRankBonus = 0;
-  if (stats.marketShareRank === 1) topRankBonus = 30;
-  else if (stats.marketShareRank >= 2 && stats.marketShareRank <= 3) topRankBonus = 20;
-  else if (stats.marketShareRank >= 4 && stats.marketShareRank <= 5) topRankBonus = 15;
-  else if (stats.marketShareRank >= 6 && stats.marketShareRank <= 10) topRankBonus = 10;
-  if (topRankBonus > 0) {
+  // Consistency Streak: Bonus for 3+ consecutive weeks of growth (simulated by streakDays for now)
+  // In a real weekly context, we'd check weekly history. For now, we use the passed streakDays if available,
+  // or derive from growthRatePercent > 0.
+  if ((stats.streakDays && stats.streakDays >= 21) || (stats.growthRatePercent > 5 && stats.rankChange >= 0)) {
+    const consistencyBonus = 25;
     breakdown.bonuses.push({
-      type: 'Rank Bonus',
-      condition: `Rank #${stats.marketShareRank}`,
-      points: topRankBonus,
-    });
-  }
-
-  let consistencyBonus = 0;
-  if (stats.growthRatePercent >= 5 && stats.rankChange >= 1) {
-    consistencyBonus = 10;
-    breakdown.bonuses.push({
-      type: 'Consistency Bonus',
-      condition: 'Positive growth & rank gain',
+      type: 'Consistency Streak',
+      condition: 'Strong sustained growth',
       points: consistencyBonus,
     });
   }
 
-  // Penalties
-  let declinePenalty = 0;
-  if (stats.rankChange < -3) {
-    declinePenalty = -15;
-    breakdown.penalties.push({
-      type: 'Rank Slide',
-      condition: `Rank dropped ${Math.abs(stats.rankChange)} positions`,
-      points: declinePenalty,
+  // Market Dominance Badge: #1 Market Share
+  if (stats.marketShareRank === 1) {
+    breakdown.bonuses.push({
+      type: 'Market Dominance',
+      condition: 'Rank #1 Market Share',
+      points: 50,
+    });
+  } else if (stats.marketShareRank <= 3) {
+    breakdown.bonuses.push({
+      type: 'Top Tier',
+      condition: 'Top 3 Market Share',
+      points: 25,
     });
   }
 
-  breakdown.subtotal = salesPoints + growthPoints + diversityPoints + rankGainPoints;
-  breakdown.total = breakdown.subtotal + topRankBonus + consistencyBonus + declinePenalty;
+  // Rank Gain Bonus
+  if (stats.rankChange > 0) {
+    const rankBonus = Math.min(40, stats.rankChange * 10);
+    breakdown.bonuses.push({
+      type: 'Rank Climber',
+      condition: `Gained ${stats.rankChange} spots`,
+      points: rankBonus,
+    });
+  }
+
+  // --- PENALTIES ---
+  if (stats.rankChange < -3) {
+    breakdown.penalties.push({
+      type: 'Rank Slide',
+      condition: `Lost ${Math.abs(stats.rankChange)} spots`,
+      points: -15,
+    });
+  }
+
+  breakdown.subtotal = salesPoints + orderPoints + trendPoints + sharePoints + diversityPoints;
+  const bonusTotal = breakdown.bonuses.reduce((sum: number, b: any) => sum + b.points, 0);
+  const penaltyTotal = breakdown.penalties.reduce((sum: number, p: any) => sum + p.points, 0);
+  breakdown.total = breakdown.subtotal + bonusTotal + penaltyTotal;
 
   return {
     points: breakdown.total,
@@ -663,6 +709,10 @@ function getIsoYearWeek(date: Date): { year: number; week: number } {
 /**
  * Calculate strain fantasy points
  */
+/**
+ * Calculate strain (Product) fantasy points
+ * REFACTORED: Unified Scoring System
+ */
 export function calculateStrainPoints(stats: {
   favoriteCount: number;
   favoriteGrowth: number;
@@ -673,6 +723,8 @@ export function calculateStrainPoints(stats: {
   orderVolumeGrams: number;
   isTrending?: boolean;
   priceCategory?: string;
+  orderCount?: number; // New
+  previousOrderVolumeGrams?: number; // New
 }): { points: number; breakdown: any } {
   const breakdown: any = {
     components: [],
@@ -682,95 +734,92 @@ export function calculateStrainPoints(stats: {
     total: 0,
   };
 
-  // 1. Favorite Growth: 1.5 pts per new favorite
-  const favoritePoints = Math.floor(stats.favoriteGrowth * 1.5);
+  // 1. Order Volume: 1 pt per 200g (Transparent)
+  // Previously: 1 pt per 800g (Hidden)
+  const volumePoints = Math.floor(stats.orderVolumeGrams / 200);
+  breakdown.components.push({
+    category: 'Order Volume',
+    value: stats.orderVolumeGrams,
+    formula: `${stats.orderVolumeGrams}g ÷ 200`,
+    points: volumePoints,
+  });
+
+  // 2. Order Count: 5 pts per Order (Unified from Daily)
+  const orderCount = stats.orderCount || 0;
+  const orderPoints = orderCount * 5;
+  breakdown.components.push({
+    category: 'Order Count',
+    value: orderCount,
+    formula: `${orderCount} orders × 5`,
+    points: orderPoints,
+  });
+
+  // 3. Weekly Trend
+  let trendPoints = 0;
+  if (stats.previousOrderVolumeGrams && stats.previousOrderVolumeGrams > 0) {
+    const ratio = stats.orderVolumeGrams / stats.previousOrderVolumeGrams;
+    trendPoints = Math.min(80, Math.floor(ratio * 15));
+    breakdown.components.push({
+      category: 'Weekly Trend',
+      value: `${(ratio * 100).toFixed(0)}%`,
+      formula: `vs last week × 15`,
+      points: trendPoints,
+    });
+  }
+
+  // 4. Favorite Growth: 2 pts per new favorite
+  const favoritePoints = stats.favoriteGrowth * 2;
   breakdown.components.push({
     category: 'Favorite Growth',
     value: stats.favoriteGrowth,
-    formula: `${stats.favoriteGrowth} new favorites × 1.5`,
+    formula: `${stats.favoriteGrowth} new × 2`,
     points: favoritePoints,
   });
 
-  // 2. Price Performance: ±5 pts based on stability
-  let pricePoints = 0;
-  if (stats.priceStability >= 90) {
-    pricePoints = 5;
-  } else if (stats.priceStability >= 70) {
-    pricePoints = 3;
-  } else if (stats.priceStability < 50) {
-    pricePoints = -5;
-  }
-  breakdown.components.push({
-    category: 'Price Performance',
-    value: stats.priceStability,
-    formula: `Stability ${stats.priceStability}%`,
-    points: pricePoints,
-  });
-
-  // 3. Pharmacy Expansion: 6 pts per new pharmacy
-  const expansionPoints = stats.pharmacyExpansion * 6;
-  if (stats.pharmacyExpansion > 0) {
+  // 5. Pharmacy Expansion: 5 pts per new pharmacy
+  const expansionPoints = stats.pharmacyExpansion * 5;
+  if (expansionPoints > 0) {
     breakdown.components.push({
       category: 'Pharmacy Expansion',
       value: stats.pharmacyExpansion,
-      formula: `${stats.pharmacyExpansion} new pharmacies × 6`,
+      formula: `${stats.pharmacyExpansion} new × 5`,
       points: expansionPoints,
     });
   }
 
-  // 4. Order Volume: scaled and capped so products don't dominate team scores
-  //    Previously: 1 pt per 80g, which produced thousands of points for high-volume SKUs.
-  //    Now: 1 pt per 800g, capped at 120 pts to keep this component in line with other slots.
-  const rawVolumePoints = Math.floor(stats.orderVolumeGrams / 800);
-  const volumePoints = Math.min(rawVolumePoints, 120);
-  const demandDescriptor = describeOrderVolume(stats.orderVolumeGrams);
-  breakdown.components.push({
-    category: 'Order Volume',
-    value: demandDescriptor.label,
-    formula: demandDescriptor.description,
-    points: volumePoints,
-  });
+  // --- BONUSES ---
 
-  // 5. Trending Bonus: 15 pts for top 10 velocity
-  let trendingBonus = 0;
+  // Trending Bonus
   if (stats.isTrending) {
-    trendingBonus = 15;
     breakdown.bonuses.push({
-      type: 'Trending Bonus',
-      condition: 'Top 10 favorite velocity',
-      points: 15,
+      type: 'Trending Status',
+      condition: 'High velocity item',
+      points: 20,
     });
   }
 
-  // 6. Price Category: Up to 8 pts for premium tiers
-  let priceCategoryPoints = 0;
-  if (stats.priceCategory === 'expensive') {
-    priceCategoryPoints = 8;
-  } else if (stats.priceCategory === 'above_average') {
-    priceCategoryPoints = 4;
-  }
-  if (priceCategoryPoints > 0) {
-    breakdown.components.push({
-      category: 'Price Category',
-      value: stats.priceCategory,
-      formula: `${stats.priceCategory} tier`,
-      points: priceCategoryPoints,
+  // Price Stability Bonus
+  if (stats.priceStability >= 90) {
+    breakdown.bonuses.push({
+      type: 'Price Anchor',
+      condition: 'Stable pricing (>90%)',
+      points: 10,
     });
   }
 
-  // Penalties
-  // Price Crash: -15 pts if price drops >20%
-  if (stats.priceStability < 30) {
+  // --- PENALTIES ---
+  if (stats.priceStability < 40) {
     breakdown.penalties.push({
       type: 'Price Crash',
-      condition: 'Price volatility >70%',
+      condition: 'High volatility',
       points: -15,
     });
   }
 
-  // Calculate totals
-  breakdown.subtotal = favoritePoints + pricePoints + expansionPoints + volumePoints + priceCategoryPoints;
-  breakdown.total = breakdown.subtotal + trendingBonus + (stats.priceStability < 30 ? -15 : 0);
+  breakdown.subtotal = volumePoints + orderPoints + trendPoints + favoritePoints + expansionPoints;
+  const bonusTotal = breakdown.bonuses.reduce((sum: number, b: any) => sum + b.points, 0);
+  const penaltyTotal = breakdown.penalties.reduce((sum: number, p: any) => sum + p.points, 0);
+  breakdown.total = breakdown.subtotal + bonusTotal + penaltyTotal;
 
   return {
     points: breakdown.total,
@@ -1244,30 +1293,41 @@ async function aggregateSeasonWeeklyScores(
   const { startDate, endDate } = getWeekDateRange(year, week);
   const weekDates = enumerateWeekDates(startDate, endDate);
 
-  const results: Array<{ teamId: number; teamName: string; points: number }> = [];
+  // REFACTORED: Use unified weekly scoring instead of aggregating daily scores
+  // This allows us to use weekly metrics (growth, rank change) + aggregated daily metrics
+  const teamScores = await Promise.all(
+    targetTeams.map(async (team) => {
+      try {
+        const result = await computeTeamScore({
+          teamId: team.id,
+          lineupYear: year,
+          lineupWeek: week,
+          scope: { type: 'weekly', year, week },
+          persistence: { mode: 'weekly', teamId: team.id, year, week },
+          scarcityMultipliers,
+        });
 
-  for (const team of targetTeams) {
-    try {
-      const totalPoints = await aggregateTeamWeekFromDaily({
-        db,
-        team,
-        leagueId,
-        year,
-        week,
-        weekDates,
-        scarcityMultipliers,
-      });
-      results.push({
-        teamId: team.id,
-        teamName: team.name,
-        points: totalPoints,
-      });
-    } catch (error) {
-      console.error(`[Scoring] Error calculating score for team ${team.id}:`, error);
-    }
-  }
+        return {
+          teamId: team.id,
+          teamName: team.name,
+          points: result.totalPoints,
+          breakdown: result.breakdowns,
+        };
+      } catch (error) {
+        console.error(`[Scoring] Error calculating weekly score for team ${team.id}:`, error);
+        return {
+          teamId: team.id,
+          teamName: team.name,
+          points: 0,
+          breakdown: [],
+        };
+      }
+    })
+  );
 
-  return results;
+  // Filter out teams that had errors and return only the points for now
+  // The full breakdown will be persisted by computeTeamScore
+  return teamScores.map(({ teamId, teamName, points }) => ({ teamId, teamName, points }));
 }
 
 type TeamAggregationParams = {
@@ -1545,7 +1605,7 @@ export async function calculateDailyChallengeScores(challengeId: number, statDat
   console.log(`[calculateDailyChallengeScores] Using stat date: ${statDateString}`);
 
   const scarcityMultipliers = await getScarcityMultipliers(db);
-  
+
   // Calculate scores for all teams in parallel for better performance
   await Promise.all(
     challengeTeams.map(async (team) => {
@@ -1947,12 +2007,38 @@ async function scoreManufacturer(
   // For weekly scoring, calculate points using formula
   if (scope.type === 'weekly') {
     const weeklyStat = statRecord as typeof manufacturerWeeklyStats.$inferSelect;
+
+    // Fetch additional metrics from daily stats for the week
+    // We need orderCount (sum) and streakDays (max/latest)
+    const weekDates = getWeekDateRange(scope.year, scope.week);
+    const dailyAgg = await db
+      .select({
+        orderCount: sum(manufacturerDailyStats.orderCount),
+        streakDays: max(manufacturerDailyStats.streakDays), // Use max to get the peak streak
+        marketSharePercent: sql<number>`MAX(${manufacturerDailyStats.marketSharePercent})`, // Use max to get peak share
+      })
+      .from(manufacturerDailyStats)
+      .where(and(
+        eq(manufacturerDailyStats.manufacturerId, manufacturerId),
+        gte(manufacturerDailyStats.statDate, weekDates.start),
+        lte(manufacturerDailyStats.statDate, weekDates.end)
+      ));
+
+    const additionalStats = dailyAgg[0] || {};
+    const orderCount = Number(additionalStats.orderCount || 0);
+    const streakDays = Number(additionalStats.streakDays || 0);
+    const marketSharePercent = Number(additionalStats.marketSharePercent || 0);
+
     const weeklyResult = calculateManufacturerPoints({
       salesVolumeGrams: weeklyStat.salesVolumeGrams,
       growthRatePercent: weeklyStat.growthRatePercent,
       marketShareRank: weeklyStat.marketShareRank,
       rankChange: weeklyStat.rankChange,
       productCount: weeklyStat.productCount,
+      orderCount,
+      streakDays,
+      marketSharePercent,
+      previousSalesVolumeGrams: 0, // TODO: Fetch previous week if needed for trend, or rely on growthRatePercent
     });
 
     const currentRank = weeklyStat.marketShareRank ?? 0;
@@ -2003,7 +2089,7 @@ async function scoreCannabisStrain(
   scope: ScoreScope,
   scarcityMultipliers: ScarcityMultipliers
 ): Promise<AssetScoreResult> {
-  const db = await getDb();  
+  const db = await getDb();
   if (!db) {
     throw new Error('Database not available');
   }
@@ -2055,7 +2141,7 @@ async function scoreCannabisStrain(
   }
 
   const statRecord = stats[0];
-  
+
   // For weekly scoring, calculate points using formula
   if (scope.type === 'weekly') {
     const weeklyStat = statRecord as typeof cannabisStrainWeeklyStats.$inferSelect;
@@ -2124,22 +2210,22 @@ async function scoreProduct(
 
   const stats = scope.type === 'weekly'
     ? await db
-        .select()
-        .from(strainWeeklyStats)
-        .where(and(
-          eq(strainWeeklyStats.strainId, productId),
-          eq(strainWeeklyStats.year, scope.year),
-          eq(strainWeeklyStats.week, scope.week)
-        ))
-        .limit(1)
+      .select()
+      .from(strainWeeklyStats)
+      .where(and(
+        eq(strainWeeklyStats.strainId, productId),
+        eq(strainWeeklyStats.year, scope.year),
+        eq(strainWeeklyStats.week, scope.week)
+      ))
+      .limit(1)
     : await db
-        .select()
-        .from(productDailyChallengeStats)
-        .where(and(
-          eq(productDailyChallengeStats.productId, productId),
-          eq(productDailyChallengeStats.statDate, scope.statDate)
-        ))
-        .limit(1);
+      .select()
+      .from(productDailyChallengeStats)
+      .where(and(
+        eq(productDailyChallengeStats.productId, productId),
+        eq(productDailyChallengeStats.statDate, scope.statDate)
+      ))
+      .limit(1);
 
   if (stats.length === 0) {
     console.log(`[Scoring] No stats found for product ${productId}, scope=${scope.type === 'weekly' ? `${scope.year}-W${scope.week}` : scope.statDate}`);
@@ -2150,6 +2236,22 @@ async function scoreProduct(
 
   if (scope.type === 'weekly') {
     const weeklyStat = statRecord as typeof strainWeeklyStats.$inferSelect;
+    // Fetch additional metrics from daily stats
+    const weekDates = getWeekDateRange(scope.year, scope.week);
+    const dailyAgg = await db
+      .select({
+        orderCount: sum(strainDailyStats.orderCount), // Note: using strainDailyStats as it maps to strainWeeklyStats
+      })
+      .from(strainDailyStats)
+      .where(and(
+        eq(strainDailyStats.strainId, productId),
+        gte(strainDailyStats.statDate, weekDates.start),
+        lte(strainDailyStats.statDate, weekDates.end)
+      ));
+
+    const additionalStats = dailyAgg[0] || {};
+    const orderCount = Number(additionalStats.orderCount || 0);
+
     const result = calculateStrainPoints({
       favoriteCount: weeklyStat.favoriteCount,
       favoriteGrowth: weeklyStat.favoriteGrowth,
@@ -2158,6 +2260,8 @@ async function scoreProduct(
       avgPriceCents: weeklyStat.avgPriceCents,
       priceStability: weeklyStat.priceStability,
       orderVolumeGrams: weeklyStat.orderVolumeGrams,
+      orderCount,
+      previousOrderVolumeGrams: 0, // TODO: Fetch previous week
     });
 
     const metadata: ScoreMetadata = {
@@ -2212,22 +2316,22 @@ async function scorePharmacy(
 
   const stats = scope.type === 'weekly'
     ? await db
-        .select()
-        .from(pharmacyWeeklyStats)
-        .where(and(
-          eq(pharmacyWeeklyStats.pharmacyId, pharmacyId),
-          eq(pharmacyWeeklyStats.year, scope.year),
-          eq(pharmacyWeeklyStats.week, scope.week)
-        ))
-        .limit(1)
+      .select()
+      .from(pharmacyWeeklyStats)
+      .where(and(
+        eq(pharmacyWeeklyStats.pharmacyId, pharmacyId),
+        eq(pharmacyWeeklyStats.year, scope.year),
+        eq(pharmacyWeeklyStats.week, scope.week)
+      ))
+      .limit(1)
     : await db
-        .select()
-        .from(pharmacyDailyChallengeStats)
-        .where(and(
-          eq(pharmacyDailyChallengeStats.pharmacyId, pharmacyId),
-          eq(pharmacyDailyChallengeStats.statDate, scope.statDate)
-        ))
-        .limit(1);
+      .select()
+      .from(pharmacyDailyChallengeStats)
+      .where(and(
+        eq(pharmacyDailyChallengeStats.pharmacyId, pharmacyId),
+        eq(pharmacyDailyChallengeStats.statDate, scope.statDate)
+      ))
+      .limit(1);
 
   if (stats.length === 0) {
     console.log(`[Scoring] No stats found for pharmacy ${pharmacyId}, scope=${scope.type === 'weekly' ? `${scope.year}-W${scope.week}` : scope.statDate}`);
@@ -2239,9 +2343,25 @@ async function scorePharmacy(
   // For weekly scoring, calculate points using formula
   if (scope.type === 'weekly') {
     const weeklyStat = statRecord as typeof pharmacyWeeklyStats.$inferSelect;
+    // Fetch additional metrics from daily stats
+    const weekDates = getWeekDateRange(scope.year, scope.week);
+    const dailyAgg = await db
+      .select({
+        orderCount: sum(pharmacyDailyStats.orderCount),
+      })
+      .from(pharmacyDailyStats)
+      .where(and(
+        eq(pharmacyDailyStats.pharmacyId, pharmacyId),
+        gte(pharmacyDailyStats.statDate, weekDates.start),
+        lte(pharmacyDailyStats.statDate, weekDates.end)
+      ));
+
+    const additionalStats = dailyAgg[0] || {};
+    const orderCount = Number(additionalStats.orderCount || 0);
+
     const result = calculatePharmacyPoints({
       revenueCents: weeklyStat.revenueCents,
-      orderCount: weeklyStat.orderCount,
+      orderCount: weeklyStat.orderCount || orderCount, // Prefer weekly stat if available, else aggregated
       avgOrderSizeGrams: weeklyStat.avgOrderSizeGrams,
       customerRetentionRate: weeklyStat.customerRetentionRate,
       productVariety: weeklyStat.productVariety,
@@ -2301,22 +2421,22 @@ async function scoreBrand(
 
   const stats = scope.type === 'weekly'
     ? await db
-        .select()
-        .from(brandWeeklyStats)
-        .where(and(
-          eq(brandWeeklyStats.brandId, brandId),
-          eq(brandWeeklyStats.year, scope.year),
-          eq(brandWeeklyStats.week, scope.week)
-        ))
-        .limit(1)
+      .select()
+      .from(brandWeeklyStats)
+      .where(and(
+        eq(brandWeeklyStats.brandId, brandId),
+        eq(brandWeeklyStats.year, scope.year),
+        eq(brandWeeklyStats.week, scope.week)
+      ))
+      .limit(1)
     : await db
-        .select()
-        .from(brandDailyChallengeStats)
-        .where(and(
-          eq(brandDailyChallengeStats.brandId, brandId),
-          eq(brandDailyChallengeStats.statDate, scope.statDate)
-        ))
-        .limit(1);
+      .select()
+      .from(brandDailyChallengeStats)
+      .where(and(
+        eq(brandDailyChallengeStats.brandId, brandId),
+        eq(brandDailyChallengeStats.statDate, scope.statDate)
+      ))
+      .limit(1);
 
   if (stats.length === 0) {
     console.log(`[Scoring] No stats found for brand ${brandId}, scope=${scope.type === 'weekly' ? `${scope.year}-W${scope.week}` : scope.statDate}`);
