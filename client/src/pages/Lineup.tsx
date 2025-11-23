@@ -204,6 +204,7 @@ export default function Lineup() {
                         data={{
                           assetName: breakdown.assetName || "Unknown",
                           assetType: breakdown.assetType,
+                          imageUrl: breakdown.imageUrl || null,
                           components: breakdown.components || [],
                           bonuses: breakdown.bonuses || [],
                           penalties: breakdown.penalties || [],

@@ -906,6 +906,7 @@ export default function Scoring() {
                                 assetBreakdown.assetName ||
                                 `${assetBreakdown.assetType} #${assetBreakdown.assetId}`,
                               assetType: assetBreakdown.assetType,
+                          imageUrl: assetBreakdown.imageUrl || null,
                               components: assetBreakdown.breakdown?.components || [],
                               bonuses: assetBreakdown.breakdown?.bonuses || [],
                               penalties: assetBreakdown.breakdown?.penalties || [],

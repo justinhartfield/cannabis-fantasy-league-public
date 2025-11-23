@@ -352,89 +352,134 @@ export const scoringRouter = router({
       const uniqueBreakdowns = Array.from(uniqueBreakdownsMap.values());
 
       // Fetch names for each asset type
-      const manufacturerIds: number[] = [];
-      const strainIds: number[] = [];
-      const productIds: number[] = [];
-      const pharmacyIds: number[] = [];
-      const brandIds: number[] = [];
+      const manufacturerIds = new Set<number>();
+      const strainIds = new Set<number>();
+      const productIds = new Set<number>();
+      const pharmacyIds = new Set<number>();
+      const brandIds = new Set<number>();
 
       uniqueBreakdowns.forEach((bd) => {
+        if (!bd.assetId) return;
         if (bd.assetType === 'manufacturer') {
-          manufacturerIds.push(bd.assetId);
+          manufacturerIds.add(bd.assetId);
         } else if (bd.assetType === 'cannabis_strain') {
-          strainIds.push(bd.assetId);
+          strainIds.add(bd.assetId);
         } else if (bd.assetType === 'product') {
-          productIds.push(bd.assetId);
+          productIds.add(bd.assetId);
         } else if (bd.assetType === 'pharmacy') {
-          pharmacyIds.push(bd.assetId);
+          pharmacyIds.add(bd.assetId);
         } else if (bd.assetType === 'brand') {
-          brandIds.push(bd.assetId);
+          brandIds.add(bd.assetId);
         }
       });
 
       // Debug: Log the IDs we're looking up
       console.log('[getTeamBreakdown] Looking up names for:', {
-        manufacturerIds,
-        strainIds,
-        productIds,
-        pharmacyIds,
-        brandIds,
+        manufacturerIds: Array.from(manufacturerIds),
+        strainIds: Array.from(strainIds),
+        productIds: Array.from(productIds),
+        pharmacyIds: Array.from(pharmacyIds),
+        brandIds: Array.from(brandIds),
       });
 
-      // Fetch names in parallel
-      const [manufacturerNames, strainNames, productNames, pharmacyNames, brandNames] = await Promise.all([
-        manufacturerIds.length > 0
-          ? db.select({ id: manufacturers.id, name: manufacturers.name })
+      // Fetch names (and logos) in parallel
+      const [
+        manufacturerEntities,
+        strainEntities,
+        productEntities,
+        pharmacyEntities,
+        brandEntities,
+      ] = await Promise.all([
+        manufacturerIds.size > 0
+          ? db.select({
+              id: manufacturers.id,
+              name: manufacturers.name,
+              imageUrl: manufacturers.logoUrl,
+            })
               .from(manufacturers)
-              .where(inArray(manufacturers.id, manufacturerIds))
+              .where(inArray(manufacturers.id, Array.from(manufacturerIds)))
           : [],
-        strainIds.length > 0
-          ? db.select({ id: cannabisStrains.id, name: cannabisStrains.name })
+        strainIds.size > 0
+          ? db.select({
+              id: cannabisStrains.id,
+              name: cannabisStrains.name,
+              imageUrl: cannabisStrains.imageUrl,
+            })
               .from(cannabisStrains)
-              .where(inArray(cannabisStrains.id, strainIds))
+              .where(inArray(cannabisStrains.id, Array.from(strainIds)))
           : [],
-        productIds.length > 0
-          ? db.select({ id: strains.id, name: strains.name })
+        productIds.size > 0
+          ? db.select({
+              id: strains.id,
+              name: strains.name,
+              imageUrl: cannabisStrains.imageUrl,
+            })
               .from(strains)
-              .where(inArray(strains.id, productIds))
+              .leftJoin(cannabisStrains, eq(strains.strainId, cannabisStrains.id))
+              .where(inArray(strains.id, Array.from(productIds)))
           : [],
-        pharmacyIds.length > 0
-          ? db.select({ id: pharmacies.id, name: pharmacies.name })
+        pharmacyIds.size > 0
+          ? db.select({
+              id: pharmacies.id,
+              name: pharmacies.name,
+              imageUrl: pharmacies.logoUrl,
+            })
               .from(pharmacies)
-              .where(inArray(pharmacies.id, pharmacyIds))
+              .where(inArray(pharmacies.id, Array.from(pharmacyIds)))
           : [],
-        brandIds.length > 0
-          ? db.select({ id: brands.id, name: brands.name })
+        brandIds.size > 0
+          ? db.select({
+              id: brands.id,
+              name: brands.name,
+              imageUrl: brands.logoUrl,
+            })
               .from(brands)
-              .where(inArray(brands.id, brandIds))
+              .where(inArray(brands.id, Array.from(brandIds)))
           : [],
       ]);
 
       // Debug: Log what we found
       console.log('[getTeamBreakdown] Found names:', {
-        manufacturerNames: manufacturerNames.map(m => ({ id: m.id, name: m.name })),
-        strainNames: strainNames.map(s => ({ id: s.id, name: s.name })),
-        productNames: productNames.map(p => ({ id: p.id, name: p.name })),
-        pharmacyNames: pharmacyNames.map(p => ({ id: p.id, name: p.name })),
-        brandNames: brandNames.map(b => ({ id: b.id, name: b.name })),
+        manufacturerNames: manufacturerEntities.map((m) => ({ id: m.id, name: m.name })),
+        strainNames: strainEntities.map((s) => ({ id: s.id, name: s.name })),
+        productNames: productEntities.map((p) => ({ id: p.id, name: p.name })),
+        pharmacyNames: pharmacyEntities.map((p) => ({ id: p.id, name: p.name })),
+        brandNames: brandEntities.map((b) => ({ id: b.id, name: b.name })),
       });
 
       // Create lookup maps
       const nameMap = new Map<number, string>();
-      manufacturerNames.forEach((m) => nameMap.set(m.id, m.name));
-      strainNames.forEach((s) => nameMap.set(s.id, s.name));
-      productNames.forEach((p) => nameMap.set(p.id, p.name));
-      pharmacyNames.forEach((p) => nameMap.set(p.id, p.name));
-      brandNames.forEach((b) => nameMap.set(b.id, b.name));
+      const imageMap = new Map<number, string | null>();
+      manufacturerEntities.forEach((m) => {
+        nameMap.set(m.id, m.name);
+        imageMap.set(m.id, m.imageUrl ?? null);
+      });
+      strainEntities.forEach((s) => {
+        nameMap.set(s.id, s.name);
+        imageMap.set(s.id, s.imageUrl ?? null);
+      });
+      productEntities.forEach((p) => {
+        nameMap.set(p.id, p.name);
+        imageMap.set(p.id, p.imageUrl ?? null);
+      });
+      pharmacyEntities.forEach((p) => {
+        nameMap.set(p.id, p.name);
+        imageMap.set(p.id, p.imageUrl ?? null);
+      });
+      brandEntities.forEach((b) => {
+        nameMap.set(b.id, b.name);
+        imageMap.set(b.id, b.imageUrl ?? null);
+      });
 
       // Enrich breakdowns with asset names
       const enrichedBreakdowns = uniqueBreakdowns.map((bd) => {
-        const name = nameMap.get(bd.assetId);
+        const name = bd.assetId ? nameMap.get(bd.assetId) : null;
         // If name not found, create a descriptive fallback
         const fallbackName = name || `${bd.position} (ID: ${bd.assetId})`;
         return {
           ...bd,
           assetName: fallbackName,
+          imageUrl: bd.assetId ? imageMap.get(bd.assetId) ?? null : null,
         };
       });
 
