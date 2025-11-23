@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, TrendingUp, Leaf, Package, Building2, UserCircle, ArrowUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { DraftAssetCard } from "@/components/DraftAssetCard";
+import { cn } from "@/lib/utils";
 
 export type AssetType = "manufacturer" | "cannabis_strain" | "product" | "pharmacy" | "brand";
 
