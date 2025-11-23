@@ -750,7 +750,9 @@ export default function Scoring() {
                           <ScoringBreakdown
                             key={index}
                             data={{
-                              assetName: assetBreakdown.assetName || `${assetBreakdown.assetType} #${assetBreakdown.assetId}`,
+                              assetName:
+                                assetBreakdown.assetName ||
+                                `${assetBreakdown.assetType} #${assetBreakdown.assetId}`,
                               assetType: assetBreakdown.assetType,
                               components: assetBreakdown.breakdown?.components || [],
                               bonuses: assetBreakdown.breakdown?.bonuses || [],
@@ -764,6 +766,7 @@ export default function Scoring() {
                               consistencyScore: assetBreakdown.breakdown?.consistencyScore,
                               velocityScore: assetBreakdown.breakdown?.velocityScore,
                             }}
+                            weekContext={{ year: selectedYear, week: selectedWeek }}
                           />
                         ))}
                     </div>

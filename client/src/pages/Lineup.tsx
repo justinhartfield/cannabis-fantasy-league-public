@@ -199,21 +199,22 @@ export default function Lineup() {
                   {scoringData.breakdowns
                     .filter((breakdown: any) => breakdown.assetId !== null && breakdown.assetId !== undefined)
                     .map((breakdown: any, index: number) => (
-                    <ScoringBreakdown
-                      key={index}
-                      data={{
-                        assetName: breakdown.assetName || "Unknown",
-                        assetType: breakdown.assetType,
-                        components: breakdown.components || [],
-                        bonuses: breakdown.bonuses || [],
-                        penalties: breakdown.penalties || [],
-                        subtotal: breakdown.subtotal || 0,
-                        total: breakdown.totalPoints || 0,
-                      }}
-                      leagueAverage={breakdown.leagueAverage}
-                      weeklyTrend={breakdown.weeklyTrend}
-                    />
-                  ))}
+                      <ScoringBreakdown
+                        key={index}
+                        data={{
+                          assetName: breakdown.assetName || "Unknown",
+                          assetType: breakdown.assetType,
+                          components: breakdown.components || [],
+                          bonuses: breakdown.bonuses || [],
+                          penalties: breakdown.penalties || [],
+                          subtotal: breakdown.subtotal || 0,
+                          total: breakdown.totalPoints || 0,
+                        }}
+                        leagueAverage={breakdown.leagueAverage}
+                        weeklyTrend={breakdown.weeklyTrend}
+                        weekContext={{ year: currentYear, week: currentWeek }}
+                      />
+                    ))}
                 </div>
               ) : (
                 <Card className="gradient-card border-border/50">
