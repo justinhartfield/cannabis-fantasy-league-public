@@ -928,7 +928,7 @@ export const scoringRouter = router({
         lineupSlots.forEach((slot) => collectAssetId(slot.assetType, slot.assetId));
 
         // Fetch actual stat records from challenge stats tables
-        const [manufacturerStats, strainStats, productStats, pharmacyStats, brandStats] = await Promise.all([
+        const [manufacturerStats, strainStats, productStats, pharmacyStats] = await Promise.all([
           manufacturerIds.size > 0
             ? db.select()
                 .from(manufacturerDailyChallengeStats)
@@ -961,15 +961,31 @@ export const scoringRouter = router({
                   sql`${pharmacyDailyChallengeStats.statDate} = ${input.statDate}::date`
                 ))
             : [],
-          brandIds.size > 0
-            ? db.select()
-                .from(brandDailyChallengeStats)
-                .where(and(
-                  inArray(brandDailyChallengeStats.brandId, Array.from(brandIds)),
-                  sql`${brandDailyChallengeStats.statDate} = ${input.statDate}::date`
-                ))
-            : [],
         ]);
+
+        let brandStats: typeof brandDailyChallengeStats.$inferSelect[] = [];
+        if (brandIds.size > 0) {
+          try {
+            brandStats = await db
+              .select()
+              .from(brandDailyChallengeStats)
+              .where(and(
+                inArray(brandDailyChallengeStats.brandId, Array.from(brandIds)),
+                sql`${brandDailyChallengeStats.statDate} = ${input.statDate}::date`
+              ));
+          } catch (error: any) {
+            console.error('[Scoring API] Error fetching brand daily stats:', {
+              error: error?.message || String(error),
+              stack: error?.stack,
+              name: error?.name,
+              code: error?.code,
+              challengeId: input.challengeId,
+              teamId: input.teamId,
+              statDate: input.statDate,
+            });
+            brandStats = [];
+          }
+        }
 
         // Create maps for quick lookup
         const manufacturerStatMap = new Map(manufacturerStats.map(s => [s.manufacturerId, s]));
