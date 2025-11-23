@@ -206,7 +206,7 @@ export function calculateBrandScore(
   const bayesianAverage = parseFloat(stats.bayesianAverage?.toString() || '0');
 
   // Rating Count: 10 points per rating received
-  const ratingCountPoints = totalRatings * 75;
+  const ratingCountPoints = totalRatings * 10;
 
   // Rating Quality: 20 points per star (based on Bayesian average to prevent gaming)
   const ratingQualityPoints = Math.floor(bayesianAverage * 20);
