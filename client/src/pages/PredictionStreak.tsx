@@ -1,6 +1,5 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { trpc } from "@/lib/trpc";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Loader2,
@@ -36,26 +35,25 @@ export default function PredictionStreak() {
     },
   });
 
-  const activateFreezeMutation =
-    trpc.prediction.activateStreakFreeze.useMutation({
-      onSuccess: (data) => {
-        if (data.alreadyActive) {
-          toast.info("You already have an active streak freeze for today.");
-        } else {
-          toast.success("Streak freeze activated for today. One loss will not break your streak.");
-        }
-        utils.prediction.getUserStats.invalidate();
-      },
-      onError: (error) => {
-        toast.error(error.message || "Failed to activate streak freeze.");
-      },
-    });
+  const activateFreezeMutation = trpc.prediction.activateStreakFreeze.useMutation({
+    onSuccess: (data) => {
+      if (data.alreadyActive) {
+        toast.info("You already have an active streak freeze for today.");
+      } else {
+        toast.success("Streak freeze activated for today. One loss will not break your streak.");
+      }
+      utils.prediction.getUserStats.invalidate();
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to activate streak freeze.");
+    },
+  });
 
   const handlePredictionSelect = (matchupId: number, winnerId: number) => {
-    setPredictions(prev => {
-      const newMap = new Map(prev);
-      newMap.set(matchupId, winnerId);
-      return newMap;
+    setPredictions((prev) => {
+      const next = new Map(prev);
+      next.set(matchupId, winnerId);
+      return next;
     });
   };
 
@@ -66,10 +64,7 @@ export default function PredictionStreak() {
     for (const matchup of matchupsData.matchups) {
       const prediction = predictions.get(matchup.id);
       if (prediction) {
-        allPredictions.push({
-          matchupId: matchup.id,
-          predictedWinnerId: prediction,
-        });
+        allPredictions.push({ matchupId: matchup.id, predictedWinnerId: prediction });
       }
     }
 
@@ -83,274 +78,241 @@ export default function PredictionStreak() {
 
   if (matchupsLoading) {
     return (
-      <div className="container mx-auto px-4 py-8 flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-weed-green" />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Header */}
-      <header className="mb-8">
-        <div className="flex items-center gap-4 mb-4">
-          <span className="text-5xl">🏆</span>
+    <div className="space-y-8 pb-12">
+      <section className="rounded-[28px] bg-gradient-to-br from-[#1d1e2b] to-[#2e1f35] p-6 text-white shadow-[0_25px_60px_rgba(0,0,0,0.45)]">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-foreground headline-primary">
-              Prediction Streak
-            </h1>
-            <p className="text-muted-foreground">
-              Pick the winners and build your streak
-            </p>
+            <p className="text-xs uppercase tracking-[0.4em] text-white/60">Daily Game</p>
+            <h1 className="text-3xl font-bold">Prediction Streak</h1>
+            <p className="text-sm text-white/70">Pick the winners, climb the streak meter, claim rewards.</p>
           </div>
+          {stats && (
+            <div className="rounded-3xl border border-white/10 bg-white/10 px-5 py-3 text-center">
+              <p className="text-xs uppercase tracking-[0.4em] text-white/70">Current Streak</p>
+              <p className="text-3xl font-bold">{stats.currentStreak || 0} 🔥</p>
+            </div>
+          )}
         </div>
 
-        {/* Stats Bar */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Zap className="w-4 h-4 text-orange-500" />
-                <span className="text-sm text-muted-foreground">
-                  Current Streak
-                </span>
-            </div>
-            <p className="text-2xl font-bold text-foreground">
-              {stats?.currentStreak || 0} 🔥
-            </p>
-          </Card>
-          
-          <Card className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Trophy className="w-4 h-4 text-yellow-500" />
-                <span className="text-sm text-muted-foreground">
-                  Best Streak
-                </span>
-            </div>
-            <p className="text-2xl font-bold text-foreground">
-              {stats?.longestStreak || 0}
-            </p>
-          </Card>
-          
-          <Card className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <TrendingUp className="w-4 h-4 text-green-500" />
-                <span className="text-sm text-muted-foreground">
-                  Accuracy
-                </span>
-            </div>
-            <p className="text-2xl font-bold text-foreground">
-              {stats?.accuracy || 0}%
-            </p>
-          </Card>
-          
-          <Card className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <CheckCircle className="w-4 h-4 text-blue-500" />
-                <span className="text-sm text-muted-foreground">
-                  Total Correct
-                </span>
-            </div>
-            <p className="text-2xl font-bold text-foreground">
-              {stats?.correctPredictions || 0}/{stats?.totalPredictions || 0}
-            </p>
-          </Card>
+        {stats && (
+          <div className="mt-6 grid gap-3 md:grid-cols-5">
+            <StatCard label="Best Streak" icon={<Trophy className="h-4 w-4 text-yellow-400" />}>
+              {stats.longestStreak || 0}
+            </StatCard>
+            <StatCard label="Accuracy" icon={<TrendingUp className="h-4 w-4 text-green-400" />}>
+              {stats.accuracy || 0}%
+            </StatCard>
+            <StatCard label="Total Correct" icon={<CheckCircle className="h-4 w-4 text-weed-green" />}>
+              {stats.correctPredictions || 0}/{stats.totalPredictions || 0}
+            </StatCard>
+            <StatCard label="Freeze Tokens" icon={<Snowflake className="h-4 w-4 text-cyan-300" />}>
+              <div className="flex flex-col gap-2">
+                <span className="text-2xl font-bold">{stats.streakFreezeTokens || 0}</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={
+                    activateFreezeMutation.isPending ||
+                    !stats ||
+                    (stats.streakFreezeTokens || 0) <= 0
+                  }
+                  onClick={() => activateFreezeMutation.mutate()}
+                  className="rounded-2xl border-white/40 text-white"
+                >
+                  {activateFreezeMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Activating...
+                    </>
+                  ) : (
+                    "Activate"
+                  )}
+                </Button>
+              </div>
+            </StatCard>
+            <StatCard label="Streak Freeze" icon={<Zap className="h-4 w-4 text-pink-300" />}>
+              {stats.freezeActive ? "Active" : "Ready"}
+            </StatCard>
+          </div>
+        )}
+      </section>
 
-          <Card className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Snowflake className="w-4 h-4 text-cyan-500" />
-                <span className="text-sm text-muted-foreground">
-                  Streak Freezes
-                </span>
-            </div>
-            <p className="text-2xl font-bold text-foreground mb-2">
-              {stats?.streakFreezeTokens || 0}
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={
-                activateFreezeMutation.isPending ||
-                !stats ||
-                (stats.streakFreezeTokens || 0) <= 0
-              }
-              onClick={() => activateFreezeMutation.mutate()}
-            >
-              {activateFreezeMutation.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Activating...
-                </>
-              ) : (
-                <>
-                  <Zap className="w-4 h-4 mr-2" />
-                    Activate for today
-                </>
-              )}
-            </Button>
-          </Card>
-        </div>
-      </header>
-
-      {/* Yesterday's Results */}
       {resultsData && resultsData.results.length > 0 && (
-        <section className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <Trophy className="w-10 h-10 text-yellow-500" />
-            <h2 className="text-xl font-bold text-foreground headline-primary">
-              Yesterday's Results
-            </h2>
-          </div>
-          <Card className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-sm text-muted-foreground">
-                You got {resultsData.correctCount} out of {resultsData.totalCount} correct
-              </span>
-              <span className="text-lg font-bold text-foreground">
-                {resultsData.accuracy.toFixed(0)}% accuracy
-              </span>
+        <section className="rounded-[28px] border border-white/10 bg-white/5 p-6 text-white shadow-inner">
+          <div className="mb-4 flex items-center gap-3">
+            <Trophy className="h-8 w-8 text-yellow-400" />
+            <div>
+              <p className="text-xs uppercase tracking-[0.4em] text-white/50">Yesterday</p>
+              <h2 className="text-2xl font-semibold">Results Recap</h2>
             </div>
-            <div className="space-y-2">
-              {resultsData.results.map(result => (
-                <div key={result.id} className="flex items-center justify-between p-2 rounded bg-muted/30">
-                  <div className="flex items-center gap-2">
-                    {result.userPrediction?.isCorrect === 1 ? (
-                      <CheckCircle className="w-4 h-4 text-green-500" />
-                    ) : (
-                      <XCircle className="w-4 h-4 text-red-500" />
-                    )}
-                    <span className="text-sm">
-                      {result.entityAName} vs {result.entityBName}
-                    </span>
-                  </div>
-                  <span className="text-xs text-muted-foreground">
-                    Winner:{" "}
-                    {result.winnerId === result.entityAId
-                      ? result.entityAName
-                      : result.entityBName}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/30 p-4 text-sm">
+            <span>You hit {resultsData.correctCount} of {resultsData.totalCount} picks.</span>
+            <span className="text-lg font-bold">{resultsData.accuracy.toFixed(0)}% accuracy</span>
+          </div>
+          <div className="mt-4 space-y-2">
+            {resultsData.results.map((result) => (
+              <div
+                key={result.id}
+                className="flex items-center justify-between rounded-2xl border border-white/5 bg-black/30 px-4 py-2 text-sm"
+              >
+                <div className="flex items-center gap-2">
+                  {result.userPrediction?.isCorrect === 1 ? (
+                    <CheckCircle className="h-4 w-4 text-weed-green" />
+                  ) : (
+                    <XCircle className="h-4 w-4 text-red-400" />
+                  )}
+                  <span>
+                    {result.entityAName} vs {result.entityBName}
                   </span>
                 </div>
-              ))}
-            </div>
-          </Card>
+                <span className="text-white/60">
+                  Winner: {result.winnerId === result.entityAId ? result.entityAName : result.entityBName}
+                </span>
+              </div>
+            ))}
+          </div>
         </section>
       )}
 
-      {/* Today's Matchups */}
-      <section>
-        <h2 className="text-xl font-bold text-foreground mb-4">
-          Today's Matchups
-        </h2>
-        
+      <section className="rounded-[28px] border border-white/10 bg-white/5 p-6 text-white shadow-inner">
+        <div className="mb-4">
+          <p className="text-xs uppercase tracking-[0.4em] text-white/50">Today</p>
+          <h2 className="text-2xl font-semibold">Matchups</h2>
+        </div>
+
         {!matchupsData?.matchups || matchupsData.matchups.length === 0 ? (
-          <Card className="p-8 text-center">
-            <p className="text-muted-foreground">
-              No matchups available today. Check back tomorrow!
-            </p>
-          </Card>
+          <div className="rounded-3xl border border-white/10 bg-black/20 p-8 text-center text-white/60">
+            No matchups available today. Check back tomorrow!
+          </div>
         ) : (
           <>
-            <div className="space-y-4 mb-6">
+            <div className="space-y-4">
               {matchupsData.matchups.map((matchup) => {
                 const userSelection = predictions.get(matchup.id) || matchup.userPrediction?.predictedWinnerId;
-                
                 return (
-                  <Card key={matchup.id} className="p-6">
+                  <div key={matchup.id} className="rounded-[28px] border border-white/10 bg-black/30 p-4">
                     <div className="flex items-center justify-between gap-4">
-                      {/* Entity A */}
-                      <button
+                      <PredictionButton
+                        selected={userSelection === matchup.entityAId}
+                        disabled={matchupsData.hasSubmitted}
                         onClick={() => handlePredictionSelect(matchup.id, matchup.entityAId)}
+                        name={matchup.entityAName}
+                        type={matchup.entityType}
+                        image={matchup.entityAImage}
+                      />
+                      <span className="text-2xl font-bold text-white/40">VS</span>
+                      <PredictionButton
+                        selected={userSelection === matchup.entityBId}
                         disabled={matchupsData.hasSubmitted}
-                        className={`flex-1 p-6 rounded-lg border-2 transition ${
-                          userSelection === matchup.entityAId
-                            ? 'border-primary bg-primary/10'
-                            : 'border-border hover:border-primary/50'
-                        } ${matchupsData.hasSubmitted ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
-                      >
-                        <div className="text-center">
-                          {matchup.entityAImage && (
-                            <div className="flex justify-center mb-3">
-                              <img 
-                                src={matchup.entityAImage} 
-                                alt={matchup.entityAName}
-                                className="w-16 h-16 object-contain rounded-lg"
-                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                              />
-                            </div>
-                          )}
-                          <h4 className="font-bold text-lg mb-2">{matchup.entityAName}</h4>
-                          <p className="text-sm text-muted-foreground capitalize">
-                            {matchup.entityType}
-                          </p>
-                        </div>
-                      </button>
-
-                      {/* VS */}
-                      <div className="text-2xl font-bold text-muted-foreground px-4">VS</div>
-
-                      {/* Entity B */}
-                      <button
                         onClick={() => handlePredictionSelect(matchup.id, matchup.entityBId)}
-                        disabled={matchupsData.hasSubmitted}
-                        className={`flex-1 p-6 rounded-lg border-2 transition ${
-                          userSelection === matchup.entityBId
-                            ? 'border-primary bg-primary/10'
-                            : 'border-border hover:border-primary/50'
-                        } ${matchupsData.hasSubmitted ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
-                      >
-                        <div className="text-center">
-                          {matchup.entityBImage && (
-                            <div className="flex justify-center mb-3">
-                              <img 
-                                src={matchup.entityBImage} 
-                                alt={matchup.entityBName}
-                                className="w-16 h-16 object-contain rounded-lg"
-                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                              />
-                            </div>
-                          )}
-                          <h4 className="font-bold text-lg mb-2">{matchup.entityBName}</h4>
-                          <p className="text-sm text-muted-foreground capitalize">
-                            {matchup.entityType}
-                          </p>
-                        </div>
-                      </button>
+                        name={matchup.entityBName}
+                        type={matchup.entityType}
+                        image={matchup.entityBImage}
+                      />
                     </div>
-                  </Card>
+                  </div>
                 );
               })}
             </div>
 
-            {/* Submit Button */}
-            {!matchupsData.hasSubmitted && (
+            {!matchupsData.hasSubmitted ? (
               <Button
                 onClick={handleSubmit}
-                disabled={submitMutation.isPending || predictions.size !== matchupsData.matchups.length}
-                className="w-full py-6 text-lg"
+                disabled={
+                  submitMutation.isPending ||
+                  predictions.size !== matchupsData.matchups.length
+                }
+                className="mt-6 w-full rounded-2xl bg-weed-green py-6 text-lg font-semibold text-black"
               >
                 {submitMutation.isPending ? (
                   <>
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                     Submitting...
                   </>
                 ) : (
                   <>
-                    <Zap className="w-5 h-5 mr-2" />
-                    Submit Predictions ({predictions.size}/{matchupsData.matchups.length})
+                    <Zap className="mr-2 h-5 w-5" /> Submit Predictions ({predictions.size}/{
+                      matchupsData.matchups.length
+                    })
                   </>
                 )}
               </Button>
-            )}
-
-            {matchupsData.hasSubmitted && (
-              <Card className="p-4 bg-green-500/10 border-green-500/20">
-                <p className="text-center text-green-600 dark:text-green-400 font-medium">
-                  ✓ Predictions submitted! Check back tomorrow to see your results.
-                </p>
-              </Card>
+            ) : (
+              <div className="mt-6 rounded-3xl border border-weed-green/30 bg-weed-green/10 p-4 text-center text-sm text-weed-green">
+                ✓ Predictions submitted! Check back tomorrow to see your results.
+              </div>
             )}
           </>
         )}
       </section>
     </div>
+  );
+}
+
+function StatCard({
+  label,
+  icon,
+  children,
+}: {
+  label: string;
+  icon: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <div className="rounded-3xl border border-white/10 bg-white/10 p-4 text-sm text-white">
+      <div className="mb-2 flex items-center gap-2 text-white/70">
+        {icon}
+        <span className="uppercase tracking-[0.3em] text-[10px]">{label}</span>
+      </div>
+      <div className="text-2xl font-bold">{children}</div>
+    </div>
+  );
+}
+
+function PredictionButton({
+  selected,
+  disabled,
+  onClick,
+  name,
+  type,
+  image,
+}: {
+  selected: boolean;
+  disabled: boolean;
+  onClick: () => void;
+  name: string;
+  type: string;
+  image?: string | null;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex-1 rounded-3xl border px-4 py-5 text-center transition ${
+        selected ? "border-weed-green bg-weed-green/10" : "border-white/10 bg-black/40 hover:border-weed-green/40"
+      } ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
+    >
+      {image && (
+        <div className="mb-3 flex justify-center">
+          <img
+            src={image}
+            alt={name}
+            className="h-16 w-16 rounded-2xl object-contain"
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
+          />
+        </div>
+      )}
+      <h3 className="text-lg font-semibold text-white">{name}</h3>
+      <p className="text-xs uppercase tracking-[0.4em] text-white/50">{type}</p>
+    </button>
   );
 }

@@ -1,36 +1,42 @@
 import { useAuth } from "@/_core/hooks/useAuth";
-import { useState } from "react";
+import { useState, type SVGProps } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
-import { Trophy, Plus, UserCircle, TrendingUp, Calendar, Zap, Loader2, Crown } from "lucide-react";
+import {
+  ArrowRight,
+  ChevronRight,
+  Flame,
+  Handshake,
+  Leaf,
+  Loader2,
+  Trophy,
+  Users,
+  Zap,
+} from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
-import { APP_TITLE, getLoginUrl } from "@/const";
-import { StatBadge } from "@/components/StatBadge";
-import { LiveScoreCard } from "@/components/LiveScoreCard";
-import { LeagueCard } from "@/components/LeagueCard";
+import { getLoginUrl } from "@/const";
+import { cn } from "@/lib/utils";
+
+const DEFAULT_LEADERS = ["GreenThumb", "BlazeMaster", "HighRoller"];
 
 export default function Dashboard() {
   const { user, loading: authLoading, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const [inviteCode, setInviteCode] = useState("");
   const [joiningLeague, setJoiningLeague] = useState(false);
-  
+
   const { data: myLeagues, isLoading: leaguesLoading } = trpc.league.list.useQuery(
     undefined,
     { enabled: isAuthenticated }
   );
-
-  // Fetch platform statistics
   const { data: stats } = trpc.stats.getStats.useQuery();
-  
+
   const joinLeagueMutation = trpc.league.joinByCode.useMutation({
     onSuccess: (data) => {
       toast.success("Successfully joined league!");
       setInviteCode("");
       setJoiningLeague(false);
-      // Redirect to the league page based on league type
       const path =
         data.leagueType === "challenge"
           ? `/challenge/${data.leagueId}`
@@ -42,329 +48,343 @@ export default function Dashboard() {
       setJoiningLeague(false);
     },
   });
-  
+
   const handleJoinLeague = async () => {
     if (!inviteCode.trim()) {
       toast.error("Please enter an invite code");
       return;
     }
-    
-    // Validate code length (server requires exactly 6 characters)
     const trimmedCode = inviteCode.trim().toUpperCase();
     if (trimmedCode.length !== 6) {
       toast.error("Invite code must be exactly 6 characters");
       return;
     }
-    
     setJoiningLeague(true);
     try {
       await joinLeagueMutation.mutateAsync({ leagueCode: trimmedCode });
-    } catch (error) {
-      // Error handling is done in onError callback
+    } catch {
+      // handled in onError
     }
   };
 
-  // Redirect to login if not authenticated
   if (!authLoading && !isAuthenticated) {
-    const loginUrl = getLoginUrl(); if (loginUrl) window.location.href = loginUrl; else window.location.href = "/login";
+    const loginUrl = getLoginUrl();
+    if (loginUrl) window.location.href = loginUrl;
+    else window.location.href = "/login";
     return null;
   }
 
   if (authLoading || leaguesLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-weed-green" />
       </div>
     );
   }
 
-  const seasonLeagues = myLeagues?.filter(l => l.leagueType !== 'challenge') || [];
-  const challengeLeagues = myLeagues?.filter(l => l.leagueType === 'challenge') || [];
-  const hasLeagues = seasonLeagues.length > 0;
+  const seasonLeagues = myLeagues?.filter((league) => league.leagueType !== "challenge") ?? [];
+  const challengeLeagues = myLeagues?.filter((league) => league.leagueType === "challenge") ?? [];
+
+  const leaderboardPreview =
+    seasonLeagues.length > 0
+      ? seasonLeagues.slice(0, 3).map((league) => league.name)
+      : DEFAULT_LEADERS;
+
+  const statHighlights = [
+    {
+      label: "Manufacturers",
+      value: stats?.manufacturerCount ?? 0,
+      icon: FactoryIcon,
+      gradient: "from-[#67ff85] via-[#26d9ff] to-[#1360ff]",
+    },
+    {
+      label: "Strains",
+      value: stats?.cannabisStrainCount ?? 0,
+      icon: Leaf,
+      gradient: "from-[#ffaf32] via-[#ff5c47] to-[#ff2bd0]",
+    },
+    {
+      label: "Pharmacies",
+      value: stats?.pharmacyCount ?? 0,
+      icon: Handshake,
+      gradient: "from-[#ffd924] via-[#ffa200] to-[#ff5c47]",
+    },
+    {
+      label: "Brands",
+      value: stats?.brandCount ?? 0,
+      icon: Users,
+      gradient: "from-[#8b5cf6] via-[#6366f1] to-[#22d3ee]",
+    },
+  ];
+
+  const predictionProgress = Math.min((user?.currentPredictionStreak ?? 0) / 10, 1);
 
   return (
-    <div className="min-h-screen">
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        {/* Platform Statistics */}
-        {stats && (stats.manufacturerCount > 0 || stats.cannabisStrainCount > 0 || stats.pharmacyCount > 0) && (
-          <div className="mb-8 hidden md:block">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-              Platform Stats
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
-              <StatBadge
-                label="Manufacturers"
-                value={stats.manufacturerCount}
-                variant="primary"
-                emoji="🏭"
-              />
-              <StatBadge
-                label="Strains"
-                value={stats.cannabisStrainCount || 0}
-                variant="green"
-                emoji="🌿"
-              />
-              <StatBadge
-                label="Products"
-                value={stats.productCount || stats.strainCount}
-                variant="purple"
-                emoji="📦"
-              />
-              <StatBadge
-                label="Pharmacies"
-                value={stats.pharmacyCount}
-                variant="amber"
-                emoji="💊"
-              />
-              <StatBadge
-                label="Brands"
-                value={stats.brandCount || 0}
-                variant="secondary"
-                emoji="🏷️"
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Quick Actions */}
-        <div className="grid md:grid-cols-2 gap-4 mb-8">
-          <Link href="/league/create">
-            <Card className="bg-weed-coral border-0 card-hover-lift cursor-pointer h-full">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-white flex items-center gap-2 mb-2">
-                      <Calendar className="w-5 h-5 text-white" />
-                      Create New League
-                    </CardTitle>
-                    <CardDescription className="text-white/80">
-                      Start a season-long fantasy experience
-                    </CardDescription>
-                  </div>
-                  <div className="w-12 h-12 rounded-xl bg-weed-green flex items-center justify-center">
-                    <Plus className="w-6 h-6 text-black" />
-                  </div>
-                </div>
-              </CardHeader>
-            </Card>
-          </Link>
-
-          <Link href="/league/create?type=challenge">
-            <Card className="bg-weed-purple border-0 card-hover-lift cursor-pointer h-full">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-white flex items-center gap-2 mb-2">
-                      <Zap className="w-5 h-5 text-weed-green" />
-                      Daily Challenge
-                    </CardTitle>
-                    <CardDescription className="text-white/80">
-                      24-hour head-to-head battles
-                    </CardDescription>
-                  </div>
-                  <div className="w-12 h-12 rounded-xl bg-weed-green flex items-center justify-center">
-                    <Plus className="w-6 h-6 text-black" />
-                  </div>
-                </div>
-              </CardHeader>
-            </Card>
-          </Link>
-        </div>
-
-        {/* Invite Code & Leaderboard Split */}
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
-          {/* Left: Invite Code */}
-          <Card className="bg-white border-2 border-weed-green h-full">
-            <CardContent className="py-6 flex flex-col justify-center h-full">
-              <div className="text-center">
-                <h3 className="text-xl font-bold text-weed-coral mb-4 headline-primary">
-                  GOT INVITE CODE?
-                </h3>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="ENTER CODE"
-                    value={inviteCode}
-                    onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-                    onKeyDown={(e) => e.key === "Enter" && handleJoinLeague()}
-                    disabled={joiningLeague}
-                    maxLength={6}
-                    className="flex-1 px-3 py-2 rounded-lg border-2 border-weed-green/30 focus:border-weed-green focus:outline-none text-black placeholder:text-black/50 bg-white disabled:opacity-50 text-center font-mono uppercase tracking-widest"
-                  />
-                  <Button 
-                    onClick={handleJoinLeague}
-                    disabled={joiningLeague}
-                    className="bg-weed-green text-black hover:bg-weed-green/90 px-4 font-bold"
-                  >
-                    {joiningLeague ? "..." : "JOIN"}
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Right: Leaderboard Ad */}
-          <Link href="/leaderboard">
-            <Card className="bg-gradient-to-br from-yellow-400 to-yellow-600 border-0 card-hover-lift cursor-pointer h-full text-white overflow-hidden relative group">
-              <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors" />
-              <CardContent className="py-6 flex items-center justify-between relative z-10 h-full">
-                <div>
-                  <h3 className="text-xl font-bold mb-1 flex items-center gap-2">
-                    <Crown className="w-6 h-6 text-yellow-100" />
-                    LEADERBOARD
-                  </h3>
-                  <p className="text-yellow-100 text-sm">
-                    See top players & teams
-                  </p>
-                </div>
-                <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
-                  <TrendingUp className="w-6 h-6 text-white" />
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        </div>
-
-        {/* Prediction Streak Game Mode */}
-        <section className="mb-8">
-          <div className="mb-4">
-            <h3 className="text-xl font-bold text-foreground mb-2 headline-primary">
-              Daily Prediction Streak
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              Test your cannabis market knowledge with daily head-to-head predictions
+    <div className="space-y-8 pb-12">
+      <section className="rounded-[32px] bg-gradient-to-br from-[#0d0d0f] to-[#1c1b22] p-6 shadow-[0_25px_75px_rgba(0,0,0,0.45)] sm:p-8">
+        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+          <div className="space-y-2">
+            <p className="text-xs uppercase tracking-[0.4em] text-white/50">Dashboard</p>
+            <h1 className="text-3xl font-bold text-white sm:text-4xl">
+              Welcome back, {user?.name?.split(" ")[0] || "Manager"}.
+            </h1>
+            <p className="text-sm text-white/70">
+              Track your leagues, lock in predictions, and keep the streak alive.
             </p>
           </div>
-          
-          <Link href="/prediction-streak">
-            <Card className="bg-weed-pink border-0 card-hover-lift cursor-pointer overflow-hidden">
-              <div className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center">
-                      <Zap className="w-6 h-6 text-weed-pink" />
-                    </div>
-                    <div>
-                      <h4 className="text-lg font-bold text-white">
-                        Play Today's Matchups
-                      </h4>
-                      <p className="text-sm text-white/80">
-                        Current Streak: {user?.currentPredictionStreak || 0} 🔥 | 
-                        Best: {user?.longestPredictionStreak || 0}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-2xl font-bold text-white">
-                      7
-                    </span>
-                    <p className="text-xs text-white/80">matchups daily</p>
-                  </div>
-                </div>
-              </div>
-            </Card>
+          <Link
+            href="/league/create"
+            className="inline-flex items-center justify-center rounded-2xl bg-weed-green px-6 py-3 text-sm font-semibold text-black transition hover:bg-weed-green/80"
+          >
+            Start New League
+            <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
-        </section>
+        </div>
 
-        {/* My Leagues */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <div className="flex items-center gap-3 mb-1">
-                <Trophy className="w-12 h-12 text-yellow-500" />
-                <h3 className="text-2xl font-bold text-foreground headline-primary">My Leagues</h3>
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          {statHighlights.map((stat) => (
+            <div
+              key={stat.label}
+              className={cn(
+                "rounded-2xl p-4 text-white shadow-lg transition hover:translate-y-[-2px]",
+                "bg-gradient-to-br",
+                stat.gradient
+              )}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-widest text-white/70">
+                    {stat.label}
+                  </p>
+                  <p className="text-2xl font-bold">{stat.value.toLocaleString()}</p>
+                </div>
+                <span className="rounded-2xl bg-black/20 p-3">
+                  <stat.icon className="h-5 w-5" />
+                </span>
               </div>
-              <p className="text-sm text-muted-foreground mt-1">
-                {hasLeagues ? `${seasonLeagues.length} active ${seasonLeagues.length === 1 ? 'league' : 'leagues'}` : "Get started with your first league"}
-              </p>
             </div>
-            {hasLeagues && (
-              <Button variant="outline" asChild className="border-border/50">
-                <Link href="/leagues">
-                  <UserCircle className="w-4 h-4 mr-2" />
-                  Browse Leagues
-                </Link>
-              </Button>
-            )}
-          </div>
+          ))}
+        </div>
+      </section>
 
-          {!hasLeagues ? (
-            <Card className="gradient-card border-border/50">
-              <CardContent className="py-16">
-                <div className="text-center space-y-6 max-w-md mx-auto">
-                  <div className="w-20 h-20 rounded-2xl gradient-primary mx-auto flex items-center justify-center glow-primary">
-                    <Trophy className="w-10 h-10 text-white" />
+      <section className="space-y-4 rounded-[28px] bg-white/5 p-5 shadow-inner backdrop-blur">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Link
+            href="/league/create"
+            className="flex items-center justify-between rounded-2xl bg-gradient-to-r from-weed-green to-emerald-400 px-5 py-4 text-left text-black transition hover:scale-[1.01]"
+          >
+            <div>
+              <p className="text-xs uppercase tracking-widest">Quick Action</p>
+              <p className="text-lg font-semibold">Create New League</p>
+              <p className="text-sm text-black/70">Season or daily challenge</p>
+            </div>
+            <ArrowRight className="h-6 w-6" />
+          </Link>
+
+          <Link
+            href="/league/create?type=challenge"
+            className="flex items-center justify-between rounded-2xl bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 px-5 py-4 text-left text-white transition hover:scale-[1.01]"
+          >
+            <div>
+              <p className="text-xs uppercase tracking-widest text-white/70">Game Mode</p>
+              <p className="text-lg font-semibold">Daily Challenge</p>
+              <p className="text-sm text-white/70">5-min lineup battles</p>
+            </div>
+            <Zap className="h-6 w-6" />
+          </Link>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/50">
+            Got Invite Code?
+          </p>
+          <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+            <input
+              type="text"
+              placeholder="ENTER CODE"
+              value={inviteCode}
+              onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+              onKeyDown={(e) => e.key === "Enter" && handleJoinLeague()}
+              maxLength={6}
+              disabled={joiningLeague}
+              className="flex-1 rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-center text-lg font-mono tracking-[0.5em] text-white placeholder:text-white/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-weed-green"
+            />
+            <Button
+              onClick={handleJoinLeague}
+              disabled={joiningLeague}
+              className="h-12 rounded-2xl bg-weed-green px-6 text-base font-semibold text-black hover:bg-weed-green/80"
+            >
+              {joiningLeague ? "Joining..." : "Enter"}
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-5 lg:grid-cols-2">
+        <div className="rounded-[28px] bg-white/5 p-5 shadow-inner">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.4em] text-white/40">Leaderboard</p>
+              <h2 className="text-xl font-semibold text-white">Top Squads</h2>
+            </div>
+            <Link href="/leaderboard" className="text-sm font-semibold text-weed-green">
+              See all
+            </Link>
+          </div>
+          <ul className="space-y-3">
+            {leaderboardPreview.map((name, index) => (
+              <li
+                key={name}
+                className="flex items-center justify-between rounded-2xl bg-black/30 px-4 py-3 text-white"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-lg font-bold">
+                    {index + 1}
                   </div>
                   <div>
-                    <h4 className="text-2xl font-bold text-foreground mb-3">
-                      Ready to Compete?
-                    </h4>
-                    <p className="text-muted-foreground mb-8">
-                      Create your first league or join an existing one to start your fantasy journey.
-                    </p>
-                    <div className="flex gap-3 justify-center">
-                      <Button asChild className="gradient-primary">
-                        <Link href="/league/create">
-                          <Plus className="w-4 h-4 mr-2" />
-                          Create League
-                        </Link>
-                      </Button>
-                      <Button variant="outline" asChild className="border-border/50">
-                        <Link href="/leagues">
-                          <UserCircle className="w-4 h-4 mr-2" />
-                          Browse Leagues
-                        </Link>
-                      </Button>
-                    </div>
+                    <p className="text-base font-semibold">{name}</p>
+                    <p className="text-xs text-white/50">Active season league</p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {myLeagues?.filter(league => league.leagueType !== 'challenge').map((league) => (
-                <LeagueCard key={league.id} league={league} />
-              ))}
+                <ChevronRight className="h-5 w-5 text-white/40" />
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <Link
+          href="/prediction-streak"
+          className="rounded-[28px] bg-gradient-to-br from-[#1f1b2e] to-[#2d1f33] p-6 text-white shadow-[0_20px_40px_rgba(0,0,0,0.35)] transition hover:scale-[1.01]"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.4em] text-white/60">Daily Game</p>
+              <h2 className="text-2xl font-semibold">Prediction Streak</h2>
+              <p className="text-sm text-white/70">
+                {user?.currentPredictionStreak || 0} day streak • Best {user?.longestPredictionStreak || 0}
+              </p>
             </div>
+            <span className="rounded-3xl bg-white/10 p-4">
+              <Flame className="h-7 w-7 text-weed-green" />
+            </span>
+          </div>
+          <div className="mt-6">
+            <div className="h-3 rounded-full bg-white/10">
+              <div
+                className="h-3 rounded-full bg-gradient-to-r from-weed-green to-weed-coral transition-all"
+                style={{ width: `${predictionProgress * 100}%` }}
+              />
+            </div>
+            <p className="mt-2 text-xs uppercase tracking-[0.4em] text-white/60">
+              {Math.round(predictionProgress * 100)}% to next badge
+            </p>
+          </div>
+        </Link>
+      </section>
+
+      <section className="space-y-4 rounded-[28px] bg-white/5 p-5 shadow-inner">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.4em] text-white/40">My Leagues</p>
+            <h2 className="text-2xl font-semibold text-white">
+              {seasonLeagues.length > 0
+                ? `${seasonLeagues.length} active ${seasonLeagues.length === 1 ? "league" : "leagues"}`
+                : "Get in the game"}
+            </h2>
+          </div>
+          {seasonLeagues.length > 0 && (
+            <Link href="/leagues" className="text-sm font-semibold text-weed-green">
+              Manage
+            </Link>
           )}
         </div>
 
-        {/* My Challenges */}
-        <div>
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <div className="flex items-center gap-3 mb-1">
-                <Trophy className="w-12 h-12 text-yellow-500" />
-                <h3 className="text-2xl font-bold text-foreground headline-primary">My Challenges</h3>
-              </div>
-              <p className="text-sm text-muted-foreground mt-1">Quick daily competitions</p>
+        {seasonLeagues.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-white/20 p-6 text-center text-white/70">
+            <p className="text-lg font-semibold">No leagues yet</p>
+            <p className="mt-2 text-sm">Create or join a league to start competing.</p>
+            <div className="mt-4 flex flex-wrap justify-center gap-3">
+              <Link
+                href="/league/create"
+                className="rounded-2xl bg-weed-green px-5 py-2 text-sm font-semibold text-black"
+              >
+                Create League
+              </Link>
+              <Link
+                href="/leagues"
+                className="rounded-2xl border border-white/20 px-5 py-2 text-sm font-semibold text-white"
+              >
+                Browse
+              </Link>
             </div>
           </div>
-
-          {myLeagues && myLeagues.filter(l => l.leagueType === 'challenge').length > 0 ? (
-            <div className="grid gap-4">
-              {myLeagues.filter(l => l.leagueType === 'challenge').map((league) => (
-                <LeagueCard key={league.id} league={league} />
-              ))}
-            </div>
-          ) : (
-            <Card className="gradient-card border-border/50">
-              <CardContent className="py-12">
-                <div className="text-center max-w-sm mx-auto">
-                  <div className="w-16 h-16 rounded-2xl bg-muted/30 mx-auto mb-4 flex items-center justify-center">
-                    <Zap className="w-8 h-8 text-muted-foreground" />
-                  </div>
-                  <p className="text-foreground mb-2 font-semibold">No Active Challenges</p>
-                  <p className="text-sm text-muted-foreground">
-                    New daily challenges are created automatically at 8:00 AM
+        ) : (
+          <div className="space-y-3">
+            {seasonLeagues.map((league) => (
+              <button
+                key={league.id}
+                onClick={() => setLocation(`/league/${league.id}`)}
+                className="flex w-full items-center justify-between rounded-3xl border border-white/10 bg-black/40 px-4 py-4 text-left text-white transition hover:border-weed-green/60 hover:bg-black/60"
+              >
+                <div>
+                  <p className="text-lg font-semibold">{league.name}</p>
+                  <p className="text-xs uppercase tracking-[0.4em] text-white/40">
+                    {league.status ?? "Active"}
                   </p>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+                <div className="text-right text-sm text-white/60">
+                  <p>{league.teams?.length ?? 0} teams</p>
+                  {league.currentWeek && <p>Week {league.currentWeek}</p>}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="space-y-4 rounded-[28px] bg-white/5 p-5 shadow-inner">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.4em] text-white/40">Daily Challenges</p>
+            <h2 className="text-xl font-semibold text-white">Lightning rounds</h2>
+          </div>
         </div>
-      </main>
+        {challengeLeagues.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-white/20 p-6 text-center text-white/70">
+            <p className="text-sm">No active challenges right now.</p>
+            <p className="text-xs text-white/50">New daily battles drop at 8:00 AM.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {challengeLeagues.map((league) => (
+              <button
+                key={league.id}
+                onClick={() => setLocation(`/challenge/${league.id}`)}
+                className="flex w-full items-center justify-between rounded-3xl bg-gradient-to-r from-[#ff5c47]/20 to-transparent px-4 py-4 text-left text-white"
+              >
+                <div>
+                  <p className="text-lg font-semibold">{league.name}</p>
+                  <p className="text-xs uppercase tracking-[0.4em] text-white/50">Daily Challenge</p>
+                </div>
+                <Zap className="h-5 w-5 text-weed-green" />
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
+  );
+}
+
+function FactoryIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+        d="M3 21h18M5 21V9l6 5V9l6 5V3"
+      />
+    </svg>
   );
 }

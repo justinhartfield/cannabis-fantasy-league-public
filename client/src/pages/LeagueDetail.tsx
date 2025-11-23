@@ -110,7 +110,7 @@ export default function LeagueDetail() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="space-y-6 pb-12">
       {/* Live Draft redirect dialog for season-long leagues */}
       <Dialog open={showDraftRedirectDialog} onOpenChange={setShowDraftRedirectDialog}>
         <DialogContent className="sm:max-w-md">
@@ -154,7 +154,7 @@ export default function LeagueDetail() {
       />
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8 max-w-6xl">
+      <main className="space-y-6">
         <div className="grid md:grid-cols-3 gap-6">
           {/* Left Column - League Info */}
           <div className="md:col-span-2 space-y-6">

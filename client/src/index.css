@@ -77,6 +77,8 @@
   --sidebar-accent-foreground: #000000;
   --sidebar-border: #E5E7EB;
   --sidebar-ring: #A3FF12;
+  --app-header-height: 84px;
+  --app-bottom-nav-height: 88px;
 }
 
 .dark {
@@ -113,6 +115,8 @@
   --sidebar-accent-foreground: #FFFFFF;
   --sidebar-border: rgba(255, 255, 255, 0.1);
   --sidebar-ring: #A3FF12;
+  --app-header-height: 84px;
+  --app-bottom-nav-height: 88px;
 }
 
 @layer base {
@@ -136,6 +140,27 @@
 }
 
 @layer components {
+  .app-shell {
+    min-height: 100vh;
+    background-color: #030303;
+    color: #ffffff;
+  }
+
+  .app-shell-main {
+    padding-top: calc(var(--app-header-height) + 0.5rem);
+    padding-bottom: calc(var(--app-bottom-nav-height) + env(safe-area-inset-bottom));
+  }
+
+  .app-bottom-nav {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 0.35rem);
+  }
+
+  .app-card {
+    border-radius: 28px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+  }
+
   /**
    * Custom container utility that centers content and adds responsive padding.
    *

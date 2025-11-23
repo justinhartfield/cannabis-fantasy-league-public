@@ -1,12 +1,11 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { trpc } from "@/lib/trpc";
-import { Loader2, Upload, Trash2, User, Mail, Camera, ArrowLeft } from "lucide-react";
-import { Link, useLocation } from "wouter";
+import { Loader2, Upload, Trash2, User, Mail, Camera } from "lucide-react";
+import { Link } from "wouter";
 import { getLoginUrl } from "@/const";
 import { useState, useRef } from "react";
 import { toast } from "sonner";
@@ -14,7 +13,6 @@ import { AchievementsSection } from "@/components/AchievementsSection";
 
 export default function Profile() {
   const { user, loading: authLoading, isAuthenticated } = useAuth();
-  const [, setLocation] = useLocation();
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -40,7 +38,6 @@ export default function Profile() {
       toast.success("Profile updated successfully!");
       setIsEditing(false);
       refetchProfile();
-      // Invalidate auth.me cache to update user display everywhere
       utils.auth.me.invalidate();
     },
     onError: (error) => {
@@ -70,7 +67,6 @@ export default function Profile() {
     },
   });
 
-  // Redirect to login if not authenticated
   if (!authLoading && !isAuthenticated) {
     const loginUrl = getLoginUrl();
     if (loginUrl) window.location.href = loginUrl;
@@ -80,8 +76,8 @@ export default function Profile() {
 
   if (authLoading || profileLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-weed-green" />
       </div>
     );
   }
@@ -90,14 +86,12 @@ export default function Profile() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
     if (!allowedTypes.includes(file.type)) {
       toast.error("Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.");
       return;
     }
 
-    // Validate file size (5MB max)
     const maxSize = 5 * 1024 * 1024;
     if (file.size > maxSize) {
       toast.error("File size exceeds 5MB limit.");
@@ -105,8 +99,6 @@ export default function Profile() {
     }
 
     setSelectedFile(file);
-
-    // Create preview
     const reader = new FileReader();
     reader.onloadend = () => {
       setAvatarPreview(reader.result as string);
@@ -116,7 +108,6 @@ export default function Profile() {
 
   const handleAvatarUpload = async () => {
     if (!selectedFile) return;
-
     const reader = new FileReader();
     reader.onloadend = async () => {
       const base64Data = (reader.result as string).split(",")[1];
@@ -137,15 +128,12 @@ export default function Profile() {
 
   const handleSaveProfile = async () => {
     const updates: { name?: string; email?: string } = {};
-
     if (name !== profile?.name) {
       updates.name = name;
     }
-
     if (email !== profile?.email) {
       updates.email = email;
     }
-
     if (Object.keys(updates).length > 0) {
       await updateProfileMutation.mutateAsync(updates);
     } else {
@@ -161,212 +149,199 @@ export default function Profile() {
     setSelectedFile(null);
   };
 
-  const getInitials = (name: string | null | undefined) => {
-    if (!name) return "?";
-    const parts = name.split(" ");
+  const getInitials = (value: string | null | undefined) => {
+    if (!value) return "?";
+    const parts = value.split(" ");
     if (parts.length >= 2) {
       return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
     }
-    return name.substring(0, 2).toUpperCase();
+    return value.substring(0, 2).toUpperCase();
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <main className="container mx-auto px-4 py-8 max-w-4xl">
-        {/* Back Button */}
-        <Link href="/">
-          <Button variant="ghost" className="mb-6">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Dashboard
-          </Button>
-        </Link>
-
-        {/* Profile Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Profile Settings</h1>
-          <p className="text-muted-foreground">
-            Manage your account information and avatar
-          </p>
+    <div className="space-y-8 pb-12">
+      <section className="rounded-[28px] bg-white/5 p-6 shadow-inner">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.4em] text-white/50">Profile</p>
+            <h1 className="text-3xl font-bold text-white">Account Settings</h1>
+            <p className="text-sm text-white/70">Manage your avatar and personal details.</p>
+          </div>
+          <Link href="/">
+            <Button variant="ghost" className="rounded-2xl border border-white/10 text-white">
+              Back to Dashboard
+            </Button>
+          </Link>
         </div>
+      </section>
 
-        <div className="grid md:grid-cols-3 gap-6">
-          {/* Avatar Section */}
-          <Card className="md:col-span-1">
-            <CardHeader>
-              <CardTitle>Avatar</CardTitle>
-              <CardDescription>Your profile picture</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col items-center space-y-4">
-              <Avatar className="w-32 h-32">
-                <AvatarImage src={avatarPreview || profile?.avatarUrl || undefined} />
-                <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
-                  {getInitials(profile?.name)}
-                </AvatarFallback>
-              </Avatar>
+      <div className="grid gap-6 md:grid-cols-3">
+        <div className="rounded-[28px] border border-white/10 bg-white/5 p-6 text-white">
+          <h2 className="text-lg font-semibold">Avatar</h2>
+          <p className="text-sm text-white/60">Your profile picture</p>
 
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/gif,image/webp"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
+          <div className="mt-6 flex flex-col items-center gap-4">
+            <Avatar className="h-32 w-32 border-2 border-white/20">
+              <AvatarImage src={avatarPreview || profile?.avatarUrl || undefined} />
+              <AvatarFallback className="text-2xl bg-white/10 text-white">
+                {getInitials(profile?.name)}
+              </AvatarFallback>
+            </Avatar>
 
-              <div className="flex flex-col gap-2 w-full">
-                {!avatarPreview && (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="w-full"
-                    >
-                      <Camera className="w-4 h-4 mr-2" />
-                      Choose Photo
-                    </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
 
-                    {profile?.avatarUrl && (
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={handleAvatarDelete}
-                        disabled={deleteAvatarMutation.isPending}
-                        className="w-full"
-                      >
-                        {deleteAvatarMutation.isPending ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <Trash2 className="w-4 h-4 mr-2" />
-                        )}
-                        Remove
-                      </Button>
-                    )}
-                  </>
-                )}
-
-                {avatarPreview && (
-                  <>
-                    <Button
-                      size="sm"
-                      onClick={handleAvatarUpload}
-                      disabled={uploadAvatarMutation.isPending}
-                      className="w-full"
-                    >
-                      {uploadAvatarMutation.isPending ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Upload className="w-4 h-4 mr-2" />
-                      )}
-                      Upload
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setAvatarPreview(null);
-                        setSelectedFile(null);
-                      }}
-                      className="w-full"
-                    >
-                      Cancel
-                    </Button>
-                  </>
-                )}
-              </div>
-
-              <p className="text-xs text-muted-foreground text-center">
-                JPEG, PNG, GIF, or WebP. Max 5MB.
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Profile Information */}
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle>Profile Information</CardTitle>
-              <CardDescription>Update your personal details</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="name">
-                  <User className="w-4 h-4 inline mr-2" />
-                  Name
-                </Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => {
-                    setName(e.target.value);
-                    if (!isEditing) setIsEditing(true);
-                  }}
-                  placeholder="Enter your name"
-                  disabled={updateProfileMutation.isPending}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email">
-                  <Mail className="w-4 h-4 inline mr-2" />
-                  Email
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    if (!isEditing) setIsEditing(true);
-                  }}
-                  placeholder="Enter your email"
-                  disabled={updateProfileMutation.isPending}
-                />
-              </div>
-
-              {isEditing && (
-                <div className="flex gap-3 pt-4">
+            <div className="flex w-full flex-col gap-2">
+              {!avatarPreview && (
+                <>
                   <Button
-                    onClick={handleSaveProfile}
-                    disabled={updateProfileMutation.isPending}
-                    className="flex-1"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full rounded-2xl border-white/20 text-white"
                   >
-                    {updateProfileMutation.isPending ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Saving...
-                      </>
+                    <Camera className="mr-2 h-4 w-4" /> Choose Photo
+                  </Button>
+                  {profile?.avatarUrl && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleAvatarDelete}
+                      disabled={deleteAvatarMutation.isPending}
+                      className="w-full rounded-2xl"
+                    >
+                      {deleteAvatarMutation.isPending ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="mr-2 h-4 w-4" />
+                      )}
+                      Remove
+                    </Button>
+                  )}
+                </>
+              )}
+
+              {avatarPreview && (
+                <>
+                  <Button
+                    size="sm"
+                    onClick={handleAvatarUpload}
+                    disabled={uploadAvatarMutation.isPending}
+                    className="w-full rounded-2xl bg-weed-green text-black"
+                  >
+                    {uploadAvatarMutation.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
-                      "Save Changes"
+                      <Upload className="mr-2 h-4 w-4" />
                     )}
+                    Upload
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={handleCancel}
-                    disabled={updateProfileMutation.isPending}
+                    size="sm"
+                    onClick={() => {
+                      setAvatarPreview(null);
+                      setSelectedFile(null);
+                    }}
+                    className="w-full rounded-2xl border-white/20 text-white"
                   >
                     Cancel
                   </Button>
-                </div>
+                </>
               )}
+            </div>
 
-              <div className="pt-4 border-t border-border">
-                <div className="text-sm text-muted-foreground space-y-1">
-                  <p>
-                    <strong>Member since:</strong>{" "}
-                    {profile?.createdAt
-                      ? new Date(profile.createdAt).toLocaleDateString()
-                      : "Unknown"}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          {/* Achievements Section */}
-          <div className="md:col-span-3">
-            <AchievementsSection />
+            <p className="text-center text-xs text-white/50">JPEG, PNG, GIF, or WebP. Max 5MB.</p>
           </div>
         </div>
-      </main>
+
+        <div className="md:col-span-2 rounded-[28px] border border-white/10 bg-white/5 p-6 text-white">
+          <h2 className="text-lg font-semibold">Profile Information</h2>
+          <p className="text-sm text-white/60">Update your personal details</p>
+
+          <div className="mt-6 space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="name" className="text-white">
+                <User className="mr-2 inline h-4 w-4" /> Name
+              </Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  if (!isEditing) setIsEditing(true);
+                }}
+                placeholder="Enter your name"
+                disabled={updateProfileMutation.isPending}
+                className="rounded-2xl border-white/20 bg-black/40 text-white"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-white">
+                <Mail className="mr-2 inline h-4 w-4" /> Email
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (!isEditing) setIsEditing(true);
+                }}
+                placeholder="Enter your email"
+                disabled={updateProfileMutation.isPending}
+                className="rounded-2xl border-white/20 bg-black/40 text-white"
+              />
+            </div>
+
+            {isEditing && (
+              <div className="flex gap-3 pt-4">
+                <Button
+                  onClick={handleSaveProfile}
+                  disabled={updateProfileMutation.isPending}
+                  className="flex-1 rounded-2xl bg-weed-green text-black"
+                >
+                  {updateProfileMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...
+                    </>
+                  ) : (
+                    "Save Changes"
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleCancel}
+                  disabled={updateProfileMutation.isPending}
+                  className="rounded-2xl border-white/20 text-white"
+                >
+                  Cancel
+                </Button>
+              </div>
+            )}
+
+            <div className="rounded-2xl border border-white/10 bg-black/30 p-4 text-sm text-white/60">
+              <p>
+                <strong>Member since:</strong>{" "}
+                {profile?.createdAt
+                  ? new Date(profile.createdAt).toLocaleDateString()
+                  : "Unknown"}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <section className="rounded-[28px] border border-white/10 bg-white/5 p-6 text-white">
+        <h2 className="text-lg font-semibold mb-4">Achievements</h2>
+        <AchievementsSection />
+      </section>
     </div>
   );
 }

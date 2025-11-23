@@ -144,28 +144,28 @@ const Leaderboard = () => {
     </div>
   );
 
+  const cardBase = "rounded-[28px] border border-white/10 bg-white/5 shadow-inner";
+
   return (
-    <div className="container mx-auto max-w-6xl py-8 px-4">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+    <div className="space-y-8 pb-12">
+      <section className={cn(cardBase, "p-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between")}>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight mb-2">Leaderboard</h1>
-          <p className="text-muted-foreground">
-            Top performing entities and legendary teams
-          </p>
+          <p className="text-xs uppercase tracking-[0.4em] text-white/50">Ranks</p>
+          <h1 className="text-3xl font-bold text-white">Leaderboard</h1>
+          <p className="text-sm text-white/70">Top entities, teams, and legendary streaks.</p>
         </div>
-        
         {activeTab === "daily" && (
-          <div className="flex items-center gap-2">
-             <span className="text-sm text-muted-foreground">Date:</span>
-             <input 
-               type="date" 
-               value={selectedDate}
-               onChange={(e) => setSelectedDate(e.target.value)}
-               className="bg-background border border-input rounded-md px-3 py-2 text-sm"
-             />
+          <div className="flex flex-col gap-2 text-white">
+            <span className="text-xs uppercase tracking-[0.4em] text-white/50">Date</span>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="rounded-2xl border border-white/20 bg-black/30 px-4 py-2 text-sm text-white"
+            />
           </div>
         )}
-      </div>
+      </section>
 
       <Tabs defaultValue="daily" value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto md:mx-0">
@@ -182,7 +182,7 @@ const Leaderboard = () => {
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {(entityFilter === 'all' || entityFilter === 'manufacturer') && (
-                <Card>
+                <Card className={cardBase}>
                   <CardHeader>
                     <CardTitle className="text-base">Top Manufacturers</CardTitle>
                   </CardHeader>
@@ -193,7 +193,7 @@ const Leaderboard = () => {
               )}
 
               {(entityFilter === 'all' || entityFilter === 'pharmacy') && (
-                <Card>
+                <Card className={cardBase}>
                   <CardHeader>
                     <CardTitle className="text-base">Top Pharmacies</CardTitle>
                   </CardHeader>
@@ -204,7 +204,7 @@ const Leaderboard = () => {
               )}
 
               {(entityFilter === 'all' || entityFilter === 'brand') && (
-                <Card>
+                <Card className={cardBase}>
                   <CardHeader>
                     <CardTitle className="text-base">Top Brands</CardTitle>
                   </CardHeader>
@@ -215,7 +215,7 @@ const Leaderboard = () => {
               )}
 
               {(entityFilter === 'all' || entityFilter === 'product') && (
-                <Card>
+                <Card className={cardBase}>
                   <CardHeader>
                     <CardTitle className="text-base">Top Products</CardTitle>
                   </CardHeader>
@@ -231,7 +231,7 @@ const Leaderboard = () => {
               )}
 
               {(entityFilter === 'all' || entityFilter === 'strain') && (
-                <Card>
+                <Card className={cardBase}>
                   <CardHeader>
                     <CardTitle className="text-base">Top Flower</CardTitle>
                   </CardHeader>
@@ -250,7 +250,7 @@ const Leaderboard = () => {
             <div className="flex justify-center py-12">Loading...</div>
           ) : (
             <div className="grid lg:grid-cols-2 gap-8">
-              <Card className="border-yellow-500/20 bg-gradient-to-br from-yellow-500/5 to-transparent">
+              <Card className={cn(cardBase, "border-yellow-500/20 bg-gradient-to-br from-yellow-500/5 to-transparent")}>
                 <CardHeader>
                   <div className="flex items-center gap-3">
                     <Trophy className="w-8 h-8 text-yellow-500" />
@@ -265,7 +265,7 @@ const Leaderboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="border-purple-500/20 bg-gradient-to-br from-purple-500/5 to-transparent">
+              <Card className={cn(cardBase, "border-purple-500/20 bg-gradient-to-br from-purple-500/5 to-transparent")}>
                 <CardHeader>
                   <div className="flex items-center gap-3">
                     <TrendingUp className="w-8 h-8 text-purple-500" />

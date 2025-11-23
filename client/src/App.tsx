@@ -28,53 +28,71 @@ import InviteFriends from "./pages/InviteFriends";
 import Join from "./pages/Join";
 import Players from "./pages/Players";
 import { useEffect } from "react";
-import { Navigation } from "./components/Navigation";
+import { AppLayout } from "./components/AppLayout";
+import DashboardLayout from "./components/DashboardLayout";
 
+
+function AuthedRoutes() {
+  return (
+    <AppLayout>
+      <Switch>
+        <Route path={"/"} component={Dashboard} />
+        <Route path={"/leagues"} component={LeagueList} />
+        <Route path={"/league/create"} component={CreateLeague} />
+        {/* League routes (season mode) */}
+        <Route path={"/league/:id"} component={LeagueDetail} />
+        <Route path={"/league/:id/draft"} component={Draft} />
+        <Route path={"/league/:id/pre-draft"} component={PreDraft} />
+        <Route path={"/league/:id/matchups"} component={Matchups} />
+        <Route path={"/league/:id/standings"} component={Standings} />
+        <Route path={"/league/:id/playoffs"} component={Playoffs} />
+        <Route path={"/league/:id/lineup"} component={Lineup} />
+        <Route path={"/league/:id/scoring"} component={Scoring} />
+        <Route path={"/league/:id/waivers"} component={Waivers} />
+        <Route path={"/league/:id/trades"} component={Trades} />
+        <Route path={"/league/:id/players"} component={Players} />
+        {/* Challenge routes (daily mode) */}
+        <Route path={"/challenge/:id"} component={LeagueDetail} />
+        <Route path={"/challenge/:id/draft"} component={Draft} />
+        <Route path={"/challenge/:id/pre-draft"} component={PreDraft} />
+        <Route path={"/challenge/:id/matchups"} component={Matchups} />
+        <Route path={"/challenge/:id/standings"} component={Standings} />
+        <Route path={"/challenge/:id/playoffs"} component={Playoffs} />
+        <Route path={"/challenge/:id/lineup"} component={Lineup} />
+        <Route path={"/challenge/:id/scoring"} component={Scoring} />
+        <Route path={"/prediction-streak"} component={PredictionStreak} />
+        <Route path={"/prediction-leaderboard"} component={PredictionLeaderboard} />
+        <Route path={"/leaderboard"} component={Leaderboard} />
+        <Route path={"/invite"} component={InviteFriends} />
+        <Route path={"/profile"} component={Profile} />
+        <Route path={"/404"} component={NotFound} />
+        <Route component={NotFound} />
+      </Switch>
+    </AppLayout>
+  );
+}
+
+function AdminRoute() {
+  return (
+    <DashboardLayout>
+      <Admin />
+    </DashboardLayout>
+  );
+}
 
 function Router() {
   return (
     <Switch>
-      <Route path={"/"} component={Dashboard} />
       <Route path={"/login"} component={Login} />
       <Route path={"/sign-up"} component={SignUpPage} />
       <Route path={"/join"} component={Join} />
       {/* Clerk SSO callback routes - these are handled by Clerk automatically */}
       <Route path={"/login/sso-callback"} component={Login} />
       <Route path={"/sign-up/sso-callback"} component={SignUpPage} />
-      <Route path={"/leagues"} component={LeagueList} />
-      <Route path={"/league/create"} component={CreateLeague} />
-      {/* League routes (season mode) */}
-      <Route path={"/league/:id"} component={LeagueDetail} />
-      <Route path={"/league/:id/draft"} component={Draft} />
-      <Route path={"/league/:id/pre-draft"} component={PreDraft} />
-      <Route path={"/league/:id/matchups"} component={Matchups} />
-      <Route path={"/league/:id/standings"} component={Standings} />
-      <Route path={"/league/:id/playoffs"} component={Playoffs} />
-      <Route path={"/league/:id/lineup"} component={Lineup} />
-      <Route path={"/league/:id/scoring"} component={Scoring} />
-      <Route path={"/league/:id/waivers"} component={Waivers} />
-      <Route path={"/league/:id/trades"} component={Trades} />
-      <Route path={"/league/:id/players"} component={Players} />
-      {/* Challenge routes (daily mode) */}
-      <Route path={"/challenge/:id"} component={LeagueDetail} />
-      <Route path={"/challenge/:id/draft"} component={Draft} />
-      <Route path={"/challenge/:id/pre-draft"} component={PreDraft} />
-      <Route path={"/challenge/:id/matchups"} component={Matchups} />
-      <Route path={"/challenge/:id/standings"} component={Standings} />
-      <Route path={"/challenge/:id/playoffs"} component={Playoffs} />
-      <Route path={"/challenge/:id/lineup"} component={Lineup} />
-      <Route path={"/challenge/:id/scoring"} component={Scoring} />
-      <Route path={"/prediction-streak"} component={PredictionStreak} />
-      <Route path={"/prediction-leaderboard"} component={PredictionLeaderboard} />
-      <Route path={"/leaderboard"} component={Leaderboard} />
-      <Route path={"/profile"} component={Profile} />
-      <Route path={"/invite"} component={InviteFriends} />
       <Route path={"/invitations/:token"} component={AcceptInvitation} />
-      <Route path={"/admin"} component={Admin} />
-
-      <Route path={"/404"} component={NotFound} />
-      {/* Final fallback route */}
-      <Route component={NotFound} />
+      <Route path={"/admin"} component={AdminRoute} />
+      {/* Authenticated app shell */}
+      <Route component={AuthedRoutes} />
     </Switch>
   );
 }
@@ -86,7 +104,6 @@ export default function App() {
   return (
     <ErrorBoundary>
       <TooltipProvider>
-        <Navigation />
         <Router />
         <Toaster />
       </TooltipProvider>
