@@ -636,7 +636,9 @@ export class DailyChallengeAggregator {
         continue;
       }
 
-      const previousStat = previousStatsByBrand.get(brand.id);
+      // Deltas are now computed from the two Metabase cards
+      const ratingDelta = brandData.ratingDelta;
+      const bayesianDelta = brandData.bayesianDelta;
 
       const scoring = calculateBrandScore({
         totalRatings: brandData.totalRatings,
@@ -647,6 +649,8 @@ export class DailyChallengeAggregator {
         acceptableCount: brandData.acceptableCount,
         badCount: brandData.badCount,
         veryBadCount: brandData.veryBadCount,
+        ratingDelta,
+        bayesianDelta,
       }, rank);
 
       await db
@@ -664,6 +668,8 @@ export class DailyChallengeAggregator {
           veryBadCount: brandData.veryBadCount,
           totalPoints: scoring.totalPoints,
           rank,
+          ratingDelta,
+          bayesianDelta: bayesianDelta.toString(),
           createdAt: new Date(),
           updatedAt: new Date(),
         })
@@ -680,6 +686,8 @@ export class DailyChallengeAggregator {
             veryBadCount: brandData.veryBadCount,
             totalPoints: scoring.totalPoints,
             rank,
+            ratingDelta,
+            bayesianDelta: bayesianDelta.toString(),
             updatedAt: new Date(),
           },
         });
@@ -710,28 +718,66 @@ export class DailyChallengeAggregator {
     acceptableCount: number;
     badCount: number;
     veryBadCount: number;
+    ratingDelta: number;
+    bayesianDelta: number;
   }>> {
     try {
-      // The Metabase query URL provided shows this is a custom aggregation
-      // We need to execute it as a card query
-      // For now, we'll use a placeholder card ID - you'll need to save the query and get the ID
-      const BRAND_RATINGS_CARD_ID = 1278; // brand-indv-today (per-day stats)
+      const BRAND_TODAY_CARD_ID = 1278; // brand-indv-today
+      const BRAND_YESTERDAY_CARD_ID = 1287; // brand-indv-yesterday-modified
       
-      const result = await this.metabase.executeCardQuery(BRAND_RATINGS_CARD_ID, {
-        UpdatedAt: ['absolute-date', statDate],
+      // Calculate yesterday's date
+      const targetDate = new Date(statDate);
+      const yesterday = new Date(targetDate);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
+      
+      // Fetch both today and yesterday in parallel
+      const [todayResults, yesterdayResults] = await Promise.all([
+        this.metabase.executeCardQuery(BRAND_TODAY_CARD_ID, {
+          UpdatedAt: ['absolute-date', statDate],
+        }),
+        this.metabase.executeCardQuery(BRAND_YESTERDAY_CARD_ID, {
+          UpdatedAt: ['absolute-date', yesterdayStr],
+        }),
+      ]);
+      
+      // Build a map of yesterday's data by brand name
+      const yesterdayMap = new Map<string, any>();
+      for (const row of yesterdayResults) {
+        const name = row.Name || row.name;
+        if (name) {
+          yesterdayMap.set(name, {
+            totalRatings: parseInt(row['Sum of TotalRatings'] || row.totalRatings || '0'),
+            bayesianAverage: parseFloat(row['Average of BayesianAverage'] || row.bayesianAverage || '0'),
+          });
+        }
+      }
+      
+      // Map today's results and compute deltas
+      return todayResults.map((row: any) => {
+        const name = row.Name || row.name;
+        const todayTotal = parseInt(row['Sum of TotalRatings'] || row.totalRatings || '0');
+        const todayBayesian = parseFloat(row['Average of BayesianAverage'] || row.bayesianAverage || '0');
+        
+        const yesterday = yesterdayMap.get(name);
+        const yesterdayTotal = yesterday?.totalRatings ?? 0;
+        const yesterdayBayesian = yesterday?.bayesianAverage ?? 0;
+        
+        return {
+          name,
+          totalRatings: todayTotal,
+          averageRating: parseFloat(row['Average of AverageRating'] || row.averageRating || '0'),
+          bayesianAverage: todayBayesian,
+          veryGoodCount: parseInt(row['Sum of RatingCounts: VeryGoodCount'] || row.veryGoodCount || '0'),
+          goodCount: parseInt(row['Sum of RatingCounts: GoodCount'] || row.goodCount || '0'),
+          acceptableCount: parseInt(row['Sum of RatingCounts: AcceptableCount'] || row.acceptableCount || '0'),
+          badCount: parseInt(row['Sum of RatingCounts: BadCount'] || row.badCount || '0'),
+          veryBadCount: parseInt(row['Sum of RatingCounts: VeryBadCount'] || row.veryBadCount || '0'),
+          // Compute deltas
+          ratingDelta: Math.max(0, todayTotal - yesterdayTotal),
+          bayesianDelta: Number((todayBayesian - yesterdayBayesian).toFixed(2)),
+        };
       });
-      
-      return result.map((row: any) => ({
-        name: row.Name || row.name,
-        totalRatings: parseInt(row['Sum of TotalRatings'] || row.totalRatings || '0'),
-        averageRating: parseFloat(row['Average of AverageRating'] || row.averageRating || '0'),
-        bayesianAverage: parseFloat(row['Average of BayesianAverage'] || row.bayesianAverage || '0'),
-        veryGoodCount: parseInt(row['Sum of RatingCounts: VeryGoodCount'] || row.veryGoodCount || '0'),
-        goodCount: parseInt(row['Sum of RatingCounts: GoodCount'] || row.goodCount || '0'),
-        acceptableCount: parseInt(row['Sum of RatingCounts: AcceptableCount'] || row.acceptableCount || '0'),
-        badCount: parseInt(row['Sum of RatingCounts: BadCount'] || row.badCount || '0'),
-        veryBadCount: parseInt(row['Sum of RatingCounts: VeryBadCount'] || row.veryBadCount || '0'),
-      }));
     } catch (error) {
       console.error('[DailyChallengeAggregator] Error fetching brand ratings:', error);
       return [];
