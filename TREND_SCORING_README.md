@@ -22,6 +22,8 @@ The new scoring system is composed of several new metrics that work together to 
 | **Market Share Bonus** | Tiered bonus for significant market position | `12.5%` | Up to 50 bonus points |
 | **Momentum Bonus** | Points for rank improvement over time | `↑2 ranks` | `+10` points per rank gained |
 
+> **Shared Tiered Rank Bonus:** Both Daily Challenge and season-long scoring now use the same tiered rank bonus: Rank #1 = +30 pts, Ranks #2-3 = +20 pts, Ranks #4-5 = +15 pts, Ranks #6-10 = +10 pts.
+
 ## 3. Before & After: Scoring Display
 
 The most significant change is in how scoring is displayed to the user. Explicit sales data is completely removed and replaced with intuitive, trend-based indicators.
@@ -34,7 +36,7 @@ Four 20 Pharma
 Sales Volume: 3,629g ÷ 10 = 362 pts
 Order Count: 45 orders × 5 = 225 pts
 Revenue: €1,234.56 ÷ 10 = 123 pts
-Rank Bonus: Rank #1 = +50 pts
+Rank Bonus: Tiered (Rank #1 = +30)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Total: 760 pts
 ```
@@ -46,7 +48,7 @@ Four 20 Pharma
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Order Activity: 45 orders × 10 = 450 pts
 Trend Momentum: 6.5x × 20 = 130 pts
-Rank Bonus: Rank #1 = +50 pts
+Rank Bonus: Tiered (Rank #1 = +30, #2-3 = +20, #4-5 = +15, #6-10 = +10)
 Position Gain: ↑2 ranks = +20 pts
 Consistency Bonus: 85/100 = +42 pts
 Velocity Bonus: Accelerating = +45 pts

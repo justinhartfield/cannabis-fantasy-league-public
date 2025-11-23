@@ -22,11 +22,7 @@ interface ScoringBonus {
   points: number;
 }
 
-interface ScoringPenalty {
-  type: string;
-  condition: string;
-  points: number;
-}
+
 
 interface ScoringBreakdownData {
   assetName: string;
@@ -34,7 +30,7 @@ interface ScoringBreakdownData {
   imageUrl?: string | null;
   components: ScoringComponent[];
   bonuses: ScoringBonus[];
-  penalties: ScoringPenalty[];
+  bonuses: ScoringBonus[];
   subtotal: number;
   total: number;
   // New trend-based fields
@@ -166,7 +162,7 @@ const getStreakTierName = (streakDays: number): string => {
 
 const calculateStreakMultiplier = (streakDays: number): number => {
   if (streakDays < 2) return 1.0; // No streak bonus
-  
+
   // Progressive streak tiers with increasing multipliers
   if (streakDays >= 21) return 3.0;  // 🔥🔥🔥🔥🔥 God Mode: 3x multiplier
   if (streakDays >= 14) return 2.0;  // 🔥🔥🔥🔥 Legendary: 2x multiplier
@@ -204,9 +200,8 @@ const getComponentTooltipContent = (
       context:
         "Momentum boost comparing today's volume to the trailing 7-day average. Above 1× means the asset is surging; below 1× shows a cooldown.",
       calculation: `${multiplier.toFixed(2)}× momentum × ${basePoints} base pts = ${component.points} pts`,
-      example: `Example: 70 units today vs 10-unit avg ⇒ 7.0× × ${basePoints} = ${
-        7 * basePoints
-      } pts`,
+      example: `Example: 70 units today vs 10-unit avg ⇒ 7.0× × ${basePoints} = ${7 * basePoints
+        } pts`,
     };
   }
 
@@ -310,9 +305,9 @@ export default function ScoringBreakdownV2({
                 onError={(e) => (e.currentTarget.style.display = "none")}
               />
             ) : (
-                <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center">
-                  <BarChart3 className="w-6 h-6 text-white/80" />
-                </div>
+              <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center">
+                <BarChart3 className="w-6 h-6 text-white/80" />
+              </div>
             )
             }
             <div>
@@ -379,14 +374,14 @@ export default function ScoringBreakdownV2({
               const orderActivityIndex =
                 component.category === "Order Activity"
                   ? data.components
-                      .slice(0, idx)
-                      .filter((c) => c.category === "Order Activity").length
+                    .slice(0, idx)
+                    .filter((c) => c.category === "Order Activity").length
                   : null;
 
               const dateLabel =
                 orderActivityIndex !== null &&
-                orderActivityDateLabels &&
-                orderActivityDateLabels[orderActivityIndex] !== undefined
+                  orderActivityDateLabels &&
+                  orderActivityDateLabels[orderActivityIndex] !== undefined
                   ? orderActivityDateLabels[orderActivityIndex]
                   : null;
 
@@ -471,8 +466,8 @@ export default function ScoringBreakdownV2({
         <div className="flex flex-col sm:flex-row items-start sm:items-start justify-between gap-3">
           <div className="flex items-center gap-2.5 flex-1 w-full sm:w-auto">
             {data.imageUrl && (
-              <img 
-                src={data.imageUrl} 
+              <img
+                src={data.imageUrl}
                 alt={data.assetName}
                 className="w-10 h-10 rounded-lg object-cover flex-shrink-0 border border-border"
                 onError={(e) => e.currentTarget.style.display = 'none'}
@@ -580,14 +575,14 @@ export default function ScoringBreakdownV2({
               const orderActivityIndex =
                 component.category === "Order Activity"
                   ? data.components
-                      .slice(0, idx)
-                      .filter((c) => c.category === "Order Activity").length
+                    .slice(0, idx)
+                    .filter((c) => c.category === "Order Activity").length
                   : null;
 
               const dateLabel =
                 orderActivityIndex !== null &&
-                orderActivityDateLabels &&
-                orderActivityDateLabels[orderActivityIndex] !== undefined
+                  orderActivityDateLabels &&
+                  orderActivityDateLabels[orderActivityIndex] !== undefined
                   ? orderActivityDateLabels[orderActivityIndex]
                   : null;
 
@@ -698,7 +693,7 @@ export default function ScoringBreakdownV2({
           </div>
         )}
 
-        {/* Subtotal */}
+
         <div className="border-t border-border pt-2 mt-2">
           <div className="flex items-center justify-between p-2 rounded-md bg-muted/70">
             <div>
@@ -755,7 +750,7 @@ export default function ScoringBreakdownV2({
               {weeklyTrend.map((points, idx) => {
                 const maxPoints = Math.max(...weeklyTrend);
                 const height = maxPoints > 0 ? (points / maxPoints) * 100 : 0;
-                
+
                 return (
                   <div key={idx} className="flex-1 flex flex-col items-center gap-1">
                     <div

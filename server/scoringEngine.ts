@@ -51,6 +51,7 @@ import {
   calculateManufacturerTrendScore,
   calculateStrainTrendScore,
   calculatePharmacyTrendScore,
+  calculateRankBonus,
 } from './trendScoringEngine';
 import { getWeekDateRange } from './utils/isoWeek';
 
@@ -141,6 +142,36 @@ const ASSET_TYPE_LABELS: Record<AssetType, string> = {
   brand: 'Brand',
 };
 
+type TieredRankEntity = 'manufacturer' | 'strain' | 'product' | 'pharmacy';
+
+function describeRankTier(rank: number): string {
+  if (rank === 1) return 'Tier 1 · Rank #1';
+  if (rank >= 2 && rank <= 3) return 'Tier 2 · Top 3';
+  if (rank >= 4 && rank <= 5) return 'Tier 3 · Top 5';
+  if (rank >= 6 && rank <= 10) return 'Tier 4 · Top 10';
+  return `Rank #${rank}`;
+}
+
+function getTieredRankBonus(
+  rank: number | null | undefined,
+  entityType: TieredRankEntity
+): { points: number; condition: string } | null {
+  const normalizedRank = Number(rank ?? 0);
+  if (!normalizedRank || normalizedRank <= 0) {
+    return null;
+  }
+
+  const bonusPoints = calculateRankBonus(normalizedRank, entityType);
+  if (!bonusPoints) {
+    return null;
+  }
+
+  return {
+    points: bonusPoints,
+    condition: describeRankTier(normalizedRank),
+  };
+}
+
 const SCARCITY_BASELINE = 100;
 const MIN_SCARCITY = 0.65;
 const MAX_SCARCITY = 1.35;
@@ -192,41 +223,30 @@ function applyScarcityAdjustment(
   assetType: AssetType,
   multiplier: number
 ): AssetScoreResult {
-  const normalizedMultiplier = Number(multiplier?.toFixed(2)) || 1;
-  if (!result?.breakdown || normalizedMultiplier === 1) {
+  // ELIMINATE PENALTIES: Clamp multiplier to minimum 1.0
+  const effectiveMultiplier = Math.max(1.0, normalizedMultiplier);
+
+  if (!result?.breakdown || effectiveMultiplier === 1.0) {
     return {
       ...result,
-      scarcityMultiplier: normalizedMultiplier,
+      scarcityMultiplier: effectiveMultiplier,
     };
   }
 
-  let adjustedPoints = Math.round(result.points * normalizedMultiplier);
+  let adjustedPoints = Math.round(result.points * effectiveMultiplier);
   let delta = adjustedPoints - result.points;
-  const isWeeklyScope = result.metadata?.scopeType === 'weekly';
-
-  if (delta < 0 && isWeeklyScope) {
-    adjustedPoints = result.points;
-    delta = 0;
-  }
 
   const detail = result.breakdown;
   detail.bonuses = detail.bonuses || [];
-  detail.penalties = detail.penalties || [];
+  // penalties array is no longer used but kept for type compatibility
+  detail.penalties = [];
 
-  if (delta !== 0) {
-    const entry = {
-      type: delta > 0 ? 'Scarcity Boost' : 'Scarcity Dampening',
-      condition: `${ASSET_TYPE_LABELS[assetType]} depth ×${normalizedMultiplier.toFixed(2)}`,
+  if (delta > 0) {
+    detail.bonuses.push({
+      type: 'Scarcity Boost',
+      condition: `${ASSET_TYPE_LABELS[assetType]} depth ×${effectiveMultiplier.toFixed(2)}`,
       points: delta,
-    };
-    if (delta > 0) {
-      detail.bonuses.push(entry);
-    } else {
-      detail.penalties.push(entry);
-    }
-  } else if (isWeeklyScope) {
-    // Ensure we don't carry any previous scarcity penalties into weekly totals
-    detail.penalties = [];
+    });
   }
 
   detail.total = adjustedPoints;
@@ -800,23 +820,15 @@ export function calculateManufacturerPoints(
     breakdown.total += consistencyBonus;
   }
 
-  // Market Dominance Badge
-  if (weeklyContext.marketShareRank === 1) {
-    const dominanceBonus = 50;
+  // Market Dominance Badge (now tiered)
+  const marketShareRankBonus = getTieredRankBonus(weeklyContext.marketShareRank, 'manufacturer');
+  if (marketShareRankBonus) {
     breakdown.bonuses.push({
-      type: 'Market Dominance',
-      condition: 'Rank #1 Market Share',
-      points: dominanceBonus,
+      type: 'Market Share Tier Bonus',
+      condition: marketShareRankBonus.condition,
+      points: marketShareRankBonus.points,
     });
-    breakdown.total += dominanceBonus;
-  } else if (weeklyContext.marketShareRank <= 3) {
-    const topTierBonus = 25;
-    breakdown.bonuses.push({
-      type: 'Top Tier',
-      condition: 'Top 3 Market Share',
-      points: topTierBonus,
-    });
-    breakdown.total += topTierBonus;
+    breakdown.total += marketShareRankBonus.points;
   }
 
   // Rank Climber
@@ -2329,10 +2341,10 @@ async function scoreProduct(
     const latestDaily = dailyStats[dailyStats.length - 1];
     const latestTrendMultiplier = latestDaily
       ? resolveTrendMultiplier(latestDaily.trendMultiplier, {
-          assetType: 'product',
-          assetId: latestDaily.strainId ?? productId ?? null,
-          statDate: latestDaily.statDate ?? null,
-        })
+        assetType: 'product',
+        assetId: latestDaily.strainId ?? productId ?? null,
+        statDate: latestDaily.statDate ?? null,
+      })
       : 1;
 
     const metadata: ScoreMetadata = {
@@ -2438,10 +2450,10 @@ async function scorePharmacy(
     const derivedRankChange = previousRank - currentRank;
     const latestTrendMultiplier = latestDaily
       ? resolveTrendMultiplier(latestDaily.trendMultiplier, {
-          assetType: 'pharmacy',
-          assetId: latestDaily.pharmacyId ?? pharmacyId ?? null,
-          statDate: latestDaily.statDate ?? null,
-        })
+        assetType: 'pharmacy',
+        assetId: latestDaily.pharmacyId ?? pharmacyId ?? null,
+        statDate: latestDaily.statDate ?? null,
+      })
       : 1;
 
     const { points, breakdown } = calculatePharmacyPoints(dailyStats, {

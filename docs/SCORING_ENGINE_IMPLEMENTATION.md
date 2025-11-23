@@ -354,7 +354,7 @@ server.listen(port, () => {
 | Market Share Gain | Rank improvement × 10 | 10 pts per rank |
 | Product Diversity | Product count × 2 | 2 pts per product |
 | **Bonuses** | | |
-| Top Rank | Rank #1 | +25 pts |
+| Tiered Rank Bonus | Rank #1 / #2-3 / #4-5 / #6-10 | +30 / +20 / +15 / +10 pts |
 | Consistency | 3+ weeks growth | +15 pts |
 | **Penalties** | | |
 | Decline | Rank drops 5+ | -20 pts |
