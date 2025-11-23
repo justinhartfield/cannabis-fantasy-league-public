@@ -130,14 +130,14 @@ export default function Scoring() {
     );
 
   // Fetch scoring breakdown for selected team
-  const { data: breakdown } = trpc.scoring.getTeamBreakdown.useQuery(
+  const { data: breakdown, isLoading: isLoadingBreakdown } = trpc.scoring.getTeamBreakdown.useQuery(
     {
       teamId: selectedTeamId!,
       year: selectedYear,
       week: selectedWeek,
     },
     {
-      enabled: !!selectedTeamId,
+      enabled: !!selectedTeamId && !!user && !!selectedYear && !!selectedWeek,
     }
   );
 
@@ -270,6 +270,7 @@ export default function Scoring() {
     selectedWeek,
     leagueId,
     selectedYear,
+    league?.leagueType,
   ]);
 
   // WebSocket for real-time updates
@@ -533,16 +534,16 @@ export default function Scoring() {
                         key={score.teamId}
                         onClick={() => setSelectedTeamId(score.teamId)}
                         className={`w-full p-4 rounded-xl border transition-all card-hover-lift text-left ${selectedTeamId === score.teamId
-                            ? 'bg-primary/10 border-primary glow-primary'
-                            : 'bg-card/50 border-border/50 hover:border-primary/30'
+                          ? 'bg-primary/10 border-primary glow-primary'
+                          : 'bg-card/50 border-border/50 hover:border-primary/30'
                           } ${score.rank === 1 ? 'winner-celebration' : ''}`}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg ${score.rank === 1 ? 'rank-gold text-white' :
-                                score.rank === 2 ? 'rank-silver text-white' :
-                                  score.rank === 3 ? 'rank-bronze text-white' :
-                                    'bg-muted text-muted-foreground'
+                              score.rank === 2 ? 'rank-silver text-white' :
+                                score.rank === 3 ? 'rank-bronze text-white' :
+                                  'bg-muted text-muted-foreground'
                               }`}>
                               {score.rank}
                             </div>
@@ -593,18 +594,21 @@ export default function Scoring() {
                   </div>
                 </CardContent>
               </Card>
-            ) : !breakdown ? (
+            ) : !breakdown || isLoadingBreakdown ? (
               <Card className="gradient-card border-border/50">
                 <CardContent className="py-20">
                   <div className="text-center max-w-md mx-auto space-y-4">
                     <div className="w-20 h-20 rounded-2xl bg-muted/30 mx-auto flex items-center justify-center">
-                      <BarChart3 className="w-10 h-10 text-muted-foreground" />
+                      <BarChart3 className={`w-10 h-10 text-muted-foreground ${isLoadingBreakdown ? 'animate-pulse' : ''}`} />
                     </div>
                     <div>
-                      <p className="text-xl font-bold text-foreground mb-2">Live Scoring Active</p>
+                      <p className="text-xl font-bold text-foreground mb-2">
+                        {isLoadingBreakdown ? 'Loading Breakdown...' : 'Live Scoring Active'}
+                      </p>
                       <p className="text-muted-foreground">
-                        Scores are being calculated. If you see 0.0, partial stats for this week may not be synced yet.
-                        Check back later or click "Calculate Scores" to force an update.
+                        {isLoadingBreakdown
+                          ? 'Fetching scoring details for this team...'
+                          : 'Scores are being calculated. If you see 0.0, partial stats for this week may not be synced yet. Check back later or click "Calculate Scores" to force an update.'}
                       </p>
                     </div>
                   </div>
