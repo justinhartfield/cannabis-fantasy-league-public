@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import {
   ArrowRight,
-  ChevronRight,
   Flame,
   Handshake,
   Leaf,

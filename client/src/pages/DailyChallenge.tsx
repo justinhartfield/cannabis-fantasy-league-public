@@ -493,32 +493,88 @@ export default function DailyChallenge() {
         />
       )}
 
-      <header className="sticky top-0 z-10 border-b border-border/50 bg-card/80 backdrop-blur-lg">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => window.history.back()}>
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <div className="flex items-center gap-3">
-              <span className="text-4xl">🏆</span>
-              <h1 className="text-2xl font-bold text-gradient-primary headline-primary">
-                {league.name}
-              </h1>
-              <p className="text-muted-foreground text-sm">
-                Daily Challenge • {challengeDateLabel}
-              </p>
+      <main className="container mx-auto px-4 py-8 space-y-6">
+        <section className="rounded-[32px] bg-gradient-to-br from-[#050505] via-[#0f0f16] to-[#1b1c2a] p-6 text-white shadow-[0_25px_60px_rgba(0,0,0,0.45)]">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-2xl border border-white/10 text-white hover:bg-white/10"
+                onClick={() => window.history.back()}
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+              <div>
+                <p className="text-xs uppercase tracking-[0.4em] text-white/60">Daily Challenge</p>
+                <h1 className="text-3xl font-bold">{league.name}</h1>
+                <p className="text-white/70 text-sm">{challengeDateLabel}</p>
+              </div>
+            </div>
+            <div className="flex flex-col items-end gap-2 text-right">
+              <div className="flex items-center gap-2">
+                {isLive ? <LiveIndicator size="sm" /> : <Badge variant="outline">Final</Badge>}
+                <Badge variant="secondary" className="bg-white/10 text-white">
+                  {challengeDateLabel}
+                </Badge>
+              </div>
+              <div className="flex items-center gap-2 text-white/70 text-sm">
+                <Clock className="w-4 h-4" />
+                <span>Next update in: {timeUntilUpdate || "Calculating..."}</span>
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {isLive ? <LiveIndicator size="sm" /> : <Badge variant="outline">Final</Badge>}
-            <Badge variant="secondary">
-              {challengeDateLabel}
-            </Badge>
+          <div className="mt-6 grid gap-4 md:grid-cols-3 text-white">
+            <div className="rounded-2xl bg-white/5 p-4">
+              <p className="text-xs uppercase tracking-[0.3em] text-white/50">Status</p>
+              <p className="text-xl font-semibold mt-1">{isLive ? "Live" : (league.status || "Pending")}</p>
+            </div>
+            <div className="rounded-2xl bg-white/5 p-4">
+              <p className="text-xs uppercase tracking-[0.3em] text-white/50">Week</p>
+              <p className="text-xl font-semibold mt-1">
+                Week {currentWeek} • {currentYear}
+              </p>
+            </div>
+            <div className="rounded-2xl bg-white/5 p-4">
+              <p className="text-xs uppercase tracking-[0.3em] text-white/50">Actions</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-2xl border-white/30 text-white hover:bg-white/10"
+                  onClick={handleCalculateScores}
+                  disabled={isCalculating || calculateChallengeDayMutation.isPending}
+                >
+                  {isCalculating || calculateChallengeDayMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    "Sync Scores"
+                  )}
+                </Button>
+                {league.leagueCode && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="rounded-2xl"
+                    onClick={copyLeagueCode}
+                  >
+                    Share Code
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-      </header>
+        </section>
+        {(league?.status === 'active' || league?.status === 'draft') && (
+          <p className="text-xs text-white/60">
+            {isConnected ? "Live updates connected" : "Connecting to live updates..."}
+            {lastUpdateTime && ` • Last updated ${lastUpdateTime.toLocaleTimeString()}`}
+          </p>
+        )}
 
-      <main className="container mx-auto px-4 py-8 space-y-6">
         {/* Draft In Progress Banner */}
         {(league?.status === 'draft' || (league?.draftStarted === 1 && league?.draftCompleted === 0)) && league.teams?.length === 2 && (
           <Card className="gradient-card border-primary/50 glow-primary slide-in-bottom">
@@ -597,58 +653,8 @@ export default function DailyChallenge() {
           </Card>
         )}
 
-        {/* Update Status Indicator */}
-        {league?.status === 'active' && (
-          <Card className="border-border/50 bg-card/80">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  {isConnected ? (
-                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                  ) : (
-                    <div className="w-2 h-2 rounded-full bg-gray-500" />
-                  )}
-                  <div>
-                    <p className="text-sm font-medium text-foreground">
-                      {isConnected ? 'Live Updates Connected' : 'Connecting...'}
-                    </p>
-                    {lastUpdateTime && (
-                      <p className="text-xs text-muted-foreground">
-                        Last updated: {lastUpdateTime.toLocaleTimeString()}
-                      </p>
-                    )}
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Scores update automatically every hour
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Clock className="w-4 h-4" />
-                  <span>Next update in: {timeUntilUpdate || 'Calculating...'}</span>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-border/50 mt-2"
-                  onClick={handleCalculateScores}
-                  disabled={isCalculating || calculateChallengeDayMutation.isPending}
-                >
-                  {isCalculating || calculateChallengeDayMutation.isPending ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Updating...
-                    </>
-                  ) : (
-                    "Update Scores Now"
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Hero Scoreboard */}
-        <Card className="gradient-card border-border/50 glow-primary slide-in-bottom">
+        <Card className="rounded-[32px] border-white/10 bg-gradient-to-br from-[#050505] via-[#111122] to-[#1f1f33] shadow-[0_25px_60px_rgba(0,0,0,0.45)] slide-in-bottom">
           <CardContent className="p-6">
             <div className="flex flex-col gap-6">
               <div className="flex flex-col md:flex-row items-center justify-between gap-6">
@@ -715,7 +721,7 @@ export default function DailyChallenge() {
 
 
         {/* Leaderboard */}
-        <Card className="border-border/50 bg-card/80 slide-in-bottom">
+        <Card className="rounded-[28px] border-white/10 bg-white/5 slide-in-bottom">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-foreground">
               <Trophy className="w-5 h-5 text-primary" />
@@ -801,7 +807,7 @@ export default function DailyChallenge() {
               {topPerformers.map((performer, index) => (
                 <Card
                   key={`${performer.name}-${index}`}
-                  className="gradient-card border-border/40 card-hover-lift slide-in-bottom"
+                  className="rounded-[24px] border-white/10 bg-white/5 card-hover-lift slide-in-bottom"
                   style={{ animationDelay: `${index * 0.1}s` }}
                 >
                   <CardContent className="p-4 space-y-2">
