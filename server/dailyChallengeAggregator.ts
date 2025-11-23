@@ -605,7 +605,7 @@ export class DailyChallengeAggregator {
     // Brands use ratings data, not order data
     // Fetch from Metabase question that aggregates brand ratings
     // Note: The ratings are cumulative, not daily, so we use the latest snapshot
-    const ratingsData = await this.fetchBrandRatings();
+    const ratingsData = await this.fetchBrandRatings(dateString);
     
     if (!ratingsData || ratingsData.length === 0) {
       await this.log('warn', 'No brand ratings data found', undefined, logger);
@@ -715,7 +715,7 @@ export class DailyChallengeAggregator {
    * Fetch brand ratings from Metabase
    * Uses the brand ratings aggregation query
    */
-  private async fetchBrandRatings(): Promise<Array<{
+  private async fetchBrandRatings(statDate: string): Promise<Array<{
     name: string;
     totalRatings: number;
     averageRating: number;
@@ -730,9 +730,11 @@ export class DailyChallengeAggregator {
       // The Metabase query URL provided shows this is a custom aggregation
       // We need to execute it as a card query
       // For now, we'll use a placeholder card ID - you'll need to save the query and get the ID
-      const BRAND_RATINGS_CARD_ID = 1265; // TODO: Update with actual saved question ID
+      const BRAND_RATINGS_CARD_ID = 1278; // brand-indv-today (per-day stats)
       
-      const result = await this.metabase.executeCardQuery(BRAND_RATINGS_CARD_ID, {});
+      const result = await this.metabase.executeCardQuery(BRAND_RATINGS_CARD_ID, {
+        stat_date: statDate,
+      });
       
       return result.map((row: any) => ({
         name: row.Name || row.name,

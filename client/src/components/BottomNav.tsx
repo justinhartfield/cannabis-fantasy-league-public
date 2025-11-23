@@ -75,7 +75,7 @@ export function BottomNav() {
                     : "bg-white/5 text-white/60"
                 )}
               >
-                <item.icon className="h-5 w-5" />
+                <item.icon className={cn("h-5 w-5", isActive ? "text-black" : "text-white/60")} />
               </span>
               <span
                 className={cn(
