@@ -433,6 +433,10 @@ export class DailyChallengeAggregatorV2 {
     // This now fetches both today and yesterday to compute deltas
     const ratingsData = await this.fetchBrandRatings(dateString);
 
+    // Clear existing brand stats for this date to prevent stale data
+    // This ensures that if a brand no longer has ratings (or if we are re-running), old entries are removed
+    await db.delete(brandDailyChallengeStats).where(eq(brandDailyChallengeStats.statDate, dateString));
+
     if (!ratingsData || ratingsData.length === 0) {
       await this.log('warn', 'No brand ratings data found', undefined, logger);
       return { processed: 0, skipped: 0 };
@@ -495,25 +499,7 @@ export class DailyChallengeAggregatorV2 {
           bayesianDelta: bayesianDelta.toString(),
           createdAt: new Date(),
           updatedAt: new Date(),
-        })
-        .onConflictDoUpdate({
-          target: [brandDailyChallengeStats.brandId, brandDailyChallengeStats.statDate],
-          set: {
-            totalRatings: brandData.totalRatings,
-            averageRating: brandData.averageRating.toString(),
-            bayesianAverage: brandData.bayesianAverage.toString(),
-            veryGoodCount: brandData.veryGoodCount,
-            goodCount: brandData.goodCount,
-            acceptableCount: brandData.acceptableCount,
-            badCount: brandData.badCount,
-            veryBadCount: brandData.veryBadCount,
-            totalPoints: scoring.totalPoints,
-            rank,
-            ratingDelta,
-            bayesianDelta: bayesianDelta.toString(),
-            updatedAt: new Date(),
-          },
-        });
+        }); // No need for onConflictDoUpdate since we deleted beforehand
 
       processed += 1;
       await this.log(
