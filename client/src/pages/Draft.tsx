@@ -178,7 +178,7 @@ export default function Draft() {
           ]);
           refetchRoster();
         }
-        invalidateAvailableByType(assetType);
+        // invalidateAvailableByType(assetType);
       } else if (message.type === 'next_pick') {
         setCurrentTurnTeamId(message.teamId);
         setCurrentTurnTeamName(message.teamName);
@@ -216,7 +216,7 @@ export default function Draft() {
         if (message.teamId === myTeam?.id) {
           refetchRoster();
         }
-        invalidateAvailableByType(message.assetType as AssetType);
+        // invalidateAvailableByType(message.assetType as AssetType);
       }
     },
     onConnect: () => {
@@ -426,8 +426,8 @@ export default function Draft() {
               {currentTurnTeamName && (
                 <div
                   className={`rounded-[18px] px-5 py-3 text-center text-sm font-semibold ${isMyTurn
-                      ? "bg-gradient-to-r from-[#cfff4d] to-[#8dff8c] text-black shadow-[0_10px_30px_rgba(207,255,77,0.5)]"
-                      : "bg-[#f1d9ff] text-[#8d4bff]"
+                    ? "bg-gradient-to-r from-[#cfff4d] to-[#8dff8c] text-black shadow-[0_10px_30px_rgba(207,255,77,0.5)]"
+                    : "bg-[#f1d9ff] text-[#8d4bff]"
                     }`}
                 >
                   {isMyTurn ? "🎯 Dein Zug!" : `${currentTurnTeamName} ist dran`}
