@@ -25,6 +25,22 @@ const TEMPLATES = [
   "Trade offer incoming...",
 ];
 
+const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif"];
+
+const isImageMessage = (value: string) => {
+  if (!value) return false;
+  try {
+    const url = new URL(value.trim());
+    if (!["http:", "https:"].includes(url.protocol)) {
+      return false;
+    }
+    const pathname = url.pathname.toLowerCase();
+    return IMAGE_EXTENSIONS.some((ext) => pathname.endsWith(ext));
+  } catch {
+    return false;
+  }
+};
+
 export function LeagueChat({ leagueId }: LeagueChatProps) {
   const { user } = useAuth();
   const { messages: liveMessages, setMessages: setLiveMessages } = useLeagueChat(leagueId);
@@ -90,8 +106,7 @@ export function LeagueChat({ leagueId }: LeagueChatProps) {
         <div className="space-y-4">
           {allMessages.map((msg) => {
             const isMe = msg.userId === user?.id;
-            // Check if message is a GIF URL (simple heuristic)
-            const isGif = msg.message.includes("giphy.com/media");
+            const isImage = isImageMessage(msg.message);
 
             return (
               <div key={msg.id} className={`flex gap-2 ${isMe ? "flex-row-reverse" : ""}`}>
@@ -99,17 +114,30 @@ export function LeagueChat({ leagueId }: LeagueChatProps) {
                   <AvatarImage src={msg.userAvatarUrl || undefined} />
                   <AvatarFallback>{msg.userName[0]}</AvatarFallback>
                 </Avatar>
-                <div className={`flex flex-col max-w-[70%] ${isMe ? "items-end" : "items-start"}`}>
+                <div
+                  className={`flex flex-col w-full max-w-[calc(100%-3rem)] sm:max-w-[70%] ${
+                    isMe ? "items-end ml-auto" : "items-start mr-auto"
+                  }`}
+                >
                   <span className="text-xs text-muted-foreground mb-1">
                     {msg.userName}, {format(new Date(msg.createdAt), "h:mm a")}
                   </span>
                   <div
                     className={`rounded-lg p-3 ${
                       isMe ? "bg-primary text-primary-foreground" : "bg-muted"
-                    } ${isGif ? "bg-transparent p-0 w-full overflow-hidden" : ""}`}
+                    } ${
+                      isImage
+                        ? "bg-transparent p-0 w-full max-w-xs sm:max-w-sm overflow-hidden"
+                        : ""
+                    }`}
                   >
-                    {isGif ? (
-                      <img src={msg.message} alt="GIF" className="rounded-lg w-full max-w-full h-auto object-contain" />
+                    {isImage ? (
+                      <img
+                        src={msg.message}
+                        alt="Chat attachment"
+                        className="rounded-lg w-full max-w-full h-auto object-contain"
+                        loading="lazy"
+                      />
                     ) : (
                       msg.message
                     )}
