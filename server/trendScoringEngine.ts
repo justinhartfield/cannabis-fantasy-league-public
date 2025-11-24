@@ -80,22 +80,22 @@ export function calculateTrendMultiplier(days1: number, days7: number): number {
  */
 export function calculateConsistencyScore(dailyVolumes: number[]): number {
   if (!dailyVolumes || dailyVolumes.length < 3) return 0;
-  
+
   // Calculate mean
   const mean = dailyVolumes.reduce((sum, val) => sum + val, 0) / dailyVolumes.length;
-  
+
   // Calculate standard deviation
   const squaredDiffs = dailyVolumes.map(val => Math.pow(val - mean, 2));
   const variance = squaredDiffs.reduce((sum, val) => sum + val, 0) / dailyVolumes.length;
   const stdDev = Math.sqrt(variance);
-  
+
   // Calculate coefficient of variation (CV) - normalized measure of dispersion
   const cv = mean > 0 ? stdDev / mean : 1;
-  
+
   // Convert to consistency score (lower CV = higher score)
   // Perfect consistency (CV=0) = 100 pts, high variance (CV>=1) = 0 pts
   const consistencyScore = Math.max(0, Math.floor((1 - cv) * 100));
-  
+
   return consistencyScore;
 }
 
@@ -105,18 +105,18 @@ export function calculateConsistencyScore(dailyVolumes: number[]): number {
  */
 export function calculateVelocityScore(days1: number, days7: number, days14?: number): number {
   if (!days14 || days14 === 0) return 0;
-  
+
   // Calculate growth rates for two periods
   const recentGrowth = days7 - days1; // Growth from Day 1 to Day 7
   const olderGrowth = days14 - days7; // Growth from Day 7 to Day 14
-  
+
   // Calculate acceleration (change in growth rate)
   const acceleration = recentGrowth - olderGrowth;
-  
+
   // Convert to velocity score (positive acceleration = bonus)
   // Scale by 0.05 to keep scores reasonable
   const velocityScore = Math.floor(acceleration * 0.05);
-  
+
   // Cap at reasonable bounds
   return Math.min(Math.max(velocityScore, -50), 100);
 }
@@ -127,7 +127,7 @@ export function calculateVelocityScore(days1: number, days7: number, days14?: nu
  */
 export function calculateStreakMultiplier(streakDays: number): number {
   if (streakDays < 2) return 1.0; // No streak bonus
-  
+
   // Progressive streak tiers with increasing multipliers
   if (streakDays >= 21) return 3.0;  // 🔥🔥🔥🔥🔥 God Mode: 3x multiplier
   if (streakDays >= 14) return 2.0;  // 🔥🔥🔥🔥 Legendary: 2x multiplier
@@ -153,7 +153,7 @@ export function getStreakTierName(streakDays: number): string {
  */
 export function calculateStreakBonus(streakDays: number): number {
   if (streakDays < 2) return 0;
-  
+
   // Linear bonus progression: 2pts per day, capped at 15pts
   return Math.min(15, streakDays * 2);
 }
@@ -177,7 +177,7 @@ export function calculateMarketShareBonus(marketSharePercent: number): number {
  */
 export function calculateRankBonus(rank: number, entityType: 'manufacturer' | 'strain' | 'product' | 'pharmacy'): number {
   if (rank === 0) return 0; // Unranked
-  
+
   // Unified bonus system across all positions
   if (rank === 1) return 30;        // Rank #1
   if (rank >= 2 && rank <= 3) return 20;  // Rank #2-3
@@ -192,16 +192,15 @@ export function calculateRankBonus(rank: number, entityType: 'manufacturer' | 's
  */
 export function calculateMomentumBonus(previousRank: number, currentRank: number, entityType: 'manufacturer' | 'strain' | 'product' | 'pharmacy'): number {
   if (previousRank === 0 || currentRank === 0) return 0; // No previous rank to compare
-  
+
   const rankChange = previousRank - currentRank; // Positive = improvement
-  
+
   // Unified bonus system: 8 pts per rank gained, -4 pts per rank lost
   // Capped at ±40 pts (max 5 rank movement impact)
   if (rankChange > 0) {
     return Math.min(40, rankChange * 8);
-  } else if (rankChange < 0) {
-    return Math.max(-40, rankChange * 4);
   }
+  // Eliminate penalty for rank loss to prevent negative scores
   return 0;
 }
 
@@ -212,36 +211,36 @@ export function calculateMomentumBonus(previousRank: number, currentRank: number
 export function calculateManufacturerTrendScore(stats: TrendScoringStats): TrendScoringBreakdown {
   // Base points from order count (reduced from 10 to 5)
   const orderCountPoints = stats.orderCount * 5;
-  
+
   // Trend momentum points (reduced from 100 to 25)
   const trendMultiplier =
     typeof stats.trendMultiplier === 'number' && stats.trendMultiplier > 0
       ? Math.min(stats.trendMultiplier, 5.0) // Cap at 5x
       : calculateTrendMultiplier(stats.days1 ?? 0, stats.days7 ?? 0);
   const trendMomentumPoints = Math.floor(trendMultiplier * 25);
-  
+
   // Rank-based bonuses (now unified)
   const rankBonusPoints = calculateRankBonus(stats.currentRank, 'manufacturer');
   const momentumBonusPoints = calculateMomentumBonus(stats.previousRank, stats.currentRank, 'manufacturer');
-  
+
   // Advanced feature bonuses (all capped)
   const consistencyScore =
     typeof stats.consistencyScore === 'number'
       ? stats.consistencyScore
       : calculateConsistencyScore(stats.dailyVolumes || []);
   const consistencyBonusPoints = Math.min(20, Math.floor(consistencyScore * 0.20)); // Capped at 20
-  
+
   const velocityScore =
     typeof stats.velocityScore === 'number'
       ? stats.velocityScore
       : calculateVelocityScore(stats.days1 ?? 0, stats.days7 ?? 0, stats.days14);
   const velocityBonusPoints = Math.min(15, Math.abs(Math.floor(velocityScore * 0.15))); // Capped at 15
-  
+
   const streakBonusPoints = calculateStreakBonus(stats.streakDays); // Already capped at 15
   const marketShareBonusPoints = calculateMarketShareBonus(stats.marketSharePercent); // Already capped at 20
-  
+
   // Calculate total (target: 50-120 pts base + up to 50 in bonuses)
-  const totalPoints = 
+  const totalPoints =
     orderCountPoints +
     trendMomentumPoints +
     rankBonusPoints +
@@ -250,7 +249,7 @@ export function calculateManufacturerTrendScore(stats: TrendScoringStats): Trend
     velocityBonusPoints +
     streakBonusPoints +
     marketShareBonusPoints;
-  
+
   return {
     orderCountPoints,
     trendMomentumPoints,
@@ -274,36 +273,36 @@ export function calculateManufacturerTrendScore(stats: TrendScoringStats): Trend
 export function calculateStrainTrendScore(stats: TrendScoringStats): TrendScoringBreakdown {
   // Base points from order count (normalized to 5)
   const orderCountPoints = Math.floor(stats.orderCount * 5);
-  
+
   // Trend momentum points (normalized to 22)
   const trendMultiplier =
     typeof stats.trendMultiplier === 'number' && stats.trendMultiplier > 0
       ? Math.min(stats.trendMultiplier, 5.0) // Cap at 5x
       : calculateTrendMultiplier(stats.days1 ?? 0, stats.days7 ?? 0);
   const trendMomentumPoints = Math.floor(trendMultiplier * 22);
-  
+
   // Rank-based bonuses (now unified)
   const rankBonusPoints = calculateRankBonus(stats.currentRank, 'strain');
   const momentumBonusPoints = calculateMomentumBonus(stats.previousRank, stats.currentRank, 'strain');
-  
+
   // Advanced feature bonuses (capped)
   const consistencyScore =
     typeof stats.consistencyScore === 'number'
       ? stats.consistencyScore
       : calculateConsistencyScore(stats.dailyVolumes || []);
   const consistencyBonusPoints = Math.min(20, Math.floor(consistencyScore * 0.20));
-  
+
   const velocityScore =
     typeof stats.velocityScore === 'number'
       ? stats.velocityScore
       : calculateVelocityScore(stats.days1 ?? 0, stats.days7 ?? 0, stats.days14);
   const velocityBonusPoints = Math.min(15, Math.abs(Math.floor(velocityScore * 0.15)));
-  
+
   const streakBonusPoints = calculateStreakBonus(stats.streakDays); // Already capped at 15
   const marketShareBonusPoints = calculateMarketShareBonus(stats.marketSharePercent); // Already capped at 20
-  
+
   // Calculate total (target: 40-90 pts base + up to 50 in bonuses)
-  const totalPoints = 
+  const totalPoints =
     orderCountPoints +
     trendMomentumPoints +
     rankBonusPoints +
@@ -312,7 +311,7 @@ export function calculateStrainTrendScore(stats: TrendScoringStats): TrendScorin
     velocityBonusPoints +
     streakBonusPoints +
     marketShareBonusPoints;
-  
+
   return {
     orderCountPoints,
     trendMomentumPoints,
@@ -336,36 +335,36 @@ export function calculateStrainTrendScore(stats: TrendScoringStats): TrendScorin
 export function calculateProductTrendScore(stats: TrendScoringStats): TrendScoringBreakdown {
   // Base points from order count (normalized to 7, removed 3x multiplier)
   const orderCountPoints = stats.orderCount * 7;
-  
+
   // Trend momentum points (normalized to 20, removed 3x multiplier)
   const trendMultiplier =
     typeof stats.trendMultiplier === 'number' && stats.trendMultiplier > 0
       ? Math.min(stats.trendMultiplier, 5.0) // Cap at 5x
       : calculateTrendMultiplier(stats.days1 ?? 0, stats.days7 ?? 0);
   const trendMomentumPoints = Math.floor(trendMultiplier * 20);
-  
+
   // Rank-based bonuses (now unified)
   const rankBonusPoints = calculateRankBonus(stats.currentRank, 'product');
   const momentumBonusPoints = calculateMomentumBonus(stats.previousRank, stats.currentRank, 'product');
-  
+
   // Advanced feature bonuses (capped)
   const consistencyScore =
     typeof stats.consistencyScore === 'number'
       ? stats.consistencyScore
       : calculateConsistencyScore(stats.dailyVolumes || []);
   const consistencyBonusPoints = Math.min(20, Math.floor(consistencyScore * 0.20));
-  
+
   const velocityScore =
     typeof stats.velocityScore === 'number'
       ? stats.velocityScore
       : calculateVelocityScore(stats.days1 ?? 0, stats.days7 ?? 0, stats.days14);
   const velocityBonusPoints = Math.min(15, Math.abs(Math.floor(velocityScore * 0.15)));
-  
+
   const streakBonusPoints = calculateStreakBonus(stats.streakDays); // Already capped at 15
   const marketShareBonusPoints = calculateMarketShareBonus(stats.marketSharePercent); // Already capped at 20
-  
+
   // Calculate total (target: 30-70 pts base + up to 50 in bonuses)
-  const totalPoints = 
+  const totalPoints =
     orderCountPoints +
     trendMomentumPoints +
     rankBonusPoints +
@@ -374,7 +373,7 @@ export function calculateProductTrendScore(stats: TrendScoringStats): TrendScori
     velocityBonusPoints +
     streakBonusPoints +
     marketShareBonusPoints;
-  
+
   return {
     orderCountPoints,
     trendMomentumPoints,
@@ -398,36 +397,36 @@ export function calculateProductTrendScore(stats: TrendScoringStats): TrendScori
 export function calculatePharmacyTrendScore(stats: TrendScoringStats): TrendScoringBreakdown {
   // Base points from order count (reduced from 10 to 5)
   const orderCountPoints = stats.orderCount * 5;
-  
+
   // Trend momentum points (reduced from 100 to 25)
   const trendMultiplier =
     typeof stats.trendMultiplier === 'number' && stats.trendMultiplier > 0
       ? Math.min(stats.trendMultiplier, 5.0) // Cap at 5x
       : calculateTrendMultiplier(stats.days1 ?? 0, stats.days7 ?? 0);
   const trendMomentumPoints = Math.floor(trendMultiplier * 25);
-  
+
   // Rank-based bonuses (now unified)
   const rankBonusPoints = calculateRankBonus(stats.currentRank, 'pharmacy');
   const momentumBonusPoints = calculateMomentumBonus(stats.previousRank, stats.currentRank, 'pharmacy');
-  
+
   // Advanced feature bonuses (capped)
   const consistencyScore =
     typeof stats.consistencyScore === 'number'
       ? stats.consistencyScore
       : calculateConsistencyScore(stats.dailyVolumes || []);
   const consistencyBonusPoints = Math.min(20, Math.floor(consistencyScore * 0.20));
-  
+
   const velocityScore =
     typeof stats.velocityScore === 'number'
       ? stats.velocityScore
       : calculateVelocityScore(stats.days1 ?? 0, stats.days7 ?? 0, stats.days14);
   const velocityBonusPoints = Math.min(15, Math.abs(Math.floor(velocityScore * 0.15)));
-  
+
   const streakBonusPoints = calculateStreakBonus(stats.streakDays); // Already capped at 15
   const marketShareBonusPoints = calculateMarketShareBonus(stats.marketSharePercent); // Already capped at 20
-  
+
   // Calculate total (target: 50-120 pts base + up to 50 in bonuses)
-  const totalPoints = 
+  const totalPoints =
     orderCountPoints +
     trendMomentumPoints +
     rankBonusPoints +
@@ -436,7 +435,7 @@ export function calculatePharmacyTrendScore(stats: TrendScoringStats): TrendScor
     velocityBonusPoints +
     streakBonusPoints +
     marketShareBonusPoints;
-  
+
   return {
     orderCountPoints,
     trendMomentumPoints,
