@@ -20,7 +20,7 @@ export const dataSyncRouter = router({
     }
 
     const syncService = getDataSyncService();
-    
+
     try {
       // Try to fetch a small amount of data to test connection
       await syncService.syncManufacturers();
@@ -49,7 +49,7 @@ export const dataSyncRouter = router({
     }
 
     const syncService = getDataSyncService();
-    
+
     try {
       await syncService.syncAll();
       return {
@@ -76,7 +76,7 @@ export const dataSyncRouter = router({
     }
 
     const syncService = getDataSyncService();
-    
+
     try {
       await syncService.syncManufacturers();
       return {
@@ -103,7 +103,7 @@ export const dataSyncRouter = router({
     }
 
     const syncService = getDataSyncService();
-    
+
     try {
       await syncService.syncBrands();
       return {
@@ -130,7 +130,7 @@ export const dataSyncRouter = router({
     }
 
     const syncService = getDataSyncService();
-    
+
     try {
       await syncService.syncStrains();
       return {
@@ -157,7 +157,7 @@ export const dataSyncRouter = router({
     }
 
     const syncService = getDataSyncService();
-    
+
     try {
       await syncService.syncPharmacies();
       return {
@@ -189,7 +189,7 @@ export const dataSyncRouter = router({
       }
 
       const syncService = getDataSyncService();
-      
+
       try {
         await syncService.createWeeklySnapshots(input.year, input.week);
         return {
@@ -245,11 +245,11 @@ export const dataSyncRouter = router({
         throw new Error('Unauthorized: Admin access required');
       }
 
-      const { dailyChallengeAggregator } = await import('./dailyChallengeAggregator');
-      
+      const { dailyChallengeAggregatorV2 } = await import('./dailyChallengeAggregatorV2');
+
       try {
         const statDate = input.statDate || new Date().toISOString().split('T')[0];
-        await dailyChallengeAggregator.aggregateForDate(statDate);
+        await dailyChallengeAggregatorV2.aggregateForDate(statDate, { useTrendScoring: true });
         return {
           success: true,
           message: `Daily stats aggregated successfully for ${statDate}`,

@@ -136,45 +136,33 @@ export const adminRouter = router({
     .input(
       z.object({
         statDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-        useLegacy: z.boolean().optional(),
       }).optional()
     )
     .mutation(async ({ ctx, input }) => {
       const statDate = input?.statDate || new Date().toISOString().split('T')[0];
-      const useLegacy = input?.useLegacy ?? false;
       const logger = await createSyncJob('sync-daily-challenge');
 
       try {
         await logger.updateJobStatus(
           'running',
-          `Starting daily challenge sync for ${statDate} (${useLegacy ? 'legacy' : 'trend'} aggregator)`
+          `Starting daily challenge sync for ${statDate}`
         );
 
-        const summary = useLegacy
-          ? await import('../dailyChallengeAggregator').then(({ dailyChallengeAggregator }) =>
-            dailyChallengeAggregator.aggregateForDate(statDate, {
-              logger: {
-                info: (message, metadata) => logger.info(message, metadata),
-                warn: (message, metadata) => logger.warn(message, metadata),
-                error: (message, metadata) => logger.error(message, metadata),
-              },
-            })
-          )
-          : await dailyChallengeAggregatorV2.aggregateForDate(statDate, {
-            logger: {
-              info: (message, metadata) => logger.info(message, metadata),
-              warn: (message, metadata) => logger.warn(message, metadata),
-              error: (message, metadata) => logger.error(message, metadata),
-            },
-            useTrendScoring: true,
-          });
+        const summary = await dailyChallengeAggregatorV2.aggregateForDate(statDate, {
+          logger: {
+            info: (message, metadata) => logger.info(message, metadata),
+            warn: (message, metadata) => logger.warn(message, metadata),
+            error: (message, metadata) => logger.error(message, metadata),
+          },
+          useTrendScoring: true,
+        });
 
         await logger.info('Daily challenge stats sync complete', { ...summary, useLegacy });
         await logger.updateJobStatus('completed', `Daily challenge stats synced for ${statDate}`);
 
         return {
           success: true,
-          message: `Daily challenge stats sync started for ${statDate} (${useLegacy ? 'legacy' : 'trend'})`,
+          message: `Daily challenge stats sync started for ${statDate}`,
           statDate,
           summary,
         };
@@ -201,17 +189,16 @@ export const adminRouter = router({
       z.object({
         startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
         endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        useLegacy: z.boolean().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { startDate, endDate, useLegacy } = input;
+      const { startDate, endDate } = input;
       const logger = await createSyncJob('backfill-daily-challenge');
 
       try {
         await logger.updateJobStatus(
           'running',
-          `Starting backfill from ${startDate} to ${endDate} (${useLegacy ? 'legacy' : 'trend'})`
+          `Starting backfill from ${startDate} to ${endDate}`
         );
 
         const start = new Date(startDate);
@@ -223,24 +210,14 @@ export const adminRouter = router({
           await logger.info(`Processing ${dateStr}...`);
 
           try {
-            const summary = useLegacy
-              ? await import('../dailyChallengeAggregator').then(({ dailyChallengeAggregator }) =>
-                dailyChallengeAggregator.aggregateForDate(dateStr, {
-                  logger: {
-                    info: (message, metadata) => logger.info(message, metadata),
-                    warn: (message, metadata) => logger.warn(message, metadata),
-                    error: (message, metadata) => logger.error(message, metadata),
-                  },
-                })
-              )
-              : await dailyChallengeAggregatorV2.aggregateForDate(dateStr, {
-                logger: {
-                  info: (message, metadata) => logger.info(message, metadata),
-                  warn: (message, metadata) => logger.warn(message, metadata),
-                  error: (message, metadata) => logger.error(message, metadata),
-                },
-                useTrendScoring: true,
-              });
+            const summary = await dailyChallengeAggregatorV2.aggregateForDate(dateStr, {
+              logger: {
+                info: (message, metadata) => logger.info(message, metadata),
+                warn: (message, metadata) => logger.warn(message, metadata),
+                error: (message, metadata) => logger.error(message, metadata),
+              },
+              useTrendScoring: true,
+            });
             results.push({ date: dateStr, success: true, summary });
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
