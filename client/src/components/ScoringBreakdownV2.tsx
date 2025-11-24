@@ -292,6 +292,31 @@ export default function ScoringBreakdownV2({
     return dates.map(formatStatDateLabel);
   }, [weekContext?.year, weekContext?.week]);
 
+  // For season-long league views (identified by weekContext) we want brand
+  // breakdowns to hide trend-only components that no longer contribute points,
+  // so the UI doesn't suggest they are still active scoring factors.
+  const visibleComponents = useMemo(() => {
+    const base = data.components || [];
+
+    if (!weekContext || data.assetType !== "brand") {
+      return base;
+    }
+
+    return base.filter((component) => {
+      const isBrandTrendComponent =
+        component.category === "New Ratings Momentum" ||
+        component.category === "Rating Trend";
+
+      // Keep the row for daily challenges or historical views where it
+      // still has points; hide it only when it contributes nothing.
+      if (isBrandTrendComponent && (!component.points || component.points === 0)) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [data.components, data.assetType, weekContext?.year, weekContext?.week]);
+
   if (variant === "app") {
     return (
       <div className="rounded-[28px] bg-[#2b0d3f] text-white p-5 space-y-4 border border-white/10 shadow-[0_20px_40px_rgba(0,0,0,0.35)]">
@@ -370,10 +395,10 @@ export default function ScoringBreakdownV2({
             Scoring-Komponenten
           </div>
           <div className="grid gap-2">
-            {data.components.map((component, idx) => {
+            {visibleComponents.map((component, idx) => {
               const orderActivityIndex =
                 component.category === "Order Activity"
-                  ? data.components
+                  ? visibleComponents
                     .slice(0, idx)
                     .filter((c) => c.category === "Order Activity").length
                   : null;
@@ -450,7 +475,7 @@ export default function ScoringBreakdownV2({
               Gesamtpunktzahl
             </div>
             <div className="text-sm text-white/60">
-              {data.components.length} Komponenten
+              {visibleComponents.length} Komponenten
               {data.bonuses.length > 0 && ` + ${data.bonuses.length} Boni`}
             </div>
           </div>
@@ -566,7 +591,7 @@ export default function ScoringBreakdownV2({
         <div className="space-y-1.5">
           <h4 className="text-xs font-semibold text-foreground uppercase tracking-wide">Scoring-Komponenten</h4>
           <div className="space-y-1">
-            {data.components.map((component, idx) => {
+            {visibleComponents.map((component, idx) => {
               const tooltipContent = getComponentTooltipContent(
                 component,
                 data.assetType
@@ -574,7 +599,7 @@ export default function ScoringBreakdownV2({
 
               const orderActivityIndex =
                 component.category === "Order Activity"
-                  ? data.components
+                  ? visibleComponents
                     .slice(0, idx)
                     .filter((c) => c.category === "Order Activity").length
                   : null;
@@ -699,7 +724,7 @@ export default function ScoringBreakdownV2({
             <div>
               <div className="text-sm font-semibold text-foreground leading-tight">Gesamtpunktzahl</div>
               <div className="text-[11px] text-muted-foreground mt-0.5">
-                {data.components.length} Komponenten + {data.bonuses.length} Boni
+                {visibleComponents.length} Komponenten + {data.bonuses.length} Boni
               </div>
             </div>
             <div className="text-xl font-bold text-foreground">{data.total}</div>

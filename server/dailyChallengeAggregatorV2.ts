@@ -78,6 +78,7 @@ export type DailyChallengeAggregationSummary = {
 type AggregationOptions = {
   logger?: AggregationLogger;
   useTrendScoring?: boolean; // Toggle between old and new scoring
+  brandsOnly?: boolean;
 };
 
 export class DailyChallengeAggregatorV2 {
@@ -568,7 +569,7 @@ export class DailyChallengeAggregatorV2 {
 
   /**
    * Fetch brand ratings from Metabase
-   * Uses the brand ratings aggregation query
+   * Uses the public questions for Today's ratings
    */
   private async fetchBrandRatings(statDate: string): Promise<Array<{
     name: string;
@@ -584,87 +585,75 @@ export class DailyChallengeAggregatorV2 {
     bayesianDelta: number;
   }>> {
     try {
-      const BRAND_TODAY_CARD_ID = 1278; // brand-indv-today
-      const BRAND_YESTERDAY_CARD_ID = 1287; // brand-indv-yesterday-modified
-      
-      // Calculate yesterday's date
-      const targetDate = new Date(statDate);
-      const yesterday = new Date(targetDate);
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().split('T')[0];
-      
-      console.log(`[Brand Ratings] Fetching for date ${statDate} (yesterday: ${yesterdayStr})`);
-      
-      // Try fetching with parameters first, then fall back to fetching without parameters
-      let todayResults: any[] = [];
-      let yesterdayResults: any[] = [];
-      
-      try {
-        // Attempt with date parameters
-        [todayResults, yesterdayResults] = await Promise.all([
-          this.metabase.executeCardQuery(BRAND_TODAY_CARD_ID, {
-            UpdatedAt: statDate,
-          }),
-          this.metabase.executeCardQuery(BRAND_YESTERDAY_CARD_ID, {
-            UpdatedAt: yesterdayStr,
-          }),
-        ]);
-      } catch (paramError) {
-        console.warn(`[Brand Ratings] Parameterized query failed, trying without parameters...`, paramError);
-        // Fall back to fetching without parameters (will get all data, filter client-side)
-        [todayResults, yesterdayResults] = await Promise.all([
-          this.metabase.executeCardQuery(BRAND_TODAY_CARD_ID),
-          this.metabase.executeCardQuery(BRAND_YESTERDAY_CARD_ID),
-        ]);
-      }
-      
-      console.log(`[Brand Ratings] Fetched ${todayResults.length} today, ${yesterdayResults.length} yesterday`);
-      
-      // If no results, return empty array
-      if (!todayResults || todayResults.length === 0) {
-        console.warn(`[Brand Ratings] No data returned for ${statDate}`);
+      // Public UUIDs provided by user
+      const TODAY_UUID = '4468dfb0-8031-4e99-9115-0c31bd9373bb';
+      // const YESTERDAY_UUID = '14245995-f016-442b-ae44-2fbee6b3828b'; // Not using yesterday for scoring anymore, focused on TODAY
+
+      console.log(`[Brand Ratings] Fetching public data for TODAY (${statDate})...`);
+
+      // Fetch raw rows from public query
+      const rawRows = await this.metabase.executePublicQuery(TODAY_UUID);
+
+      console.log(`[Brand Ratings] Fetched ${rawRows.length} raw rating rows`);
+
+      if (!rawRows || rawRows.length === 0) {
+        console.warn(`[Brand Ratings] No ratings found for today.`);
         return [];
       }
-      
-      // Build a map of yesterday's data by brand name
-      const yesterdayMap = new Map<string, any>();
-      for (const row of yesterdayResults) {
-        const name = row.Name || row.name;
-        if (name) {
-          yesterdayMap.set(name, {
-            totalRatings: parseInt(row['Sum of TotalRatings'] || row.totalRatings || '0'),
-            bayesianAverage: parseFloat(row['Average of BayesianAverage'] || row.bayesianAverage || '0'),
-          });
+
+      // Aggregate rows by Brand (TargetName)
+      const brandStats = new Map<string, {
+        count: number;
+        sumRating: number;
+        ratings: number[];
+      }>();
+
+      for (const row of rawRows) {
+        // Check if the row is for a Brand
+        if (row.ReviewType !== 'brand' && row.ReviewType !== 'Brand') continue;
+
+        const brandName = row.TargetName;
+        if (!brandName) continue;
+
+        const rating = Number(row.Rating) || 0;
+
+        if (!brandStats.has(brandName)) {
+          brandStats.set(brandName, { count: 0, sumRating: 0, ratings: [] });
         }
+
+        const stats = brandStats.get(brandName)!;
+        stats.count++;
+        stats.sumRating += rating;
+        stats.ratings.push(rating);
       }
-      
-      // Map today's results and compute deltas
-      const results = todayResults.map((row: any) => {
-        const name = row.Name || row.name;
-        const todayTotal = parseInt(row['Sum of TotalRatings'] || row.totalRatings || '0');
-        const todayBayesian = parseFloat(row['Average of BayesianAverage'] || row.bayesianAverage || '0');
-        
-        const yesterday = yesterdayMap.get(name);
-        const yesterdayTotal = yesterday?.totalRatings ?? 0;
-        const yesterdayBayesian = yesterday?.bayesianAverage ?? 0;
-        
+
+      // Convert map to array
+      const results = Array.from(brandStats.entries()).map(([name, stats]) => {
+        const averageRating = stats.count > 0 ? stats.sumRating / stats.count : 0;
+
+        // Calculate distribution
+        const veryGoodCount = stats.ratings.filter(r => r >= 5).length;
+        const goodCount = stats.ratings.filter(r => r === 4).length;
+        const acceptableCount = stats.ratings.filter(r => r === 3).length;
+        const badCount = stats.ratings.filter(r => r === 2).length;
+        const veryBadCount = stats.ratings.filter(r => r <= 1).length;
+
         return {
           name,
-          totalRatings: todayTotal,
-          averageRating: parseFloat(row['Average of AverageRating'] || row.averageRating || '0'),
-          bayesianAverage: todayBayesian,
-          veryGoodCount: parseInt(row['Sum of RatingCounts: VeryGoodCount'] || row.veryGoodCount || '0'),
-          goodCount: parseInt(row['Sum of RatingCounts: GoodCount'] || row.goodCount || '0'),
-          acceptableCount: parseInt(row['Sum of RatingCounts: AcceptableCount'] || row.acceptableCount || '0'),
-          badCount: parseInt(row['Sum of RatingCounts: BadCount'] || row.badCount || '0'),
-          veryBadCount: parseInt(row['Sum of RatingCounts: VeryBadCount'] || row.veryBadCount || '0'),
-          // Compute deltas
-          ratingDelta: Math.max(0, todayTotal - yesterdayTotal),
-          bayesianDelta: Number((todayBayesian - yesterdayBayesian).toFixed(2)),
+          totalRatings: stats.count, // This is "Today's Count"
+          averageRating,
+          bayesianAverage: averageRating, // Using simple average for now as we reset daily
+          veryGoodCount,
+          goodCount,
+          acceptableCount,
+          badCount,
+          veryBadCount,
+          ratingDelta: 0, // Not relevant for "Today only" scoring
+          bayesianDelta: 0,
         };
-      }).filter(r => r.name); // Filter out entries without names
-      
-      console.log(`[Brand Ratings] Processed ${results.length} brands with ratings data`);
+      });
+
+      console.log(`[Brand Ratings] Aggregated into ${results.length} brands`);
       return results;
     } catch (error) {
       console.error('[DailyChallengeAggregatorV2] Error fetching brand ratings:', error);
@@ -693,40 +682,43 @@ export class DailyChallengeAggregatorV2 {
     }
 
     // Fetch orders from Metabase using Card 1267 (date-filtered)
-    await this.log('info', `Fetching orders from Metabase for ${dateString}...`, undefined, logger);
     let orders: OrderRecord[] = [];
 
-    try {
-      // Try date-filtered card first (Card 1267)
-      orders = await this.metabase.executeCardQuery(1267, { date: dateString }) as OrderRecord[];
-      await this.log('info', `✓ Date-filtered query returned ${orders.length} orders`, undefined, logger);
-    } catch (error) {
-      // Fallback to Card 1266 with client-side filtering
-      await this.log('warn', 'Date-filtered query failed, falling back to client-side filtering', error, logger);
-      const allOrders = await this.metabase.executeCardQuery(1266);
-      const targetDate = new Date(dateString);
-      orders = allOrders.filter((order: any) => {
-        if (!order.OrderDate) return false;
-        const orderDate = new Date(order.OrderDate);
-        return (
-          orderDate.getFullYear() === targetDate.getFullYear() &&
-          orderDate.getMonth() === targetDate.getMonth() &&
-          orderDate.getDate() === targetDate.getDate()
-        );
-      }) as OrderRecord[];
-      await this.log('info', `Filtered to ${orders.length} orders for ${dateString}`, undefined, logger);
+    if (!options?.brandsOnly) {
+      await this.log('info', `Fetching orders from Metabase for ${dateString}...`, undefined, logger);
+      try {
+        // Try date-filtered card first (Card 1267)
+        orders = await this.metabase.executeCardQuery(1267, { date: dateString }) as OrderRecord[];
+        await this.log('info', `✓ Date-filtered query returned ${orders.length} orders`, undefined, logger);
+      } catch (error) {
+        // Fallback to Card 1266 with client-side filtering
+        await this.log('warn', 'Date-filtered query failed, falling back to client-side filtering', error, logger);
+        const allOrders = await this.metabase.executeCardQuery(1266);
+        const targetDate = new Date(dateString);
+        orders = allOrders.filter((order: any) => {
+          if (!order.OrderDate) return false;
+          const orderDate = new Date(order.OrderDate);
+          return (
+            orderDate.getFullYear() === targetDate.getFullYear() &&
+            orderDate.getMonth() === targetDate.getMonth() &&
+            orderDate.getDate() === targetDate.getDate()
+          );
+        }) as OrderRecord[];
+        await this.log('info', `Filtered to ${orders.length} orders for ${dateString}`, undefined, logger);
+      }
+      await this.log('info', `Fetched ${orders.length} orders for ${dateString}`, undefined, logger);
+    } else {
+      await this.log('info', `Skipping order fetch (brandsOnly mode)`, undefined, logger);
     }
-
-    await this.log('info', `Fetched ${orders.length} orders for ${dateString}`, undefined, logger);
 
     // Aggregate with trend scoring
     const [manufacturers, strains, pharmacies, products, brands] = await Promise.all([
-      this.aggregateManufacturersWithTrends(db, dateString, orders, logger),
-      this.aggregateStrainsWithTrends(db, dateString, orders, logger),
-      import('./aggregatePharmaciesV2').then(({ aggregatePharmaciesWithTrends }) =>
+      options?.brandsOnly ? { processed: 0, skipped: 0 } : this.aggregateManufacturersWithTrends(db, dateString, orders, logger),
+      options?.brandsOnly ? { processed: 0, skipped: 0 } : this.aggregateStrainsWithTrends(db, dateString, orders, logger),
+      options?.brandsOnly ? Promise.resolve({ processed: 0, skipped: 0 }) : import('./aggregatePharmaciesV2').then(({ aggregatePharmaciesWithTrends }) =>
         aggregatePharmaciesWithTrends(db, dateString, orders, logger, this.log.bind(this))
       ),
-      import('./aggregateProductsV2').then(({ aggregateProductsWithTrends }) =>
+      options?.brandsOnly ? Promise.resolve({ processed: 0, skipped: 0 }) : import('./aggregateProductsV2').then(({ aggregateProductsWithTrends }) =>
         aggregateProductsWithTrends(db, dateString, orders, logger, this.log.bind(this))
       ),
       this.aggregateBrands(db, dateString, orders, logger)

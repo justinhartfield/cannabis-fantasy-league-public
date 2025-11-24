@@ -20,6 +20,8 @@ import { Loader2 } from "lucide-react";
 export default function RosterTest() {
   const { user, loading, isAuthenticated } = useAuth();
 
+  const [currentPick, setCurrentPick] = useState(15);
+
   // Mock data for testing
   const [mockLineup, setMockLineup] = useState([
     { position: "MFG1", assetType: "manufacturer" as const, assetId: 1, assetName: "Tilray", points: 45, locked: false },
@@ -142,6 +144,7 @@ export default function RosterTest() {
 
   const handleDraftPick = (assetType: any, assetId: number) => {
     console.log("Draft pick:", assetType, assetId);
+    setCurrentPick((prev) => prev + 1);
   };
 
   const handleUpdateLineup = (lineup: any) => {
@@ -203,7 +206,7 @@ export default function RosterTest() {
           <TabsContent value="draft" className="mt-6">
             <DraftBoard
               leagueId={30003}
-              currentPick={15}
+              currentPick={currentPick}
               isMyTurn={true}
               myRoster={[
                 { assetType: "manufacturer", assetId: 1, name: "Remexian Pharma" },

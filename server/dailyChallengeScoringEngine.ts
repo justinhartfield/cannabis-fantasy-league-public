@@ -36,7 +36,7 @@ export interface ScoringBreakdown {
 }
 
 // Re-export trend-based scoring for easy migration
-export { 
+export {
   calculateManufacturerTrendScore,
   calculateStrainTrendScore,
   calculateProductTrendScore,
@@ -197,27 +197,28 @@ export function calculatePharmacyScore(
  * Brands are scored differently from manufacturers/pharmacies
  * They use user ratings data instead of sales volume
  */
+/**
+ * Calculate brand daily challenge score based on TODAY'S ratings
+ * Brands are scored solely on the volume and quality of ratings received today
+ */
 export function calculateBrandScore(
   stats: DailyChallengeStats,
   rank: number = 0
 ): ScoringBreakdown {
-  const totalRatings = stats.totalRatings || 0;
+  const todayRatingsCount = stats.totalRatings || 0; // Reusing totalRatings field for "today's count" to avoid schema change if possible, or we map it
   const averageRating = parseFloat(stats.averageRating?.toString() || '0');
-  const bayesianAverage = parseFloat(stats.bayesianAverage?.toString() || '0');
-  const ratingDelta = Math.max(0, stats.ratingDelta || 0);
-  const bayesianDelta = parseFloat(stats.bayesianDelta?.toString() || '0');
 
-  // Rating Count: 10 points per rating received
-  const ratingCountPoints = totalRatings * 10;
+  // Rating Count: 10 points per rating received today
+  const ratingCountPoints = todayRatingsCount * 10;
 
-  // Rating Quality: 20 points per star (based on Bayesian average to prevent gaming)
-  const ratingQualityPoints = Math.floor(bayesianAverage * 20);
-
-  // Daily rating delta bonus: emphasize fresh activity
-  const ratingDeltaPoints = ratingDelta * 50;
-
-  // Reward improvements in Bayesian average (positive deltas only)
-  const ratingTrendPoints = bayesianDelta > 0 ? Math.round(bayesianDelta * 100) : 0;
+  // Rating Quality: 
+  // If they have ratings, give points based on average.
+  // Scale: 5 stars = 100 points, 4 stars = 80 points, etc.
+  // But only if they have at least 1 rating.
+  let ratingQualityPoints = 0;
+  if (todayRatingsCount > 0) {
+    ratingQualityPoints = Math.floor(averageRating * 20);
+  }
 
   // Tiered Rank Bonuses for top 10 brands
   let rankBonusPoints = 0;
@@ -230,8 +231,6 @@ export function calculateBrandScore(
   const totalPoints =
     ratingCountPoints +
     ratingQualityPoints +
-    ratingDeltaPoints +
-    ratingTrendPoints +
     rankBonusPoints;
 
   return {
@@ -240,8 +239,8 @@ export function calculateBrandScore(
     revenuePoints: 0,
     ratingCountPoints,
     ratingQualityPoints,
-    ratingDeltaPoints,
-    ratingTrendPoints,
+    ratingDeltaPoints: 0,
+    ratingTrendPoints: 0,
     rankBonusPoints,
     totalPoints,
   };
