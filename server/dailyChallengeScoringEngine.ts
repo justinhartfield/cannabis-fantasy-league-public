@@ -208,16 +208,17 @@ export function calculateBrandScore(
   const todayRatingsCount = stats.totalRatings || 0; // Reusing totalRatings field for "today's count" to avoid schema change if possible, or we map it
   const averageRating = parseFloat(stats.averageRating?.toString() || '0');
 
-  // Rating Count: 10 points per rating received today
-  const ratingCountPoints = todayRatingsCount * 10;
+  // Rating Count: 6 points per rating received today
+  const ratingCountPoints = todayRatingsCount * 6;
 
   // Rating Quality: 
-  // If they have ratings, give points based on average.
-  // Scale: 5 stars = 100 points, 4 stars = 80 points, etc.
+  // If they have ratings, give points based on Bayesian average.
+  // Scale: 5 stars = 25 points, 4 stars = 20 points, etc.
   // But only if they have at least 1 rating.
   let ratingQualityPoints = 0;
   if (todayRatingsCount > 0) {
-    ratingQualityPoints = Math.floor(averageRating * 20);
+    const bayesianAvg = parseFloat(stats.bayesianAverage?.toString() || averageRating.toString());
+    ratingQualityPoints = Math.floor(bayesianAvg * 5);
   }
 
   // Tiered Rank Bonuses for top 10 brands

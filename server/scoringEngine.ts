@@ -646,13 +646,13 @@ export function buildBrandDailyBreakdown(statRecord: BrandDailySource): Breakdow
     {
       category: 'Rating Volume',
       value: totalRatings,
-      formula: `${totalRatings} ratings × 10`,
+      formula: `${totalRatings} ratings × 6`,
       points: scoreParts.ratingCountPoints ?? 0,
     },
     {
       category: 'Rating Quality',
       value: bayesianAverage.toFixed(2),
-      formula: `Bayesian avg ${bayesianAverage.toFixed(2)} × 20`,
+      formula: `Bayesian avg ${bayesianAverage.toFixed(2)} × 5`,
       points: scoreParts.ratingQualityPoints ?? 0,
     },
   ];
