@@ -1,9 +1,9 @@
 import { z } from "zod";
 import { protectedProcedure, router } from "./_core/trpc";
 import { getDb } from "./db";
-import { 
-  dailyMatchups, 
-  userPredictions, 
+import {
+  dailyMatchups,
+  userPredictions,
   users,
   manufacturers,
   brands,
@@ -11,7 +11,7 @@ import {
   cannabisStrains,
   streakFreezes,
 } from "../drizzle/schema";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, lt, isNotNull, sql } from "drizzle-orm";
 import { updateUserStreak } from "./predictionService";
 
 // Lazy initialization helper
@@ -95,18 +95,38 @@ export const predictionRouter = router({
       throw new Error("Database not available");
     }
 
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const today = new Date();
+    const todayStr = today.toISOString().split("T")[0];
     const userId = ctx.user.id;
+
+    // Find the most recent day BEFORE today that actually has scored results
+    const latestDateResult = await db
+      .select({ matchupDate: dailyMatchups.matchupDate })
+      .from(dailyMatchups)
+      .where(
+        and(
+          lt(dailyMatchups.matchupDate, todayStr),
+          isNotNull(dailyMatchups.winnerId)
+        )
+      )
+      .orderBy(desc(dailyMatchups.matchupDate))
+      .limit(1);
+
+    if (latestDateResult.length === 0) {
+      return {
+        results: [],
+        correctCount: 0,
+        totalCount: 0,
+        accuracy: 0,
+      };
+    }
+
+    const targetDate = latestDateResult[0].matchupDate;
 
     const matchups = await db
       .select()
       .from(dailyMatchups)
-      .where(and(
-        eq(dailyMatchups.matchupDate, yesterdayStr),
-        eq(dailyMatchups.isScored, true)
-      ))
+      .where(eq(dailyMatchups.matchupDate, targetDate))
       .orderBy(dailyMatchups.id);
 
     const predictions = await db
@@ -149,7 +169,7 @@ export const predictionRouter = router({
                 .set({ isCorrect: calculatedIsCorrect })
                 .where(eq(userPredictions.id, predictionId));
 
-              await updateUserStreak(userId, calculatedIsCorrect, yesterdayStr);
+          await updateUserStreak(userId, calculatedIsCorrect, targetDate);
             } catch (err) {
               console.error(`[PredictionRouter] Failed to repair prediction ${result.userPrediction!.id}:`, err);
             }

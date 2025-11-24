@@ -3,20 +3,52 @@ import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, RefreshCw, Calendar, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Loader2,
+  RefreshCw,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { LiveScoreCard } from "@/components/LiveScoreCard";
 import { cn } from "@/lib/utils";
+
+// Helper to get current ISO year/week (mirrors server/utils/isoWeek.ts)
+function getIsoYearWeek(date: Date): { year: number; week: number } {
+  const tempDate = new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
+  );
+  const dayNum = tempDate.getUTCDay() || 7;
+  tempDate.setUTCDate(tempDate.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(
+    Date.UTC(tempDate.getUTCFullYear(), 0, 1)
+  );
+  const week = Math.ceil(
+    ((tempDate.getTime() - yearStart.getTime()) / 86400000 + 1) / 7
+  );
+  return { year: tempDate.getUTCFullYear(), week };
+}
 
 export default function Matchups() {
   // Route is defined as `/league/:id/matchups` and `/challenge/:id/matchups`
   // so we need to read the `id` param and convert it to a number.
   const { id } = useParams<{ id: string }>();
   const leagueId = Number(id);
-  const [year, setYear] = useState(2025);
-  const [week, setWeek] = useState(1);
+  const now = new Date();
+  const { year: currentIsoYear, week: currentIsoWeek } = getIsoYearWeek(now);
+  const [year, setYear] = useState(currentIsoYear);
+  const [week, setWeek] = useState(currentIsoWeek);
 
   const { data: matchups, isLoading, refetch } = trpc.matchup.getWeekMatchups.useQuery({
     leagueId,
@@ -212,35 +244,64 @@ export default function Matchups() {
           </div>
         ) : matchups && matchups.length > 0 ? (
           <div className="grid gap-4 md:gap-6">
-            {matchups.map((matchup) => (
-              <div key={matchup.id} className="space-y-3 slide-in-bottom">
-                <LiveScoreCard
-                  team1={{
-                    id: matchup.team1Id,
-                    name: matchup.team1?.name || 'Unknown Team',
-                    score: matchup.team1Score || 0,
-                  }}
-                  team2={{
-                    id: matchup.team2Id,
-                    name: matchup.team2?.name || 'Unknown Team',
-                    score: matchup.team2Score || 0,
-                  }}
-                  status={matchup.status as "scheduled" | "in_progress" | "final"}
-                  week={week}
-                  winnerId={matchup.winnerId || undefined}
-                  onClick={() => {
-                    toast.info("Matchup details coming soon!");
-                  }}
-                />
-                {isSeasonLeague && (
-                  <MatchupDailyBreakdown
-                    matchup={matchup}
-                    dailyData={dailyScoresByMatchup[matchup.id]}
-                    isLoading={isLoadingDailyScores}
+            {matchups.map((matchup) => {
+              const dailyData = dailyScoresByMatchup[matchup.id];
+              const liveTotals =
+                isSeasonLeague && dailyData
+                  ? dailyData.days.reduce(
+                      (acc, day) => {
+                        acc.team1Points += day.team1Points || 0;
+                        acc.team2Points += day.team2Points || 0;
+                        return acc;
+                      },
+                      { team1Points: 0, team2Points: 0 }
+                    )
+                  : null;
+
+              const displayTeam1Score =
+                liveTotals?.team1Points ??
+                matchup.team1Score ??
+                0;
+              const displayTeam2Score =
+                liveTotals?.team2Points ??
+                matchup.team2Score ??
+                0;
+
+              return (
+                <div key={matchup.id} className="space-y-3 slide-in-bottom">
+                  <LiveScoreCard
+                    team1={{
+                      id: matchup.team1Id,
+                      name: matchup.team1?.name || "Unknown Team",
+                      score: displayTeam1Score,
+                    }}
+                    team2={{
+                      id: matchup.team2Id,
+                      name: matchup.team2?.name || "Unknown Team",
+                      score: displayTeam2Score,
+                    }}
+                    status={
+                      matchup.status as
+                        | "scheduled"
+                        | "in_progress"
+                        | "final"
+                    }
+                    week={week}
+                    winnerId={matchup.winnerId || undefined}
+                    onClick={() => {
+                      toast.info("Matchup details coming soon!");
+                    }}
                   />
-                )}
-              </div>
-            ))}
+                  {isSeasonLeague && (
+                    <MatchupDailyBreakdown
+                      matchup={matchup}
+                      dailyData={dailyData}
+                      isLoading={isLoadingDailyScores}
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
         ) : (
           <Card className="border-border/50">

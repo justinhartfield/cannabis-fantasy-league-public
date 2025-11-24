@@ -1358,6 +1358,9 @@ async function aggregateTeamWeekFromDaily(params: TeamAggregationParams): Promis
     });
 
     removePenaltyImpact(dailyResult);
+    // Season-long leagues: strip out brand momentum/trend factors so they
+    // don't swamp weekly totals when summed across multiple days.
+    removeBrandMomentumTrendImpact(dailyResult);
 
     totalPoints += dailyResult.totalPoints;
     totalTeamBonus += dailyResult.teamBonusTotal;
@@ -1475,6 +1478,72 @@ function removePenaltyImpact(result: TeamScoreComputationResult) {
   });
 
   result.totalPoints += totalRefund;
+}
+
+/**
+ * Season-long fairness adjustment:
+ * For season/weekly scoring we want brand points to exclude
+ * "New Ratings Momentum" and "Rating Trend" components entirely,
+ * since they can otherwise dominate the weekly totals when summed
+ * across multiple days.
+ *
+ * This helper is applied only when aggregating daily scores into
+ * weekly season scores and does NOT affect standalone daily challenges.
+ */
+function removeBrandMomentumTrendImpact(result: TeamScoreComputationResult) {
+  let totalRemoved = 0;
+  const positionAdjustments: Partial<Record<keyof PositionPointsMap, number>> = {};
+
+  result.breakdowns.forEach((entry) => {
+    if (entry.assetType !== 'brand') {
+      return;
+    }
+
+    const detail = entry.breakdown;
+    if (!detail?.components?.length) {
+      return;
+    }
+
+    let removedForEntry = 0;
+
+    detail.components.forEach((component) => {
+      if (
+        component.category === 'New Ratings Momentum' ||
+        component.category === 'Rating Trend'
+      ) {
+        if (component.points) {
+          removedForEntry += component.points;
+          component.points = 0;
+        }
+      }
+    });
+
+    if (!removedForEntry) {
+      return;
+    }
+
+    detail.subtotal -= removedForEntry;
+    detail.total -= removedForEntry;
+    entry.points -= removedForEntry;
+
+    const positionKey = POSITION_LABEL_TO_KEY[entry.position];
+    if (positionKey) {
+      positionAdjustments[positionKey] =
+        (positionAdjustments[positionKey] ?? 0) - removedForEntry;
+    }
+
+    totalRemoved += removedForEntry;
+  });
+
+  if (totalRemoved <= 0) {
+    return;
+  }
+
+  (Object.keys(positionAdjustments) as Array<keyof PositionPointsMap>).forEach((key) => {
+    result.positionPoints[key] += positionAdjustments[key] ?? 0;
+  });
+
+  result.totalPoints -= totalRemoved;
 }
 
 function getOrCreateBreakdownAccumulator(

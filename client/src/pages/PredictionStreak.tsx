@@ -295,24 +295,35 @@ function PredictionButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`flex-1 rounded-3xl border px-4 py-5 text-center transition ${
-        selected ? "border-weed-green bg-weed-green/10" : "border-white/10 bg-black/40 hover:border-weed-green/40"
+      className={`flex-1 rounded-3xl border px-4 py-5 text-left transition ${
+        selected
+          ? "border-weed-green bg-weed-green/10 ring-2 ring-weed-green"
+          : "border-white/10 bg-black/40 hover:border-weed-green/40"
       } ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
     >
-      {image && (
-        <div className="mb-3 flex justify-center">
-          <img
-            src={image}
-            alt={name}
-            className="h-16 w-16 rounded-2xl object-contain"
-            onError={(e) => {
-              e.currentTarget.style.display = "none";
-            }}
-          />
+      <div className="flex items-center gap-3">
+        {image && (
+          <div className="flex-shrink-0">
+            <img
+              src={image}
+              alt={name}
+              className="h-16 w-16 rounded-2xl object-contain"
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
+            />
+          </div>
+        )}
+        <div className="flex flex-1 flex-col">
+          <h3 className="text-lg font-semibold text-white">{name}</h3>
+          <p className="text-xs uppercase tracking-[0.4em] text-white/50">{type}</p>
+          {selected && (
+            <span className="mt-2 inline-flex w-fit items-center rounded-full bg-weed-green/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.25em] text-weed-green">
+              Selected
+            </span>
+          )}
         </div>
-      )}
-      <h3 className="text-lg font-semibold text-white">{name}</h3>
-      <p className="text-xs uppercase tracking-[0.4em] text-white/50">{type}</p>
+      </div>
     </button>
   );
 }
