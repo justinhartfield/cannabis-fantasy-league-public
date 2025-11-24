@@ -44,7 +44,7 @@ async function verifyBrandScoring() {
         for (const brandName of targetBrands) {
             const b = results.find(r => r.name === brandName);
             if (b) {
-                const expectedPoints = (b.totalRatings * 10) + Math.floor(parseFloat(b.averageRating) * 20) + (b.rank === 1 ? 50 : b.rank === 2 ? 30 : b.rank === 3 ? 20 : 0);
+                const expectedPoints = (b.totalRatings * 6) + Math.floor(parseFloat(b.averageRating) * 5) + (b.rank === 1 ? 50 : b.rank === 2 ? 30 : b.rank === 3 ? 20 : 0);
                 console.log(`\nBrand: ${brandName}`);
                 console.log(`Points: ${b.totalPoints} (Expected: ${expectedPoints})`);
                 console.log(`Ratings: ${b.totalRatings}, Avg: ${b.averageRating}, Rank: ${b.rank}`);

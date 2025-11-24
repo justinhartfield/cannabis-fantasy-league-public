@@ -40,7 +40,7 @@ import {
 import { eq, and, count, sql, sum, max, desc, gte, lte } from 'drizzle-orm';
 import { wsManager } from './websocket';
 import { getOrCreateLineup } from './utils/autoLineup';
-import { calculateBrandPoints } from './brandScoring';
+
 import {
   calculateManufacturerScore as calculateDailyManufacturerScore,
   calculateStrainScore as calculateDailyStrainScore,
@@ -737,6 +737,40 @@ export function buildPharmacyDailyBreakdown(statRecord: PharmacyDailySource): Br
     points: breakdown.total,
     breakdown,
   };
+}
+
+/**
+ * Calculate brand fantasy points
+ * Aggregates daily challenge scores for the week
+ */
+export function calculateBrandPoints(
+  dailyStats: BrandDailySource[],
+  weeklyContext: {
+    rankChange: number;
+  }
+): { points: number; breakdown: any } {
+  let dailyTotal = 0;
+
+  for (const dayStat of dailyStats) {
+    dailyTotal += dayStat.totalPoints ?? 0;
+  }
+
+  const breakdown: any = {
+    components: [],
+    bonuses: [],
+    penalties: [],
+    subtotal: dailyTotal,
+    total: dailyTotal,
+  };
+
+  breakdown.components.push({
+    category: 'Daily Performance',
+    value: `${dailyStats.length} Days`,
+    formula: 'Sum of daily challenge scores',
+    points: dailyTotal,
+  });
+
+  return { points: dailyTotal, breakdown };
 }
 
 // ============================================================================
@@ -2614,18 +2648,19 @@ async function scoreBrand(
 
   // For weekly scoring, calculate points using formula
   if (scope.type === 'weekly') {
-    const weeklyStat = statRecord as typeof brandWeeklyStats.$inferSelect;
-    const result = calculateBrandPoints({
-      favorites: weeklyStat.favorites,
-      favoriteGrowth: weeklyStat.favoriteGrowth,
-      views: weeklyStat.views,
-      viewGrowth: weeklyStat.viewGrowth,
-      comments: weeklyStat.comments,
-      commentGrowth: weeklyStat.commentGrowth,
-      affiliateClicks: weeklyStat.affiliateClicks,
-      clickGrowth: weeklyStat.clickGrowth,
-      engagementRate: weeklyStat.engagementRate,
-      sentimentScore: weeklyStat.sentimentScore,
+    // Fetch daily stats for the week
+    const { startDate, endDate } = getWeekDateRange(scope.year, scope.week);
+    const dailyStats = await db
+      .select()
+      .from(brandDailyChallengeStats)
+      .where(and(
+        eq(brandDailyChallengeStats.brandId, brandId),
+        gte(brandDailyChallengeStats.statDate, startDate),
+        lte(brandDailyChallengeStats.statDate, endDate)
+      ));
+
+    const { points, breakdown } = calculateBrandPoints(dailyStats, {
+      rankChange: 0,
     });
 
     const metadata: ScoreMetadata = {
@@ -2637,7 +2672,7 @@ async function scoreBrand(
     };
 
     return applyScarcityAdjustment(
-      { ...result, metadata },
+      { points, breakdown, metadata },
       'brand',
       scarcityMultipliers.brand
     );

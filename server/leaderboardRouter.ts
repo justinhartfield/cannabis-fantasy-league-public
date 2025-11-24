@@ -26,7 +26,7 @@ import {
   strainDailyChallengeStats,
 } from "../drizzle/dailyChallengeSchema";
 import { desc, eq, and, sql, gt } from "drizzle-orm";
-// import { calculateBrandPoints } from "./brandScoring"; // Deprecated for Weekly Leaderboard
+
 import { calculateStrainPoints } from "./scoringEngine";
 
 function prioritizeByLogo<
