@@ -106,10 +106,10 @@ export function LeagueChat({ leagueId }: LeagueChatProps) {
                   <div
                     className={`rounded-lg p-3 ${
                       isMe ? "bg-primary text-primary-foreground" : "bg-muted"
-                    } ${isGif ? "bg-transparent p-0" : ""}`}
+                    } ${isGif ? "bg-transparent p-0 w-full overflow-hidden" : ""}`}
                   >
                     {isGif ? (
-                      <img src={msg.message} alt="GIF" className="rounded-lg max-w-full h-auto object-contain" />
+                      <img src={msg.message} alt="GIF" className="rounded-lg w-full max-w-full h-auto object-contain" />
                     ) : (
                       msg.message
                     )}
