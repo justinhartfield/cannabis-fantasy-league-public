@@ -31,14 +31,15 @@ export function MyRoster({ roster, teamName }: MyRosterProps) {
     cannabis_strain: roster.filter((r) => r.assetType === "cannabis_strain").length,
     product: roster.filter((r) => r.assetType === "product").length,
     pharmacy: roster.filter((r) => r.assetType === "pharmacy").length,
+    brand: roster.filter((r) => r.assetType === "brand").length,
   };
 
   const totalPicks = roster.length;
-  const maxPicks = 9;
-  const progress = (totalPicks / maxPicks) * 100;
+  const maxPicks = 10; // Updated to 10 for Flex slot
+  const progress = Math.min(100, (totalPicks / maxPicks) * 100);
 
   // Get icon for asset type
-  const getIcon = (type: AssetType) => {
+  const getIcon = (type: AssetType | "flex") => {
     const iconClass = "w-4 h-4";
     switch (type) {
       case "manufacturer":
@@ -51,27 +52,13 @@ export function MyRoster({ roster, teamName }: MyRosterProps) {
         return <Building2 className={cn(iconClass, "text-green-500")} />;
       case "brand":
         return <Building2 className={cn(iconClass, "text-yellow-500")} />;
-    }
-  };
-
-  // Get category label
-  const getCategoryLabel = (type: AssetType) => {
-    switch (type) {
-      case "manufacturer":
-        return "Hersteller";
-      case "cannabis_strain":
-        return "Strain";
-      case "product":
-        return "Produkt";
-      case "pharmacy":
-        return "Apotheke";
-      case "brand":
-        return "Brand";
+      case "flex":
+        return <UserCircle className={cn(iconClass, "text-orange-500")} />;
     }
   };
 
   // Position slot component
-  type SlotColor = "blue" | "purple" | "pink" | "green" | "yellow";
+  type SlotColor = "blue" | "purple" | "pink" | "green" | "yellow" | "orange";
 
   const slotPalette: Record<SlotColor, { border: string; icon: string }> = {
     blue: { border: "border-blue-400/40 bg-blue-500/10", icon: "text-blue-200" },
@@ -79,6 +66,7 @@ export function MyRoster({ roster, teamName }: MyRosterProps) {
     pink: { border: "border-pink-400/40 bg-pink-500/10", icon: "text-pink-200" },
     green: { border: "border-green-400/40 bg-green-500/10", icon: "text-green-200" },
     yellow: { border: "border-yellow-400/40 bg-yellow-500/10", icon: "text-yellow-200" },
+    orange: { border: "border-orange-400/40 bg-orange-500/10", icon: "text-orange-200" },
   };
 
   const PositionSlot = ({
@@ -87,14 +75,15 @@ export function MyRoster({ roster, teamName }: MyRosterProps) {
     current,
     max,
     colorClass,
+    items,
   }: {
-    type: AssetType;
+    type: AssetType | "flex";
     label: string;
     current: number;
     max: number;
     colorClass: SlotColor;
+    items: RosterItem[];
   }) => {
-    const items = roster.filter((r) => r.assetType === type);
     const isFilled = current >= max;
 
     return (
@@ -116,16 +105,16 @@ export function MyRoster({ roster, teamName }: MyRosterProps) {
             {current}/{max}
           </span>
         </div>
-        
+
         <div className="space-y-1">
           {items.map((item, idx) => (
-            <div 
+            <div
               key={`${item.assetId}-${idx}`}
               className="flex items-center gap-2 text-xs"
             >
               {item.imageUrl ? (
-                <img 
-                  src={item.imageUrl} 
+                <img
+                  src={item.imageUrl}
                   alt={item.name}
                   className="w-5 h-5 object-contain rounded"
                   onError={(e) => { e.currentTarget.style.display = 'none'; }}
@@ -136,8 +125,8 @@ export function MyRoster({ roster, teamName }: MyRosterProps) {
               <span className="text-muted-foreground truncate">{item.name}</span>
             </div>
           ))}
-          {Array.from({ length: max - current }).map((_, idx) => (
-            <div 
+          {Array.from({ length: Math.max(0, max - current) }).map((_, idx) => (
+            <div
               key={`empty-${idx}`}
               className="flex items-center gap-2 text-xs text-muted-foreground/50"
             >
@@ -149,6 +138,34 @@ export function MyRoster({ roster, teamName }: MyRosterProps) {
       </div>
     );
   };
+
+  // Identify flex items (items that exceed the category limit)
+  const getCategoryItems = (type: AssetType, limit: number) => {
+    return roster.filter(r => r.assetType === type).slice(0, limit);
+  };
+
+  const getFlexItems = () => {
+    const flexItems: RosterItem[] = [];
+
+    const mfg = roster.filter(r => r.assetType === "manufacturer");
+    if (mfg.length > 2) flexItems.push(...mfg.slice(2));
+
+    const strains = roster.filter(r => r.assetType === "cannabis_strain");
+    if (strains.length > 2) flexItems.push(...strains.slice(2));
+
+    const products = roster.filter(r => r.assetType === "product");
+    if (products.length > 2) flexItems.push(...products.slice(2));
+
+    const pharmacies = roster.filter(r => r.assetType === "pharmacy");
+    if (pharmacies.length > 2) flexItems.push(...pharmacies.slice(2));
+
+    const brands = roster.filter(r => r.assetType === "brand");
+    if (brands.length > 1) flexItems.push(...brands.slice(1));
+
+    return flexItems;
+  };
+
+  const flexItems = getFlexItems();
 
   return (
     <div className="rounded-[32px] border border-white/10 bg-gradient-to-br from-[#1a0f28] to-[#2d0f3f] p-5 text-white shadow-[0_20px_40px_rgba(10,6,25,0.55)]">
@@ -179,45 +196,54 @@ export function MyRoster({ roster, teamName }: MyRosterProps) {
         <PositionSlot
           type="manufacturer"
           label="Hersteller"
-          current={counts.manufacturer}
+          current={Math.min(2, counts.manufacturer)}
           max={2}
           colorClass="blue"
+          items={getCategoryItems("manufacturer", 2)}
         />
         <PositionSlot
           type="cannabis_strain"
           label="Strains"
-          current={counts.cannabis_strain}
+          current={Math.min(2, counts.cannabis_strain)}
           max={2}
           colorClass="purple"
+          items={getCategoryItems("cannabis_strain", 2)}
         />
         <PositionSlot
           type="product"
           label="Produkte"
-          current={counts.product}
+          current={Math.min(2, counts.product)}
           max={2}
           colorClass="pink"
+          items={getCategoryItems("product", 2)}
         />
         <PositionSlot
           type="pharmacy"
           label="Apotheken"
-          current={counts.pharmacy}
+          current={Math.min(2, counts.pharmacy)}
           max={2}
           colorClass="green"
+          items={getCategoryItems("pharmacy", 2)}
         />
         <PositionSlot
           type="brand"
           label="Brands"
-          current={counts.brand}
+          current={Math.min(1, counts.brand)}
           max={1}
           colorClass="yellow"
+          items={getCategoryItems("brand", 1)}
+        />
+        <PositionSlot
+          type="flex"
+          label="Flex Slot"
+          current={flexItems.length}
+          max={1}
+          colorClass="orange"
+          items={flexItems}
         />
       </div>
 
-      <div className="mt-5 rounded-2xl border border-dashed border-white/20 p-3 text-sm text-white/70">
-        Flex Slot • {Math.max(0, totalPicks - 9)}/1 genutzt
-      </div>
-
-      {totalPicks === maxPicks && (
+      {totalPicks >= maxPicks && (
         <div className="mt-4 rounded-2xl border border-green-400/40 bg-green-500/15 p-3 text-center text-sm font-semibold text-green-200">
           <CheckCircle2 className="w-5 h-5 mx-auto mb-1" />
           Roster Complete!

@@ -11,6 +11,7 @@ interface DraftClockProps {
   remainingTime: number; // Remaining time in seconds
   isPaused: boolean;
   onTimerExpired?: () => void;
+  compact?: boolean;
 }
 
 export function DraftClock({
@@ -22,6 +23,7 @@ export function DraftClock({
   remainingTime,
   isPaused,
   onTimerExpired,
+  compact = false,
 }: DraftClockProps) {
   const [displayTime, setDisplayTime] = useState(remainingTime);
 
@@ -85,6 +87,32 @@ export function DraftClock({
   };
 
   const colors = getColorScheme();
+
+  if (compact) {
+    return (
+      <div className={cn(
+        "rounded-full border border-white/10 bg-[#2f1546]/95 backdrop-blur shadow-lg px-4 py-2 flex items-center gap-3 text-white transition-all duration-300",
+        urgency === "critical" && "border-red-500 bg-red-900/90 animate-pulse",
+        urgency === "warning" && "border-yellow-500"
+      )}>
+        <div className="flex items-center gap-2">
+          <Clock className={cn("w-4 h-4", urgency === "critical" ? "text-red-400" : "text-[#cfff4d]")} />
+          <span className={cn("text-lg font-bold font-mono", urgency === "critical" ? "text-red-400" : "text-[#cfff4d]")}>
+            {formatTime(displayTime)}
+          </span>
+        </div>
+        <div className="h-4 w-[1px] bg-white/20" />
+        <div className="flex flex-col leading-none">
+          <span className="text-[10px] uppercase tracking-wider text-white/60">
+            {isYourTurn ? "Dein Zug" : "Warten"}
+          </span>
+          <span className="text-xs font-semibold max-w-[80px] truncate">
+            {isYourTurn ? "Du bist dran!" : teamName}
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-[32px] border border-white/10 bg-gradient-to-br from-[#1a0f28] to-[#2f0f42] p-6 text-white shadow-[0_25px_55px_rgba(10,6,25,0.6)]">

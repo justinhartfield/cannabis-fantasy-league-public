@@ -39,6 +39,14 @@ export default function Draft() {
   const [currentRound, setCurrentRound] = useState<number>(1);
   const [showDraftCompleteDialog, setShowDraftCompleteDialog] = useState(false);
 
+  // Optimistic tracking of my drafted assets
+  const [myDraftedAssets, setMyDraftedAssets] = useState<Array<{
+    assetType: AssetType;
+    assetId: number;
+    name: string;
+    imageUrl?: string | null;
+  }>>([]);
+
   type DraftedAssetMap = Record<AssetType, Set<number>>;
   const createDraftedAssetState = (): DraftedAssetMap => ({
     manufacturer: new Set<number>(),
@@ -70,6 +78,7 @@ export default function Draft() {
 
   useEffect(() => {
     setDraftedAssets(createDraftedAssetState());
+    setMyDraftedAssets([]); // Reset local state on league change
   }, [leagueId]);
 
   const { data: league, isLoading: leagueLoading } = trpc.league.getById.useQuery(
@@ -87,6 +96,24 @@ export default function Draft() {
     { enabled: !!id && isAuthenticated }
   );
 
+  // Merge server roster with local optimistic updates
+  const mergedRoster = useMemo(() => {
+    const serverRosterIds = new Set(roster.map((r: any) => `${r.assetType}-${r.assetId}`));
+    const newLocalAssets = myDraftedAssets.filter(
+      local => !serverRosterIds.has(`${local.assetType}-${local.assetId}`)
+    );
+
+    return [
+      ...roster.map((r: any) => ({
+        assetType: r.assetType as AssetType,
+        assetId: r.assetId,
+        name: r.name || "Unknown",
+        imageUrl: r.imageUrl,
+      })),
+      ...newLocalAssets
+    ];
+  }, [roster, myDraftedAssets]);
+
   const { data: draftStatus } = trpc.draft.getDraftStatus.useQuery(
     { leagueId },
     { enabled: !!id && isAuthenticated, refetchInterval: 5000 }
@@ -94,18 +121,6 @@ export default function Draft() {
 
   const currentYear = league?.seasonYear || new Date().getFullYear();
   const currentWeek = league?.currentWeek || 1;
-
-  // Draft Board (DraftPicksGrid) removed - using Recent Picks instead
-  // const { data: allPicks = [], refetch: refetchAllPicks } = trpc.draft.getAllDraftPicks.useQuery(
-  //   {
-  //     leagueId,
-  //     year: currentYear,
-  //     week: currentWeek,
-  //     // During live drafts we prioritize responsiveness over heavy scoring stats
-  //     includeStats: league?.status !== "draft",
-  //   },
-  //   { enabled: !!league && isAuthenticated }
-  // );
 
   // Initialize current turn from draft status
   useEffect(() => {
@@ -131,10 +146,11 @@ export default function Draft() {
           leagueId,
         });
       }
-      
+
       if (message.type === 'player_picked') {
         const assetType = message.assetType as AssetType;
         markAssetDrafted(assetType, message.assetId);
+
         // Add to recent picks
         setRecentPicks(prev => [
           {
@@ -150,6 +166,16 @@ export default function Draft() {
         toast.success(`${message.teamName} drafted ${message.assetName}`);
 
         if (message.teamId === myTeam?.id) {
+          // Optimistically add to my roster
+          setMyDraftedAssets(prev => [
+            ...prev,
+            {
+              assetType,
+              assetId: message.assetId,
+              name: message.assetName,
+              imageUrl: null // We might not have the image URL immediately, but that's okay
+            }
+          ]);
           refetchRoster();
         }
         invalidateAvailableByType(assetType);
@@ -293,7 +319,7 @@ export default function Draft() {
 
   // Use current pick from draft status (WebSocket state)
   const currentPick = currentPickNumber || 1;
-  
+
   // Check if it's the user's turn
   const isMyTurn = currentTurnTeamId === myTeam.id;
 
@@ -390,7 +416,8 @@ export default function Draft() {
                 </p>
               </div>
             </div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end w-full">
+            {/* Desktop Timer Display */}
+            <div className="hidden lg:flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end w-full">
               {timerSeconds !== null && !isNaN(timerSeconds) && timerSeconds >= 0 && (
                 <div className="rounded-[18px] bg-[#2f1546] text-white px-4 py-3 shadow-inner flex items-center gap-2 text-sm font-semibold">
                   ⏱️ {Math.floor(timerSeconds / 60)}:{String(timerSeconds % 60).padStart(2, "0")}
@@ -398,11 +425,10 @@ export default function Draft() {
               )}
               {currentTurnTeamName && (
                 <div
-                  className={`rounded-[18px] px-5 py-3 text-center text-sm font-semibold ${
-                    isMyTurn
+                  className={`rounded-[18px] px-5 py-3 text-center text-sm font-semibold ${isMyTurn
                       ? "bg-gradient-to-r from-[#cfff4d] to-[#8dff8c] text-black shadow-[0_10px_30px_rgba(207,255,77,0.5)]"
                       : "bg-[#f1d9ff] text-[#8d4bff]"
-                  }`}
+                    }`}
                 >
                   {isMyTurn ? "🎯 Dein Zug!" : `${currentTurnTeamName} ist dran`}
                 </div>
@@ -412,57 +438,53 @@ export default function Draft() {
         </div>
       </div>
 
+      {/* Floating Mobile Draft Clock */}
+      <div className="lg:hidden fixed top-4 right-4 z-50 pointer-events-none">
+        {timerSeconds !== null && currentTurnTeamName && (
+          <div className="pointer-events-auto shadow-2xl">
+            <DraftClock
+              pickNumber={currentPickNumber}
+              round={currentRound}
+              teamName={currentTurnTeamName}
+              isYourTurn={isMyTurn}
+              timeLimit={timeLimit}
+              remainingTime={timerSeconds}
+              isPaused={isPaused}
+              compact={true}
+              onTimerExpired={() => {
+                toast.warning('Time expired! Auto-pick will be triggered.');
+              }}
+            />
+          </div>
+        )}
+      </div>
+
       {/* Draft Board */}
       <div className="w-full max-w-[1600px] mx-auto px-4 md:px-6 lg:px-8 pb-12 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-[2.4fr_1fr] gap-6">
-          {/* Mobile: Draft Clock first */}
-          <div className="lg:hidden order-1">
-            {timerSeconds !== null && currentTurnTeamName && (
-              <DraftClock
-                pickNumber={currentPickNumber}
-                round={currentRound}
-                teamName={currentTurnTeamName}
-                isYourTurn={isMyTurn}
-                timeLimit={timeLimit}
-                remainingTime={timerSeconds}
-                isPaused={isPaused}
-                onTimerExpired={() => {
-                  toast.warning('Time expired! Auto-pick will be triggered.');
-                }}
-              />
-            )}
-          </div>
 
-          {/* Mobile: Verfügbare Spieler second */}
-          <div className="lg:hidden order-2">
+          {/* Mobile: Verfügbare Spieler first */}
+          <div className="lg:hidden order-1">
             <DraftBoard
               leagueId={leagueId}
               currentPick={currentPick}
               isMyTurn={isMyTurn}
-              myRoster={roster.map((r: any) => ({
-                assetType: r.assetType,
-                assetId: r.assetId,
-                name: r.name || "Unknown",
-              }))}
+              myRoster={mergedRoster}
               draftedAssets={draftedAssets}
               onDraftPick={handleDraftPick}
             />
           </div>
 
-          {/* Mobile: My Roster (Player's Team) third */}
-          <div className="lg:hidden order-3">
-            <MyRoster 
-              roster={roster.map((r: any) => ({
-                assetType: r.assetType,
-                assetId: r.assetId,
-                name: r.name || "Unknown",
-              }))}
+          {/* Mobile: My Roster (Player's Team) second */}
+          <div className="lg:hidden order-2">
+            <MyRoster
+              roster={mergedRoster}
               teamName={myTeam.name || "My Team"}
             />
           </div>
 
-          {/* Mobile: Recent Picks - moved to replace Draft Board */}
-          <div className="lg:hidden order-5">
+          {/* Mobile: Recent Picks third */}
+          <div className="lg:hidden order-3">
             <div className="bg-weed-purple border-2 border-weed-green shadow-xl rounded-lg p-4">
               <h3 className="headline-secondary text-lg text-white uppercase mb-4">
                 Draft Board
@@ -531,18 +553,14 @@ export default function Draft() {
                   </div>
                 )}
               </div>
-          <DraftBoard
-            leagueId={leagueId}
-            currentPick={currentPick}
-            isMyTurn={isMyTurn}
-            myRoster={roster.map((r: any) => ({
-              assetType: r.assetType,
-              assetId: r.assetId,
-              name: r.name || "Unknown",
-            }))}
-            draftedAssets={draftedAssets}
-            onDraftPick={handleDraftPick}
-          />
+              <DraftBoard
+                leagueId={leagueId}
+                currentPick={currentPick}
+                isMyTurn={isMyTurn}
+                myRoster={mergedRoster}
+                draftedAssets={draftedAssets}
+                onDraftPick={handleDraftPick}
+              />
             </div>
           </div>
 
@@ -565,47 +583,10 @@ export default function Draft() {
             )}
 
             {/* My Roster */}
-            <MyRoster 
-              roster={roster.map((r: any) => ({
-                assetType: r.assetType,
-                assetId: r.assetId,
-                name: r.name || "Unknown",
-              }))}
+            <MyRoster
+              roster={mergedRoster}
               teamName={myTeam.name || "My Team"}
             />
-
-            {/* Recent Picks - Moved to Draft Board position */}
-            {/* <div className="bg-white border-0 shadow-xl rounded-lg p-4">
-              <h3 className="headline-secondary text-lg text-foreground mb-4">
-                📄 Recent Picks
-              </h3>
-              {recentPicks.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">
-                  No picks yet
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {recentPicks.map((pick, index) => (
-                    <div
-                      key={`${pick.pickNumber}-${index}`}
-                      className="p-3 bg-weed-cream rounded-lg border-2 border-weed-green/30"
-                    >
-                      <div className="flex items-start justify-between mb-1">
-                        <span className="text-xs font-medium text-muted-foreground">
-                          Pick #{pick.pickNumber}
-                        </span>
-                      </div>
-                      <p className="text-sm font-medium text-foreground mb-1">
-                        {pick.assetName}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {pick.teamName}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div> */}
           </div>
         </div>
       </div>
