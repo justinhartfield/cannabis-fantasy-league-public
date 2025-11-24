@@ -26,7 +26,7 @@ import {
   strainDailyChallengeStats,
 } from "../drizzle/dailyChallengeSchema";
 import { desc, eq, and, sql, gt } from "drizzle-orm";
-import { calculateBrandPoints } from "./brandScoring";
+// import { calculateBrandPoints } from "./brandScoring"; // Deprecated for Weekly Leaderboard
 import { calculateStrainPoints } from "./scoringEngine";
 
 function prioritizeByLogo<
@@ -70,14 +70,29 @@ export const leaderboardRouter = router({
       // If no date provided, find the latest date with data from daily challenge stats
       let targetDate = input.date;
       if (!targetDate) {
-        const latestStat = await db
-          .select({ date: manufacturerDailyChallengeStats.statDate })
-          .from(manufacturerDailyChallengeStats)
-          .orderBy(desc(manufacturerDailyChallengeStats.statDate))
-          .limit(1);
+        const [latestMfg, latestBrand] = await Promise.all([
+          db
+            .select({ date: manufacturerDailyChallengeStats.statDate })
+            .from(manufacturerDailyChallengeStats)
+            .orderBy(desc(manufacturerDailyChallengeStats.statDate))
+            .limit(1),
+          db
+            .select({ date: brandDailyChallengeStats.statDate })
+            .from(brandDailyChallengeStats)
+            .orderBy(desc(brandDailyChallengeStats.statDate))
+            .limit(1)
+        ]);
 
-        if (latestStat.length > 0) {
-          targetDate = latestStat[0].date;
+        const mfgDate = latestMfg.length > 0 ? latestMfg[0].date : null;
+        const brandDate = latestBrand.length > 0 ? latestBrand[0].date : null;
+
+        if (mfgDate && brandDate) {
+          // Take the later of the two
+          targetDate = mfgDate > brandDate ? mfgDate : brandDate;
+        } else if (mfgDate) {
+          targetDate = mfgDate;
+        } else if (brandDate) {
+          targetDate = brandDate;
         } else {
           // Fallback (will just return empty lists)
           targetDate = new Date().toISOString().split("T")[0];
@@ -221,7 +236,7 @@ export const leaderboardRouter = router({
           .from(manufacturerWeeklyStats)
           .orderBy(desc(manufacturerWeeklyStats.year), desc(manufacturerWeeklyStats.week))
           .limit(1);
-        
+
         if (latestStat.length > 0) {
           targetYear = latestStat[0].year;
           targetWeek = latestStat[0].week;
@@ -280,32 +295,41 @@ export const leaderboardRouter = router({
           .orderBy(desc(pharmacyWeeklyStats.totalPoints))
           .limit(input.limit),
 
-        // Brands: pull raw weekly engagement metrics, we score them in Node
-        db
-          .select({
-            id: brands.id,
-            name: brands.name,
-            logoUrl: brands.logoUrl,
-            favorites: brandWeeklyStats.favorites,
-            favoriteGrowth: brandWeeklyStats.favoriteGrowth,
-            views: brandWeeklyStats.views,
-            viewGrowth: brandWeeklyStats.viewGrowth,
-            comments: brandWeeklyStats.comments,
-            commentGrowth: brandWeeklyStats.commentGrowth,
-            affiliateClicks: brandWeeklyStats.affiliateClicks,
-            clickGrowth: brandWeeklyStats.clickGrowth,
-            engagementRate: brandWeeklyStats.engagementRate,
-            sentimentScore: brandWeeklyStats.sentimentScore,
-          })
-          .from(brandWeeklyStats)
-          .innerJoin(brands, eq(brandWeeklyStats.brandId, brands.id))
-          .where(
-            and(
-              eq(brandWeeklyStats.year, targetYear!),
-              eq(brandWeeklyStats.week, targetWeek!),
-            ),
-          )
-          .limit(input.limit * 5),
+        // Brands: Aggregate from Daily Challenge Stats for the week
+        // This ensures the leaderboard reflects the sum of daily points (Ratings Count + Quality)
+        (async () => {
+          // Calculate date range for the week
+          // Simple approximation: ISO week calculation
+          const simpleDate = new Date(targetYear!, 0, 1 + (targetWeek! - 1) * 7);
+          const dayOfWeek = simpleDate.getDay();
+          const ISOweekStart = simpleDate;
+          if (dayOfWeek <= 4)
+            ISOweekStart.setDate(simpleDate.getDate() - simpleDate.getDay() + 1);
+          else
+            ISOweekStart.setDate(simpleDate.getDate() + 8 - simpleDate.getDay());
+
+          const startDate = ISOweekStart.toISOString().split('T')[0];
+          const endDate = new Date(ISOweekStart.getTime() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+          return db
+            .select({
+              id: brands.id,
+              name: brands.name,
+              logoUrl: brands.logoUrl,
+              score: sql<number>`sum(${brandDailyChallengeStats.totalPoints})`.mapWith(Number),
+            })
+            .from(brandDailyChallengeStats)
+            .innerJoin(brands, eq(brandDailyChallengeStats.brandId, brands.id))
+            .where(
+              and(
+                sql`${brandDailyChallengeStats.statDate} >= ${startDate}`,
+                sql`${brandDailyChallengeStats.statDate} <= ${endDate}`
+              )
+            )
+            .groupBy(brands.id, brands.name, brands.logoUrl)
+            .orderBy(desc(sql`sum(${brandDailyChallengeStats.totalPoints})`))
+            .limit(input.limit * 3);
+        })(),
 
         // Cannabis Strains
         db.select({
@@ -329,69 +353,8 @@ export const leaderboardRouter = router({
           .limit(input.limit),
       ]);
 
-      // If we have no weekly brand stats for this week, fall back to latest daily challenge scores
-      let brandSource: any[] = rawBrands as any[];
-      if (!brandSource || brandSource.length === 0) {
-        console.warn(
-          `[Leaderboard] No brandWeeklyStats for ${targetYear}-W${targetWeek}, falling back to latest daily brand stats`,
-        );
-        const fallbackBrands = await db
-          .select({
-            id: brands.id,
-            name: brands.name,
-            logoUrl: brands.logoUrl,
-            score: brandDailyChallengeStats.totalPoints,
-          })
-          .from(brandDailyChallengeStats)
-          .innerJoin(brands, eq(brandDailyChallengeStats.brandId, brands.id))
-          .orderBy(desc(brandDailyChallengeStats.totalPoints))
-          .limit(input.limit * 5);
-
-        brandSource = fallbackBrands as any[];
-      }
-
-      // Score weekly brands using the same formula when we have weekly metrics;
-      // otherwise keep the precomputed daily challenge score.
-      const scoredBrands = brandSource
-        .map((b: any) => {
-          if (
-            typeof b.score === "number" &&
-            b.score !== null &&
-            b.score !== undefined &&
-            b.favorites === undefined
-          ) {
-            return {
-              id: b.id,
-              name: b.name,
-              logoUrl: b.logoUrl,
-              score: b.score ?? 0,
-            };
-          }
-
-          const { points } = calculateBrandPoints({
-            favorites: b.favorites ?? 0,
-            favoriteGrowth: b.favoriteGrowth ?? 0,
-            views: b.views ?? 0,
-            viewGrowth: b.viewGrowth ?? 0,
-            comments: b.comments ?? 0,
-            commentGrowth: b.commentGrowth ?? 0,
-            affiliateClicks: b.affiliateClicks ?? 0,
-            clickGrowth: b.clickGrowth ?? 0,
-            engagementRate: b.engagementRate ?? 0,
-            sentimentScore: b.sentimentScore ?? 0,
-          });
-
-          return {
-            id: b.id,
-            name: b.name,
-            logoUrl: b.logoUrl,
-            score: points,
-          };
-        })
-        .filter((b) => (b.score ?? 0) > 0)
-        .sort((a, b) => b.score - a.score);
-
-      const topBrands = prioritizeByLogo(scoredBrands, input.limit);
+      // Prioritize by logo
+      const topBrands = prioritizeByLogo(rawBrands, input.limit);
 
       // Products: derive weekly scores from strainWeeklyStats + strains
       let topProducts: { id: number; name: string; score: number }[] = [];
