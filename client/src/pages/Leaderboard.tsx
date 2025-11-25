@@ -31,6 +31,12 @@ const Leaderboard = () => {
     enabled: activeTab === "daily"
   });
 
+  const weeklyQuery = trpc.leaderboard.getWeeklyEntityLeaderboard.useQuery({
+    limit: 10,
+  }, {
+    enabled: activeTab === "weekly"
+  });
+
   const hallOfFameQuery = trpc.leaderboard.getHallOfFame.useQuery({
     limit: 20,
   }, {
@@ -242,8 +248,9 @@ const Leaderboard = () => {
       </section>
 
       <Tabs defaultValue="daily" value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto md:mx-0">
+        <TabsList className="grid w-full grid-cols-3 max-w-xl mx-auto md:mx-0">
           <TabsTrigger value="daily">Daily Leaders</TabsTrigger>
+          <TabsTrigger value="weekly">Weekly Leaders</TabsTrigger>
           <TabsTrigger value="hof">Hall of Fame</TabsTrigger>
         </TabsList>
 
@@ -315,6 +322,72 @@ const Leaderboard = () => {
                 </Card>
               )}
             </div>
+          )}
+        </TabsContent>
+
+        {/* WEEKLY TAB */}
+        <TabsContent value="weekly" className="space-y-6">
+          {weeklyQuery.isLoading ? (
+            <div className="flex justify-center py-12">Loading...</div>
+          ) : (
+            <>
+              {weeklyQuery.data && (
+                <div className="flex items-center gap-2 text-white/70 text-sm mb-4">
+                  <span>Week {weeklyQuery.data.week}, {weeklyQuery.data.year}</span>
+                </div>
+              )}
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <Card className={cardBase}>
+                  <CardHeader>
+                    <CardTitle className="text-base">Top Manufacturers</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <EntityList title="" data={weeklyQuery.data?.manufacturers || []} icon={TrendingUp} />
+                  </CardContent>
+                </Card>
+
+                <Card className={cardBase}>
+                  <CardHeader>
+                    <CardTitle className="text-base">Top Pharmacies</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <EntityList title="" data={weeklyQuery.data?.pharmacies || []} icon={Users} />
+                  </CardContent>
+                </Card>
+
+                <Card className={cardBase}>
+                  <CardHeader>
+                    <CardTitle className="text-base">Top Brands</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <EntityList title="" data={weeklyQuery.data?.brands || []} icon={Medal} />
+                  </CardContent>
+                </Card>
+
+                <Card className={cardBase}>
+                  <CardHeader>
+                    <CardTitle className="text-base">Top Products</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <EntityList
+                      title=""
+                      data={weeklyQuery.data?.products || []}
+                      icon={Trophy}
+                      emptyMessage="No product scores yet for this week."
+                    />
+                  </CardContent>
+                </Card>
+
+                <Card className={cardBase}>
+                  <CardHeader>
+                    <CardTitle className="text-base">Top Flower</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <EntityList title="" data={weeklyQuery.data?.strains || []} icon={Trophy} />
+                  </CardContent>
+                </Card>
+              </div>
+            </>
           )}
         </TabsContent>
 
