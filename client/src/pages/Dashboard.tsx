@@ -1,5 +1,5 @@
 import { useAuth } from "@/_core/hooks/useAuth";
-import { useState, useEffect, type SVGProps } from "react";
+import { useState, type SVGProps } from "react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import {
@@ -8,7 +8,6 @@ import {
   Handshake,
   Leaf,
   Loader2,
-  Package,
   Trophy,
   Users,
   Zap,
@@ -105,64 +104,12 @@ export default function Dashboard() {
     predictionLeaders?.leaderboard?.slice(0, 3) ?? DEFAULT_LEADERS;
   const leaderboardLoading = predictionLeadersLoading && !predictionLeaders;
 
-  // Live update countdown timer (same 1-hour interval as Daily Challenge)
-  const [nextUpdateTime, setNextUpdateTime] = useState<Date | null>(null);
-  const [timeUntilUpdate, setTimeUntilUpdate] = useState<string>("");
-
-  // Calculate next update time (top of next hour)
-  useEffect(() => {
-    const updateNextUpdateTime = () => {
-      const now = new Date();
-      const nextHour = new Date(now);
-      nextHour.setHours(now.getHours() + 1, 0, 0, 0);
-      setNextUpdateTime(nextHour);
-    };
-
-    updateNextUpdateTime();
-    const interval = setInterval(updateNextUpdateTime, 60000); // Update every minute
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // Update countdown timer
-  useEffect(() => {
-    if (!nextUpdateTime) return;
-
-    const updateCountdown = () => {
-      const now = new Date();
-      const diff = nextUpdateTime.getTime() - now.getTime();
-      
-      if (diff <= 0) {
-        setTimeUntilUpdate("00:00:00");
-        return;
-      }
-
-      const hours = Math.floor(diff / 3600000);
-      const minutes = Math.floor((diff % 3600000) / 60000);
-      const seconds = Math.floor((diff % 60000) / 1000);
-      setTimeUntilUpdate(
-        `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
-      );
-    };
-
-    updateCountdown();
-    const interval = setInterval(updateCountdown, 1000);
-
-    return () => clearInterval(interval);
-  }, [nextUpdateTime]);
-
   const statHighlights = [
     {
       label: "Manufacturers",
       value: stats?.manufacturerCount ?? 0,
       icon: FactoryIcon,
       gradient: "from-[#67ff85] via-[#26d9ff] to-[#1360ff]",
-    },
-    {
-      label: "Products",
-      value: stats?.productCount ?? 0,
-      icon: Package,
-      gradient: "from-[#ff6b6b] via-[#ee5a5a] to-[#c44569]",
     },
     {
       label: "Strains",
@@ -208,7 +155,7 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
           {statHighlights.map((stat) => (
             <div
               key={stat.label}
@@ -231,18 +178,6 @@ export default function Dashboard() {
               </div>
             </div>
           ))}
-        </div>
-
-        {/* Live Update Indicator */}
-        <div className="mt-4 flex items-center justify-center gap-2">
-          <span className="relative flex h-3 w-3">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-weed-green opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-weed-green"></span>
-          </span>
-          <span className="text-sm text-white/70">
-            NEXT LIVE UPDATE FROM <span className="font-semibold text-weed-green">Weed.de</span> in{" "}
-            <span className="font-mono font-bold text-white">{timeUntilUpdate || "00:00:00"}</span>
-          </span>
         </div>
       </section>
 
