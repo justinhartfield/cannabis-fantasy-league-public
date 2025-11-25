@@ -109,15 +109,16 @@ export const waiverRouter = router({
    */
   createClaim: protectedProcedure
     .input(
-      z.object({
-        leagueId: z.number(),
-        addAssetType: z.enum(["manufacturer", "strain", "product", "pharmacy", "brand"]),
-        addAssetId: z.number(),
-        // Allow "none" for cases where we don't drop anyone (e.g. open roster spot)
-        dropAssetType: z.enum(["manufacturer", "strain", "product", "pharmacy", "brand", "none"]),
-        dropAssetId: z.number(),
-        bidAmount: z.number().min(0),
-      })
+        z.object({
+          leagueId: z.number(),
+          // Accept both "strain" and "cannabis_strain" for compatibility
+          addAssetType: z.enum(["manufacturer", "strain", "cannabis_strain", "product", "pharmacy", "brand"]),
+          addAssetId: z.number(),
+          // Allow "none" for cases where we don't drop anyone (e.g. open roster spot)
+          dropAssetType: z.enum(["manufacturer", "strain", "cannabis_strain", "product", "pharmacy", "brand", "none"]),
+          dropAssetId: z.number(),
+          bidAmount: z.number().min(0),
+        })
     )
     .mutation(async ({ ctx, input }) => {
       const db = await getDb();
