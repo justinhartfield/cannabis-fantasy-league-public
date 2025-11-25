@@ -346,6 +346,7 @@ export default function DraftBoard({
                             isAssetDrafted("manufacturer", mfg.id)
                           }
                           isPositionFull={isPositionFull("manufacturer")}
+                          leagueId={leagueId}
                           onDraft={handleDraft}
                         />
                       ))}
@@ -378,6 +379,7 @@ export default function DraftBoard({
                             isAssetDrafted("cannabis_strain", strain.id)
                           }
                           isPositionFull={isPositionFull("cannabis_strain")}
+                          leagueId={leagueId}
                           onDraft={handleDraft}
                         />
                       ))}
@@ -411,6 +413,7 @@ export default function DraftBoard({
                             isAssetDrafted("product", product.id)
                           }
                           isPositionFull={isPositionFull("product")}
+                          leagueId={leagueId}
                           onDraft={handleDraft}
                         />
                       ))}
@@ -443,6 +446,7 @@ export default function DraftBoard({
                             isAssetDrafted("brand", brand.id)
                           }
                           isPositionFull={isPositionFull("brand")}
+                          leagueId={leagueId}
                           onDraft={handleDraft}
                         />
                       ))}
@@ -474,6 +478,7 @@ export default function DraftBoard({
                             isAssetDrafted("pharmacy", phm.id)
                           }
                           isPositionFull={isPositionFull("pharmacy")}
+                          leagueId={leagueId}
                           onDraft={handleDraft}
                         />
                       ))}

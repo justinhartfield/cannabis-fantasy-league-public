@@ -362,10 +362,38 @@ class WebSocketManager {
 
   notifyAutoPick(leagueId: number, data: {
     teamId: number;
+    teamName: string;
+    assetType: string;
+    assetId: number;
+    assetName: string;
     pickNumber: number;
+    fromWishlist: boolean;
   }) {
+    logDraftTiming("ws:auto_pick", {
+      leagueId,
+      ...data,
+    });
+
     this.broadcastToDraftRoom(leagueId, {
       type: 'auto_pick',
+      ...data,
+      timestamp: Date.now(),
+    });
+  }
+
+  /**
+   * Notify all clients in a draft room that a player has been drafted
+   * so they can update their wishlists accordingly
+   */
+  notifyWishlistPlayerDrafted(leagueId: number, data: {
+    assetType: string;
+    assetId: number;
+    assetName: string;
+    draftedByTeamId: number;
+    draftedByTeamName: string;
+  }) {
+    this.broadcastToDraftRoom(leagueId, {
+      type: 'wishlist_player_drafted',
       ...data,
       timestamp: Date.now(),
     });

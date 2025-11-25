@@ -722,6 +722,19 @@ export const draftRouter = router({
         pickNumber: draftPick,
       });
 
+      // Remove the drafted player from all wishlists in the league
+      const { removeFromAllWishlists } = await import("./autoPick");
+      await removeFromAllWishlists(input.leagueId, input.assetType, input.assetId);
+
+      // Notify clients about wishlist update
+      wsManager.notifyWishlistPlayerDrafted(input.leagueId, {
+        assetType: input.assetType,
+        assetId: input.assetId,
+        assetName,
+        draftedByTeamId: input.teamId,
+        draftedByTeamName: team?.name || "Unknown Team",
+      });
+
       // Advance to next pick (also handles final-draft completion bookkeeping)
       const advanceStart = Date.now();
       const draftCompletedNow = await advanceDraftPick(input.leagueId);
