@@ -541,7 +541,9 @@ export default function DailyChallenge() {
           isLive={isLive}
           challengeDate={challengeDateLabel}
           userTeamId={userTeam?.id}
+          selectedTeamId={selectedTeamId}
           onFighterChange={() => refetchLeague()}
+          onTeamClick={(teamId) => setSelectedTeamId(teamId)}
         />
 
         {/* Invite Block (when waiting for opponent) */}
