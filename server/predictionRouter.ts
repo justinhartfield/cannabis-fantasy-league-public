@@ -271,6 +271,7 @@ export const predictionRouter = router({
           id: users.id,
           name: users.name,
           email: users.email,
+          avatarUrl: users.avatarUrl,
           currentStreak: users.currentPredictionStreak,
           longestStreak: users.longestPredictionStreak,
         })
@@ -282,6 +283,7 @@ export const predictionRouter = router({
         rank: index + 1,
         id: user.id,
         name: user.name || user.email || 'Anonymous',
+        avatarUrl: user.avatarUrl || null,
         currentStreak: user.currentStreak || 0,
         longestStreak: user.longestStreak || 0,
         isCurrentUser: user.id === currentUserId,

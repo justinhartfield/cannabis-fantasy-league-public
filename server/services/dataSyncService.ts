@@ -7,11 +7,11 @@
 import { getDb } from '../db';
 import { validateCannabisStrainsSchema } from '../db/schemaValidator';
 import { getMetabaseClient } from '../metabase';
-import { 
-  cannabisStrains, 
-  brands, 
-  manufacturers, 
-  pharmacies, 
+import {
+  cannabisStrains,
+  brands,
+  manufacturers,
+  pharmacies,
   strains,
   manufacturerWeeklyStats,
   cannabisStrainWeeklyStats,
@@ -34,11 +34,11 @@ export class DataSyncServiceV2 {
    */
   async syncStrains(): Promise<void> {
     const logger = await createSyncJob('sync-strains');
-    
+
     try {
       await logger.updateJobStatus('running');
       await logger.info('Starting cannabis strains sync...');
-      
+
       // Validate schema before proceeding
       try {
         await logger.info('Validating database schema...');
@@ -53,13 +53,13 @@ export class DataSyncServiceV2 {
         await logger.updateJobStatus('failed', `Schema validation failed: ${errorMessage}`);
         throw new Error(`Schema validation failed: ${errorMessage}. Please run: npm run db:migrate`);
       }
-      
+
       const metabase = getMetabaseClient();
       const strainsData = await metabase.fetchCannabisStrains();
-      
+
       await logger.info(`Fetched ${strainsData.length} strains from Metabase`);
       await logger.updateJobStatus('running', undefined, { total: strainsData.length });
-      
+
       let synced = 0;
       let errors = 0;
 
@@ -68,7 +68,7 @@ export class DataSyncServiceV2 {
           // Use Drizzle's insert with onConflictDoUpdate
           const db = await getDb();
           if (!db) throw new Error('Database not available');
-          
+
           // Use raw SQL to avoid Drizzle ORM issues with onConflictDoUpdate
           await db.execute(sql`
             INSERT INTO "cannabisStrains" (
@@ -110,24 +110,24 @@ export class DataSyncServiceV2 {
           `);
 
           synced++;
-          
+
           if (synced % 50 === 0) {
             await logger.info(`Progress: ${synced}/${strainsData.length} strains synced`);
             await logger.updateJobStatus('running', undefined, { processed: synced });
           }
         } catch (error) {
           errors++;
-          
+
           // Enhanced error handling for PostgreSQL errors
           const pgError = error as any;
           const errorCode = pgError?.code;
           const errorMessage = error instanceof Error ? error.message : String(error);
           const errorDetail = pgError?.detail || pgError?.message;
-          
+
           // PostgreSQL error code 42703 = undefined_column
           // PostgreSQL error code 42P01 = undefined_table
           const isSchemaError = errorCode === '42703' || errorCode === '42P01';
-          
+
           const errorMetadata: Record<string, unknown> = {
             error: errorMessage,
             errorDetails: error instanceof Error ? error.stack : String(error),
@@ -135,14 +135,14 @@ export class DataSyncServiceV2 {
             errorDetail,
             strain: strain.name,
           };
-          
+
           if (isSchemaError) {
             errorMetadata.suggestion = 'Database schema mismatch detected. Please run: npm run db:migrate';
             errorMetadata.errorType = 'schema_mismatch';
           }
-          
+
           await logger.error(`Failed to sync strain: ${strain.name}`, errorMetadata);
-          
+
           // If it's a schema error, log it prominently and suggest action
           if (isSchemaError && errors === 1) {
             await logger.error(
@@ -157,7 +157,7 @@ export class DataSyncServiceV2 {
       await logger.updateJobStatus('running', undefined, { processed: synced });
       await logger.info(`Sync complete: ${synced} synced, ${errors} errors`);
       await logger.updateJobStatus('completed', `Successfully synced ${synced} strains with ${errors} errors`);
-      
+
     } catch (error) {
       await logger.error('Strains sync failed', {
         error: error instanceof Error ? error.message : String(error),
@@ -175,17 +175,17 @@ export class DataSyncServiceV2 {
    */
   async syncBrands(): Promise<void> {
     const logger = await createSyncJob('sync-brands');
-    
+
     try {
       await logger.updateJobStatus('running');
       await logger.info('Starting brands sync...');
-      
+
       const metabase = getMetabaseClient();
       const brandsData = await metabase.fetchBrands();
-      
+
       await logger.info(`Fetched ${brandsData.length} brands from Metabase`);
       await logger.updateJobStatus('running', undefined, { total: brandsData.length });
-      
+
       let synced = 0;
       let errors = 0;
 
@@ -222,7 +222,7 @@ export class DataSyncServiceV2 {
             });
 
           synced++;
-          
+
           if (synced % 20 === 0) {
             await logger.info(`Progress: ${synced}/${brandsData.length} brands synced`);
             await logger.updateJobStatus('running', undefined, { processed: synced });
@@ -239,7 +239,7 @@ export class DataSyncServiceV2 {
       await logger.updateJobStatus('running', undefined, { processed: synced });
       await logger.info(`Sync complete: ${synced} synced, ${errors} errors`);
       await logger.updateJobStatus('completed', `Successfully synced ${synced} brands with ${errors} errors`);
-      
+
     } catch (error) {
       await logger.error('Brands sync failed', {
         error: error instanceof Error ? error.message : String(error),
@@ -255,17 +255,17 @@ export class DataSyncServiceV2 {
    */
   async syncManufacturers(): Promise<void> {
     const logger = await createSyncJob('sync-manufacturers');
-    
+
     try {
       await logger.updateJobStatus('running');
       await logger.info('Starting manufacturers sync...');
-      
+
       const metabase = getMetabaseClient();
       const mfgData = await metabase.fetchManufacturers();
-      
+
       await logger.info(`Fetched ${mfgData.length} manufacturers from Metabase`);
       await logger.updateJobStatus('running', undefined, { total: mfgData.length });
-      
+
       let synced = 0;
       let errors = 0;
 
@@ -310,7 +310,7 @@ export class DataSyncServiceV2 {
           }
 
           synced++;
-          
+
           if (synced % 10 === 0) {
             await logger.info(`Progress: ${synced}/${mfgData.length} manufacturers synced`);
             await logger.updateJobStatus('running', undefined, { processed: synced });
@@ -327,7 +327,7 @@ export class DataSyncServiceV2 {
       await logger.updateJobStatus('running', undefined, { processed: synced });
       await logger.info(`Sync complete: ${synced} synced, ${errors} errors`);
       await logger.updateJobStatus('completed', `Successfully synced ${synced} manufacturers with ${errors} errors`);
-      
+
     } catch (error) {
       await logger.error('Manufacturers sync failed', {
         error: error instanceof Error ? error.message : String(error),
@@ -343,16 +343,16 @@ export class DataSyncServiceV2 {
    */
   async syncProducts(): Promise<void> {
     const logger = await createSyncJob('sync-products');
-    
+
     try {
       await logger.updateJobStatus('running');
       await logger.info('Starting products sync...');
-      
+
       const metabase = getMetabaseClient();
       const productsData = await metabase.fetchStrains();
       await logger.info(`Fetched ${productsData.length} products from Metabase`);
       await logger.updateJobStatus('running', undefined, { total: productsData.length });
-      
+
       let synced = 0;
       let errors = 0;
 
@@ -360,17 +360,17 @@ export class DataSyncServiceV2 {
         try {
           const db = await getDb();
           if (!db) throw new Error('Database not available');
-          
+
           // Convert price from euros to cents
           const avgPriceCents = Math.round(product.avg_price * 100);
           const minPriceCents = Math.round(product.min_price * 100);
           const maxPriceCents = Math.round(product.max_price * 100);
-          
+
           await db.insert(strains)
             .values({
               metabaseId: product.metabaseId,
               name: product.name,
-              manufacturerName: product.manufacturer,
+              manufacturerName: product.manufacturer === '187 Marry Jane' ? '187 SWEEDZ' : product.manufacturer,
               favoriteCount: product.favorite_count,
               pharmacyCount: product.pharmacy_count,
               avgPriceCents,
@@ -383,7 +383,7 @@ export class DataSyncServiceV2 {
             .onConflictDoUpdate({
               target: strains.metabaseId,
               set: {
-                manufacturerName: product.manufacturer,
+                manufacturerName: product.manufacturer === '187 Marry Jane' ? '187 SWEEDZ' : product.manufacturer,
                 favoriteCount: product.favorite_count,
                 pharmacyCount: product.pharmacy_count,
                 avgPriceCents,
@@ -397,7 +397,7 @@ export class DataSyncServiceV2 {
             });
 
           synced++;
-          
+
           if (synced % 100 === 0) {
             await logger.info(`Progress: ${synced}/${productsData.length} products synced`);
             await logger.updateJobStatus('running', undefined, { processed: synced });
@@ -414,7 +414,7 @@ export class DataSyncServiceV2 {
       await logger.updateJobStatus('running', undefined, { processed: synced });
       await logger.info(`Sync complete: ${synced} synced, ${errors} errors`);
       await logger.updateJobStatus('completed', `Successfully synced ${synced} products with ${errors} errors`);
-      
+
     } catch (error) {
       await logger.error('Products sync failed', {
         error: error instanceof Error ? error.message : String(error),
@@ -437,11 +437,11 @@ export class DataSyncServiceV2 {
     brands: number;
   }> {
     const logger = await createSyncJob('sync-weekly-stats');
-    
+
     try {
       await logger.updateJobStatus('running');
       await logger.info(`Starting weekly stats sync for ${year}-W${week}...`);
-      
+
       const db = await getDb();
       if (!db) throw new Error('Database not available');
 
@@ -456,7 +456,7 @@ export class DataSyncServiceV2 {
       // 1. Sync Manufacturer Weekly Stats
       await logger.info('Syncing manufacturer weekly stats...');
       const manufacturerData = await db.select().from(manufacturers);
-      
+
       for (const mfg of manufacturerData) {
         const existing = await db
           .select()
@@ -502,7 +502,7 @@ export class DataSyncServiceV2 {
       // 2. Sync Cannabis Strain Weekly Stats
       await logger.info('Syncing cannabis strain weekly stats...');
       const strainData = await db.select().from(cannabisStrains);
-      
+
       for (const strain of strainData) {
         const existing = await db
           .select()
@@ -551,7 +551,7 @@ export class DataSyncServiceV2 {
       // 3. Sync Product (Strain) Weekly Stats
       await logger.info('Syncing product weekly stats...');
       const productData = await db.select().from(strains).limit(200); // Limit to avoid timeout
-      
+
       for (const product of productData) {
         const existing = await db
           .select()
@@ -599,7 +599,7 @@ export class DataSyncServiceV2 {
       // 4. Sync Pharmacy Weekly Stats
       await logger.info('Syncing pharmacy weekly stats...');
       const pharmacyData = await db.select().from(pharmacies);
-      
+
       for (const phm of pharmacyData) {
         const existing = await db
           .select()
@@ -647,7 +647,7 @@ export class DataSyncServiceV2 {
       // 5. Sync Brand Weekly Stats
       await logger.info('Syncing brand weekly stats...');
       const brandData = await db.select().from(brands);
-      
+
       for (const brand of brandData) {
         const existing = await db
           .select()
@@ -709,7 +709,7 @@ export class DataSyncServiceV2 {
         `${counts.products} products, ${counts.pharmacies} pharmacies, ${counts.brands} brands`
       );
       await logger.updateJobStatus('completed', `Successfully synced weekly stats for ${year}-W${week}`);
-      
+
       return counts;
     } catch (error) {
       await logger.error('Weekly stats sync failed', {
@@ -958,19 +958,19 @@ export class DataSyncServiceV2 {
    */
   async syncAll(): Promise<void> {
     const logger = await createSyncJob('sync-all');
-    
+
     try {
       await logger.updateJobStatus('running');
       await logger.info('Starting full data sync...');
-      
+
       await this.syncManufacturers();
       await this.syncBrands();
       await this.syncStrains();
       await this.syncProducts();
-      
+
       await logger.info('Full data sync completed successfully');
       await logger.updateJobStatus('completed', 'All data sources synced successfully');
-      
+
     } catch (error) {
       await logger.error('Full sync failed', {
         error: error instanceof Error ? error.message : String(error),

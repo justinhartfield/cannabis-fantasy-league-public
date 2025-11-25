@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 type LeaderboardPlayer = {
   rank?: number;
   name: string;
+  avatarUrl?: string | null;
   currentStreak?: number;
   longestStreak?: number;
 };
@@ -254,14 +255,33 @@ export default function Dashboard() {
                 const rankDisplay = player.rank ?? index + 1;
                 const current = player.currentStreak ?? 0;
                 const best = player.longestStreak ?? 0;
+                const initials = player.name
+                  ?.split(" ")
+                  .map((n) => n[0])
+                  .join("")
+                  .slice(0, 2)
+                  .toUpperCase() || "?";
                 return (
                 <li
                   key={`${player.name}-${index}`}
                   className="flex items-center justify-between rounded-2xl bg-black/30 px-4 py-3 text-white"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-lg font-bold">
-                      {rankDisplay}
+                    <div className="relative">
+                      {player.avatarUrl ? (
+                        <img
+                          src={player.avatarUrl}
+                          alt={player.name}
+                          className="h-10 w-10 rounded-2xl object-cover ring-2 ring-weed-green/30"
+                        />
+                      ) : (
+                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-weed-green/30 to-weed-purple/30 text-sm font-bold text-white/80">
+                          {initials}
+                        </div>
+                      )}
+                      <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-weed-green text-[10px] font-bold text-black">
+                        {rankDisplay}
+                      </span>
                     </div>
                     <div>
                       <p className="text-base font-semibold">

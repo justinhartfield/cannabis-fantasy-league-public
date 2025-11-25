@@ -115,6 +115,19 @@ export class MetabaseClient {
   }
 
   /**
+   * Fetch table metadata to inspect fields
+   */
+  async getTableMetadata(tableId: number) {
+    try {
+      const response = await this.axiosInstance.get(`/api/table/${tableId}/query_metadata`);
+      return response.data;
+    } catch (error) {
+      console.error('[Metabase] Failed to fetch metadata:', error);
+      return null;
+    }
+  }
+
+  /**
    * Execute a native MongoDB query
    * @param nativeQuery - MongoDB query string (e.g., "db.getCollection('Prescription').find({})")
    * @returns Array of result rows
@@ -122,7 +135,7 @@ export class MetabaseClient {
   async executeNativeQuery<T = any>(nativeQuery: string): Promise<T[]> {
     try {
       console.log(`[Metabase] Executing native query: ${nativeQuery.substring(0, 100)}...`);
-      
+
       const response = await this.axiosInstance.post('/api/dataset', {
         database: 2, // Weed.de Prod DB
         type: 'native',
@@ -153,7 +166,7 @@ export class MetabaseClient {
     try {
       const hasParams = parameters && Object.keys(parameters).length > 0;
       console.log(`[Metabase] Executing card ${cardId}${hasParams ? ' with parameters' : ''}...`, hasParams ? parameters : '');
-      
+
       // Format parameters for Metabase API if provided
       const requestBody = hasParams ? { parameters } : {};
       const response = await this.axiosInstance.post(`/api/card/${cardId}/query`, requestBody);
@@ -200,8 +213,8 @@ export class MetabaseClient {
     try {
       // Query Brand table for all brands
       const rows = await this.executeQuery({
-        'source-table': TABLES.BRAND,
-        limit: 1000,
+        'source-table': TABLES.PRODUCT,
+        limit: 10000, // Fetch enough products to get all manufacturers
       });
 
       const manufacturers: ManufacturerData[] = rows.map((row: any, index: number) => {
@@ -249,7 +262,7 @@ export class MetabaseClient {
         // row[8] = totalViews
         // row[9] = totalComments
         // row[10] = affiliateClicks
-        
+
         return {
           name: row[1] || 'Unknown',
           slug: row[2] || null,
@@ -274,17 +287,39 @@ export class MetabaseClient {
   /**
    * Fetch strain/product data
    */
-  async fetchStrains(): Promise<StrainData[]> {
+  async fetchStrains(options: any = {}): Promise<StrainData[]> {
     console.log('[Metabase] Fetching strain data...');
 
     try {
-      // Query Product table for all products
-      const rows = await this.executeQuery({
+      // 1. Fetch default products (likely top 2000)
+      const defaultRowsPromise = this.executeQuery({
         'source-table': TABLES.PRODUCT,
-        limit: 3000,
+        limit: 10000, // Try to get as many as possible
+        ...options,
       });
 
-      const strains: StrainData[] = rows
+      // 2. Explicitly fetch "187" products to ensure they are included
+      // (The default query has a 2000 row limit and might miss these)
+      const specificRowsPromise = this.executeQuery({
+        'source-table': TABLES.PRODUCT,
+        limit: 10000,
+        filter: ['contains', ['field', 859, null], '187'], // Filter by Manufacturer (ID 859)
+      });
+
+      const [defaultRows, specificRows] = await Promise.all([defaultRowsPromise, specificRowsPromise]);
+
+      // Merge rows and deduplicate by ID (index 0)
+      const allRows = [...defaultRows];
+      const existingIds = new Set(defaultRows.map((r: any) => r[0]));
+
+      for (const row of specificRows) {
+        if (!existingIds.has(row[0])) {
+          allRows.push(row);
+          existingIds.add(row[0]);
+        }
+      }
+
+      const strains: StrainData[] = allRows
         .filter((row: any) => row[26] && row[30]) // Filter out products without names or manufacturers
         .map((row: any) => {
           const name = row[26] || 'Unknown'; // Index 26 is the product name
@@ -293,21 +328,24 @@ export class MetabaseClient {
           // If favorites are showing tens of thousands, try row[7] or row[8] instead
           const favoriteCount = row[4] || 0; // Index 4 is favorite count (needs verification)
           const price = row[32] || 0; // Index 32 is the price
-          
+
           // Extract THC content from index 37
           let thcContent = null;
           if (row[37] && typeof row[37] === 'object') {
             thcContent = `${row[37].value}${row[37].unit || '%'}`;
           }
-          
+
           // Extract CBD content from index 12
           let cbdContent = null;
           if (row[12] && typeof row[12] === 'object') {
             cbdContent = `${row[12].value}${row[12].unit || '%'}`;
           }
 
+          // Extract genetics from index 33 (Genetik)
+          const genetics = row[33] || 'Unknown';
+
           return {
-            metabaseId: row[0] || '',
+            metabaseId: row[0], // Index 0 is the ID
             name,
             manufacturer,
             favorite_count: favoriteCount,
@@ -318,10 +356,11 @@ export class MetabaseClient {
             price_category: price > 10 ? 'expensive' : price > 7 ? 'above_average' : 'average',
             thc_content: thcContent,
             cbd_content: cbdContent,
+            genetics,
           };
         });
 
-      console.log(`[Metabase] Fetched ${strains.length} strains`);
+      console.log(`[Metabase] Fetched ${strains.length} strains (merged default + 187)`);
       return strains;
     } catch (error) {
       console.error('[Metabase] Error fetching strains:', error);
@@ -410,12 +449,11 @@ export class MetabaseClient {
     console.log('[Metabase] Fetching pharmacy data...');
 
     try {
-      // Query Pharmacy table
+      // Query Product table for all products
       const rows = await this.executeQuery({
-        'source-table': TABLES.PHARMACY,
-        limit: 500,
+        'source-table': TABLES.PRODUCT,
+        limit: 10000,
       });
-
       const pharmacies: PharmacyData[] = rows
         .filter((row: any) => row[1]) // Filter out pharmacies without names
         .map((row: any) => {
@@ -450,8 +488,8 @@ export class MetabaseClient {
   async executePublicQuery(publicUuid: string): Promise<any[]> {
     try {
       console.log(`[Metabase] Executing public query ${publicUuid}...`);
-      
-      const response = await axios.get(`${METABASE_URL}/api/public/card/${publicUuid}/query/json`, {
+
+      const response = await axios.get(`${METABASE_URL} /api/public / card / ${publicUuid} /query/json`, {
         timeout: 60000,
       });
 
@@ -459,7 +497,7 @@ export class MetabaseClient {
       console.log(`[Metabase] Public query ${publicUuid} returned ${results.length} rows`);
       return results;
     } catch (error) {
-      console.error(`[Metabase] Public query failed:`, error);
+      console.error(`[Metabase] Public query failed: `, error);
       if (axios.isAxiosError(error) && error.response) {
         console.error('[Metabase] Error response:', error.response.data);
       }
