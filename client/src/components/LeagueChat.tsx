@@ -124,33 +124,35 @@ export function LeagueChat({ leagueId, className, variant = "default" }: LeagueC
             const isImage = isImageMessage(msg.message);
 
             return (
-              <div key={msg.id} className={`flex gap-2 ${isMe ? "flex-row-reverse" : ""}`}>
-                <Avatar className="w-8 h-8">
+              <div key={msg.id} className={cn("flex gap-2 overflow-hidden", isMe ? "flex-row-reverse" : "")}>
+                <Avatar className="w-8 h-8 shrink-0">
                   <AvatarImage src={msg.userAvatarUrl || undefined} />
                   <AvatarFallback>{msg.userName[0]}</AvatarFallback>
                 </Avatar>
                 <div
-                  className={`flex flex-col w-full max-w-[calc(100%-3rem)] sm:max-w-[70%] ${
-                    isMe ? "items-end ml-auto" : "items-start mr-auto"
-                  }`}
+                  className={cn(
+                    "flex flex-col min-w-0",
+                    isMe ? "items-end" : "items-start"
+                  )}
+                  style={{ maxWidth: "calc(100% - 3rem)" }}
                 >
                   <span className={cn("text-xs mb-1", isDark ? "text-white/50" : "text-muted-foreground")}>
                     {msg.userName}, {format(new Date(msg.createdAt), "h:mm a")}
                   </span>
                   <div
                     className={cn(
-                      "rounded-lg p-3",
+                      "rounded-lg p-3 max-w-full",
                       isMe 
                         ? isDark ? "bg-[#cfff4d] text-black" : "bg-primary text-primary-foreground"
                         : isDark ? "bg-white/10 text-white" : "bg-muted",
-                      isImage && "bg-transparent p-0 w-full max-w-xs sm:max-w-sm overflow-hidden"
+                      isImage && "bg-transparent p-0 overflow-hidden"
                     )}
                   >
                     {isImage ? (
                       <img
                         src={msg.message}
                         alt="Chat attachment"
-                        className="rounded-lg w-full max-w-full h-auto object-contain"
+                        className="rounded-lg max-w-[200px] sm:max-w-[280px] h-auto object-contain"
                         loading="lazy"
                       />
                     ) : (
