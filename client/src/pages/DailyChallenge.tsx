@@ -170,20 +170,6 @@ export default function DailyChallenge() {
     },
   });
 
-  const createRematchMutation = trpc.league.createRematchChallenge.useMutation({
-    onSuccess: (data) => {
-      toast.success("Rematch challenge created!");
-      setLocation(`/challenge/${data.leagueId}`);
-    },
-    onError: (error) => {
-      toast.error(`Failed to create rematch: ${error.message}`);
-    },
-  });
-
-  const { data: rematchInfo } = trpc.league.getChallengeRematchInfo.useQuery(
-    { challengeId: challengeId },
-    { enabled: !!challengeId && league?.status === 'complete' && isAuthenticated }
-  );
 
 
   const isAdmin = user?.role === "admin";
@@ -318,10 +304,6 @@ export default function DailyChallenge() {
     }
   }, [league?.status, challengeId, handleCalculateScores]);
 
-  const handleRematch = () => {
-    if (!challengeId) return;
-    createRematchMutation.mutate({ originalChallengeId: challengeId });
-  };
 
   // Auth guard
   useEffect(() => {
@@ -640,37 +622,23 @@ export default function DailyChallenge() {
                     Final Score: {winner.points.toFixed(1)} points
                   </p>
                 </div>
-                {rematchInfo?.opponent && (
-                  <div className="pt-4">
-                    <Button
-                      onClick={handleRematch}
-                      disabled={createRematchMutation.isPending}
-                      className="gradient-primary"
-                      size="lg"
-                    >
-                      {createRematchMutation.isPending ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Creating Rematch...
-                        </>
-                      ) : (
-                        <>
-                          <Trophy className="w-4 h-4 mr-2" />
-                          Rematch {rematchInfo.opponent.userName || rematchInfo.opponent.teamName}
-                        </>
-                      )}
-                    </Button>
+                {/* Smack Talk Chat */}
+                <div className="pt-4">
+                  <div className="rounded-[32px] bg-[#2a1027] border border-white/10 overflow-hidden">
+                    <LeagueChat leagueId={challengeId} variant="dark" />
                   </div>
-                )}
+                </div>
               </div>
             </CardContent>
           </Card>
         )}
 
-        {/* Smack Talk Chat */}
-        <div className="rounded-[32px] bg-[#2a1027] border border-white/10 overflow-hidden">
-          <LeagueChat leagueId={challengeId} variant="dark" />
-        </div>
+        {/* Smack Talk Chat - Show when challenge is not complete */}
+        {league?.status !== 'complete' && (
+          <div className="rounded-[32px] bg-[#2a1027] border border-white/10 overflow-hidden">
+            <LeagueChat leagueId={challengeId} variant="dark" />
+          </div>
+        )}
 
         {/* Top Performers */}
         {topPerformers.length > 0 && (
