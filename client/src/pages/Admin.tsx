@@ -72,7 +72,7 @@ export default function Admin() {
     enabled: adminAccessGranted,
     refetchInterval: 5000, // Auto-refresh every 5 seconds
   });
-  
+
   const { data: jobs, refetch: refetchJobs } = trpc.admin.getSyncJobs.useQuery(
     { limit: 20 },
     {
@@ -80,7 +80,7 @@ export default function Admin() {
       refetchInterval: 5000, // Auto-refresh every 5 seconds
     }
   );
-  
+
   const { data: logs } = trpc.admin.getJobLogs.useQuery(
     { jobId: selectedJobId! },
     { enabled: selectedJobId !== null }
@@ -336,7 +336,7 @@ export default function Admin() {
       <main className="container mx-auto px-4 py-8">
         <div className="grid gap-6">
           {/* Data Freshness Stats */}
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-4">
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">Cannabis Strains</CardTitle>
@@ -346,8 +346,8 @@ export default function Admin() {
                   {stats?.strains.count || 0}
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
-                  Last synced: {stats?.strains.lastSync 
-                    ? formatDistanceToNow(new Date(stats.strains.lastSync), { addSuffix: true }) 
+                  Last synced: {stats?.strains.lastSync
+                    ? formatDistanceToNow(new Date(stats.strains.lastSync), { addSuffix: true })
                     : 'Never'}
                 </p>
               </CardContent>
@@ -362,8 +362,8 @@ export default function Admin() {
                   {stats?.brands.count || 0}
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
-                  Last synced: {stats?.brands.lastSync 
-                    ? formatDistanceToNow(new Date(stats.brands.lastSync), { addSuffix: true }) 
+                  Last synced: {stats?.brands.lastSync
+                    ? formatDistanceToNow(new Date(stats.brands.lastSync), { addSuffix: true })
                     : 'Never'}
                 </p>
               </CardContent>
@@ -378,8 +378,24 @@ export default function Admin() {
                   {stats?.manufacturers.count || 0}
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
-                  Last synced: {stats?.manufacturers.lastSync 
-                    ? formatDistanceToNow(new Date(stats.manufacturers.lastSync), { addSuffix: true }) 
+                  Last synced: {stats?.manufacturers.lastSync
+                    ? formatDistanceToNow(new Date(stats.manufacturers.lastSync), { addSuffix: true })
+                    : 'Never'}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Products</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-orange-600">
+                  {stats?.products.count || 0}
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Last synced: {stats?.products.lastSync
+                    ? formatDistanceToNow(new Date(stats.products.lastSync), { addSuffix: true })
                     : 'Never'}
                 </p>
               </CardContent>

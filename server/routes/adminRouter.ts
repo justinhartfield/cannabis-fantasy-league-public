@@ -6,7 +6,7 @@
 import { adminProcedure, router } from '../_core/trpc';
 import { getDataSyncServiceV2 } from '../services/dataSyncService';
 import { getDb } from '../db';
-import { syncJobs, syncLogs, cannabisStrains, brands, manufacturers, dailyTeamScores, teams, weeklyTeamScores } from '../../drizzle/schema';
+import { syncJobs, syncLogs, cannabisStrains, brands, manufacturers, dailyTeamScores, teams, weeklyTeamScores, strains } from '../../drizzle/schema';
 import { eq, desc, sql, gte, and } from 'drizzle-orm';
 import { z } from 'zod';
 import { createSyncJob } from '../services/syncLogger';
@@ -388,6 +388,10 @@ export const adminRouter = router({
       .select({ count: sql<number>`count(*)` })
       .from(manufacturers);
 
+    const [productCount] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(strains);
+
     // Get last successful sync times for each type
     const lastStrainSync = await db
       .select()
@@ -419,6 +423,16 @@ export const adminRouter = router({
       .orderBy(desc(syncJobs.completedAt))
       .limit(1);
 
+    const lastProductSync = await db
+      .select()
+      .from(syncJobs)
+      .where(and(
+        eq(syncJobs.jobName, 'sync-products'),
+        eq(syncJobs.status, 'completed'),
+      ))
+      .orderBy(desc(syncJobs.completedAt))
+      .limit(1);
+
     return {
       strains: {
         count: Number(strainCount.count),
@@ -431,6 +445,10 @@ export const adminRouter = router({
       manufacturers: {
         count: Number(mfgCount.count),
         lastSync: lastMfgSync[0]?.completedAt || null,
+      },
+      products: {
+        count: Number(productCount.count),
+        lastSync: lastProductSync[0]?.completedAt || null,
       },
     };
   }),
