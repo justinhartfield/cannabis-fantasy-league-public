@@ -379,16 +379,7 @@ function finalizeDailyBreakdown(
 }
 
 const createEmptyBreakdown = (message?: string): BreakdownDetail => ({
-  components: message
-    ? [
-      {
-        category: message,
-        value: '-',
-        formula: 'No stats available',
-        points: 0,
-      },
-    ]
-    : [],
+  components: [],
   bonuses: [],
   penalties: [],
   subtotal: 0,
@@ -2304,12 +2295,7 @@ async function scoreCannabisStrain(
     return {
       points: 0,
       breakdown: {
-        components: [{
-          category: 'No Data',
-          value: 0,
-          formula: 'No stats available',
-          points: 0,
-        }],
+        components: [],
         subtotal: 0,
         bonuses: [],
         penalties: [],

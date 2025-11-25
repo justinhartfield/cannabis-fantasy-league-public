@@ -23,12 +23,12 @@ const SCORE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 function getCachedScores(challengeId: number, statDate: string): any[] | null {
   const cacheKey = `${challengeId}-${statDate}`;
   const cached = challengeScoreCache.get(cacheKey);
-  
+
   if (cached && Date.now() - cached.timestamp < SCORE_CACHE_TTL) {
     console.log(`[ScoreCache] Cache HIT for ${cacheKey}`);
     return cached.scores;
   }
-  
+
   console.log(`[ScoreCache] Cache MISS for ${cacheKey}`);
   return null;
 }
@@ -75,9 +75,9 @@ import {
 } from './trendScoringEngine';
 import { z } from 'zod';
 import { getDb } from './db';
-import { 
-  weeklyTeamScores, 
-  scoringBreakdowns, 
+import {
+  weeklyTeamScores,
+  scoringBreakdowns,
   teams,
   users,
   manufacturers,
@@ -123,13 +123,13 @@ export const scoringRouter = router({
       if (ctx.user.role !== 'admin') {
         const db = await getDb();
         if (!db) throw new Error('Database not available');
-        
+
         const league = await db
           .select()
           .from(leagues)
           .where(eq(leagues.id, input.leagueId))
           .limit(1);
-          
+
         if (!league.length || league[0].commissionerUserId !== ctx.user.id) {
           throw new Error('Unauthorized: Admin or Commissioner access required');
         }
@@ -166,10 +166,10 @@ export const scoringRouter = router({
 
       try {
         await calculateDailyChallengeScores(input.challengeId, input.statDate);
-        
+
         // Invalidate cache after recalculation to ensure fresh data
         invalidateCachedScores(input.challengeId, input.statDate);
-        
+
         return {
           success: true,
           message: `Scores calculated for challenge ${input.challengeId} (${input.statDate})`,
@@ -392,49 +392,49 @@ export const scoringRouter = router({
       ] = await Promise.all([
         manufacturerIds.size > 0
           ? db.select({
-              id: manufacturers.id,
-              name: manufacturers.name,
-              imageUrl: manufacturers.logoUrl,
-            })
-              .from(manufacturers)
-              .where(inArray(manufacturers.id, Array.from(manufacturerIds)))
+            id: manufacturers.id,
+            name: manufacturers.name,
+            imageUrl: manufacturers.logoUrl,
+          })
+            .from(manufacturers)
+            .where(inArray(manufacturers.id, Array.from(manufacturerIds)))
           : [],
         strainIds.size > 0
           ? db.select({
-              id: cannabisStrains.id,
-              name: cannabisStrains.name,
-              imageUrl: cannabisStrains.imageUrl,
-            })
-              .from(cannabisStrains)
-              .where(inArray(cannabisStrains.id, Array.from(strainIds)))
+            id: cannabisStrains.id,
+            name: cannabisStrains.name,
+            imageUrl: cannabisStrains.imageUrl,
+          })
+            .from(cannabisStrains)
+            .where(inArray(cannabisStrains.id, Array.from(strainIds)))
           : [],
         productIds.size > 0
           ? db.select({
-              id: strains.id,
-              name: strains.name,
-              imageUrl: cannabisStrains.imageUrl,
-            })
-              .from(strains)
-              .leftJoin(cannabisStrains, eq(strains.strainId, cannabisStrains.id))
-              .where(inArray(strains.id, Array.from(productIds)))
+            id: strains.id,
+            name: strains.name,
+            imageUrl: cannabisStrains.imageUrl,
+          })
+            .from(strains)
+            .leftJoin(cannabisStrains, eq(strains.strainId, cannabisStrains.id))
+            .where(inArray(strains.id, Array.from(productIds)))
           : [],
         pharmacyIds.size > 0
           ? db.select({
-              id: pharmacies.id,
-              name: pharmacies.name,
-              imageUrl: pharmacies.logoUrl,
-            })
-              .from(pharmacies)
-              .where(inArray(pharmacies.id, Array.from(pharmacyIds)))
+            id: pharmacies.id,
+            name: pharmacies.name,
+            imageUrl: pharmacies.logoUrl,
+          })
+            .from(pharmacies)
+            .where(inArray(pharmacies.id, Array.from(pharmacyIds)))
           : [],
         brandIds.size > 0
           ? db.select({
-              id: brands.id,
-              name: brands.name,
-              imageUrl: brands.logoUrl,
-            })
-              .from(brands)
-              .where(inArray(brands.id, Array.from(brandIds)))
+            id: brands.id,
+            name: brands.name,
+            imageUrl: brands.logoUrl,
+          })
+            .from(brands)
+            .where(inArray(brands.id, Array.from(brandIds)))
           : [],
       ]);
 
@@ -646,7 +646,7 @@ export const scoringRouter = router({
                   gte(table.statDate, startDate),
                   lte(table.statDate, endDate)
                 ));
-              
+
               const assetTotal = stats.reduce((sum, s) => sum + (s.points || 0), 0);
               totalPoints += assetTotal;
             }
@@ -688,7 +688,7 @@ export const scoringRouter = router({
 
       try {
         console.log(`[Scoring API] getChallengeDayScores - userId: ${ctx.user.id}, challengeId: ${input.challengeId}, statDate: ${input.statDate}`);
-        
+
         // Verify user has access to this challenge (owns a team or is admin)
         let userTeams;
         try {
@@ -764,7 +764,7 @@ export const scoringRouter = router({
             const pgError = error?.cause || error;
             const errorCode = pgError?.code;
             const errorDetail = pgError?.detail || pgError?.message || error?.message;
-            
+
             console.error(`[Scoring API] Error fetching score for team ${team.id}:`, {
               error: error?.message || String(error),
               stack: error?.stack,
@@ -790,7 +790,7 @@ export const scoringRouter = router({
 
         // Cache the results before returning for future requests
         setCachedScores(input.challengeId, input.statDate, teamScores);
-        
+
         return teamScores;
       } catch (error: any) {
         if (error instanceof TRPCError) {
@@ -833,7 +833,7 @@ export const scoringRouter = router({
 
       try {
         console.log(`[Scoring API] getChallengeDayBreakdown - userId: ${ctx.user.id}, challengeId: ${input.challengeId}, teamId: ${input.teamId}, statDate: ${input.statDate}`);
-        
+
         // Verify user has access to this challenge (owns a team or is admin)
         let userTeams;
         try {
@@ -916,7 +916,7 @@ export const scoringRouter = router({
           const pgError = error?.cause || error;
           const errorCode = pgError?.code;
           const errorDetail = pgError?.detail || pgError?.message || error?.message;
-          
+
           console.error('[Scoring API] Error fetching daily team scores:', {
             error: error?.message || String(error),
             stack: error?.stack,
@@ -976,35 +976,35 @@ export const scoringRouter = router({
         const [manufacturerStats, strainStats, productStats, pharmacyStats] = await Promise.all([
           manufacturerIds.size > 0
             ? db.select()
-                .from(manufacturerDailyChallengeStats)
-                .where(and(
-                  inArray(manufacturerDailyChallengeStats.manufacturerId, Array.from(manufacturerIds)),
-                  sql`${manufacturerDailyChallengeStats.statDate} = ${input.statDate}::date`
-                ))
+              .from(manufacturerDailyChallengeStats)
+              .where(and(
+                inArray(manufacturerDailyChallengeStats.manufacturerId, Array.from(manufacturerIds)),
+                sql`${manufacturerDailyChallengeStats.statDate} = ${input.statDate}::date`
+              ))
             : [],
           strainIds.size > 0
             ? db.select()
-                .from(strainDailyChallengeStats)
-                .where(and(
-                  inArray(strainDailyChallengeStats.strainId, Array.from(strainIds)),
-                  sql`${strainDailyChallengeStats.statDate} = ${input.statDate}::date`
-                ))
+              .from(strainDailyChallengeStats)
+              .where(and(
+                inArray(strainDailyChallengeStats.strainId, Array.from(strainIds)),
+                sql`${strainDailyChallengeStats.statDate} = ${input.statDate}::date`
+              ))
             : [],
           productIds.size > 0
             ? db.select()
-                .from(productDailyChallengeStats)
-                .where(and(
-                  inArray(productDailyChallengeStats.productId, Array.from(productIds)),
-                  sql`${productDailyChallengeStats.statDate} = ${input.statDate}::date`
-                ))
+              .from(productDailyChallengeStats)
+              .where(and(
+                inArray(productDailyChallengeStats.productId, Array.from(productIds)),
+                sql`${productDailyChallengeStats.statDate} = ${input.statDate}::date`
+              ))
             : [],
           pharmacyIds.size > 0
             ? db.select()
-                .from(pharmacyDailyChallengeStats)
-                .where(and(
-                  inArray(pharmacyDailyChallengeStats.pharmacyId, Array.from(pharmacyIds)),
-                  sql`${pharmacyDailyChallengeStats.statDate} = ${input.statDate}::date`
-                ))
+              .from(pharmacyDailyChallengeStats)
+              .where(and(
+                inArray(pharmacyDailyChallengeStats.pharmacyId, Array.from(pharmacyIds)),
+                sql`${pharmacyDailyChallengeStats.statDate} = ${input.statDate}::date`
+              ))
             : [],
         ]);
 
@@ -1042,28 +1042,28 @@ export const scoringRouter = router({
         const [manufacturerNames, strainNames, productNames, pharmacyNames, brandNames] = await Promise.all([
           manufacturerIds.size > 0
             ? db.select({ id: manufacturers.id, name: manufacturers.name, imageUrl: manufacturers.logoUrl })
-                .from(manufacturers)
-                .where(inArray(manufacturers.id, Array.from(manufacturerIds)))
+              .from(manufacturers)
+              .where(inArray(manufacturers.id, Array.from(manufacturerIds)))
             : [],
           strainIds.size > 0
             ? db.select({ id: cannabisStrains.id, name: cannabisStrains.name, imageUrl: cannabisStrains.imageUrl })
-                .from(cannabisStrains)
-                .where(inArray(cannabisStrains.id, Array.from(strainIds)))
+              .from(cannabisStrains)
+              .where(inArray(cannabisStrains.id, Array.from(strainIds)))
             : [],
           productIds.size > 0
             ? db.select({ id: strains.id, name: strains.name, imageUrl: sql<string | null>`NULL` })
-                .from(strains)
-                .where(inArray(strains.id, Array.from(productIds)))
+              .from(strains)
+              .where(inArray(strains.id, Array.from(productIds)))
             : [],
           pharmacyIds.size > 0
             ? db.select({ id: pharmacies.id, name: pharmacies.name, imageUrl: pharmacies.logoUrl })
-                .from(pharmacies)
-                .where(inArray(pharmacies.id, Array.from(pharmacyIds)))
+              .from(pharmacies)
+              .where(inArray(pharmacies.id, Array.from(pharmacyIds)))
             : [],
           brandIds.size > 0
             ? db.select({ id: brands.id, name: brands.name, imageUrl: brands.logoUrl })
-                .from(brands)
-                .where(inArray(brands.id, Array.from(brandIds)))
+              .from(brands)
+              .where(inArray(brands.id, Array.from(brandIds)))
             : [],
         ]);
 
@@ -1095,7 +1095,7 @@ export const scoringRouter = router({
           } else if (bd.assetType === 'brand' && bd.assetId) {
             statRecord = brandStatMap.get(bd.assetId);
           }
-          
+
           return {
             ...bd,
             assetName: nameMap.get(bd.assetId) || null,
@@ -1181,7 +1181,7 @@ function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow, statRecord?: Stat
   const current = (bd.breakdown ?? null) as BreakdownDetail | Record<string, any> | null;
   const raw = (current ?? {}) as Record<string, any>;
   const totalPoints = bd.totalPoints ?? 0;
-  
+
   // Use stat record if provided, otherwise fall back to old breakdown JSON
   const data = statRecord ?? raw;
 
@@ -1190,7 +1190,7 @@ function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow, statRecord?: Stat
     const rank = data.rank ?? 0;
     const previousRank = data.previousRank ?? rank;
     const streakDays = Number(data.streakDays ?? 0);
-    
+
     const scoring = calculateManufacturerTrendScore({
       orderCount,
       days1: 0,
@@ -1203,7 +1203,7 @@ function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow, statRecord?: Stat
       marketSharePercent: Number(data.marketSharePercent ?? 0),
       trendMultiplier: Number(data.trendMultiplier ?? 0) || undefined,
     });
-    
+
     return buildManufacturerTrendBreakdown(
       scoring,
       orderCount,
@@ -1218,7 +1218,7 @@ function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow, statRecord?: Stat
     const rank = data.rank ?? 0;
     const previousRank = data.previousRank ?? rank;
     const streakDays = Number(data.streakDays ?? 0);
-    
+
     const scoreCalculator = bd.assetType === 'product' ? calculateProductTrendScore : calculateStrainTrendScore;
     const scoring = scoreCalculator({
       orderCount,
@@ -1232,7 +1232,7 @@ function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow, statRecord?: Stat
       marketSharePercent: Number(data.marketSharePercent ?? 0),
       trendMultiplier: Number(data.trendMultiplier ?? 0) || undefined,
     } as TrendScoringStats);
-    
+
     const builder = bd.assetType === 'product' ? buildProductTrendBreakdown : buildStrainTrendBreakdown;
     return builder(
       scoring,
@@ -1248,7 +1248,7 @@ function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow, statRecord?: Stat
     const rank = data.rank ?? 0;
     const previousRank = data.previousRank ?? rank;
     const streakDays = Number(data.streakDays ?? 0);
-    
+
     const scoring = calculatePharmacyTrendScore({
       orderCount,
       days1: 0,
@@ -1261,7 +1261,7 @@ function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow, statRecord?: Stat
       marketSharePercent: Number(data.marketSharePercent ?? 0),
       trendMultiplier: Number(data.trendMultiplier ?? 0) || undefined,
     } as TrendScoringStats);
-    
+
     return buildPharmacyTrendBreakdown(
       scoring,
       orderCount,
@@ -1291,14 +1291,7 @@ function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow, statRecord?: Stat
 
 function createNoDataBreakdown(totalPoints: number): BreakdownDetail {
   return {
-    components: [
-      {
-        category: 'No Data',
-        value: 0,
-        formula: 'No stats available',
-        points: 0,
-      },
-    ],
+    components: [],
     bonuses: [],
     penalties: [],
     subtotal: 0,
