@@ -242,7 +242,7 @@ export const waiverRouter = router({
             ne(waiverClaims.status, "pending")
           )
         )
-        .orderBy(desc(waiverClaims.processedAt), desc(waiverClaims.updatedAt));
+        .orderBy(desc(waiverClaims.processedAt), desc(waiverClaims.createdAt));
 
       return enrichClaims(db, claims);
     }),
