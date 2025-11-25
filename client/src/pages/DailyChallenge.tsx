@@ -479,7 +479,7 @@ export default function DailyChallenge() {
               Diese Challenge existiert nicht oder wurde beendet.
             </p>
           </div>
-          <Button onClick={() => setLocation("/dashboard")}>
+          <Button onClick={() => setLocation("/")}>
             Zurück zum Dashboard
           </Button>
         </div>

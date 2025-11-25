@@ -127,6 +127,20 @@ export default function DraftBoard({
     flex: Math.max(0, 1 - (myRoster.length - (rosterCounts.manufacturer + rosterCounts.cannabis_strain + rosterCounts.product + rosterCounts.pharmacy + rosterCounts.brand))),
   };
 
+  // Hard limits per position type - max 2 of each (prevents over-drafting even with flex)
+  const positionLimits = {
+    manufacturer: 2,
+    cannabis_strain: 2,
+    product: 2,
+    pharmacy: 2,
+    brand: 2,
+  };
+
+  // Check if a position type has reached its max limit
+  const isPositionFull = (assetType: AssetType): boolean => {
+    return rosterCounts[assetType] >= positionLimits[assetType];
+  };
+
   // Sorting helper function
   const sortAssets = <T extends { name: string; yesterdayPoints?: number | null; todayPoints?: number | null }>(assets: T[]): T[] => {
     const sorted = [...assets].sort((a, b) => {
@@ -160,6 +174,16 @@ export default function DraftBoard({
   const handleDraft = (assetType: AssetType, assetId: number, assetName: string) => {
     if (!isMyTurn) {
       toast.error("Nicht dein Zug!");
+      return;
+    }
+
+    // Check if position limit is reached (max 2 of each type)
+    if (isPositionFull(assetType)) {
+      const positionLabel = assetType === 'manufacturer' ? 'Hersteller' :
+                           assetType === 'cannabis_strain' ? 'Strains' :
+                           assetType === 'product' ? 'Produkte' :
+                           assetType === 'pharmacy' ? 'Apotheken' : 'Brands';
+      toast.error(`Du hast bereits 2 ${positionLabel}. Maximum erreicht!`);
       return;
     }
 
@@ -321,6 +345,7 @@ export default function DraftBoard({
                             myRoster.some((r) => r.assetType === "manufacturer" && r.assetId === mfg.id) ||
                             isAssetDrafted("manufacturer", mfg.id)
                           }
+                          isPositionFull={isPositionFull("manufacturer")}
                           onDraft={handleDraft}
                         />
                       ))}
@@ -352,6 +377,7 @@ export default function DraftBoard({
                             myRoster.some((r) => r.assetType === "cannabis_strain" && r.assetId === strain.id) ||
                             isAssetDrafted("cannabis_strain", strain.id)
                           }
+                          isPositionFull={isPositionFull("cannabis_strain")}
                           onDraft={handleDraft}
                         />
                       ))}
@@ -384,6 +410,7 @@ export default function DraftBoard({
                             myRoster.some((r) => r.assetType === "product" && r.assetId === product.id) ||
                             isAssetDrafted("product", product.id)
                           }
+                          isPositionFull={isPositionFull("product")}
                           onDraft={handleDraft}
                         />
                       ))}
@@ -415,6 +442,7 @@ export default function DraftBoard({
                             myRoster.some((r) => r.assetType === "brand" && r.assetId === brand.id) ||
                             isAssetDrafted("brand", brand.id)
                           }
+                          isPositionFull={isPositionFull("brand")}
                           onDraft={handleDraft}
                         />
                       ))}
@@ -445,6 +473,7 @@ export default function DraftBoard({
                             myRoster.some((r) => r.assetType === "pharmacy" && r.assetId === phm.id) ||
                             isAssetDrafted("pharmacy", phm.id)
                           }
+                          isPositionFull={isPositionFull("pharmacy")}
                           onDraft={handleDraft}
                         />
                       ))}
@@ -482,6 +511,7 @@ export default function DraftBoard({
                       myRoster.some((r) => r.assetType === "manufacturer" && r.assetId === mfg.id) ||
                       isAssetDrafted("manufacturer", mfg.id)
                     }
+                    isPositionFull={isPositionFull("manufacturer")}
                     onDraft={handleDraft}
                   />
                 ))
@@ -511,6 +541,7 @@ export default function DraftBoard({
                     myRoster.some((r) => r.assetType === "cannabis_strain" && r.assetId === strain.id) ||
                     isAssetDrafted("cannabis_strain", strain.id)
                   }
+                  isPositionFull={isPositionFull("cannabis_strain")}
                   onDraft={handleDraft}
                 />
                 ))
@@ -541,6 +572,7 @@ export default function DraftBoard({
                       myRoster.some((r) => r.assetType === "product" && r.assetId === product.id) ||
                       isAssetDrafted("product", product.id)
                     }
+                    isPositionFull={isPositionFull("product")}
                     onDraft={handleDraft}
                   />
                 ))
@@ -569,6 +601,7 @@ export default function DraftBoard({
                       myRoster.some((r) => r.assetType === "pharmacy" && r.assetId === phm.id) ||
                       isAssetDrafted("pharmacy", phm.id)
                     }
+                    isPositionFull={isPositionFull("pharmacy")}
                     onDraft={handleDraft}
                   />
                 ))
@@ -598,6 +631,7 @@ export default function DraftBoard({
                       myRoster.some((r) => r.assetType === "brand" && r.assetId === brand.id) ||
                       isAssetDrafted("brand", brand.id)
                     }
+                    isPositionFull={isPositionFull("brand")}
                     onDraft={handleDraft}
                   />
                 ))

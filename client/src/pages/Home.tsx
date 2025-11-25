@@ -24,7 +24,7 @@ export default function Home() {
 
   // If authenticated, redirect to dashboard
   if (isAuthenticated) {
-    window.location.href = "/dashboard";
+    window.location.href = "/";
     return null;
   }
 
@@ -73,7 +73,7 @@ export default function Home() {
                 className="text-lg px-8 bg-white text-weed-coral border-white hover:bg-white/90"
                 asChild
               >
-                <Link href="/dashboard">
+                <Link href="/">
                   View Dashboard
                 </Link>
               </Button>

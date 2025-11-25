@@ -90,7 +90,7 @@ export default function CreateLeague() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" asChild>
-              <Link href="/dashboard">
+              <Link href="/">
                 <ArrowLeft className="w-5 h-5" />
               </Link>
             </Button>
@@ -401,7 +401,7 @@ export default function CreateLeague() {
           {/* Submit Button */}
           <div className="flex gap-3">
             <Button type="button" variant="outline" className="flex-1" asChild>
-              <Link href="/dashboard">Abbrechen</Link>
+              <Link href="/">Abbrechen</Link>
             </Button>
             <Button
               type="submit"

@@ -15,6 +15,7 @@ interface DraftAssetCardProps {
   isMyTurn: boolean;
   isDrafted?: boolean;
   isInMyRoster?: boolean;
+  isPositionFull?: boolean; // True when user has reached max picks for this position type
   onDraft: (assetType: AssetType, assetId: number, assetName: string) => void;
 }
 
@@ -36,6 +37,7 @@ export function DraftAssetCard({
   isMyTurn,
   isDrafted = false,
   isInMyRoster = false,
+  isPositionFull = false,
   onDraft,
 }: DraftAssetCardProps) {
   const [imageError, setImageError] = useState(false);
@@ -83,11 +85,26 @@ export function DraftAssetCard({
       return "opacity-40 pointer-events-none";
     }
 
+    if (isPositionFull) {
+      return "opacity-50";
+    }
+
     if (!isMyTurn) {
       return "opacity-80";
     }
 
     return "hover:border-[#cfff4d]/60";
+  };
+
+  // Get position label for error message
+  const getPositionLabel = () => {
+    switch (assetType) {
+      case "manufacturer": return "Hersteller";
+      case "cannabis_strain": return "Strains";
+      case "product": return "Produkte";
+      case "pharmacy": return "Apotheken";
+      case "brand": return "Brands";
+    }
   };
 
   // Get button variant and text
@@ -106,6 +123,15 @@ export function DraftAssetCard({
         variant: "ghost" as const,
         text: "In Roster",
         icon: <CheckCircle2 className="w-4 h-4 mr-1" />,
+        disabled: true,
+      };
+    }
+
+    if (isPositionFull) {
+      return {
+        variant: "ghost" as const,
+        text: `Max ${getPositionLabel()}`,
+        icon: <Lock className="w-4 h-4 mr-1" />,
         disabled: true,
       };
     }

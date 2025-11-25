@@ -104,7 +104,7 @@ export default function LeagueDetail() {
           <Trophy className="w-16 h-16 text-muted-foreground mx-auto" />
           <h2 className="text-2xl font-bold text-foreground">Liga nicht gefunden</h2>
           <Button asChild>
-            <Link href="/dashboard">Zurück zum Dashboard</Link>
+            <Link href="/">Zurück zum Dashboard</Link>
           </Button>
         </div>
       </div>

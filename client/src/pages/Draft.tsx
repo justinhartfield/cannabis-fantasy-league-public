@@ -308,7 +308,7 @@ export default function Draft() {
       <div className="min-h-screen bg-weed-cream flex items-center justify-center">
         <div className="text-center space-y-4">
           <h2 className="text-2xl font-bold text-foreground">Liga oder Team nicht gefunden</h2>
-          <Button onClick={() => setLocation("/dashboard")}>
+          <Button onClick={() => setLocation("/")}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Zurück zum Dashboard
           </Button>
