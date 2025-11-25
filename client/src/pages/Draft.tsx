@@ -463,7 +463,7 @@ export default function Draft() {
       <div className="w-full max-w-[1600px] mx-auto px-4 md:px-6 lg:px-8 pb-12 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-[2.4fr_1fr] gap-6">
 
-          {/* Mobile: Verfügbare Spieler first */}
+          {/* Mobile: Wähle deine Picks first */}
           <div className="lg:hidden order-1">
             <DraftBoard
               leagueId={leagueId}

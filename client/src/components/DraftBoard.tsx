@@ -301,7 +301,7 @@ export default function DraftBoard({
       {/* Available Assets */}
       <Card className="rounded-[32px] border-0 bg-white/90 shadow-[0_20px_50px_rgba(137,110,196,0.18)]">
         <CardHeader className="pb-0">
-          <CardTitle className="text-[#2c1941]">Verfügbare Spieler</CardTitle>
+          <CardTitle className="text-[#2c1941]">Wähle deine Picks</CardTitle>
         </CardHeader>
         <CardContent>
           <Tabs value={selectedCategory} onValueChange={(v) => setSelectedCategory(v as any)}>
