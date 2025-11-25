@@ -205,6 +205,7 @@ export const leagueRouter = router({
             userName: t.user.name,
             userEmail: t.user.email,
             userAvatarUrl: t.user.avatarUrl,
+            fighterIllustration: t.team.fighterIllustration,
           })),
           isCommissioner: league.commissionerUserId === ctx.user.id,
           isMember: !!userTeam,
@@ -1040,6 +1041,74 @@ export const leagueRouter = router({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to create rematch challenge",
+        });
+      }
+    }),
+
+  /**
+   * Update team fighter illustration
+   * Allows a user to select their "fighter" mascot for daily challenges
+   */
+  updateTeamFighter: protectedProcedure
+    .input(
+      z.object({
+        teamId: z.number(),
+        fighterIllustration: z.string().max(100),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Database not available",
+        });
+      }
+
+      try {
+        // Verify the user owns this team
+        const [team] = await db
+          .select()
+          .from(teams)
+          .where(eq(teams.id, input.teamId))
+          .limit(1);
+
+        if (!team) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Team not found",
+          });
+        }
+
+        if (team.userId !== ctx.user.id) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "You can only update your own team's fighter",
+          });
+        }
+
+        // Update the fighter illustration
+        await db
+          .update(teams)
+          .set({ 
+            fighterIllustration: input.fighterIllustration,
+            updatedAt: new Date().toISOString(),
+          })
+          .where(eq(teams.id, input.teamId));
+
+        console.log(`[LeagueRouter] Updated fighter illustration for team ${input.teamId}: ${input.fighterIllustration}`);
+
+        return {
+          success: true,
+          teamId: input.teamId,
+          fighterIllustration: input.fighterIllustration,
+        };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        console.error("[LeagueRouter] Error updating team fighter:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to update team fighter",
         });
       }
     }),

@@ -526,6 +526,7 @@ export const teams = pgTable("teams", {
 	ties: integer().default(0).notNull(),
 	pointsFor: integer().default(0).notNull(),
 	pointsAgainst: integer().default(0).notNull(),
+	fighterIllustration: varchar({ length: 100 }),
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },

@@ -3,22 +3,17 @@ import { useParams, useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LiveIndicator } from "@/components/LiveIndicator";
-import { ComparisonBar } from "@/components/ComparisonBar";
 import ScoringBreakdownV2 from "@/components/ScoringBreakdownV2";
-import { StatBadge } from "@/components/StatBadge";
-import { TrendIndicator } from "@/components/TrendIndicator";
 import { CoinFlip } from "@/components/CoinFlip";
+import { BattleArena } from "@/components/BattleArena";
 
 import {
   Loader2,
   ArrowLeft,
   Trophy,
-  Flame,
-  UserCircle,
-  Sparkles,
   RefreshCw,
   Clock,
   UserPlus,
@@ -37,6 +32,7 @@ interface TeamScore {
   rank?: number;
   userAvatarUrl?: string | null;
   userName?: string | null;
+  fighterIllustration?: string | null;
 }
 
 interface ChallengeSummary {
@@ -89,6 +85,7 @@ export default function DailyChallenge() {
     data: league,
     isLoading: leagueLoading,
     isError: leagueError,
+    refetch: refetchLeague,
   } = trpc.league.getById.useQuery(
     { leagueId: challengeId },
     { enabled: !!challengeId && isAuthenticated }
@@ -338,6 +335,12 @@ export default function DailyChallenge() {
     return null;
   }
 
+  // Helper to get fighter illustration from league teams
+  const getFighterForTeam = useCallback((teamId: number) => {
+    const team = league?.teams?.find((t: any) => t.id === teamId);
+    return team?.fighterIllustration || null;
+  }, [league?.teams]);
+
   // Redirect non-challenges back to league detail
   const baseTeamScores: TeamScore[] = useMemo(() => {
     // Prefer real scores from API
@@ -348,6 +351,7 @@ export default function DailyChallenge() {
         points: score.points || 0,
         userAvatarUrl: score.userAvatarUrl,
         userName: score.userName,
+        fighterIllustration: getFighterForTeam(score.teamId),
       }));
     }
 
@@ -360,22 +364,24 @@ export default function DailyChallenge() {
         points: score.points || 0,
         userAvatarUrl: score.userAvatarUrl,
         userName: score.userName,
+        fighterIllustration: getFighterForTeam(score.teamId),
       }));
     }
 
     // Finally fall back to empty teams from league data
     if (league?.teams && league.teams.length > 0) {
-      return league.teams.map((team, index) => ({
+      return league.teams.map((team: any, index: number) => ({
         teamId: team.id,
         teamName: team.name || `Team ${index + 1}`,
         points: 0,
         userAvatarUrl: team.userAvatarUrl,
         userName: team.userName,
+        fighterIllustration: team.fighterIllustration || null,
       }));
     }
 
     return [];
-  }, [dayScores, cachedScores, league]);
+  }, [dayScores, cachedScores, league, getFighterForTeam]);
 
   const sortedScores: TeamScore[] = useMemo(() => {
     if (baseTeamScores.length === 0) return [];
@@ -505,86 +511,102 @@ export default function DailyChallenge() {
       )}
 
       <main className="container mx-auto px-4 py-8 space-y-6">
-        <section className="rounded-[32px] bg-gradient-to-br from-[#050505] via-[#0f0f16] to-[#1b1c2a] p-6 text-white shadow-[0_25px_60px_rgba(0,0,0,0.45)]">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="rounded-2xl border border-white/10 text-white hover:bg-white/10"
-                onClick={() => window.history.back()}
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </Button>
-              <div>
-                <p className="text-xs uppercase tracking-[0.4em] text-white/60">Daily Challenge</p>
-                <h1 className="text-3xl font-bold">{league.name}</h1>
-                <p className="text-white/70 text-sm">{challengeDateLabel}</p>
-              </div>
-            </div>
-            <div className="flex flex-col items-end gap-2 text-right">
-              <div className="flex items-center gap-2">
-                {isLive ? <LiveIndicator size="sm" /> : <Badge variant="outline">Final</Badge>}
-                <Badge variant="secondary" className="bg-white/10 text-white">
-                  {challengeDateLabel}
-                </Badge>
-              </div>
-              <div className="flex items-center gap-2 text-white/70 text-sm">
-                <Clock className="w-4 h-4" />
-                <span>Next update in: {timeUntilUpdate || "Calculating..."}</span>
-              </div>
+        {/* Back Button and Title */}
+        <div className="flex items-center gap-4 mb-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-2xl border border-white/10 text-white hover:bg-white/10"
+            onClick={() => window.history.back()}
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-white">{league.name}</h1>
+            <div className="flex items-center gap-2 text-white/60 text-sm">
+              <Clock className="w-4 h-4" />
+              <span>Next update: {timeUntilUpdate || "Calculating..."}</span>
             </div>
           </div>
-          <div className="mt-6 grid gap-4 md:grid-cols-3 text-white">
-            <div className="rounded-2xl bg-white/5 p-4">
-              <p className="text-xs uppercase tracking-[0.3em] text-white/50">Status</p>
-              <p className="text-xl font-semibold mt-1">{isLive ? "Live" : (league.status || "Pending")}</p>
-            </div>
-            <div className="rounded-2xl bg-white/5 p-4">
-              <p className="text-xs uppercase tracking-[0.3em] text-white/50">Week</p>
-              <p className="text-xl font-semibold mt-1">
-                Week {currentWeek} • {currentYear}
-              </p>
-            </div>
-            <div className="rounded-2xl bg-white/5 p-4">
-              <p className="text-xs uppercase tracking-[0.3em] text-white/50">Actions</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-2xl border-white/30 text-white hover:bg-white/10"
-                  onClick={handleCalculateScores}
-                  disabled={isCalculating || calculateChallengeDayMutation.isPending}
-                >
-                  {isCalculating || calculateChallengeDayMutation.isPending ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Updating...
-                    </>
-                  ) : (
-                    "Sync Scores"
-                  )}
-                </Button>
-                {league.leagueCode && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="rounded-2xl"
-                    onClick={copyLeagueCode}
-                  >
-                    Share Code
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-        </section>
-        {(league?.status === 'active' || league?.status === 'draft') && (
-          <p className="text-xs text-white/60">
-            {isConnected ? "Live updates connected" : "Connecting to live updates..."}
-            {lastUpdateTime && ` • Last updated ${lastUpdateTime.toLocaleTimeString()}`}
-          </p>
+        </div>
+
+        {/* Battle Arena Hero Section */}
+        <BattleArena
+          leftTeam={leader ? {
+            teamId: leader.teamId,
+            teamName: leader.teamName,
+            userName: leader.userName,
+            userAvatarUrl: leader.userAvatarUrl,
+            fighterIllustration: leader.fighterIllustration,
+            points: leader.points,
+          } : null}
+          rightTeam={challenger ? {
+            teamId: challenger.teamId,
+            teamName: challenger.teamName,
+            userName: challenger.userName,
+            userAvatarUrl: challenger.userAvatarUrl,
+            fighterIllustration: challenger.fighterIllustration,
+            points: challenger.points,
+          } : !challenger && league?.leagueCode ? null : null}
+          isLive={isLive}
+          challengeDate={challengeDateLabel}
+          userTeamId={userTeam?.id}
+          onFighterChange={() => refetchLeague()}
+        />
+
+        {/* Invite Block (when waiting for opponent) */}
+        {!challenger && league?.leagueCode && (
+          <InviteBlock
+            leagueCode={league.leagueCode}
+            leagueId={challengeId}
+            leagueName={league.name}
+          />
         )}
+
+        {/* Action Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-white/5 border border-white/10 p-4">
+          <div className="flex items-center gap-2">
+            {isLive ? <LiveIndicator size="sm" /> : <Badge variant="outline">Final</Badge>}
+            {(league?.status === 'active' || league?.status === 'draft') && (
+              <span className="text-xs text-white/60">
+                {isConnected ? "Live updates connected" : "Connecting..."}
+                {lastUpdateTime && ` • ${lastUpdateTime.toLocaleTimeString()}`}
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-2xl border-white/30 text-white hover:bg-white/10"
+              onClick={handleCalculateScores}
+              disabled={isCalculating || calculateChallengeDayMutation.isPending}
+            >
+              {isCalculating || calculateChallengeDayMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Sync Scores
+                </>
+              )}
+            </Button>
+            {league.leagueCode && (
+              <Button
+                variant="secondary"
+                size="sm"
+                className="rounded-2xl"
+                onClick={copyLeagueCode}
+              >
+                <Copy className="w-4 h-4 mr-2" />
+                Share Code
+              </Button>
+            )}
+          </div>
+        </div>
 
         {/* Draft In Progress Banner */}
         {(league?.status === 'draft' || (league?.draftStarted === 1 && league?.draftCompleted === 0)) && league.teams?.length === 2 && (
@@ -663,73 +685,6 @@ export default function DailyChallenge() {
             </CardContent>
           </Card>
         )}
-
-        {/* Hero Scoreboard */}
-        <Card className="rounded-[32px] border-white/10 bg-gradient-to-br from-[#050505] via-[#111122] to-[#1f1f33] shadow-[0_25px_60px_rgba(0,0,0,0.45)] slide-in-bottom">
-          <CardContent className="p-6">
-            <div className="flex flex-col gap-6">
-              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                {leader ? (
-                  <TeamScoreBlock
-                    name={leader.teamName}
-                    score={leader.points}
-                    highlight
-                    avatarUrl={leader.userAvatarUrl}
-                    userName={leader.userName}
-                  />
-                ) : (
-                  <EmptyTeamBlock />
-                )}
-
-                <div className="text-center w-full md:w-auto">
-                  <div className="text-sm uppercase text-muted-foreground">
-                    Scoreboard
-                  </div>
-                  <div className="text-3xl sm:text-4xl font-bold text-foreground mt-1">
-                    {leader?.points?.toFixed(1) ?? "0.0"}{" "}
-                    <span className="text-2xl text-muted-foreground">–</span>{" "}
-                    {challenger?.points?.toFixed(1) ?? "0.0"}
-                  </div>
-                  <div className="mt-3">
-                    <ComparisonBar
-                      leftValue={leader?.points || 0}
-                      rightValue={challenger?.points || 0}
-                      leftLabel={leader?.teamName || "Team A"}
-                      rightLabel={challenger?.teamName || "Team B"}
-                    />
-                  </div>
-                  {leader && challenger && (
-                    <div className="mt-3">
-                      <TrendIndicator
-                        value={scoreDiff}
-                        showPercentage={false}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {challenger ? (
-                  <TeamScoreBlock
-                    name={challenger.teamName}
-                    score={challenger.points}
-                    avatarUrl={challenger.userAvatarUrl}
-                    userName={challenger.userName}
-                  />
-                ) : league?.leagueCode ? (
-                  <InviteBlock
-                    leagueCode={league.leagueCode}
-                    leagueId={challengeId}
-                    leagueName={league.name}
-                  />
-                ) : (
-                  <EmptyTeamBlock />
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-
 
         {/* Leaderboard */}
         <div className="rounded-[32px] bg-[#2a1027] border border-white/10 p-5 text-white space-y-4">
@@ -951,46 +906,6 @@ function normalizeLineup(lineup: any): LineupSlot[] {
   }
 
   return [];
-}
-
-function TeamScoreBlock({
-  name,
-  score,
-  highlight = false,
-  avatarUrl,
-  userName,
-}: {
-  name?: string;
-  score?: number;
-  highlight?: boolean;
-  avatarUrl?: string | null;
-  userName?: string | null;
-}) {
-  return (
-    <div
-      className={cn(
-        "flex-1 rounded-2xl p-4 bg-card/80 border border-border/40 text-left",
-        highlight && "glow-primary gradient-dark"
-      )}
-    >
-      <div className="text-xs uppercase text-muted-foreground mb-2">Team</div>
-      <div className="flex items-center gap-2 mb-1">
-        <TeamAvatar avatarUrl={avatarUrl} teamName={name || "Team"} userName={userName} size="md" />
-        <div className="text-lg sm:text-xl font-bold text-foreground truncate">{name || "Team"}</div>
-      </div>
-      <div className="text-3xl sm:text-4xl font-bold text-gradient-primary mt-3">
-        {score?.toFixed(1) ?? "0.0"}
-      </div>
-    </div>
-  );
-}
-
-function EmptyTeamBlock() {
-  return (
-    <div className="flex-1 rounded-2xl p-4 bg-muted/20 border border-border/40 text-center">
-      <div className="text-sm text-muted-foreground">Kein Team</div>
-    </div>
-  );
 }
 
 function InviteBlock({

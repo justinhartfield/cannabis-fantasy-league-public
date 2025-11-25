@@ -544,4 +544,62 @@
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.1);
   }
+
+  /* Battle Arena Animations */
+  @keyframes float-left {
+    0%, 100% {
+      transform: translateY(0) translateX(0);
+    }
+    25% {
+      transform: translateY(-8px) translateX(4px);
+    }
+    50% {
+      transform: translateY(-4px) translateX(0);
+    }
+    75% {
+      transform: translateY(-10px) translateX(-4px);
+    }
+  }
+
+  @keyframes float-right {
+    0%, 100% {
+      transform: translateY(0) translateX(0);
+    }
+    25% {
+      transform: translateY(-10px) translateX(-4px);
+    }
+    50% {
+      transform: translateY(-4px) translateX(0);
+    }
+    75% {
+      transform: translateY(-8px) translateX(4px);
+    }
+  }
+
+  @keyframes bounce-subtle {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-6px);
+    }
+  }
+
+  .animate-float-left {
+    animation: float-left 4s ease-in-out infinite;
+  }
+
+  .animate-float-right {
+    animation: float-right 4s ease-in-out infinite;
+    animation-delay: 0.5s;
+  }
+
+  .animate-bounce-subtle {
+    animation: bounce-subtle 1s ease-in-out infinite;
+  }
+
+  /* Radial gradient utility */
+  .bg-gradient-radial {
+    background: radial-gradient(ellipse at center, var(--tw-gradient-from), var(--tw-gradient-to));
+  }
 }
