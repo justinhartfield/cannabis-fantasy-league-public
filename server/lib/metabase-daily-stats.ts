@@ -80,8 +80,11 @@ export class MetabaseDailyStatsClient {
           continue;
         }
 
-        const stats = statsMap.get(manufacturer) || {
-          manufacturerName: manufacturer,
+        // Normalize manufacturer name
+        const normalizedManufacturer = manufacturer === '187 Marry Jane' ? '187 SWEEDZ' : manufacturer;
+
+        const stats = statsMap.get(normalizedManufacturer) || {
+          manufacturerName: normalizedManufacturer,
           salesVolumeGrams: 0,
           orderCount: 0,
           revenueCents: 0,
@@ -91,12 +94,12 @@ export class MetabaseDailyStatsClient {
         stats.orderCount += 1;
         stats.revenueCents += Math.round((totalPrice || 0) * 100);
 
-        statsMap.set(manufacturer, stats);
+        statsMap.set(normalizedManufacturer, stats);
       }
 
       const results = Array.from(statsMap.values());
       console.log(`[MetabaseDailyStats] Aggregated ${results.length} manufacturers`);
-      
+
       return results;
     } catch (error) {
       console.error('[MetabaseDailyStats] Error fetching manufacturer stats:', error);
@@ -145,7 +148,7 @@ export class MetabaseDailyStatsClient {
 
       const results = Array.from(statsMap.values());
       console.log(`[MetabaseDailyStats] Aggregated ${results.length} products`);
-      
+
       return results;
     } catch (error) {
       console.error('[MetabaseDailyStats] Error fetching product stats:', error);
@@ -194,7 +197,7 @@ export class MetabaseDailyStatsClient {
 
       const results = Array.from(statsMap.values());
       console.log(`[MetabaseDailyStats] Aggregated ${results.length} pharmacies`);
-      
+
       return results;
     } catch (error) {
       console.error('[MetabaseDailyStats] Error fetching pharmacy stats:', error);

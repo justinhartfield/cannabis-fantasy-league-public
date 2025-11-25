@@ -113,6 +113,15 @@ export class DailyChallengeAggregatorV2 {
   }
 
   /**
+   * Normalize manufacturer names to match database records
+   * Handles known discrepancies between Metabase and DB
+   */
+  private normalizeManufacturerName(name: string): string {
+    if (name === '187 Marry Jane') return '187 SWEEDZ';
+    return name;
+  }
+
+  /**
    * Aggregate manufacturer stats with trend-based scoring
    */
   private async aggregateManufacturersWithTrends(
@@ -127,8 +136,10 @@ export class DailyChallengeAggregatorV2 {
     const stats = new Map<string, { salesVolumeGrams: number; orderCount: number; revenueCents: number }>();
 
     for (const order of orders) {
-      const name = order.ProductManufacturer;
-      if (!name) continue;
+      const rawName = order.ProductManufacturer;
+      if (!rawName) continue;
+
+      const name = this.normalizeManufacturerName(rawName);
 
       const quantity = order.Quantity || 0;
       const revenue = Math.round((order.TotalPrice || 0) * 100);

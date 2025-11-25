@@ -117,8 +117,8 @@ export function LeagueChat({ leagueId, className, variant = "default" }: LeagueC
         </span>
       </div>
 
-      <ScrollArea className="flex-1 min-h-0 p-4 overflow-hidden">
-        <div className="space-y-4 w-full overflow-hidden">
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="space-y-4 p-4 overflow-x-hidden">
           {allMessages.map((msg) => {
             const isMe = msg.userId === user?.id;
             const isImage = isImageMessage(msg.message);
