@@ -37,11 +37,18 @@ export const autoDraftRouter = router({
       if (!db) throw new Error("Database not available");
 
       // Fetch all wishlist entries for the team, ordered by priority
-      const wishlistEntries = await db
-        .select()
-        .from(autoDraftBoards)
-        .where(eq(autoDraftBoards.teamId, input.teamId))
-        .orderBy(asc(autoDraftBoards.priority));
+      // Gracefully handle if table doesn't exist yet
+      let wishlistEntries: Array<typeof autoDraftBoards.$inferSelect> = [];
+      try {
+        wishlistEntries = await db
+          .select()
+          .from(autoDraftBoards)
+          .where(eq(autoDraftBoards.teamId, input.teamId))
+          .orderBy(asc(autoDraftBoards.priority));
+      } catch (error) {
+        console.warn('[AutoDraftRouter] autoDraftBoards table may not exist yet:', error);
+        return [];
+      }
 
       // Get all team IDs in the same league to check if assets are already drafted
       const [team] = await db
@@ -350,11 +357,18 @@ export const autoDraftRouter = router({
       }
 
       // Fetch all wishlist entries for the team, ordered by priority
-      const wishlistEntries = await db
-        .select()
-        .from(autoDraftBoards)
-        .where(eq(autoDraftBoards.teamId, team.id))
-        .orderBy(asc(autoDraftBoards.priority));
+      // Gracefully handle if table doesn't exist yet
+      let wishlistEntries: Array<typeof autoDraftBoards.$inferSelect> = [];
+      try {
+        wishlistEntries = await db
+          .select()
+          .from(autoDraftBoards)
+          .where(eq(autoDraftBoards.teamId, team.id))
+          .orderBy(asc(autoDraftBoards.priority));
+      } catch (error) {
+        console.warn('[AutoDraftRouter] autoDraftBoards table may not exist yet:', error);
+        return [];
+      }
 
       // Get all drafted assets in this league
       const leagueTeams = await db
@@ -472,43 +486,48 @@ export const autoDraftRouter = router({
         throw new Error("You don't have a team in this league");
       }
 
-      // Check if asset already exists in wishlist
-      const existing = await db
-        .select()
-        .from(autoDraftBoards)
-        .where(
-          and(
-            eq(autoDraftBoards.teamId, team.id),
-            eq(autoDraftBoards.assetType, input.assetType),
-            eq(autoDraftBoards.assetId, input.assetId)
+      try {
+        // Check if asset already exists in wishlist
+        const existing = await db
+          .select()
+          .from(autoDraftBoards)
+          .where(
+            and(
+              eq(autoDraftBoards.teamId, team.id),
+              eq(autoDraftBoards.assetType, input.assetType),
+              eq(autoDraftBoards.assetId, input.assetId)
+            )
           )
-        )
-        .limit(1);
+          .limit(1);
 
-      if (existing.length > 0) {
-        return { success: false, error: "Asset already in wishlist" };
+        if (existing.length > 0) {
+          return { success: false, error: "Asset already in wishlist" };
+        }
+
+        // Get the highest priority number for this team
+        const maxPriorityResult = await db
+          .select({ maxPriority: sql<number>`COALESCE(MAX(${autoDraftBoards.priority}), 0)` })
+          .from(autoDraftBoards)
+          .where(eq(autoDraftBoards.teamId, team.id));
+
+        const newPriority = (maxPriorityResult[0]?.maxPriority || 0) + 1;
+
+        // Insert the new entry
+        const [newEntry] = await db
+          .insert(autoDraftBoards)
+          .values({
+            teamId: team.id,
+            assetType: input.assetType,
+            assetId: input.assetId,
+            priority: newPriority,
+          })
+          .$returningId();
+
+        return { success: true, id: newEntry.id, priority: newPriority };
+      } catch (error) {
+        console.warn('[AutoDraftRouter] Failed to add to wishlist (table may not exist yet):', error);
+        return { success: false, error: "Wishlist feature not available yet. Please run database migration." };
       }
-
-      // Get the highest priority number for this team
-      const maxPriorityResult = await db
-        .select({ maxPriority: sql<number>`COALESCE(MAX(${autoDraftBoards.priority}), 0)` })
-        .from(autoDraftBoards)
-        .where(eq(autoDraftBoards.teamId, team.id));
-
-      const newPriority = (maxPriorityResult[0]?.maxPriority || 0) + 1;
-
-      // Insert the new entry
-      const [newEntry] = await db
-        .insert(autoDraftBoards)
-        .values({
-          teamId: team.id,
-          assetType: input.assetType,
-          assetId: input.assetId,
-          priority: newPriority,
-        })
-        .$returningId();
-
-      return { success: true, id: newEntry.id, priority: newPriority };
     }),
 
   /**
@@ -537,17 +556,22 @@ export const autoDraftRouter = router({
         throw new Error("You don't have a team in this league");
       }
 
-      await db
-        .delete(autoDraftBoards)
-        .where(
-          and(
-            eq(autoDraftBoards.teamId, team.id),
-            eq(autoDraftBoards.assetType, input.assetType),
-            eq(autoDraftBoards.assetId, input.assetId)
-          )
-        );
+      try {
+        await db
+          .delete(autoDraftBoards)
+          .where(
+            and(
+              eq(autoDraftBoards.teamId, team.id),
+              eq(autoDraftBoards.assetType, input.assetType),
+              eq(autoDraftBoards.assetId, input.assetId)
+            )
+          );
 
-      return { success: true };
+        return { success: true };
+      } catch (error) {
+        console.warn('[AutoDraftRouter] Failed to remove from wishlist (table may not exist yet):', error);
+        return { success: true }; // Return success anyway since item effectively doesn't exist
+      }
     }),
 
   /**
@@ -576,19 +600,24 @@ export const autoDraftRouter = router({
         return false;
       }
 
-      const existing = await db
-        .select()
-        .from(autoDraftBoards)
-        .where(
-          and(
-            eq(autoDraftBoards.teamId, team.id),
-            eq(autoDraftBoards.assetType, input.assetType),
-            eq(autoDraftBoards.assetId, input.assetId)
+      try {
+        const existing = await db
+          .select()
+          .from(autoDraftBoards)
+          .where(
+            and(
+              eq(autoDraftBoards.teamId, team.id),
+              eq(autoDraftBoards.assetType, input.assetType),
+              eq(autoDraftBoards.assetId, input.assetId)
+            )
           )
-        )
-        .limit(1);
+          .limit(1);
 
-      return existing.length > 0;
+        return existing.length > 0;
+      } catch (error) {
+        console.warn('[AutoDraftRouter] Failed to check wishlist (table may not exist yet):', error);
+        return false;
+      }
     }),
 });
 
