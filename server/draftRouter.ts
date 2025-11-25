@@ -612,14 +612,6 @@ export const draftRouter = router({
         throw new Error("League not found");
       }
 
-      // Check if draft has started
-      if (!league.draftStarted || league.draftStarted === 0) {
-        logDraftTiming("makeDraftPick:draft_not_started", {
-          leagueId: input.leagueId,
-        });
-        throw new Error("Draft has not started yet");
-      }
-
       if (league.draftCompleted === 1) {
         logDraftTiming("makeDraftPick:league_already_complete", {
           leagueId: input.leagueId,

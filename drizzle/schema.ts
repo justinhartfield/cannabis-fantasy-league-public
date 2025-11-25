@@ -791,26 +791,5 @@ export const userPredictions = pgTable("userPredictions", {
 	unique("user_matchup_unique").on(table.userId, table.matchupId),
 ]);
 
-// ============================================================================
-// AUTO DRAFT BOARD (WISHLIST) TABLE
-// ============================================================================
-
-export const autoDraftBoards = pgTable("autoDraftBoards", {
-	id: serial().primaryKey(),
-	teamId: integer().notNull(),
-	assetType: varchar({ length: 50 }).notNull(),
-	assetId: integer().notNull(),
-	priority: integer().notNull(),
-	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
-	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
-},
-(table) => [
-	index("auto_draft_team_idx").on(table.teamId),
-	index("auto_draft_priority_idx").on(table.teamId, table.priority),
-	unique("auto_draft_team_asset_unique").on(table.teamId, table.assetType, table.assetId),
-]);
-
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
-export type AutoDraftBoard = typeof autoDraftBoards.$inferSelect;
-export type InsertAutoDraftBoard = typeof autoDraftBoards.$inferInsert;

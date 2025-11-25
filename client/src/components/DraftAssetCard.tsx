@@ -1,9 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Leaf, Package, CheckCircle2, Lock, Star } from "lucide-react";
+import { Building2, Leaf, Package, CheckCircle2, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
-import { WishlistButton } from "@/components/AutoDraftBoard";
 
 type AssetType = "manufacturer" | "cannabis_strain" | "product" | "pharmacy" | "brand";
 
@@ -16,10 +15,7 @@ interface DraftAssetCardProps {
   isMyTurn: boolean;
   isDrafted?: boolean;
   isInMyRoster?: boolean;
-  isPositionFull?: boolean; // True when user has reached max picks for this position type
   onDraft: (assetType: AssetType, assetId: number, assetName: string) => void;
-  leagueId?: number; // Optional: needed for wishlist functionality
-  showWishlistButton?: boolean; // Optional: show wishlist add/remove button
 }
 
 /**
@@ -40,10 +36,7 @@ export function DraftAssetCard({
   isMyTurn,
   isDrafted = false,
   isInMyRoster = false,
-  isPositionFull = false,
   onDraft,
-  leagueId,
-  showWishlistButton = true,
 }: DraftAssetCardProps) {
   const [imageError, setImageError] = useState(false);
   
@@ -90,26 +83,11 @@ export function DraftAssetCard({
       return "opacity-40 pointer-events-none";
     }
 
-    if (isPositionFull) {
-      return "opacity-50";
-    }
-
     if (!isMyTurn) {
       return "opacity-80";
     }
 
     return "hover:border-[#cfff4d]/60";
-  };
-
-  // Get position label for error message
-  const getPositionLabel = () => {
-    switch (assetType) {
-      case "manufacturer": return "Hersteller";
-      case "cannabis_strain": return "Strains";
-      case "product": return "Produkte";
-      case "pharmacy": return "Apotheken";
-      case "brand": return "Brands";
-    }
   };
 
   // Get button variant and text
@@ -128,15 +106,6 @@ export function DraftAssetCard({
         variant: "ghost" as const,
         text: "In Roster",
         icon: <CheckCircle2 className="w-4 h-4 mr-1" />,
-        disabled: true,
-      };
-    }
-
-    if (isPositionFull) {
-      return {
-        variant: "ghost" as const,
-        text: `Max ${getPositionLabel()}`,
-        icon: <Lock className="w-4 h-4 mr-1" />,
         disabled: true,
       };
     }
@@ -189,34 +158,21 @@ export function DraftAssetCard({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Wishlist button */}
-          {showWishlistButton && leagueId && !isDrafted && !isInMyRoster && (
-            <WishlistButton
-              leagueId={leagueId}
-              assetType={assetType}
-              assetId={assetId}
-              assetName={assetName}
-            />
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => onDraft(assetType, assetId, assetName)}
+          disabled={buttonConfig.disabled}
+          className={cn(
+            "rounded-full px-5 py-2 text-sm font-semibold transition shadow-[0_10px_25px_rgba(207,255,77,0.35)]",
+            buttonConfig.disabled
+              ? "bg-white/10 text-white/40 cursor-not-allowed shadow-none"
+              : "bg-[#cfff4d] text-black hover:bg-[#b7f237]"
           )}
-
-          {/* Draft button */}
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => onDraft(assetType, assetId, assetName)}
-            disabled={buttonConfig.disabled}
-            className={cn(
-              "rounded-full px-5 py-2 text-sm font-semibold transition shadow-[0_10px_25px_rgba(207,255,77,0.35)]",
-              buttonConfig.disabled
-                ? "bg-white/10 text-white/40 cursor-not-allowed shadow-none"
-                : "bg-[#cfff4d] text-black hover:bg-[#b7f237]"
-            )}
-          >
-            {buttonConfig.icon}
-            {buttonConfig.text}
-          </Button>
-        </div>
+        >
+          {buttonConfig.icon}
+          {buttonConfig.text}
+        </Button>
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">

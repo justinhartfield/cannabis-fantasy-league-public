@@ -103,25 +103,6 @@ export async function validateDraftPick(
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  // First check if draft has started
-  const [league] = await db
-    .select()
-    .from(leagues)
-    .where(eq(leagues.id, leagueId))
-    .limit(1);
-
-  if (!league) {
-    return { valid: false, error: "League not found" };
-  }
-
-  if (!league.draftStarted || league.draftStarted === 0) {
-    return { valid: false, error: "Draft has not started yet" };
-  }
-
-  if (league.draftCompleted === 1) {
-    return { valid: false, error: "Draft is already complete" };
-  }
-
   // Check if it's the team's turn
   const isTurn = await isTeamsTurn(leagueId, teamId);
   if (!isTurn) {
@@ -165,28 +146,22 @@ export async function validateDraftPick(
     }
   }
 
-  // Check roster limits - hard cap of 2 per position type to prevent accidental over-drafting
-  // Even with flex, a user cannot have more than 2 of any position type
-  const hardLimits = {
+  // Check roster limits (2 of each type except brand which is 1, total of 10 including 1 flex)
+  const limits = {
     manufacturer: 2,
     cannabis_strain: 2,
     product: 2,
     pharmacy: 2,
-    brand: 2, // Allow up to 2 brands (1 dedicated slot + 1 flex)
+    brand: 1,
   };
 
-  // Check if picking this asset would exceed the hard limit for this position type
-  if (assetCounts[assetType] >= hardLimits[assetType]) {
-    return { 
-      valid: false, 
-      error: `Du hast bereits ${hardLimits[assetType]} ${assetType === 'cannabis_strain' ? 'Strains' : assetType === 'manufacturer' ? 'Hersteller' : assetType === 'pharmacy' ? 'Apotheken' : assetType === 'product' ? 'Produkte' : 'Brands'}. Maximum erreicht!` 
-    };
-  }
-
-  // Check if roster is full (10 total picks)
-  const totalPicks = Object.values(assetCounts).reduce((a, b) => a + b, 0);
-  if (totalPicks >= 10) {
-    return { valid: false, error: "Roster is full" };
+  if (assetCounts[assetType] >= limits[assetType]) {
+    // Check if we can use the FLEX spot
+    const totalPicks = Object.values(assetCounts).reduce((a, b) => a + b, 0);
+    if (totalPicks >= 10) {
+      return { valid: false, error: "Roster is full" };
+    }
+    // FLEX spot can be used for any position
   }
 
   return { valid: true };

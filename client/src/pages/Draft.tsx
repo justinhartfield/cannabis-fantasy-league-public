@@ -1,14 +1,13 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { Loader2, ArrowLeft, Star, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getLoginUrl } from "@/const";
 import DraftBoard, { type AssetType } from "@/components/DraftBoard";
 // import { DraftPicksGrid } from "@/components/DraftPicksGrid";
 import { MyRoster } from "@/components/MyRoster";
 import { DraftClock } from "@/components/DraftClock";
-import { AutoDraftBoard } from "@/components/AutoDraftBoard";
 import { toast } from "sonner";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useEffect, useState, useMemo, useCallback } from "react";
@@ -20,11 +19,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 
 export default function Draft() {
   const { id } = useParams();
@@ -44,7 +38,6 @@ export default function Draft() {
   const [currentPickNumber, setCurrentPickNumber] = useState<number>(1);
   const [currentRound, setCurrentRound] = useState<number>(1);
   const [showDraftCompleteDialog, setShowDraftCompleteDialog] = useState(false);
-  const [showAutoDraftBoard, setShowAutoDraftBoard] = useState(false);
 
   // Optimistic tracking of my drafted assets
   const [myDraftedAssets, setMyDraftedAssets] = useState<Array<{
@@ -219,17 +212,11 @@ export default function Draft() {
         setIsPaused(false);
         setTimerSeconds(message.remaining);
       } else if (message.type === 'auto_pick') {
-        const fromWishlist = message.fromWishlist ? " (from wishlist)" : "";
-        toast.warning(`Auto-picked ${message.assetName} for ${message.teamName}${fromWishlist}`);
+        toast.warning(`Auto-picked ${message.assetName} for ${message.teamName}`);
         if (message.teamId === myTeam?.id) {
           refetchRoster();
         }
-        // Invalidate auto-draft board cache
-        utils.autoDraft.getMyAutoDraftBoard.invalidate({ leagueId });
-      } else if (message.type === 'wishlist_player_drafted') {
-        // A player that might be on our wishlist was drafted
-        // Invalidate the auto-draft board cache so the UI updates
-        utils.autoDraft.getMyAutoDraftBoard.invalidate({ leagueId });
+        // invalidateAvailableByType(message.assetType as AssetType);
       }
     },
     onConnect: () => {
@@ -531,31 +518,6 @@ export default function Draft() {
             </div>
           </div>
 
-          {/* Mobile: Auto Draft Board fourth */}
-          <div className="lg:hidden order-4">
-            <Collapsible open={showAutoDraftBoard} onOpenChange={setShowAutoDraftBoard}>
-              <CollapsibleTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="w-full flex items-center justify-between gap-2 rounded-2xl bg-gradient-to-r from-[#cfff4d]/10 to-[#8dff8c]/10 border border-[#cfff4d]/20 px-4 py-3 text-white hover:bg-[#cfff4d]/20"
-                >
-                  <div className="flex items-center gap-2">
-                    <Star className="w-5 h-5 text-[#cfff4d]" />
-                    <span className="font-semibold">Auto-Draft Board</span>
-                  </div>
-                  {showAutoDraftBoard ? (
-                    <ChevronUp className="w-5 h-5 text-white/60" />
-                  ) : (
-                    <ChevronDown className="w-5 h-5 text-white/60" />
-                  )}
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="mt-3">
-                <AutoDraftBoard leagueId={leagueId} />
-              </CollapsibleContent>
-            </Collapsible>
-          </div>
-
           {/* Desktop: Draft Board (Recent Picks) + Draft Board - 3 cols on desktop */}
           <div className="hidden lg:block lg:order-1">
             <div className="space-y-6">
@@ -625,29 +587,6 @@ export default function Draft() {
               roster={mergedRoster}
               teamName={myTeam.name || "My Team"}
             />
-
-            {/* Auto Draft Board - Collapsible */}
-            <Collapsible open={showAutoDraftBoard} onOpenChange={setShowAutoDraftBoard}>
-              <CollapsibleTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="w-full flex items-center justify-between gap-2 rounded-2xl bg-gradient-to-r from-[#cfff4d]/10 to-[#8dff8c]/10 border border-[#cfff4d]/20 px-4 py-3 text-white hover:bg-[#cfff4d]/20"
-                >
-                  <div className="flex items-center gap-2">
-                    <Star className="w-5 h-5 text-[#cfff4d]" />
-                    <span className="font-semibold">Auto-Draft Board</span>
-                  </div>
-                  {showAutoDraftBoard ? (
-                    <ChevronUp className="w-5 h-5 text-white/60" />
-                  ) : (
-                    <ChevronDown className="w-5 h-5 text-white/60" />
-                  )}
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="mt-3">
-                <AutoDraftBoard leagueId={leagueId} />
-              </CollapsibleContent>
-            </Collapsible>
           </div>
         </div>
       </div>

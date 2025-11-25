@@ -23,7 +23,6 @@ import { tradeRouter } from "./tradeRouter";
 import { recapRouter } from "./recapRouter";
 import { achievementRouter } from "./achievementRouter";
 import { chatRouter } from "./chatRouter";
-import { autoDraftRouter } from "./autoDraftRouter";
 
 
 export const appRouter = router({
@@ -62,7 +61,6 @@ export const appRouter = router({
   recap: recapRouter,
   achievement: achievementRouter,
   chat: chatRouter,
-  autoDraft: autoDraftRouter,
 
 });
 
