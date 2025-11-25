@@ -21,7 +21,9 @@ interface BattleArenaProps {
   isLive?: boolean;
   challengeDate?: string;
   userTeamId?: number;
+  selectedTeamId?: number | null;
   onFighterChange?: () => void;
+  onTeamClick?: (teamId: number) => void;
 }
 
 // Default fighter if none selected
@@ -33,7 +35,9 @@ export function BattleArena({
   isLive = false,
   challengeDate,
   userTeamId,
+  selectedTeamId,
   onFighterChange,
+  onTeamClick,
 }: BattleArenaProps) {
   const [fighterPickerOpen, setFighterPickerOpen] = useState(false);
   const [editingTeamId, setEditingTeamId] = useState<number | null>(null);
@@ -106,7 +110,9 @@ export function BattleArena({
                 fighter={leftFighter}
                 side="left"
                 isUserTeam={isUserTeam(leftTeam?.teamId)}
+                isSelected={selectedTeamId === leftTeam?.teamId}
                 onEditFighter={() => leftTeam && handleEditFighter(leftTeam.teamId)}
+                onClick={leftTeam && onTeamClick ? () => onTeamClick(leftTeam.teamId) : undefined}
               />
             </div>
 
@@ -128,7 +134,9 @@ export function BattleArena({
                 fighter={rightFighter}
                 side="right"
                 isUserTeam={isUserTeam(rightTeam?.teamId)}
+                isSelected={selectedTeamId === rightTeam?.teamId}
                 onEditFighter={() => rightTeam && handleEditFighter(rightTeam.teamId)}
+                onClick={rightTeam && onTeamClick ? () => onTeamClick(rightTeam.teamId) : undefined}
               />
             </div>
           </div>
@@ -201,10 +209,12 @@ interface FighterCardProps {
   fighter: typeof FIGHTER_ILLUSTRATIONS[number] | undefined;
   side: "left" | "right";
   isUserTeam?: boolean;
+  isSelected?: boolean;
   onEditFighter?: () => void;
+  onClick?: () => void;
 }
 
-function FighterCard({ team, fighter, side, isUserTeam, onEditFighter }: FighterCardProps) {
+function FighterCard({ team, fighter, side, isUserTeam, isSelected, onEditFighter, onClick }: FighterCardProps) {
   if (!team) {
     return (
       <div className="w-full max-w-[160px] flex flex-col items-center opacity-50">
@@ -217,15 +227,32 @@ function FighterCard({ team, fighter, side, isUserTeam, onEditFighter }: Fighter
   }
 
   return (
-    <div className={cn(
-      "w-full max-w-[160px] flex flex-col items-center",
-      side === "left" ? "animate-float-left" : "animate-float-right"
-    )}>
+    <div 
+      className={cn(
+        "w-full max-w-[160px] flex flex-col items-center transition-all duration-200",
+        side === "left" ? "animate-float-left" : "animate-float-right",
+        isSelected && "scale-105",
+        onClick && "cursor-pointer hover:scale-105 active:scale-95"
+      )}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => e.key === "Enter" && onClick() : undefined}
+      title={onClick ? "Click to view score breakdown" : undefined}
+    >
       {/* Fighter Illustration */}
       <div className="relative group">
+        {/* Selection ring */}
+        {isSelected && (
+          <div className={cn(
+            "absolute -inset-2 rounded-full border-2 animate-pulse",
+            side === "left" ? "border-primary" : "border-secondary"
+          )} />
+        )}
         {/* Glow effect */}
         <div className={cn(
-          "absolute inset-0 rounded-full blur-xl opacity-50",
+          "absolute inset-0 rounded-full blur-xl",
+          isSelected ? "opacity-70" : "opacity-50",
           side === "left" ? "bg-primary/30" : "bg-secondary/30"
         )} />
         
@@ -250,7 +277,10 @@ function FighterCard({ team, fighter, side, isUserTeam, onEditFighter }: Fighter
         {/* Edit Button (only for user's team) */}
         {isUserTeam && onEditFighter && (
           <button
-            onClick={onEditFighter}
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent triggering team selection
+              onEditFighter();
+            }}
             className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center hover:bg-white/20 transition-colors group"
           >
             <Edit3 className="w-4 h-4 text-white/70 group-hover:text-white" />
@@ -259,12 +289,24 @@ function FighterCard({ team, fighter, side, isUserTeam, onEditFighter }: Fighter
       </div>
 
       {/* Team Info */}
-      <div className="mt-3 text-center">
-        <div className="font-bold text-white text-sm sm:text-base truncate max-w-[140px]">
+      <div className={cn(
+        "mt-3 text-center transition-all duration-200 rounded-lg px-2 py-1",
+        onClick && "hover:bg-white/10",
+        isSelected && "bg-white/5"
+      )}>
+        <div className={cn(
+          "font-bold text-sm sm:text-base truncate max-w-[140px] transition-colors",
+          isSelected 
+            ? (side === "left" ? "text-primary" : "text-secondary") 
+            : "text-white"
+        )}>
           {team.teamName}
         </div>
         {team.userName && (
-          <div className="text-xs text-white/50 truncate max-w-[140px]">
+          <div className={cn(
+            "text-xs truncate max-w-[140px] transition-colors",
+            isSelected ? "text-white/70" : "text-white/50"
+          )}>
             @{team.userName}
           </div>
         )}
