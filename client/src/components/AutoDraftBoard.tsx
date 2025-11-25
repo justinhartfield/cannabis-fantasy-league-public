@@ -441,7 +441,18 @@ export function WishlistButton({
   const isInWishlist = controlledIsInWishlist ?? isInWishlistFromQuery ?? false;
 
   const addMutation = trpc.autoDraft.addToMyAutoDraftBoard.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Handle success: false responses (e.g., table doesn't exist, already in wishlist)
+      if (!data.success) {
+        if (data.error?.includes("already in wishlist")) {
+          toast.info("Spieler bereits auf der Wunschliste");
+        } else if (data.error?.includes("not available yet")) {
+          toast.error("Wunschliste noch nicht verfügbar. Datenbank-Migration erforderlich.");
+        } else {
+          toast.error(data.error || "Fehler beim Hinzufügen");
+        }
+        return;
+      }
       toast.success(`${assetName} zur Wunschliste hinzugefügt`);
       utils.autoDraft.getMyAutoDraftBoard.invalidate({ leagueId });
       utils.autoDraft.isInMyWishlist.invalidate({ leagueId, assetType, assetId });

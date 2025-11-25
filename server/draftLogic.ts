@@ -103,6 +103,25 @@ export async function validateDraftPick(
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
+  // First check if draft has started
+  const [league] = await db
+    .select()
+    .from(leagues)
+    .where(eq(leagues.id, leagueId))
+    .limit(1);
+
+  if (!league) {
+    return { valid: false, error: "League not found" };
+  }
+
+  if (!league.draftStarted || league.draftStarted === 0) {
+    return { valid: false, error: "Draft has not started yet" };
+  }
+
+  if (league.draftCompleted === 1) {
+    return { valid: false, error: "Draft is already complete" };
+  }
+
   // Check if it's the team's turn
   const isTurn = await isTeamsTurn(leagueId, teamId);
   if (!isTurn) {
