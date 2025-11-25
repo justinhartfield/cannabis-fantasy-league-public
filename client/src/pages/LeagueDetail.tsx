@@ -21,6 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useWebSocket } from "@/hooks/useWebSocket";
 
 export default function LeagueDetail() {
   const { id } = useParams();
@@ -29,7 +30,7 @@ export default function LeagueDetail() {
   const [copied, setCopied] = useState(false);
   const [showDraftRedirectDialog, setShowDraftRedirectDialog] = useState(false);
 
-  const { data: league, isLoading } = trpc.league.getById.useQuery(
+  const { data: league, isLoading, refetch: refetchLeague } = trpc.league.getById.useQuery(
     { leagueId: parseInt(id!) },
     { enabled: !!id && isAuthenticated }
   );
@@ -47,6 +48,24 @@ export default function LeagueDetail() {
   // Safe derived state for hooks (handled safely even if league is undefined)
   const isCommissioner = league?.commissionerUserId === user?.id;
   const userTeam = league?.teams?.find((team: any) => team.userId === user?.id);
+
+  // WebSocket connection for real-time player join notifications
+  useWebSocket({
+    userId: user?.id || 0,
+    leagueId: parseInt(id || "0"),
+    teamId: userTeam?.id,
+    onMessage: (message) => {
+      if (message.type === 'participant_joined') {
+        toast.success(`Ein neuer Spieler ist beigetreten: ${message.teamName || message.userName || 'Neues Team'}`);
+        // Refetch league data to show the new player
+        refetchLeague();
+      } else if (message.type === 'draft_started') {
+        toast.info("Der Draft wurde gestartet!");
+        setShowDraftRedirectDialog(true);
+      }
+    },
+    autoConnect: !!id && !!user?.id,
+  });
 
   // MOVE HOOK HERE: Always executed on every render
   useEffect(() => {

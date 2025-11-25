@@ -288,6 +288,15 @@ export const leagueRouter = router({
         // Complete referral for this user when they join their first league
         await completeReferralIfEligible(ctx.user.id);
 
+        // Broadcast participant joined event for real-time updates
+        wsManager.broadcastToLeague(input.leagueId, {
+          type: 'participant_joined',
+          leagueId: input.leagueId,
+          userId: ctx.user.id,
+          userName: ctx.user.name,
+          teamName: input.teamName,
+        });
+
         return {
           success: true,
         };
@@ -409,6 +418,15 @@ export const leagueRouter = router({
               loserTeamName: secondTeam.name,
             });
           }, 500);
+        } else {
+          // For non-challenge leagues, broadcast participant joined event
+          wsManager.broadcastToLeague(league.id, {
+            type: 'participant_joined',
+            leagueId: league.id,
+            userId: ctx.user.id,
+            userName: ctx.user.name,
+            teamName: teamName,
+          });
         }
 
         return {
