@@ -13,29 +13,46 @@ interface ProfileSetupDialogProps {
   onComplete: () => void;
   currentName?: string;
   currentAvatarUrl?: string | null;
+  needsUsername?: boolean;
+  needsAvatar?: boolean;
 }
 
-export function ProfileSetupDialog({ open, onComplete, currentName, currentAvatarUrl }: ProfileSetupDialogProps) {
+export function ProfileSetupDialog({ 
+  open, 
+  onComplete, 
+  currentName, 
+  currentAvatarUrl,
+  needsUsername = true,
+  needsAvatar = true,
+}: ProfileSetupDialogProps) {
   const [name, setName] = useState(currentName || "");
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [step, setStep] = useState<"name" | "avatar">("name");
+  // Start with the appropriate step based on what's needed
+  const [step, setStep] = useState<"name" | "avatar">(needsUsername ? "name" : "avatar");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const utils = trpc.useUtils();
 
-  // Reset name when dialog opens with new currentName
+  // Reset state when dialog opens
   useEffect(() => {
-    if (open && currentName) {
-      setName(currentName);
+    if (open) {
+      setName(currentName || "");
+      setStep(needsUsername ? "name" : "avatar");
     }
-  }, [open, currentName]);
+  }, [open, currentName, needsUsername]);
 
   const updateProfileMutation = trpc.profile.updateProfile.useMutation({
     onSuccess: () => {
       utils.auth.me.invalidate();
       utils.profile.getProfile.invalidate();
       if (step === "name") {
-        setStep("avatar");
+        // If avatar is needed, go to avatar step; otherwise complete
+        if (needsAvatar) {
+          setStep("avatar");
+        } else {
+          toast.success("Profile setup complete! 🎉");
+          onComplete();
+        }
       }
     },
     onError: (error) => {
@@ -137,12 +154,19 @@ export function ProfileSetupDialog({ open, onComplete, currentName, currentAvata
             </div>
           </div>
           <DialogTitle className="text-2xl font-bold text-white">
-            {step === "name" ? "Welcome! Set Up Your Profile" : "Add a Profile Picture"}
+            {step === "name" 
+              ? "Welcome! Set Up Your Profile" 
+              : needsUsername 
+                ? "Add a Profile Picture" 
+                : "Welcome! Add a Profile Picture"
+            }
           </DialogTitle>
           <DialogDescription className="text-white/70">
             {step === "name" 
               ? "Choose a username that other players will see in leagues and on leaderboards."
-              : "Add a photo so other players can recognize you (optional)."
+              : needsUsername
+                ? "Add a photo so other players can recognize you (optional)."
+                : "Add a photo so other players can recognize you in leagues."
             }
           </DialogDescription>
         </DialogHeader>
@@ -267,11 +291,13 @@ export function ProfileSetupDialog({ open, onComplete, currentName, currentAvata
           </div>
         )}
 
-        {/* Progress indicator */}
-        <div className="flex justify-center gap-2 pt-2">
-          <div className={`h-2 w-8 rounded-full transition-colors ${step === "name" ? "bg-weed-green" : "bg-white/20"}`} />
-          <div className={`h-2 w-8 rounded-full transition-colors ${step === "avatar" ? "bg-weed-green" : "bg-white/20"}`} />
-        </div>
+        {/* Progress indicator - only show if both steps are needed */}
+        {needsUsername && needsAvatar && (
+          <div className="flex justify-center gap-2 pt-2">
+            <div className={`h-2 w-8 rounded-full transition-colors ${step === "name" ? "bg-weed-green" : "bg-white/20"}`} />
+            <div className={`h-2 w-8 rounded-full transition-colors ${step === "avatar" ? "bg-weed-green" : "bg-white/20"}`} />
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

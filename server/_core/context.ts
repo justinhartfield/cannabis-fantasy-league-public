@@ -12,6 +12,7 @@ export type TrpcContext = {
 /**
  * Sync Clerk user to database
  * Creates or updates user in database based on Clerk user data
+ * Note: Clerk JWT may not include username - client will sync full profile later
  */
 async function syncClerkUser(clerkUserId: string, email: string | undefined, name: string | undefined): Promise<User | null> {
   try {
@@ -24,13 +25,25 @@ async function syncClerkUser(clerkUserId: string, email: string | undefined, nam
     }
 
     // Create new user using upsertUser
-    const username = name || email?.split('@')[0] || `user_${clerkUserId.slice(0, 8)}`;
+    // Use the name from Clerk JWT if available, otherwise use a placeholder
+    // The client-side will sync the full Clerk profile (including username) after login
+    let username: string;
+    if (name && !name.includes('@')) {
+      // Use name from Clerk JWT if it looks like a real name
+      username = name;
+    } else if (email) {
+      // Use email prefix as a placeholder (will be synced from client)
+      username = email.split('@')[0];
+    } else {
+      // Last resort fallback - client will update this
+      username = `user_${clerkUserId.slice(-8)}`;
+    }
     
     // Don't pass lastSignedIn - let it default in upsertUser
     await upsertUser({
       openId: clerkUserId,
       email: email || null,
-      name: name || username,
+      name: username,
       loginMethod: 'clerk',
       role: 'user',
     });
@@ -39,7 +52,7 @@ async function syncClerkUser(clerkUserId: string, email: string | undefined, nam
     const newUser = await getUserByOpenId(clerkUserId);
     
     if (newUser) {
-      console.log('[tRPC Context] ✅ Created new user from Clerk:', newUser.id, newUser.name);
+      console.log('[tRPC Context] ✅ Created new user from Clerk:', newUser.id, newUser.name, '(will sync full profile from client)');
       return newUser;
     }
 

@@ -14,6 +14,101 @@ import { applyReferralCodeForUser, getOrCreateReferralCode, getReferralStats } f
 
 export const profileRouter = router({
   /**
+   * Sync Profile from Clerk
+   * Updates user profile with data from Clerk (name, avatar)
+   * Only updates if database values are missing or look like random fallbacks
+   */
+  syncFromClerk: protectedProcedure
+    .input(
+      z.object({
+        clerkUsername: z.string().optional(),
+        clerkFullName: z.string().optional(),
+        clerkImageUrl: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Database not available",
+        });
+      }
+
+      // Get current user
+      const [currentUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, ctx.user.id))
+        .limit(1);
+
+      if (!currentUser) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "User not found",
+        });
+      }
+
+      const updateData: Record<string, unknown> = {
+        updatedAt: new Date().toISOString(),
+      };
+
+      // Check if current name looks like a random fallback
+      const isRandomName = 
+        !currentUser.name ||
+        currentUser.name.startsWith('user_') ||
+        currentUser.name.includes('@') ||
+        currentUser.name === 'User';
+
+      // If name looks random and Clerk has a real name, use it
+      if (isRandomName) {
+        const clerkName = input.clerkUsername || input.clerkFullName;
+        if (clerkName && !clerkName.startsWith('user_')) {
+          updateData.name = clerkName;
+          console.log(`[ProfileRouter] Syncing name from Clerk: "${clerkName}" for user ${ctx.user.id}`);
+        }
+      }
+
+      // If no avatar and Clerk has one, use it
+      if (!currentUser.avatarUrl && input.clerkImageUrl) {
+        updateData.avatarUrl = input.clerkImageUrl;
+        console.log(`[ProfileRouter] Syncing avatar from Clerk for user ${ctx.user.id}`);
+      }
+
+      // Only update if there are changes
+      if (Object.keys(updateData).length > 1) {
+        await db
+          .update(users)
+          .set(updateData)
+          .where(eq(users.id, ctx.user.id));
+
+        // Also update team names if name was synced
+        if (updateData.name) {
+          const userTeams = await db
+            .select({ id: teams.id, name: teams.name })
+            .from(teams)
+            .where(eq(teams.userId, ctx.user.id));
+
+          for (const team of userTeams) {
+            // Update team names that look like random fallbacks
+            if (team.name.startsWith('user_') || team.name.includes("user_user_")) {
+              const newTeamName = `${updateData.name}'s Team`;
+              await db
+                .update(teams)
+                .set({ name: newTeamName, updatedAt: new Date().toISOString() })
+                .where(eq(teams.id, team.id));
+              console.log(`[ProfileRouter] Updated team ${team.id} name to "${newTeamName}"`);
+            }
+          }
+        }
+
+        return { synced: true, name: updateData.name as string | undefined };
+      }
+
+      return { synced: false };
+    }),
+
+  /**
    * Get Profile
    * Returns the current user's profile data
    */
