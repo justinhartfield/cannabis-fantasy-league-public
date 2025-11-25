@@ -5,14 +5,17 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Send, Smile, Image as ImageIcon, Zap } from "lucide-react";
+import { Send, MessageCircle, Image as ImageIcon, Zap } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useLeagueChat } from "@/hooks/useLeagueChat";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface LeagueChatProps {
   leagueId: number;
+  className?: string;
+  variant?: "default" | "dark";
 }
 
 const GIPHY_API_KEY = "FvyxKNv0IpWExi4RdV5gZB6YKLQNcdoq";
@@ -41,7 +44,8 @@ const isImageMessage = (value: string) => {
   }
 };
 
-export function LeagueChat({ leagueId }: LeagueChatProps) {
+export function LeagueChat({ leagueId, className, variant = "default" }: LeagueChatProps) {
+  const isDark = variant === "dark";
   const { user } = useAuth();
   const { messages: liveMessages, setMessages: setLiveMessages } = useLeagueChat(leagueId);
   const [inputValue, setInputValue] = useState("");
@@ -96,10 +100,21 @@ export function LeagueChat({ leagueId }: LeagueChatProps) {
   };
 
   return (
-    <div className="flex flex-col max-h-[520px] border rounded-lg bg-background shadow-sm overflow-hidden">
-      <div className="p-4 border-b font-semibold flex items-center gap-2 shrink-0">
-        <Smile className="w-5 h-5 text-primary" />
-        League Chat
+    <div className={cn(
+      "flex flex-col max-h-[520px] overflow-hidden",
+      isDark 
+        ? "bg-transparent" 
+        : "border rounded-lg bg-background shadow-sm",
+      className
+    )}>
+      <div className={cn(
+        "p-4 font-semibold flex items-center gap-2 shrink-0",
+        isDark ? "border-b border-white/10" : "border-b"
+      )}>
+        <MessageCircle className={cn("w-5 h-5", isDark ? "text-[#cfff4d]" : "text-primary")} />
+        <span className={isDark ? "text-white" : ""}>
+          {isDark ? "💩 Smack Talk" : "League Chat"}
+        </span>
       </div>
 
       <ScrollArea className="flex-1 min-h-0 p-4">
@@ -119,17 +134,17 @@ export function LeagueChat({ leagueId }: LeagueChatProps) {
                     isMe ? "items-end ml-auto" : "items-start mr-auto"
                   }`}
                 >
-                  <span className="text-xs text-muted-foreground mb-1">
+                  <span className={cn("text-xs mb-1", isDark ? "text-white/50" : "text-muted-foreground")}>
                     {msg.userName}, {format(new Date(msg.createdAt), "h:mm a")}
                   </span>
                   <div
-                    className={`rounded-lg p-3 ${
-                      isMe ? "bg-primary text-primary-foreground" : "bg-muted"
-                    } ${
-                      isImage
-                        ? "bg-transparent p-0 w-full max-w-xs sm:max-w-sm overflow-hidden"
-                        : ""
-                    }`}
+                    className={cn(
+                      "rounded-lg p-3",
+                      isMe 
+                        ? isDark ? "bg-[#cfff4d] text-black" : "bg-primary text-primary-foreground"
+                        : isDark ? "bg-white/10 text-white" : "bg-muted",
+                      isImage && "bg-transparent p-0 w-full max-w-xs sm:max-w-sm overflow-hidden"
+                    )}
                   >
                     {isImage ? (
                       <img
@@ -150,12 +165,15 @@ export function LeagueChat({ leagueId }: LeagueChatProps) {
         </div>
       </ScrollArea>
 
-      <div className="p-4 border-t space-y-2 shrink-0">
+      <div className={cn(
+        "p-4 space-y-2 shrink-0",
+        isDark ? "border-t border-white/10" : "border-t"
+      )}>
         <div className="flex gap-2">
             {/* GIPHY / Templates Popover */}
           <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="icon">
+              <Button variant="outline" size="icon" className={isDark ? "border-white/20 text-white hover:bg-white/10" : ""}>
                 <Zap className="w-4 h-4" />
               </Button>
             </PopoverTrigger>
@@ -221,9 +239,13 @@ export function LeagueChat({ leagueId }: LeagueChatProps) {
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSendMessage(inputValue)}
             placeholder="Talk smack..."
-            className="flex-1"
+            className={cn("flex-1", isDark && "bg-white/5 border-white/20 text-white placeholder:text-white/40")}
           />
-          <Button onClick={() => handleSendMessage(inputValue)} disabled={sendMessageMutation.isPending}>
+          <Button 
+            onClick={() => handleSendMessage(inputValue)} 
+            disabled={sendMessageMutation.isPending}
+            className={isDark ? "bg-[#cfff4d] text-black hover:bg-[#cfff4d]/90" : ""}
+          >
             <Send className="w-4 h-4" />
           </Button>
         </div>

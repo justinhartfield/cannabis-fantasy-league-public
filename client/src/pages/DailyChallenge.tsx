@@ -9,6 +9,7 @@ import { LiveIndicator } from "@/components/LiveIndicator";
 import ScoringBreakdownV2 from "@/components/ScoringBreakdownV2";
 import { CoinFlip } from "@/components/CoinFlip";
 import { BattleArena } from "@/components/BattleArena";
+import { LeagueChat } from "@/components/LeagueChat";
 
 import {
   Loader2,
@@ -488,17 +489,6 @@ export default function DailyChallenge() {
 
   const isLive = league.status === "active";
 
-  const copyLeagueCode = () => {
-    if (!league?.leagueCode) return;
-    try {
-      navigator.clipboard.writeText(league.leagueCode);
-      toast.success("League code copied!");
-    } catch (error) {
-      console.error("Failed to copy league code", error);
-      toast.error("Unable to copy league code");
-    }
-  };
-
   return (
     <div className="min-h-screen gradient-dark">
       {/* Coin Flip Overlay */}
@@ -594,17 +584,6 @@ export default function DailyChallenge() {
                 </>
               )}
             </Button>
-            {league.leagueCode && (
-              <Button
-                variant="secondary"
-                size="sm"
-                className="rounded-2xl"
-                onClick={copyLeagueCode}
-              >
-                <Copy className="w-4 h-4 mr-2" />
-                Share Code
-              </Button>
-            )}
           </div>
         </div>
 
@@ -686,71 +665,9 @@ export default function DailyChallenge() {
           </Card>
         )}
 
-        {/* Leaderboard */}
-        <div className="rounded-[32px] bg-[#2a1027] border border-white/10 p-5 text-white space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-xs uppercase tracking-[0.4em] text-white/40">
-                Leaderboard
-              </div>
-              <div className="text-sm text-white/70">
-                Woche {currentWeek} • {currentYear}
-              </div>
-            </div>
-            <Trophy className="w-6 h-6 text-[#9dff58]" />
-          </div>
-          {sortedScores.length === 0 ? (
-            <p className="text-sm text-white/60 text-center py-4">
-              Keine Scores verfügbar.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {sortedScores.slice(0, 5).map((team: TeamScore, index) => {
-                const isSelected = selectedTeamId === team.teamId;
-                const rankBadge =
-                  index === 0
-                    ? "bg-[#cfff4d] text-black"
-                    : "bg-white/10 text-white";
-                return (
-                  <button
-                    key={team.teamId}
-                    onClick={() => setSelectedTeamId(team.teamId)}
-                    className={cn(
-                      "w-full rounded-[24px] px-4 py-4 flex items-center justify-between border border-white/10 transition-all",
-                      isSelected ? "ring-2 ring-[#cfff4d]" : "bg-white/5 hover:bg-white/10"
-                    )}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span
-                        className={cn(
-                          "w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm",
-                          rankBadge
-                        )}
-                      >
-                        {team.rank}
-                      </span>
-                      <TeamAvatar
-                        avatarUrl={team.userAvatarUrl}
-                        teamName={team.teamName}
-                        userName={team.userName}
-                        size="sm"
-                      />
-                      <div className="text-left">
-                        <div className="font-semibold text-base">{team.teamName}</div>
-                        <div className="text-xs text-white/60">Total Points</div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold">{team.points?.toFixed(1) ?? "0.0"}</div>
-                      <div className="text-[11px] uppercase tracking-[0.3em] text-white/50">
-                        pts
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
+        {/* Smack Talk Chat */}
+        <div className="rounded-[32px] bg-[#2a1027] border border-white/10 overflow-hidden">
+          <LeagueChat leagueId={challengeId} variant="dark" />
         </div>
 
         {/* Top Performers */}

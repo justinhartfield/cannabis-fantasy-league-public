@@ -6,13 +6,7 @@ import {
   pharmacies,
   brands,
   strains,
-  products,
   cannabisStrains,
-  manufacturerWeeklyStats,
-  pharmacyWeeklyStats,
-  brandWeeklyStats,
-  strainWeeklyStats,
-  cannabisStrainWeeklyStats,
   teams,
   users,
   weeklyTeamScores,
@@ -26,8 +20,6 @@ import {
   strainDailyChallengeStats,
 } from "../drizzle/dailyChallengeSchema";
 import { desc, eq, and, sql, gt } from "drizzle-orm";
-
-import { calculateStrainPoints } from "./scoringEngine";
 
 function prioritizeByLogo<
   T extends { logoUrl?: string | null; score?: number | null }
@@ -215,6 +207,7 @@ export const leaderboardRouter = router({
 
   /**
    * Get Weekly Entity Leaderboard
+   * Aggregates daily challenge stats for the current ISO week
    */
   getWeeklyEntityLeaderboard: publicProcedure
     .input(z.object({
@@ -226,195 +219,150 @@ export const leaderboardRouter = router({
       const db = await getDb();
       if (!db) return { manufacturers: [], pharmacies: [], brands: [], products: [], strains: [] };
 
-      // Logic to determine year/week if not provided
-      let targetYear = input.year;
+      // Calculate ISO week and date range
+      const now = new Date();
+      let targetYear = input.year ?? now.getFullYear();
       let targetWeek = input.week;
 
-      if (!targetYear || !targetWeek) {
-        const latestStat = await db
-          .select({ year: manufacturerWeeklyStats.year, week: manufacturerWeeklyStats.week })
-          .from(manufacturerWeeklyStats)
-          .orderBy(desc(manufacturerWeeklyStats.year), desc(manufacturerWeeklyStats.week))
-          .limit(1);
-
-        if (latestStat.length > 0) {
-          targetYear = latestStat[0].year;
-          targetWeek = latestStat[0].week;
-        } else {
-          // Default to something safe if no data
-          const now = new Date();
-          targetYear = now.getFullYear();
-          targetWeek = 1;
-        }
+      // If no week provided, calculate current ISO week
+      if (!targetWeek) {
+        const jan1 = new Date(targetYear, 0, 1);
+        const days = Math.floor((now.getTime() - jan1.getTime()) / (24 * 60 * 60 * 1000));
+        targetWeek = Math.ceil((days + jan1.getDay() + 1) / 7);
       }
 
+      // Calculate date range for the week (Monday to Sunday)
+      const simpleDate = new Date(targetYear, 0, 1 + (targetWeek - 1) * 7);
+      const dayOfWeek = simpleDate.getDay();
+      const ISOweekStart = new Date(simpleDate);
+      if (dayOfWeek <= 4) {
+        ISOweekStart.setDate(simpleDate.getDate() - simpleDate.getDay() + 1);
+      } else {
+        ISOweekStart.setDate(simpleDate.getDate() + 8 - simpleDate.getDay());
+      }
+
+      const startDate = ISOweekStart.toISOString().split('T')[0];
+      const endDate = new Date(ISOweekStart.getTime() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
       const [
-        topManufacturers,
-        topPharmacies,
+        rawManufacturers,
+        rawPharmacies,
         rawBrands,
-        topStrains,
+        rawStrains,
+        rawProducts,
       ] = await Promise.all([
-        // Manufacturers
-        db.select({
-          id: manufacturers.id,
-          name: manufacturers.name,
-          logoUrl: manufacturers.logoUrl,
-          score: manufacturerWeeklyStats.totalPoints,
-          rank: manufacturerWeeklyStats.marketShareRank,
-          rankChange: manufacturerWeeklyStats.rankChange,
-        })
-          .from(manufacturerWeeklyStats)
-          .innerJoin(
-            manufacturers,
-            eq(manufacturerWeeklyStats.manufacturerId, manufacturers.id),
-          )
+        // Manufacturers: Aggregate from Daily Challenge Stats
+        db
+          .select({
+            id: manufacturers.id,
+            name: manufacturers.name,
+            logoUrl: manufacturers.logoUrl,
+            score: sql<number>`sum(${manufacturerDailyChallengeStats.totalPoints})`.mapWith(Number),
+          })
+          .from(manufacturerDailyChallengeStats)
+          .innerJoin(manufacturers, eq(manufacturerDailyChallengeStats.manufacturerId, manufacturers.id))
           .where(
             and(
-              eq(manufacturerWeeklyStats.year, targetYear!),
-              eq(manufacturerWeeklyStats.week, targetWeek!),
-            ),
-          )
-          .orderBy(desc(manufacturerWeeklyStats.totalPoints))
-          .limit(input.limit),
-
-        // Pharmacies
-        db.select({
-          id: pharmacies.id,
-          name: pharmacies.name,
-          logoUrl: pharmacies.logoUrl,
-          score: pharmacyWeeklyStats.totalPoints,
-        })
-          .from(pharmacyWeeklyStats)
-          .innerJoin(pharmacies, eq(pharmacyWeeklyStats.pharmacyId, pharmacies.id))
-          .where(
-            and(
-              eq(pharmacyWeeklyStats.year, targetYear!),
-              eq(pharmacyWeeklyStats.week, targetWeek!),
-            ),
-          )
-          .orderBy(desc(pharmacyWeeklyStats.totalPoints))
-          .limit(input.limit),
-
-        // Brands: Aggregate from Daily Challenge Stats for the week
-        // This ensures the leaderboard reflects the sum of daily points (Ratings Count + Quality)
-        (async () => {
-          // Calculate date range for the week
-          // Simple approximation: ISO week calculation
-          const simpleDate = new Date(targetYear!, 0, 1 + (targetWeek! - 1) * 7);
-          const dayOfWeek = simpleDate.getDay();
-          const ISOweekStart = simpleDate;
-          if (dayOfWeek <= 4)
-            ISOweekStart.setDate(simpleDate.getDate() - simpleDate.getDay() + 1);
-          else
-            ISOweekStart.setDate(simpleDate.getDate() + 8 - simpleDate.getDay());
-
-          const startDate = ISOweekStart.toISOString().split('T')[0];
-          const endDate = new Date(ISOweekStart.getTime() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
-          return db
-            .select({
-              id: brands.id,
-              name: brands.name,
-              logoUrl: brands.logoUrl,
-              score: sql<number>`sum(${brandDailyChallengeStats.totalPoints})`.mapWith(Number),
-            })
-            .from(brandDailyChallengeStats)
-            .innerJoin(brands, eq(brandDailyChallengeStats.brandId, brands.id))
-            .where(
-              and(
-                sql`${brandDailyChallengeStats.statDate} >= ${startDate}`,
-                sql`${brandDailyChallengeStats.statDate} <= ${endDate}`
-              )
+              sql`${manufacturerDailyChallengeStats.statDate} >= ${startDate}`,
+              sql`${manufacturerDailyChallengeStats.statDate} <= ${endDate}`
             )
-            .groupBy(brands.id, brands.name, brands.logoUrl)
-            .orderBy(desc(sql`sum(${brandDailyChallengeStats.totalPoints})`))
-            .limit(input.limit * 3);
-        })(),
-
-        // Cannabis Strains
-        db.select({
-          id: cannabisStrains.id,
-          name: cannabisStrains.name,
-          imageUrl: cannabisStrains.imageUrl,
-          score: cannabisStrainWeeklyStats.totalPoints,
-        })
-          .from(cannabisStrainWeeklyStats)
-          .innerJoin(
-            cannabisStrains,
-            eq(cannabisStrainWeeklyStats.cannabisStrainId, cannabisStrains.id),
           )
+          .groupBy(manufacturers.id, manufacturers.name, manufacturers.logoUrl)
+          .orderBy(desc(sql`sum(${manufacturerDailyChallengeStats.totalPoints})`))
+          .limit(input.limit * 3),
+
+        // Pharmacies: Aggregate from Daily Challenge Stats
+        db
+          .select({
+            id: pharmacies.id,
+            name: pharmacies.name,
+            logoUrl: pharmacies.logoUrl,
+            score: sql<number>`sum(${pharmacyDailyChallengeStats.totalPoints})`.mapWith(Number),
+          })
+          .from(pharmacyDailyChallengeStats)
+          .innerJoin(pharmacies, eq(pharmacyDailyChallengeStats.pharmacyId, pharmacies.id))
           .where(
             and(
-              eq(cannabisStrainWeeklyStats.year, targetYear!),
-              eq(cannabisStrainWeeklyStats.week, targetWeek!),
-            ),
+              sql`${pharmacyDailyChallengeStats.statDate} >= ${startDate}`,
+              sql`${pharmacyDailyChallengeStats.statDate} <= ${endDate}`
+            )
           )
-          .orderBy(desc(cannabisStrainWeeklyStats.totalPoints))
-          .limit(input.limit),
-      ]);
+          .groupBy(pharmacies.id, pharmacies.name, pharmacies.logoUrl)
+          .orderBy(desc(sql`sum(${pharmacyDailyChallengeStats.totalPoints})`))
+          .limit(input.limit * 3),
 
-      // Prioritize by logo
-      const topBrands = prioritizeByLogo(rawBrands, input.limit);
+        // Brands: Aggregate from Daily Challenge Stats
+        db
+          .select({
+            id: brands.id,
+            name: brands.name,
+            logoUrl: brands.logoUrl,
+            score: sql<number>`sum(${brandDailyChallengeStats.totalPoints})`.mapWith(Number),
+          })
+          .from(brandDailyChallengeStats)
+          .innerJoin(brands, eq(brandDailyChallengeStats.brandId, brands.id))
+          .where(
+            and(
+              sql`${brandDailyChallengeStats.statDate} >= ${startDate}`,
+              sql`${brandDailyChallengeStats.statDate} <= ${endDate}`
+            )
+          )
+          .groupBy(brands.id, brands.name, brands.logoUrl)
+          .orderBy(desc(sql`sum(${brandDailyChallengeStats.totalPoints})`))
+          .limit(input.limit * 3),
 
-      // Products: derive weekly scores from strainWeeklyStats + strains
-      let topProducts: { id: number; name: string; score: number }[] = [];
+        // Strains (Flower): Aggregate from Daily Challenge Stats
+        db
+          .select({
+            id: cannabisStrains.id,
+            name: cannabisStrains.name,
+            imageUrl: cannabisStrains.imageUrl,
+            score: sql<number>`sum(${strainDailyChallengeStats.totalPoints})`.mapWith(Number),
+          })
+          .from(strainDailyChallengeStats)
+          .innerJoin(cannabisStrains, eq(strainDailyChallengeStats.strainId, cannabisStrains.id))
+          .where(
+            and(
+              sql`${strainDailyChallengeStats.statDate} >= ${startDate}`,
+              sql`${strainDailyChallengeStats.statDate} <= ${endDate}`
+            )
+          )
+          .groupBy(cannabisStrains.id, cannabisStrains.name, cannabisStrains.imageUrl)
+          .orderBy(desc(sql`sum(${strainDailyChallengeStats.totalPoints})`))
+          .limit(input.limit * 3),
 
-      try {
-        const productRows = await db
+        // Products: Aggregate from Daily Challenge Stats
+        db
           .select({
             id: strains.id,
             name: strains.name,
-            favoriteCount: strainWeeklyStats.favoriteCount,
-            favoriteGrowth: strainWeeklyStats.favoriteGrowth,
-            pharmacyCount: strainWeeklyStats.pharmacyCount,
-            pharmacyExpansion: strainWeeklyStats.pharmacyExpansion,
-            avgPriceCents: strainWeeklyStats.avgPriceCents,
-            priceStability: strainWeeklyStats.priceStability,
-            orderVolumeGrams: strainWeeklyStats.orderVolumeGrams,
+            score: sql<number>`sum(${productDailyChallengeStats.totalPoints})`.mapWith(Number),
           })
-          .from(strainWeeklyStats)
-          .innerJoin(strains, eq(strainWeeklyStats.strainId, strains.id))
+          .from(productDailyChallengeStats)
+          .innerJoin(strains, eq(productDailyChallengeStats.productId, strains.id))
           .where(
             and(
-              eq(strainWeeklyStats.year, targetYear!),
-              eq(strainWeeklyStats.week, targetWeek!),
-            ),
+              sql`${productDailyChallengeStats.statDate} >= ${startDate}`,
+              sql`${productDailyChallengeStats.statDate} <= ${endDate}`
+            )
           )
-          .limit(500);
+          .groupBy(strains.id, strains.name)
+          .orderBy(desc(sql`sum(${productDailyChallengeStats.totalPoints})`))
+          .limit(input.limit * 3),
+      ]);
 
-        const scoredProducts = productRows
-          .map((row) => {
-            const { points } = calculateStrainPoints({
-              favoriteCount: row.favoriteCount ?? 0,
-              favoriteGrowth: row.favoriteGrowth ?? 0,
-              pharmacyCount: row.pharmacyCount ?? 0,
-              pharmacyExpansion: row.pharmacyExpansion ?? 0,
-              avgPriceCents: row.avgPriceCents ?? 0,
-              priceStability: row.priceStability ?? 0,
-              orderVolumeGrams: row.orderVolumeGrams ?? 0,
-            });
-
-            return {
-              id: row.id,
-              name: row.name,
-              score: points,
-            };
-          })
-          .filter((p) => p.score > 0)
-          .sort((a, b) => b.score - a.score);
-
-        topProducts = scoredProducts.slice(0, input.limit);
-      } catch (err) {
-        console.error(
-          "[Leaderboard] Error computing weekly product leaderboard – falling back to empty list:",
-          err,
-        );
-        topProducts = [];
-      }
+      // Prioritize entries with logos
+      const topManufacturers = prioritizeByLogo(rawManufacturers, input.limit);
+      const topPharmacies = prioritizeByLogo(rawPharmacies, input.limit);
+      const topBrands = prioritizeByLogo(rawBrands, input.limit);
+      const topStrains = rawStrains.slice(0, input.limit);
+      const topProducts = rawProducts.slice(0, input.limit);
 
       return {
         year: targetYear,
         week: targetWeek,
+        startDate,
+        endDate,
         manufacturers: topManufacturers,
         pharmacies: topPharmacies,
         brands: topBrands,
