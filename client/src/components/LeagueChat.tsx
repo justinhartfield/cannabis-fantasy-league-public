@@ -117,8 +117,8 @@ export function LeagueChat({ leagueId, className, variant = "default" }: LeagueC
         </span>
       </div>
 
-      <ScrollArea className="flex-1 min-h-0 p-4">
-        <div className="space-y-4">
+      <ScrollArea className="flex-1 min-h-0 p-4 overflow-hidden">
+        <div className="space-y-4 w-full overflow-hidden">
           {allMessages.map((msg) => {
             const isMe = msg.userId === user?.id;
             const isImage = isImageMessage(msg.message);
@@ -139,26 +139,27 @@ export function LeagueChat({ leagueId, className, variant = "default" }: LeagueC
                   <span className={cn("text-xs mb-1", isDark ? "text-white/50" : "text-muted-foreground")}>
                     {msg.userName}, {format(new Date(msg.createdAt), "h:mm a")}
                   </span>
-                  <div
-                    className={cn(
-                      "rounded-lg p-3 max-w-full",
-                      isMe 
-                        ? isDark ? "bg-[#cfff4d] text-black" : "bg-primary text-primary-foreground"
-                        : isDark ? "bg-white/10 text-white" : "bg-muted",
-                      isImage && "bg-transparent p-0 overflow-hidden"
-                    )}
-                  >
-                    {isImage ? (
+                  {isImage ? (
+                    <div className="rounded-lg overflow-hidden" style={{ maxWidth: "min(280px, 60vw)" }}>
                       <img
                         src={msg.message}
                         alt="Chat attachment"
-                        className="rounded-lg max-w-[200px] sm:max-w-[280px] h-auto object-contain"
+                        className="w-full h-auto object-contain block"
                         loading="lazy"
                       />
-                    ) : (
-                      msg.message
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <div
+                      className={cn(
+                        "rounded-lg p-3",
+                        isMe 
+                          ? isDark ? "bg-[#cfff4d] text-black" : "bg-primary text-primary-foreground"
+                          : isDark ? "bg-white/10 text-white" : "bg-muted"
+                      )}
+                    >
+                      {msg.message}
+                    </div>
+                  )}
                 </div>
               </div>
             );
