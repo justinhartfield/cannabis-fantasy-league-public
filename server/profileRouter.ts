@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "./_core/trpc";
 import { getDb } from "./db";
-import { users } from "../drizzle/schema";
+import { users, teams } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { bunnyStoragePut } from "./bunnyStorage";
@@ -101,6 +101,7 @@ export const profileRouter = router({
   /**
    * Update Profile
    * Updates user's name and/or email
+   * Also syncs username changes to team names in existing leagues
    */
   updateProfile: protectedProcedure
     .input(
@@ -118,6 +119,15 @@ export const profileRouter = router({
         });
       }
 
+      // Get the current user's name before update
+      const [currentUser] = await db
+        .select({ name: users.name })
+        .from(users)
+        .where(eq(users.id, ctx.user.id))
+        .limit(1);
+
+      const oldName = currentUser?.name;
+
       // Build update object with only provided fields
       const updateData: any = {
         updatedAt: new Date().toISOString(),
@@ -132,10 +142,49 @@ export const profileRouter = router({
       }
 
       try {
+        // Update user profile
         await db
           .update(users)
           .set(updateData)
           .where(eq(users.id, ctx.user.id));
+
+        // If name was updated, also update team names in leagues
+        // This syncs the username across existing leagues
+        if (input.name !== undefined && input.name !== oldName) {
+          // Get all teams belonging to this user
+          const userTeams = await db
+            .select({ id: teams.id, name: teams.name })
+            .from(teams)
+            .where(eq(teams.userId, ctx.user.id));
+
+          // Update team names that follow the pattern "{oldName}'s Team"
+          // or any team name that contains the old username
+          for (const team of userTeams) {
+            let newTeamName = team.name;
+            
+            // If team name follows the pattern "X's Team", update it
+            if (oldName && team.name === `${oldName}'s Team`) {
+              newTeamName = `${input.name}'s Team`;
+            }
+            // Also update if team name exactly matches old username
+            else if (oldName && team.name === oldName) {
+              newTeamName = input.name;
+            }
+            
+            // Only update if the name actually changed
+            if (newTeamName !== team.name) {
+              await db
+                .update(teams)
+                .set({ 
+                  name: newTeamName,
+                  updatedAt: new Date().toISOString(),
+                })
+                .where(eq(teams.id, team.id));
+              
+              console.log(`[ProfileRouter] Updated team ${team.id} name from "${team.name}" to "${newTeamName}"`);
+            }
+          }
+        }
 
         return { success: true };
       } catch (error) {
