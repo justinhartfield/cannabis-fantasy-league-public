@@ -101,7 +101,7 @@ export function LeagueChat({ leagueId, className, variant = "default" }: LeagueC
 
   return (
     <div className={cn(
-      "flex flex-col max-h-[520px] overflow-hidden",
+      "flex flex-col h-[520px] overflow-hidden",
       isDark 
         ? "bg-transparent" 
         : "border rounded-lg bg-background shadow-sm",
@@ -117,41 +117,40 @@ export function LeagueChat({ leagueId, className, variant = "default" }: LeagueC
         </span>
       </div>
 
-      <ScrollArea className="flex-1 min-h-0">
-        <div className="space-y-4 p-4 overflow-x-hidden">
+      <ScrollArea className="flex-1 min-h-0 overflow-hidden">
+        <div className="space-y-4 p-4 overflow-hidden">
           {allMessages.map((msg) => {
             const isMe = msg.userId === user?.id;
             const isImage = isImageMessage(msg.message);
 
             return (
-              <div key={msg.id} className={cn("flex gap-2 overflow-hidden", isMe ? "flex-row-reverse" : "")}>
+              <div key={msg.id} className={cn("flex gap-2", isMe ? "flex-row-reverse" : "")}>
                 <Avatar className="w-8 h-8 shrink-0">
                   <AvatarImage src={msg.userAvatarUrl || undefined} />
                   <AvatarFallback>{msg.userName[0]}</AvatarFallback>
                 </Avatar>
                 <div
                   className={cn(
-                    "flex flex-col min-w-0",
+                    "flex flex-col min-w-0 max-w-[calc(100%-3rem)]",
                     isMe ? "items-end" : "items-start"
                   )}
-                  style={{ maxWidth: "calc(100% - 3rem)" }}
                 >
                   <span className={cn("text-xs mb-1", isDark ? "text-white/50" : "text-muted-foreground")}>
                     {msg.userName}, {format(new Date(msg.createdAt), "h:mm a")}
                   </span>
                   {isImage ? (
-                    <div className="rounded-lg overflow-hidden" style={{ maxWidth: "min(280px, 60vw)" }}>
+                    <div className="rounded-lg overflow-hidden max-w-[280px]">
                       <img
                         src={msg.message}
                         alt="Chat attachment"
-                        className="w-full h-auto object-contain block"
+                        className="max-w-full h-auto object-contain block"
                         loading="lazy"
                       />
                     </div>
                   ) : (
                     <div
                       className={cn(
-                        "rounded-lg p-3",
+                        "rounded-lg p-3 break-words",
                         isMe 
                           ? isDark ? "bg-[#cfff4d] text-black" : "bg-primary text-primary-foreground"
                           : isDark ? "bg-white/10 text-white" : "bg-muted"
