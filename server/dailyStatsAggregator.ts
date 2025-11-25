@@ -15,32 +15,31 @@ import {
   brandDailyStats,
 } from '../drizzle/schema';
 import { eq, and } from 'drizzle-orm';
+import { execSync } from 'child_process';
+import * as fs from 'fs';
 
 // MCP CLI wrapper for Metabase queries
 async function executeMetabaseQuery(query: string, database_id: number = 2): Promise<any> {
-  const { execSync } = require('child_process');
-  const fs = require('fs');
-  
   // Create input JSON
   const input = JSON.stringify({
     database_id,
     query,
     row_limit: 2000,
   });
-  
+
   // Execute MCP CLI command
   const result = execSync(
     `manus-mcp-cli tool call execute --server=metabase --input '${input}'`,
     { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 }
   );
-  
+
   // Parse the JSON result
   const lines = result.split('\n');
   const jsonLine = lines.find((line: string) => line.trim().startsWith('{'));
   if (!jsonLine) {
     throw new Error('No JSON response from Metabase');
   }
-  
+
   const response = JSON.parse(jsonLine);
   return response.data?.rows || [];
 }
@@ -51,7 +50,7 @@ export class DailyStatsAggregator {
    */
   async aggregateManufacturerStats(statDate: string): Promise<void> {
     console.log(`[DailyStats] Aggregating manufacturer stats for ${statDate}...`);
-    
+
     try {
       const db = await getDb();
       if (!db) {
@@ -73,7 +72,7 @@ export class DailyStatsAggregator {
       `;
 
       const rows = await executeMetabaseQuery(query);
-      
+
       console.log(`[DailyStats] Found ${rows.length} manufacturers with activity on ${statDate}`);
 
       for (const row of rows) {
@@ -142,7 +141,7 @@ export class DailyStatsAggregator {
    */
   async aggregateCannabisStrainStats(statDate: string): Promise<void> {
     console.log(`[DailyStats] Aggregating cannabis strain stats for ${statDate}...`);
-    
+
     try {
       const db = await getDb();
       if (!db) {
@@ -165,7 +164,7 @@ export class DailyStatsAggregator {
       `;
 
       const rows = await executeMetabaseQuery(query);
-      
+
       console.log(`[DailyStats] Found ${rows.length} cannabis strains with activity on ${statDate}`);
 
       for (const row of rows) {
@@ -237,7 +236,7 @@ export class DailyStatsAggregator {
    */
   async aggregatePharmacyStats(statDate: string): Promise<void> {
     console.log(`[DailyStats] Aggregating pharmacy stats for ${statDate}...`);
-    
+
     try {
       const db = await getDb();
       if (!db) {
@@ -260,7 +259,7 @@ export class DailyStatsAggregator {
       `;
 
       const rows = await executeMetabaseQuery(query);
-      
+
       console.log(`[DailyStats] Found ${rows.length} pharmacies with activity on ${statDate}`);
 
       for (const row of rows) {
@@ -330,7 +329,7 @@ export class DailyStatsAggregator {
    */
   async aggregateProductStats(statDate: string): Promise<void> {
     console.log(`[DailyStats] Aggregating product stats for ${statDate}...`);
-    
+
     try {
       const db = await getDb();
       if (!db) {
@@ -354,7 +353,7 @@ export class DailyStatsAggregator {
       `;
 
       const rows = await executeMetabaseQuery(query);
-      
+
       console.log(`[DailyStats] Found ${rows.length} products with activity on ${statDate}`);
 
       for (const row of rows) {
@@ -428,13 +427,13 @@ export class DailyStatsAggregator {
    */
   async aggregateAllStats(statDate: string): Promise<void> {
     console.log(`[DailyStats] Starting full aggregation for ${statDate}...`);
-    
+
     try {
       await this.aggregateManufacturerStats(statDate);
       await this.aggregateCannabisStrainStats(statDate);
       await this.aggregateProductStats(statDate);
       await this.aggregatePharmacyStats(statDate);
-      
+
       console.log(`[DailyStats] ✅ Full aggregation complete for ${statDate}`);
     } catch (error) {
       console.error(`[DailyStats] ❌ Aggregation failed for ${statDate}:`, error);

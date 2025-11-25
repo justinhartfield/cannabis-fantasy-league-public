@@ -1,5 +1,5 @@
 import { useAuth } from "@/_core/hooks/useAuth";
-import { useState, type SVGProps } from "react";
+import { useEffect, useState, type SVGProps } from "react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import {
@@ -8,6 +8,7 @@ import {
   Handshake,
   Leaf,
   Loader2,
+  Package,
   Trophy,
   Users,
   Zap,
@@ -36,6 +37,7 @@ export default function Dashboard() {
   const [, setLocation] = useLocation();
   const [inviteCode, setInviteCode] = useState("");
   const [joiningLeague, setJoiningLeague] = useState(false);
+  const [now, setNow] = useState(() => new Date());
 
   const { data: myLeagues, isLoading: leaguesLoading } = trpc.league.list.useQuery(
     undefined,
@@ -63,6 +65,14 @@ export default function Dashboard() {
       setJoiningLeague(false);
     },
   });
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(new Date());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const handleJoinLeague = async () => {
     if (!inviteCode.trim()) {
@@ -104,12 +114,21 @@ export default function Dashboard() {
     predictionLeaders?.leaderboard?.slice(0, 3) ?? DEFAULT_LEADERS;
   const leaderboardLoading = predictionLeadersLoading && !predictionLeaders;
 
+  const nextUpdateTime = getNextTopOfHour(now);
+  const nextUpdateCountdown = formatDurationMs(nextUpdateTime.getTime() - now.getTime());
+
   const statHighlights = [
     {
       label: "Manufacturers",
       value: stats?.manufacturerCount ?? 0,
       icon: FactoryIcon,
       gradient: "from-[#67ff85] via-[#26d9ff] to-[#1360ff]",
+    },
+    {
+      label: "Products",
+      value: stats?.productCount ?? 0,
+      icon: Package,
+      gradient: "from-[#ff6b6b] via-[#ee5a5a] to-[#c44569]",
     },
     {
       label: "Strains",
@@ -155,7 +174,7 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {statHighlights.map((stat) => (
             <div
               key={stat.label}
@@ -178,6 +197,18 @@ export default function Dashboard() {
               </div>
             </div>
           ))}
+        </div>
+
+        <div className="mt-4 flex items-center gap-2 text-xs text-white/70 sm:text-sm">
+          <span className="relative flex h-3 w-3">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-weed-green opacity-75" />
+            <span className="relative inline-flex h-3 w-3 rounded-full bg-weed-green" />
+          </span>
+          <span>
+            NEXT LIVE UPDATE FROM{" "}
+            <span className="font-semibold text-weed-green">Weed.de</span> in{" "}
+            <span className="font-mono text-white">{nextUpdateCountdown}</span>
+          </span>
         </div>
       </section>
 
@@ -441,4 +472,28 @@ function FactoryIcon(props: SVGProps<SVGSVGElement>) {
       />
     </svg>
   );
+}
+
+function getNextTopOfHour(from: Date) {
+  const next = new Date(from);
+  next.setMinutes(0, 0, 0);
+
+  if (next <= from) {
+    next.setHours(next.getHours() + 1);
+  }
+
+  return next;
+}
+
+function formatDurationMs(ms: number) {
+  const totalSeconds = Math.max(Math.floor(ms / 1000), 0);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return [
+    hours.toString().padStart(2, "0"),
+    minutes.toString().padStart(2, "0"),
+    seconds.toString().padStart(2, "0"),
+  ].join(":");
 }
