@@ -39,7 +39,7 @@ interface QueuedPlayer {
 }
 
 interface SleeperPlayerPanelProps {
-  leagueId: number;
+  leagueId?: number;
   rosterCounts: {
     manufacturer: number;
     cannabis_strain: number;
@@ -59,13 +59,16 @@ interface SleeperPlayerPanelProps {
   isLoading: boolean;
   draftedAssets?: Record<AssetType, Set<number>>;
   myRoster: RosterItem[];
-  // Queue
-  queue: QueuedPlayer[];
-  onAddToQueue: (player: QueuedPlayer) => void;
-  onRemoveFromQueue: (assetType: AssetType, assetId: number) => void;
-  onReorderQueue: (queue: QueuedPlayer[]) => void;
-  autoPickFromQueue: boolean;
-  onAutoPickFromQueueChange: (enabled: boolean) => void;
+  // Queue (optional - for season leagues)
+  queue?: QueuedPlayer[];
+  onAddToQueue?: (player: QueuedPlayer) => void;
+  onRemoveFromQueue?: (assetType: AssetType, assetId: number) => void;
+  onReorderQueue?: (queue: QueuedPlayer[]) => void;
+  autoPickFromQueue?: boolean;
+  onAutoPickFromQueueChange?: (enabled: boolean) => void;
+  // Legacy props for backwards compatibility
+  activeTab?: "players" | "team";
+  onTabChange?: (tab: "players" | "team") => void;
 }
 
 // Position limits
@@ -112,18 +115,37 @@ export function SleeperPlayerPanel({
   isLoading,
   draftedAssets,
   myRoster,
-  queue,
+  queue = [],
   onAddToQueue,
   onRemoveFromQueue,
   onReorderQueue,
-  autoPickFromQueue,
+  autoPickFromQueue = false,
   onAutoPickFromQueueChange,
+  activeTab: externalActiveTab,
+  onTabChange: externalOnTabChange,
 }: SleeperPlayerPanelProps) {
   const [selectedPosition, setSelectedPosition] = useState<AssetType | "all">("all");
   const [isPanelExpanded, setIsPanelExpanded] = useState(true);
-  const [activeTab, setActiveTab] = useState<TabType>("players");
+  const [internalActiveTab, setInternalActiveTab] = useState<TabType>("players");
   const [sortBy, setSortBy] = useState<SortBy>("stats");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+
+  // Support both internal and external tab control for backwards compatibility
+  const hasQueueFeature = !!onAddToQueue;
+  const hasChatFeature = !!leagueId;
+  const activeTab = externalActiveTab ? (externalActiveTab as TabType) : internalActiveTab;
+  const setActiveTab = (tab: TabType) => {
+    if (externalOnTabChange && (tab === "players" || tab === "team")) {
+      externalOnTabChange(tab);
+    }
+    setInternalActiveTab(tab);
+  };
+
+  // Determine which tabs to show
+  const availableTabs: TabType[] = ["players"];
+  if (hasQueueFeature) availableTabs.push("queue");
+  availableTabs.push("team");
+  if (hasChatFeature) availableTabs.push("chat");
 
   // When TEAM tab is selected, minimize the panel
   useEffect(() => {
@@ -231,6 +253,7 @@ export function SleeperPlayerPanel({
   };
 
   const handleAddToQueue = (player: AvailablePlayer & { assetType: AssetType }) => {
+    if (!onAddToQueue) return;
     if (isInQueue(player.assetType, player.id)) return;
     onAddToQueue({
       assetType: player.assetType,
@@ -241,6 +264,7 @@ export function SleeperPlayerPanel({
   };
 
   const moveQueueItem = (index: number, direction: "up" | "down") => {
+    if (!onReorderQueue) return;
     const newQueue = [...queue];
     const newIndex = direction === "up" ? index - 1 : index + 1;
     if (newIndex < 0 || newIndex >= queue.length) return;
@@ -273,7 +297,7 @@ export function SleeperPlayerPanel({
 
       {/* Tab Bar - Always visible */}
       <div className="flex border-b border-white/10 shrink-0">
-        {(["players", "queue", "team", "chat"] as TabType[]).map((tab) => (
+        {availableTabs.map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -417,20 +441,22 @@ export function SleeperPlayerPanel({
                           Draft
                         </button>
 
-                        {/* Queue Button */}
-                        <button
-                          onClick={() => handleAddToQueue(player)}
-                          disabled={inQueue}
-                          className={cn(
-                            "p-1.5 rounded-md transition-colors shrink-0",
-                            inQueue
-                              ? "bg-[#00d4aa]/20 text-[#00d4aa]"
-                              : "bg-white/10 text-white/50 hover:bg-white/20 hover:text-white"
-                          )}
-                          title={inQueue ? "In Queue" : "Add to Queue"}
-                        >
-                          <Plus className="w-4 h-4" />
-                        </button>
+                        {/* Queue Button - only show if queue feature is enabled */}
+                        {hasQueueFeature && (
+                          <button
+                            onClick={() => handleAddToQueue(player)}
+                            disabled={inQueue}
+                            className={cn(
+                              "p-1.5 rounded-md transition-colors shrink-0",
+                              inQueue
+                                ? "bg-[#00d4aa]/20 text-[#00d4aa]"
+                                : "bg-white/10 text-white/50 hover:bg-white/20 hover:text-white"
+                            )}
+                            title={inQueue ? "In Queue" : "Add to Queue"}
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        )}
 
                         {/* Player Info */}
                         <div className="flex-1 min-w-0">
@@ -466,22 +492,24 @@ export function SleeperPlayerPanel({
           )}
 
           {/* QUEUE TAB */}
-          {activeTab === "queue" && (
+          {activeTab === "queue" && hasQueueFeature && (
             <div className="flex-1 overflow-hidden flex flex-col min-h-0">
               {/* Auto-Draft from Queue Toggle */}
-              <div className="px-3 py-3 border-b border-white/10 shrink-0">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm font-medium text-white">Auto-Draft from Queue</div>
-                    <div className="text-xs text-white/50">Automatically pick top player from queue</div>
+              {onAutoPickFromQueueChange && (
+                <div className="px-3 py-3 border-b border-white/10 shrink-0">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-medium text-white">Auto-Draft from Queue</div>
+                      <div className="text-xs text-white/50">Automatically pick top player from queue</div>
+                    </div>
+                    <Switch
+                      checked={autoPickFromQueue}
+                      onCheckedChange={onAutoPickFromQueueChange}
+                      className="data-[state=checked]:bg-[#00d4aa]"
+                    />
                   </div>
-                  <Switch
-                    checked={autoPickFromQueue}
-                    onCheckedChange={onAutoPickFromQueueChange}
-                    className="data-[state=checked]:bg-[#00d4aa]"
-                  />
                 </div>
-              </div>
+              )}
 
               {/* Queue List */}
               <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5 min-h-0">
@@ -549,12 +577,14 @@ export function SleeperPlayerPanel({
                         </div>
 
                         {/* Remove Button */}
-                        <button
-                          onClick={() => onRemoveFromQueue(item.assetType, item.assetId)}
-                          className="p-1.5 rounded text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
+                        {onRemoveFromQueue && (
+                          <button
+                            onClick={() => onRemoveFromQueue(item.assetType, item.assetId)}
+                            className="p-1.5 rounded text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     );
                   })
