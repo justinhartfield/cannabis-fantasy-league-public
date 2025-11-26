@@ -109,11 +109,11 @@ export function ScoringPlayAnnouncement({
   if (!isVisible || !play || !config) return null;
 
   return (
-    <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] w-full max-w-lg px-4 animate-slide-in-top">
+    <div className="fixed top-4 sm:top-20 left-1/2 -translate-x-1/2 z-[100] w-full max-w-lg px-2 sm:px-4 animate-slide-in-top">
       <div 
         className={cn(
-          "relative overflow-hidden rounded-2xl border shadow-2xl",
-          "bg-gradient-to-r from-black/90 to-black/80 backdrop-blur-xl",
+          "relative overflow-hidden rounded-xl sm:rounded-2xl border shadow-2xl",
+          "bg-gradient-to-r from-black/95 to-black/90 backdrop-blur-xl",
           "border-white/20",
           isBigHit && "ring-2 ring-yellow-400/50 animate-pulse"
         )}
@@ -132,8 +132,40 @@ export function ScoringPlayAnnouncement({
           />
         </div>
 
-        {/* Content */}
-        <div className="relative p-4 sm:p-5">
+        {/* Mobile: Compact single-row layout */}
+        <div className="relative p-3 sm:hidden">
+          <div className="flex items-center gap-3">
+            {/* Icon */}
+            <div className={cn(
+              "w-8 h-8 rounded-full flex items-center justify-center shrink-0",
+              "bg-gradient-to-br from-white/20 to-white/5"
+            )}>
+              <Icon className={cn("w-4 h-4", config.color)} />
+            </div>
+            
+            {/* Player name - truncated */}
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-black text-white truncate">
+                {play.playerName}
+              </div>
+              <div className="text-xs text-white/50 truncate">
+                {play.attackingTeamName}
+              </div>
+            </div>
+
+            {/* Points - prominent */}
+            <div className={cn(
+              "text-2xl font-black tabular-nums shrink-0",
+              isBigHit ? "text-yellow-400" : "text-primary",
+              "drop-shadow-[0_0_8px_currentColor]"
+            )}>
+              +{play.pointsScored.toFixed(1)}
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop: Full layout */}
+        <div className="relative p-5 hidden sm:block">
           {/* Header with attack indicator */}
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
@@ -177,7 +209,7 @@ export function ScoringPlayAnnouncement({
             {/* Text content */}
             <div className="flex-1 min-w-0">
               {/* Player name */}
-              <div className="text-lg sm:text-xl font-black text-white truncate">
+              <div className="text-xl font-black text-white truncate">
                 {play.playerName}
               </div>
               
@@ -190,7 +222,7 @@ export function ScoringPlayAnnouncement({
             {/* Damage amount */}
             <div className="shrink-0 text-right">
               <div className={cn(
-                "text-3xl sm:text-4xl font-black tabular-nums",
+                "text-4xl font-black tabular-nums",
                 isBigHit ? "text-yellow-400" : "text-primary",
                 "drop-shadow-[0_0_10px_currentColor]"
               )}>

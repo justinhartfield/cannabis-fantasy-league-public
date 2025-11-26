@@ -68,6 +68,9 @@ export default function DailyChallenge() {
   const [currentScoringPlay, setCurrentScoringPlay] = useState<ScoringPlayData | null>(null);
   const scoringPlayQueueRef = useRef<ScoringPlayData[]>([]);
   const isPlayingRef = useRef(false);
+  const lastPlayedRef = useRef<ScoringPlayData | null>(null); // Track last played for repeat
+  const playRepeatCountRef = useRef(0); // Track how many times current play has shown (1 or 2)
+  const dripFeedTimerRef = useRef<NodeJS.Timeout | null>(null); // Timer for spacing out plays
   
   // Track previous scores for polling comparison
   const prevScoresRef = useRef<Map<number, number>>(new Map());
@@ -197,24 +200,91 @@ export default function DailyChallenge() {
     return team?.id;
   }, [league, user]);
 
-  // Function to play next scoring play from queue
+  // Function to play next scoring play from queue (each play shows twice for impact)
   const playNextScoringPlay = useCallback(() => {
+    // Check if we should repeat the last played animation
+    if (lastPlayedRef.current && playRepeatCountRef.current < 2) {
+      playRepeatCountRef.current++;
+      // Re-trigger the same play
+      setCurrentScoringPlay(null);
+      setTimeout(() => {
+        setCurrentScoringPlay(lastPlayedRef.current);
+      }, 100);
+      return;
+    }
+    
+    // Done with repeats, move to next play
     if (scoringPlayQueueRef.current.length === 0) {
       isPlayingRef.current = false;
+      lastPlayedRef.current = null;
+      playRepeatCountRef.current = 0;
       setCurrentScoringPlay(null);
       return;
     }
     
+    // Get next play from queue
     isPlayingRef.current = true;
     const nextPlay = scoringPlayQueueRef.current.shift()!;
+    lastPlayedRef.current = nextPlay;
+    playRepeatCountRef.current = 1; // First showing
     setCurrentScoringPlay(nextPlay);
   }, []);
 
+  // Queue plays with drip-feed timing (spaces them out over time)
+  const queueScoringPlaysWithDripFeed = useCallback((plays: ScoringPlayData[], spreadOverMinutes: number = 25) => {
+    if (plays.length === 0) return;
+    
+    // Clear any existing drip-feed timer
+    if (dripFeedTimerRef.current) {
+      clearInterval(dripFeedTimerRef.current);
+      dripFeedTimerRef.current = null;
+    }
+    
+    // Calculate interval between plays (in ms)
+    // Each play shows for ~10 sec (5 sec × 2 repeats), so account for that
+    const playDuration = 12000; // 12 seconds per play (5s × 2 + buffer)
+    const totalTimeMs = spreadOverMinutes * 60 * 1000;
+    const intervalBetweenPlays = Math.max(
+      playDuration + 5000, // Minimum: play duration + 5 sec gap
+      Math.floor(totalTimeMs / plays.length)
+    );
+    
+    console.log(`[DripFeed] Spacing ${plays.length} plays over ${spreadOverMinutes} min (${Math.round(intervalBetweenPlays / 1000)}s between each)`);
+    
+    // Add first play immediately
+    scoringPlayQueueRef.current.push(plays[0]);
+    if (!isPlayingRef.current) {
+      playNextScoringPlay();
+    }
+    
+    // Schedule remaining plays
+    if (plays.length > 1) {
+      let playIndex = 1;
+      dripFeedTimerRef.current = setInterval(() => {
+        if (playIndex < plays.length) {
+          console.log(`[DripFeed] Queuing play ${playIndex + 1}/${plays.length}`);
+          scoringPlayQueueRef.current.push(plays[playIndex]);
+          
+          // Start playing if not already
+          if (!isPlayingRef.current) {
+            playNextScoringPlay();
+          }
+          
+          playIndex++;
+        } else {
+          // All plays queued, clear timer
+          if (dripFeedTimerRef.current) {
+            clearInterval(dripFeedTimerRef.current);
+            dripFeedTimerRef.current = null;
+          }
+        }
+      }, intervalBetweenPlays);
+    }
+  }, [playNextScoringPlay]);
+
   // Handle scoring play completion (called when announcement finishes)
   const handleScoringPlayComplete = useCallback(() => {
-    // Clear current play and move to next
-    setCurrentScoringPlay(null);
-    // Small delay before next play for visual clarity
+    // Small delay before next play (or repeat) for visual clarity
     setTimeout(() => {
       playNextScoringPlay();
     }, 500);
@@ -516,10 +586,9 @@ export default function DailyChallenge() {
             }
           });
           
-          // Queue up detected scoring plays for animation
-          if (scoringPlays.length > 0 && !isPlayingRef.current) {
-            scoringPlayQueueRef.current = [...scoringPlayQueueRef.current, ...scoringPlays];
-            playNextScoringPlay();
+          // Queue up detected scoring plays with drip-feed timing (spread over 25 min)
+          if (scoringPlays.length > 0) {
+            queueScoringPlaysWithDripFeed(scoringPlays, 25);
           }
         }
       } catch (error) {
@@ -530,7 +599,16 @@ export default function DailyChallenge() {
     return () => {
       clearInterval(pollInterval);
     };
-  }, [league?.status, challengeId, refetchScores, sortedScores, playNextScoringPlay]);
+  }, [league?.status, challengeId, refetchScores, sortedScores, queueScoringPlaysWithDripFeed]);
+
+  // Cleanup drip-feed timer on unmount
+  useEffect(() => {
+    return () => {
+      if (dripFeedTimerRef.current) {
+        clearInterval(dripFeedTimerRef.current);
+      }
+    };
+  }, []);
 
   const leader = sortedScores[0];
   const challenger = sortedScores[1];
