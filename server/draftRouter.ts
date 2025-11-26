@@ -678,21 +678,27 @@ export const draftRouter = router({
         .limit(1);
 
       let assetName = "Unknown";
+      let assetImageUrl: string | null = null;
       if (input.assetType === "manufacturer") {
         const [mfg] = await db.select().from(manufacturers).where(eq(manufacturers.id, input.assetId)).limit(1);
         assetName = mfg?.name || "Unknown";
+        assetImageUrl = mfg?.logoUrl || null;
       } else if (input.assetType === "cannabis_strain") {
         const [strain] = await db.select().from(cannabisStrains).where(eq(cannabisStrains.id, input.assetId)).limit(1);
         assetName = strain?.name || "Unknown";
+        assetImageUrl = strain?.imageUrl || null;
       } else if (input.assetType === "product") {
         const [product] = await db.select().from(strains).where(eq(strains.id, input.assetId)).limit(1);
         assetName = product?.name || "Unknown";
+        assetImageUrl = product?.imageUrl || null;
       } else if (input.assetType === "pharmacy") {
         const [pharmacy] = await db.select().from(pharmacies).where(eq(pharmacies.id, input.assetId)).limit(1);
         assetName = pharmacy?.name || "Unknown";
+        assetImageUrl = pharmacy?.logoUrl || null;
       } else if (input.assetType === "brand") {
         const [brand] = await db.select().from(brands).where(eq(brands.id, input.assetId)).limit(1);
         assetName = brand?.name || "Unknown";
+        assetImageUrl = brand?.logoUrl || null;
       }
       logDraftTiming("makeDraftPick:loadMeta", {
         leagueId: input.leagueId,
@@ -733,6 +739,7 @@ export const draftRouter = router({
         assetId: input.assetId,
         assetName,
         pickNumber: draftPick,
+        imageUrl: assetImageUrl,
       });
 
       // Remove the drafted player from all wishlists in the league (graceful - doesn't break if table doesn't exist)

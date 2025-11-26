@@ -38,10 +38,10 @@ export default function Lineup() {
     { enabled: !!myTeam && !!league }
   );
 
-  // Fetch roster
+  // Fetch roster - use staleTime: 0 to ensure fresh data after drafting
   const { data: roster, isLoading: rosterLoading } = trpc.roster.getMyRoster.useQuery(
     { leagueId },
-    { enabled: !!id && isAuthenticated }
+    { enabled: !!id && isAuthenticated, staleTime: 0 }
   );
 
   // Fetch scoring breakdown

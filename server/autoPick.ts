@@ -71,7 +71,7 @@ export async function makeAutoPick(leagueId: number, teamId: number): Promise<vo
   const draftedIds = draftedAssets.map((r) => r.assetId);
 
   // Get best available player
-  let pickedAsset: { id: number; name: string } | null = null;
+  let pickedAsset: { id: number; name: string; imageUrl: string | null } | null = null;
 
   if (targetPosition === "manufacturer") {
     const available = await db
@@ -82,7 +82,7 @@ export async function makeAutoPick(leagueId: number, teamId: number): Promise<vo
       .limit(1);
 
     if (available.length > 0) {
-      pickedAsset = { id: available[0].id, name: available[0].name };
+      pickedAsset = { id: available[0].id, name: available[0].name, imageUrl: available[0].logoUrl || null };
     }
   } else if (targetPosition === "cannabis_strain") {
     const available = await db
@@ -93,7 +93,7 @@ export async function makeAutoPick(leagueId: number, teamId: number): Promise<vo
       .limit(1);
 
     if (available.length > 0) {
-      pickedAsset = { id: available[0].id, name: available[0].name };
+      pickedAsset = { id: available[0].id, name: available[0].name, imageUrl: available[0].imageUrl || null };
     }
   } else if (targetPosition === "product") {
     const available = await db
@@ -104,7 +104,7 @@ export async function makeAutoPick(leagueId: number, teamId: number): Promise<vo
       .limit(1);
 
     if (available.length > 0) {
-      pickedAsset = { id: available[0].id, name: available[0].name };
+      pickedAsset = { id: available[0].id, name: available[0].name, imageUrl: available[0].imageUrl || null };
     }
   } else if (targetPosition === "pharmacy") {
     const available = await db
@@ -115,7 +115,7 @@ export async function makeAutoPick(leagueId: number, teamId: number): Promise<vo
       .limit(1);
 
     if (available.length > 0) {
-      pickedAsset = { id: available[0].id, name: available[0].name };
+      pickedAsset = { id: available[0].id, name: available[0].name, imageUrl: available[0].logoUrl || null };
     }
   } else if (targetPosition === "brand") {
     const available = await db
@@ -126,7 +126,7 @@ export async function makeAutoPick(leagueId: number, teamId: number): Promise<vo
       .limit(1);
 
     if (available.length > 0) {
-      pickedAsset = { id: available[0].id, name: available[0].name };
+      pickedAsset = { id: available[0].id, name: available[0].name, imageUrl: available[0].logoUrl || null };
     }
   }
 
@@ -176,6 +176,7 @@ export async function makeAutoPick(leagueId: number, teamId: number): Promise<vo
     assetId: pickedAsset.id,
     assetName: pickedAsset.name,
     pickNumber: draftStatus[0]?.currentDraftPick || 0,
+    imageUrl: pickedAsset.imageUrl,
   });
 
   // Advance to next pick

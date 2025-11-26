@@ -287,10 +287,11 @@ export default function Draft() {
               assetType,
               assetId: message.assetId,
               name: message.assetName,
-              imageUrl: null // We might not have the image URL immediately, but that's okay
+              imageUrl: message.imageUrl || null // Use imageUrl from WebSocket if available
             }
           ]);
-          refetchRoster();
+          // Invalidate roster cache to fetch fresh data with proper imageUrls
+          utils.roster.getMyRoster.invalidate({ leagueId });
         } else if (opponentTeam && message.teamId === opponentTeam.id) {
           // Track opponent's pick for challenge leagues
           setOpponentDraftedAssets(prev => [
@@ -341,7 +342,8 @@ export default function Draft() {
       } else if (message.type === 'auto_pick') {
         toast.warning(`Auto-picked ${message.assetName} for ${message.teamName}`);
         if (message.teamId === myTeam?.id) {
-          refetchRoster();
+          // Invalidate roster cache to fetch fresh data with proper imageUrls
+          utils.roster.getMyRoster.invalidate({ leagueId });
         }
       } else if (message.type === 'auto_pick_enabled') {
         // Auto-pick has been enabled for a team (due to timer expiration)
@@ -443,6 +445,8 @@ export default function Draft() {
     onSuccess: (_data, variables) => {
       toast.success("Draft Pick erfolgreich!");
       invalidateAvailableByType(variables.assetType as AssetType);
+      // Invalidate roster query to ensure fresh data with imageUrls
+      utils.roster.getMyRoster.invalidate({ leagueId });
       // Refetch all draft picks for grid update
       if (isSeasonLeague) {
         utils.draft.getAllDraftPicks.invalidate();

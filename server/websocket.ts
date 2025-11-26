@@ -258,6 +258,7 @@ class WebSocketManager {
     assetId: number;
     assetName: string;
     pickNumber: number;
+    imageUrl?: string | null;
   }) {
     logDraftTiming("ws:player_picked", {
       leagueId,
