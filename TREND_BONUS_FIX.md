@@ -24,10 +24,10 @@ The trend bonus scoring system was awarding **5.0x multiplier to ALL entities wi
 Updated `server/trendMetricsFetcher.ts` to use saved Metabase questions/cards:
 
 ```typescript
-// Added card ID mappings
+// Added card ID mappings (Updated Nov 2025)
 const TREND_CARDS = {
-  MANUFACTURERS: 123,  // Table 123 - Manufacturer trends
-  PHARMACIES: 130,     // Table 130 - Pharmacy trends  
+  MANUFACTURERS: 1010, // Question 1010 - Manufacturer trends
+  PHARMACIES: 1251,    // Model 1251 - TrendMetricsPharmacy
   STRAINS: 1216,       // Question 1216 - Strain trends
   PRODUCTS: 1240,      // Question 1240 - Product trends
 };
@@ -101,8 +101,8 @@ if (trendData.trendMetrics === null) {
 ## Metabase Cards Used
 
 ### Trend Data (Order-based)
-- **Manufacturers**: Table 123
-- **Pharmacies**: Table 130
+- **Manufacturers**: [Question 1010](https://bi.weed.de/question/1010-manufacturer-trends)
+- **Pharmacies**: [Model 1251](https://bi.weed.de/model/1251-trendmetricspharmacy)
 - **Strains**: [Question 1216](https://bi.weed.de/question/1216-strain-trends)
 - **Products**: [Question 1240](https://bi.weed.de/question/1240-product-trends)
 

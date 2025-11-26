@@ -34,18 +34,32 @@ export const CHALLENGE_DRAFT_ORDER: DraftPosition[] = [
   "FLEX",         // Flex last
 ];
 
-// Position display labels
+// Position display labels - Cannabis Fantasy League roles
 export const POSITION_LABELS: Record<DraftPosition, string> = {
-  ST1: "Striker",
-  ST2: "Striker",
-  LW: "Left Wing",
-  RW: "Right Wing",
-  CM1: "Midfield",
-  CM2: "Midfield",
+  ST1: "Manufacturer",
+  ST2: "Manufacturer",
+  LW: "Pharmacy",
+  RW: "Pharmacy",
+  CM1: "Product",
+  CM2: "Product",
   FLEX: "Flex",
-  CB1: "Defense",
-  CB2: "Defense",
-  GK: "Keeper",
+  CB1: "Strain",
+  CB2: "Strain",
+  GK: "Brand",
+};
+
+// Short position codes for jersey display
+export const POSITION_CODES: Record<DraftPosition, string> = {
+  ST1: "MFG",
+  ST2: "MFG",
+  LW: "PHM",
+  RW: "PHM",
+  CM1: "PRD",
+  CM2: "PRD",
+  FLEX: "FLX",
+  CB1: "STR",
+  CB2: "STR",
+  GK: "BRD",
 };
 
 // Position colors matching the asset types
@@ -142,6 +156,7 @@ export function DraftFieldPlayer({
     : positionAssetType;
   const colors = POSITION_COLORS[assetType as AssetType | "flex"];
   const positionLabel = POSITION_LABELS[position];
+  const positionCode = POSITION_CODES[position];
   const roleLabel = position === "FLEX" && player?.assetType 
     ? ASSET_TYPE_LABELS[player.assetType] 
     : ASSET_TYPE_LABELS[assetType as AssetType | "flex"];
@@ -252,17 +267,17 @@ export function DraftFieldPlayer({
             strokeWidth="2"
           />
 
-          {/* Jersey number/pattern detail */}
+          {/* Jersey position code watermark */}
           {!player && (
             <text
               x="30"
-              y="45"
+              y="48"
               textAnchor="middle"
-              fontSize="16"
+              fontSize="12"
               fontWeight="bold"
               fill="rgba(255,255,255,0.15)"
             >
-              {position === "FLEX" ? "F" : position.replace(/[0-9]/g, "").slice(0, 2)}
+              {positionCode}
             </text>
           )}
 
@@ -305,18 +320,17 @@ export function DraftFieldPlayer({
             </>
           )}
 
-          {/* Position badge when empty */}
+          {/* Position code badge when empty */}
           {!player && (
             <text
               x="30"
-              y="32"
+              y="28"
               textAnchor="middle"
-              fontSize="9"
+              fontSize="10"
               fontWeight="bold"
               fill={colors.jersey}
-              className="uppercase"
             >
-              {positionLabel.slice(0, 4)}
+              {positionCode}
             </text>
           )}
         </svg>

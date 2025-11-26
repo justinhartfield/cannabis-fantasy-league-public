@@ -252,6 +252,26 @@ export default function Draft() {
         const assetType = message.assetType as AssetType;
         markAssetDrafted(assetType, message.assetId);
 
+        // Look up imageUrl from available players
+        let imageUrl: string | null = null;
+        switch (assetType) {
+          case 'manufacturer':
+            imageUrl = availableManufacturers.find(p => p.id === message.assetId)?.logoUrl || null;
+            break;
+          case 'pharmacy':
+            imageUrl = availablePharmacies.find(p => p.id === message.assetId)?.logoUrl || null;
+            break;
+          case 'brand':
+            imageUrl = availableBrands.find(p => p.id === message.assetId)?.logoUrl || null;
+            break;
+          case 'product':
+            imageUrl = availableProducts.find(p => p.id === message.assetId)?.imageUrl || null;
+            break;
+          case 'cannabis_strain':
+            imageUrl = availableCannabisStrains.find(p => p.id === message.assetId)?.imageUrl || null;
+            break;
+        }
+
         // Add to recent picks
         setRecentPicks(prev => [
           {
@@ -267,14 +287,14 @@ export default function Draft() {
         toast.success(`${message.teamName} drafted ${message.assetName}`);
 
         if (message.teamId === myTeam?.id) {
-          // Optimistically add to my roster
+          // Optimistically add to my roster with imageUrl
           setMyDraftedAssets(prev => [
             ...prev,
             {
               assetType,
               assetId: message.assetId,
               name: message.assetName,
-              imageUrl: null // We might not have the image URL immediately, but that's okay
+              imageUrl
             }
           ]);
           refetchRoster();
@@ -286,7 +306,7 @@ export default function Draft() {
               assetType,
               assetId: message.assetId,
               name: message.assetName,
-              imageUrl: null
+              imageUrl
             }
           ]);
         }

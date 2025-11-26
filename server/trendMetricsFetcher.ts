@@ -10,9 +10,13 @@ import { getDb } from './db';
 import { sql } from 'drizzle-orm';
 
 // Metabase card IDs for trend data
+// See: https://bi.weed.de/question/1010-manufacturer-trends
+//      https://bi.weed.de/model/1251-trendmetricspharmacy
+//      https://bi.weed.de/question/1216-strain-trends
+//      https://bi.weed.de/question/1240-product-trends
 const TREND_CARDS = {
-  MANUFACTURERS: 123, // Table 123 - Manufacturer trends
-  PHARMACIES: 130,     // Table 130 - Pharmacy trends  
+  MANUFACTURERS: 1010, // Question 1010 - Manufacturer trends
+  PHARMACIES: 1251,    // Model 1251 - TrendMetricsPharmacy
   STRAINS: 1216,       // Question 1216 - Strain trends
   PRODUCTS: 1240,      // Question 1240 - Product trends
 };
