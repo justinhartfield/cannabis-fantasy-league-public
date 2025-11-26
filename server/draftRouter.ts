@@ -184,6 +184,9 @@ export const draftRouter = router({
       // Build where conditions
       const conditions = [];
       
+      // Only include manufacturers with pharma products (exclude accessory brands)
+      conditions.push(sql`${manufacturers.productCount} > 0`);
+      
       if (draftedIds.length > 0) {
         conditions.push(notInArray(manufacturers.id, draftedIds));
       }
