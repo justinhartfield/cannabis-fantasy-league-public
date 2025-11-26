@@ -153,10 +153,19 @@ export function DraftFieldPlayer({
     lg: "w-[106px] h-[123px]",
   };
 
+  // Outer dimensions scale with size, but SVG viewBox coordinates stay fixed
   const jerseySizes = {
-    sm: { width: 53, height: 62, avatarSize: 22, avatarY: 31 },
-    md: { width: 66, height: 77, avatarSize: 29, avatarY: 37 },
-    lg: { width: 79, height: 92, avatarSize: 35, avatarY: 44 },
+    sm: { width: 53, height: 62 },
+    md: { width: 66, height: 77 },
+    lg: { width: 79, height: 92 },
+  };
+
+  // Fixed viewBox coordinates for avatar (viewBox is 60x70)
+  // Avatar positioned in upper-middle chest area of jersey
+  const avatarConfig = {
+    cx: 30,        // Center X in viewBox
+    cy: 32,        // Center Y in viewBox (upper chest area)
+    radius: 11,    // Avatar circle radius
   };
 
   const jerseySize = jerseySizes[size];
@@ -202,7 +211,7 @@ export function DraftFieldPlayer({
           {/* Definitions for clip path and gradients */}
           <defs>
             <clipPath id={`avatar-clip-${position}`}>
-              <circle cx="30" cy={jerseySize.avatarY} r={jerseySize.avatarSize / 2} />
+              <circle cx={avatarConfig.cx} cy={avatarConfig.cy} r={avatarConfig.radius} />
             </clipPath>
             <linearGradient id={`jersey-gradient-${position}`} x1="0%" y1="0%" x2="0%" y2="100%">
               <stop offset="0%" stopColor={player ? colors.jersey : "rgba(255,255,255,0.15)"} />
@@ -257,28 +266,42 @@ export function DraftFieldPlayer({
             </text>
           )}
 
-          {/* Player avatar embedded in jersey */}
-          {player?.imageUrl && (
+          {/* Player avatar embedded in jersey - always show for drafted players */}
+          {player && (
             <>
-              {/* Avatar background circle */}
+              {/* Avatar background circle with glow */}
               <circle
-                cx="30"
-                cy={jerseySize.avatarY}
-                r={jerseySize.avatarSize / 2 + 2}
-                fill="rgba(0,0,0,0.3)"
-                stroke="rgba(255,255,255,0.4)"
-                strokeWidth="1.5"
+                cx={avatarConfig.cx}
+                cy={avatarConfig.cy}
+                r={avatarConfig.radius + 2}
+                fill="rgba(0,0,0,0.5)"
+                stroke={colors.jersey}
+                strokeWidth="2"
               />
-              {/* Avatar image */}
-              <image
-                href={player.imageUrl}
-                x={30 - jerseySize.avatarSize / 2}
-                y={jerseySize.avatarY - jerseySize.avatarSize / 2}
-                width={jerseySize.avatarSize}
-                height={jerseySize.avatarSize}
-                clipPath={`url(#avatar-clip-${position})`}
-                preserveAspectRatio="xMidYMid slice"
-              />
+              {player.imageUrl ? (
+                /* Avatar image when available */
+                <image
+                  href={player.imageUrl}
+                  x={avatarConfig.cx - avatarConfig.radius}
+                  y={avatarConfig.cy - avatarConfig.radius}
+                  width={avatarConfig.radius * 2}
+                  height={avatarConfig.radius * 2}
+                  clipPath={`url(#avatar-clip-${position})`}
+                  preserveAspectRatio="xMidYMid slice"
+                />
+              ) : (
+                /* Fallback initials when no image */
+                <text
+                  x={avatarConfig.cx}
+                  y={avatarConfig.cy + 4}
+                  textAnchor="middle"
+                  fontSize="10"
+                  fontWeight="bold"
+                  fill="white"
+                >
+                  {player.name.slice(0, 2).toUpperCase()}
+                </text>
+              )}
             </>
           )}
 

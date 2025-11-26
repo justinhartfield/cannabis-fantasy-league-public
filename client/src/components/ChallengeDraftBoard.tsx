@@ -19,7 +19,7 @@ import {
   ASSET_TYPE_LABELS,
   type AssetType,
 } from "./DraftFieldPlayer";
-import { Search, Users, Building2, Leaf, Package, Tag, TrendingUp, SortAsc, Zap, Info } from "lucide-react";
+import { Search, Users, Building2, Leaf, Package, Tag, TrendingUp, SortAsc, Zap, Info, ChevronUp, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 
 interface RosterItem {
@@ -142,6 +142,8 @@ export function ChallengeDraftBoard({
 }: ChallengeDraftBoardProps) {
   const [selectedPosition, setSelectedPosition] = useState<AssetType | "all">("all");
   const [sortBy, setSortBy] = useState<"points" | "name">("points");
+  // Mobile: track if player panel is expanded (collapsed by default to show field)
+  const [isMobileExpanded, setIsMobileExpanded] = useState(false);
 
   // Convert rosters to field player maps
   const myFieldPlayers = useMemo(() => rosterToFieldPlayers(myRoster), [myRoster]);
@@ -404,11 +406,18 @@ export function ChallengeDraftBoard({
         </div>
       </div>
 
-      {/* Bottom Panel - Available Players (Expanded to fill remaining space) */}
-      <div className="flex-1 border-t border-white/10 bg-[#0f1015] flex flex-col min-h-0">
+      {/* Bottom Panel - Available Players (Expandable on mobile) */}
+      <div className={cn(
+        "border-t border-white/10 bg-[#0f1015] flex flex-col transition-all duration-300",
+        // Mobile: either collapsed (just header) or expanded (full height)
+        isMobileExpanded ? "flex-1 min-h-0" : "lg:flex-1 lg:min-h-0"
+      )}>
         <div className="max-w-3xl mx-auto w-full flex flex-col flex-1 min-h-0 px-3 py-3">
-          {/* Header Row */}
-          <div className="flex items-center justify-between mb-2">
+          {/* Header Row - Clickable on mobile to expand/collapse */}
+          <button
+            onClick={() => setIsMobileExpanded(!isMobileExpanded)}
+            className="flex items-center justify-between mb-2 w-full lg:cursor-default"
+          >
             <div className="flex items-center gap-2">
               <h3 className="text-xs font-semibold text-white/70 uppercase tracking-wider">Available Players</h3>
               {isMyTurn && (
@@ -416,12 +425,29 @@ export function ChallengeDraftBoard({
                   Your Pick
                 </span>
               )}
+              {/* Mobile expand indicator */}
+              <span className="lg:hidden flex items-center gap-1 text-[10px] text-white/40">
+                {isMobileExpanded ? (
+                  <>
+                    <ChevronDown className="w-3 h-3" />
+                    Collapse
+                  </>
+                ) : (
+                  <>
+                    <ChevronUp className="w-3 h-3" />
+                    Expand
+                  </>
+                )}
+              </span>
             </div>
             
-            {/* Sort Toggle */}
-            <div className="flex items-center gap-1">
+            {/* Sort Toggle - Only show when expanded on mobile, always on desktop */}
+            <div className={cn(
+              "flex items-center gap-1",
+              !isMobileExpanded && "hidden lg:flex"
+            )}>
               <button
-                onClick={() => setSortBy("points")}
+                onClick={(e) => { e.stopPropagation(); setSortBy("points"); }}
                 className={cn(
                   "flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors",
                   sortBy === "points"
@@ -433,7 +459,7 @@ export function ChallengeDraftBoard({
                 Points
               </button>
               <button
-                onClick={() => setSortBy("name")}
+                onClick={(e) => { e.stopPropagation(); setSortBy("name"); }}
                 className={cn(
                   "flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors",
                   sortBy === "name"
@@ -445,131 +471,141 @@ export function ChallengeDraftBoard({
                 A-Z
               </button>
             </div>
-          </div>
+          </button>
 
-          {/* Position Filter Pills */}
-          <div className="flex gap-1.5 mb-2 overflow-x-auto pb-1">
-            {POSITION_PILLS.map((pill) => {
-              const key = pill.key;
-              const isFull = key !== "all" && isPositionFull(key as AssetType);
-              return (
-                <button
-                  key={key}
-                  onClick={() => setSelectedPosition(key)}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-colors whitespace-nowrap",
-                    selectedPosition === key
-                      ? "bg-white text-black"
-                      : isFull
-                      ? "bg-white/5 text-white/20"
-                      : "bg-white/10 text-white/60 hover:bg-white/20"
-                  )}
-                >
-                  {pill.icon}
-                  <span>{pill.label}</span>
-                </button>
-              );
-            })}
-          </div>
+          {/* Content - Hidden on mobile when collapsed, always visible on desktop */}
+          <div className={cn(
+            "flex flex-col flex-1 min-h-0",
+            !isMobileExpanded && "hidden lg:flex"
+          )}>
+            {/* Position Filter Pills */}
+            <div className="flex gap-1.5 mb-2 overflow-x-auto pb-1">
+              {POSITION_PILLS.map((pill) => {
+                const key = pill.key;
+                const isFull = key !== "all" && isPositionFull(key as AssetType);
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setSelectedPosition(key)}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-colors whitespace-nowrap",
+                      selectedPosition === key
+                        ? "bg-white text-black"
+                        : isFull
+                        ? "bg-white/5 text-white/20"
+                        : "bg-white/10 text-white/60 hover:bg-white/20"
+                    )}
+                  >
+                    {pill.icon}
+                    <span>{pill.label}</span>
+                  </button>
+                );
+              })}
+            </div>
 
-          {/* Search */}
-          <div className="relative mb-3">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-            <Input
-              placeholder="Search players..."
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="pl-9 h-9 text-sm bg-white/5 border-white/10 text-white placeholder:text-white/30 rounded-lg"
-            />
-          </div>
+            {/* Search */}
+            <div className="relative mb-3">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+              <Input
+                placeholder="Search players..."
+                value={searchQuery}
+                onChange={(e) => onSearchChange(e.target.value)}
+                className="pl-9 h-9 text-sm bg-white/5 border-white/10 text-white placeholder:text-white/30 rounded-lg"
+              />
+            </div>
 
-          {/* Player List - Scrollable and fills remaining space */}
-          <ScrollArea className="flex-1 min-h-0">
-            <div className="space-y-1.5 pr-2 pb-4">
-              {isLoading ? (
-                <p className="text-sm text-white/30 text-center py-8">Loading players...</p>
-              ) : filteredPlayers.length === 0 ? (
-                <p className="text-sm text-white/30 text-center py-8">No players found</p>
-              ) : (
-                filteredPlayers.map((player) => {
-                  const colors = POSITION_COLORS[player.assetType];
-                  const isFull = isPositionFull(player.assetType);
-                  const yesterdayPts = player.yesterdayPoints ?? 0;
-                  const todayPts = player.todayPoints ?? 0;
+            {/* Player List - Scrollable and fills remaining space */}
+            <ScrollArea className={cn(
+              "flex-1 min-h-0",
+              // On mobile when expanded, use a fixed max height for better scrolling
+              isMobileExpanded && "max-h-[50vh] lg:max-h-none"
+            )}>
+              <div className="space-y-1.5 pr-2 pb-4">
+                {isLoading ? (
+                  <p className="text-sm text-white/30 text-center py-8">Loading players...</p>
+                ) : filteredPlayers.length === 0 ? (
+                  <p className="text-sm text-white/30 text-center py-8">No players found</p>
+                ) : (
+                  filteredPlayers.map((player) => {
+                    const colors = POSITION_COLORS[player.assetType];
+                    const isFull = isPositionFull(player.assetType);
+                    const yesterdayPts = player.yesterdayPoints ?? 0;
+                    const todayPts = player.todayPoints ?? 0;
 
-                  return (
-                    <div
-                      key={`${player.assetType}-${player.id}`}
-                      className={cn(
-                        "flex items-center gap-3 p-2.5 rounded-xl transition-all",
-                        isFull 
-                          ? "bg-white/[0.02] opacity-50" 
-                          : "bg-white/5 hover:bg-white/10"
-                      )}
-                    >
-                      {/* Draft Button */}
-                      <button
-                        onClick={() => handleDraft(player)}
-                        disabled={!isMyTurn || isFull}
+                    return (
+                      <div
+                        key={`${player.assetType}-${player.id}`}
                         className={cn(
-                          "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all shrink-0",
-                          !isMyTurn || isFull
-                            ? "bg-white/5 text-white/20 cursor-not-allowed"
-                            : "bg-[#cfff4d] text-black hover:bg-[#dfff6d] hover:scale-105"
+                          "flex items-center gap-3 p-2.5 rounded-xl transition-all",
+                          isFull 
+                            ? "bg-white/[0.02] opacity-50" 
+                            : "bg-white/5 hover:bg-white/10"
                         )}
                       >
-                        Draft
-                      </button>
-                      
-                      {/* Player Thumbnail */}
-                      <Avatar className="w-10 h-10 shrink-0 border-2" style={{ borderColor: colors.jersey }}>
-                        <AvatarImage src={player.imageUrl || ""} alt={player.name} />
-                        <AvatarFallback 
-                          className="text-xs font-bold"
-                          style={{ backgroundColor: `${colors.jersey}20`, color: colors.jersey }}
+                        {/* Draft Button */}
+                        <button
+                          onClick={() => handleDraft(player)}
+                          disabled={!isMyTurn || isFull}
+                          className={cn(
+                            "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all shrink-0",
+                            !isMyTurn || isFull
+                              ? "bg-white/5 text-white/20 cursor-not-allowed"
+                              : "bg-[#cfff4d] text-black hover:bg-[#dfff6d] hover:scale-105"
+                          )}
                         >
-                          {player.name.slice(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      
-                      {/* Player Info */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white truncate">{player.name}</p>
-                        <div className="flex items-center gap-1.5">
-                          <span 
-                            className="w-2 h-2 rounded-full" 
-                            style={{ backgroundColor: colors.jersey }} 
-                          />
-                          <span className="text-[10px] font-medium" style={{ color: colors.jersey }}>
-                            {ASSET_TYPE_LABELS[player.assetType]}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      {/* Yesterday's Points */}
-                      <div className="text-right shrink-0">
-                        <div className="flex items-baseline gap-1">
-                          <p className="text-base font-bold text-white">{yesterdayPts.toFixed(1)}</p>
-                          <p className="text-[9px] text-white/40 uppercase">pts</p>
-                        </div>
-                        <p className="text-[10px] text-white/40">Yesterday</p>
-                      </div>
-                      
-                      {/* Today's Points (if available) */}
-                      {todayPts > 0 && (
-                        <div className="text-right shrink-0 pl-2 border-l border-white/10">
-                          <div className="flex items-baseline gap-1">
-                            <p className="text-sm font-semibold text-[#cfff4d]">{todayPts.toFixed(1)}</p>
+                          Draft
+                        </button>
+                        
+                        {/* Player Thumbnail */}
+                        <Avatar className="w-10 h-10 shrink-0 border-2" style={{ borderColor: colors.jersey }}>
+                          <AvatarImage src={player.imageUrl || ""} alt={player.name} />
+                          <AvatarFallback 
+                            className="text-xs font-bold"
+                            style={{ backgroundColor: `${colors.jersey}20`, color: colors.jersey }}
+                          >
+                            {player.name.slice(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        
+                        {/* Player Info */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-white truncate">{player.name}</p>
+                          <div className="flex items-center gap-1.5">
+                            <span 
+                              className="w-2 h-2 rounded-full" 
+                              style={{ backgroundColor: colors.jersey }} 
+                            />
+                            <span className="text-[10px] font-medium" style={{ color: colors.jersey }}>
+                              {ASSET_TYPE_LABELS[player.assetType]}
+                            </span>
                           </div>
-                          <p className="text-[9px] text-white/40">Today</p>
                         </div>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </ScrollArea>
+                        
+                        {/* Yesterday's Points */}
+                        <div className="text-right shrink-0">
+                          <div className="flex items-baseline gap-1">
+                            <p className="text-base font-bold text-white">{yesterdayPts.toFixed(1)}</p>
+                            <p className="text-[9px] text-white/40 uppercase">pts</p>
+                          </div>
+                          <p className="text-[10px] text-white/40">Yesterday</p>
+                        </div>
+                        
+                        {/* Today's Points (if available) */}
+                        {todayPts > 0 && (
+                          <div className="text-right shrink-0 pl-2 border-l border-white/10">
+                            <div className="flex items-baseline gap-1">
+                              <p className="text-sm font-semibold text-[#cfff4d]">{todayPts.toFixed(1)}</p>
+                            </div>
+                            <p className="text-[9px] text-white/40">Today</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </ScrollArea>
+          </div>
         </div>
       </div>
     </div>
