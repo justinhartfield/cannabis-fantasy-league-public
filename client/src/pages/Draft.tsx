@@ -567,6 +567,8 @@ export default function Draft() {
 
     return () => {
       clearTimeout(timerId);
+      // Reset the flag when effect cleans up, so next auto-draft can proceed
+      autoDraftInProgressRef.current = false;
     };
   }, [
     autoDraftEnabled,
