@@ -489,7 +489,7 @@ export class MetabaseClient {
     try {
       console.log(`[Metabase] Executing public query ${publicUuid}...`);
 
-      const response = await axios.get(`${METABASE_URL} /api/public / card / ${publicUuid} /query/json`, {
+      const response = await axios.get(`${METABASE_URL.trim()}/api/public/card/${publicUuid}/query/json`, {
         timeout: 60000,
       });
 
