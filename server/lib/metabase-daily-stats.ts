@@ -5,7 +5,7 @@
 
 import axios, { AxiosInstance } from 'axios';
 
-const METABASE_URL = process.env.METABASE_URL || 'https://bi.weed.de';
+const METABASE_URL = (process.env.METABASE_URL || 'https://bi.weed.de').trim();
 const METABASE_API_KEY = process.env.METABASE_API_KEY;
 const ORDERS_CARD_ID = 1264; // "Orders by day full detail" card
 

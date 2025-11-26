@@ -8,7 +8,7 @@
 import axios, { AxiosInstance } from 'axios';
 
 // Metabase configuration from environment variables
-const METABASE_URL = process.env.METABASE_URL || 'https://bi.weed.de';
+const METABASE_URL = (process.env.METABASE_URL || 'https://bi.weed.de').trim();
 const METABASE_API_KEY = process.env.METABASE_API_KEY || '';
 
 // Table IDs from weed.de Metabase

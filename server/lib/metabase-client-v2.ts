@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const METABASE_URL = process.env.METABASE_URL || 'https://bi.weed.de';
+const METABASE_URL = (process.env.METABASE_URL || 'https://bi.weed.de').trim();
 const METABASE_API_KEY = process.env.METABASE_API_KEY || 'mb_v2XR/W+F1+svoeobEorso52tVPk0qeNOHkjgtcNLqTU=';
 
 // Card IDs for today's data

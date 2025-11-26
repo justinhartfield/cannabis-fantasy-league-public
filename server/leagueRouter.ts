@@ -26,6 +26,99 @@ function generateLeagueCode(): string {
 
 export const leagueRouter = router({
   /**
+   * Get public challenge info (no auth required)
+   * Used for the challenge invite landing page
+   */
+  getPublicChallengeInfo: publicProcedure
+    .input(z.object({ challengeId: z.number() }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Database not available",
+        });
+      }
+
+      try {
+        // Get challenge basic info
+        const [challenge] = await db
+          .select({
+            id: leagues.id,
+            name: leagues.name,
+            status: leagues.status,
+            leagueType: leagues.leagueType,
+            leagueCode: leagues.leagueCode,
+            createdAt: leagues.createdAt,
+            commissionerUserId: leagues.commissionerUserId,
+            teamCount: leagues.teamCount,
+          })
+          .from(leagues)
+          .where(eq(leagues.id, input.challengeId))
+          .limit(1);
+
+        if (!challenge) {
+          return null;
+        }
+
+        // Only return info for challenges, not season leagues
+        if (challenge.leagueType !== 'challenge') {
+          return null;
+        }
+
+        // Get commissioner info
+        const [commissioner] = await db
+          .select({
+            id: users.id,
+            name: users.name,
+            avatarUrl: users.avatarUrl,
+          })
+          .from(users)
+          .where(eq(users.id, challenge.commissionerUserId))
+          .limit(1);
+
+        // Get existing teams with their fighter illustrations
+        const challengeTeams = await db
+          .select({
+            id: teams.id,
+            name: teams.name,
+            fighterIllustration: teams.fighterIllustration,
+            userId: teams.userId,
+            userName: users.name,
+            userAvatarUrl: users.avatarUrl,
+          })
+          .from(teams)
+          .leftJoin(users, eq(teams.userId, users.id))
+          .where(eq(teams.leagueId, input.challengeId));
+
+        return {
+          id: challenge.id,
+          name: challenge.name,
+          status: challenge.status,
+          leagueCode: challenge.leagueCode,
+          createdAt: challenge.createdAt,
+          maxTeams: challenge.teamCount,
+          currentTeamCount: challengeTeams.length,
+          commissioner: commissioner ? {
+            id: commissioner.id,
+            name: commissioner.name,
+            avatarUrl: commissioner.avatarUrl,
+          } : null,
+          teams: challengeTeams.map(t => ({
+            id: t.id,
+            name: t.name,
+            fighterIllustration: t.fighterIllustration,
+            userName: t.userName,
+            userAvatarUrl: t.userAvatarUrl,
+          })),
+        };
+      } catch (error) {
+        console.error("[LeagueRouter] Error fetching public challenge info:", error);
+        return null;
+      }
+    }),
+
+  /**
    * Create a new league
    */
   create: protectedProcedure
@@ -86,12 +179,11 @@ export const leagueRouter = router({
             draftDate: input.draftDate ? new Date(input.draftDate) : null,
             scoringType: input.scoringSystem === "standard" ? "standard" : "custom",
             playoffTeams: input.playoffTeams,
-            playoffStartWeek: input.seasonLength + 1,
+            playoffStartWeek: playoffStartWeek,
             seasonYear: currentYear,
             leagueCode: leagueCode,
             leagueType: input.leagueType,
             isPublic: input.isPublic,
-            playoffStartWeek: playoffStartWeek,
           })
           .returning({ id: leagues.id });
 
