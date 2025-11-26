@@ -112,6 +112,19 @@ export default function Draft() {
     { enabled: !!id && isAuthenticated }
   );
 
+  // Fetch auto-pick status for our team
+  const { data: autoPickStatus } = trpc.draft.getAutoPickStatus.useQuery(
+    { teamId: myTeam?.id ?? 0 },
+    { enabled: !!myTeam?.id && isAuthenticated }
+  );
+
+  // Sync server auto-pick status with local state on load
+  useEffect(() => {
+    if (autoPickStatus?.autoPickEnabled !== undefined) {
+      setAutoDraftEnabled(autoPickStatus.autoPickEnabled);
+    }
+  }, [autoPickStatus?.autoPickEnabled]);
+
   const { data: roster = [], isLoading: rosterLoading, refetch: refetchRoster } = trpc.roster.getMyRoster.useQuery(
     { leagueId },
     { enabled: !!id && isAuthenticated }
@@ -327,6 +340,25 @@ export default function Draft() {
         if (message.teamId === myTeam?.id) {
           refetchRoster();
         }
+      } else if (message.type === 'auto_pick_enabled') {
+        // Auto-pick has been enabled for a team (due to timer expiration)
+        if (message.teamId === myTeam?.id) {
+          // It's our team - enable auto-draft locally and show warning
+          setAutoDraftEnabled(true);
+          toast.warning(
+            "⚠️ Auto-Pick aktiviert! Dein Timer ist abgelaufen. Auto-Pick bleibt für den Rest des Drafts aktiv.",
+            { duration: 8000 }
+          );
+        } else {
+          // Another team has auto-pick enabled
+          toast.info(`${message.teamName} hat jetzt Auto-Pick aktiviert (Timer abgelaufen)`);
+        }
+      } else if (message.type === 'auto_pick_disabled') {
+        // Auto-pick has been manually disabled for a team
+        if (message.teamId === myTeam?.id) {
+          setAutoDraftEnabled(false);
+          toast.success("Auto-Pick deaktiviert.");
+        }
       }
     },
     onConnect: () => {
@@ -362,6 +394,25 @@ export default function Draft() {
       }
     },
   });
+
+  // Mutation to persist auto-pick status to server
+  const setAutoPickStatusMutation = trpc.draft.setAutoPickStatus.useMutation({
+    onError: (error) => {
+      console.error("Failed to update auto-pick status:", error);
+      toast.error("Fehler beim Ändern des Auto-Pick Status");
+    },
+  });
+
+  // Handler for auto-draft toggle that persists to server
+  const handleAutoDraftChange = useCallback((enabled: boolean) => {
+    setAutoDraftEnabled(enabled);
+    if (myTeam?.id) {
+      setAutoPickStatusMutation.mutate({
+        teamId: myTeam.id,
+        enabled,
+      });
+    }
+  }, [myTeam?.id, setAutoPickStatusMutation]);
 
   const utils = trpc.useUtils();
 
@@ -722,7 +773,7 @@ export default function Draft() {
           isOpen={showSettings}
           onClose={() => setShowSettings(false)}
           autoDraftEnabled={autoDraftEnabled}
-          onAutoDraftChange={setAutoDraftEnabled}
+          onAutoDraftChange={handleAutoDraftChange}
         />
 
         {/* Header */}
@@ -852,7 +903,7 @@ export default function Draft() {
         isLoading={false}
         draftedAssets={draftedAssets}
         autoDraftEnabled={autoDraftEnabled}
-        onAutoDraftChange={setAutoDraftEnabled}
+        onAutoDraftChange={handleAutoDraftChange}
         timerSeconds={timerSeconds}
       />
     </div>

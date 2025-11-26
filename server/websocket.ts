@@ -363,9 +363,43 @@ class WebSocketManager {
   notifyAutoPick(leagueId: number, data: {
     teamId: number;
     pickNumber: number;
+    assetName?: string;
+    teamName?: string;
   }) {
     this.broadcastToDraftRoom(leagueId, {
       type: 'auto_pick',
+      ...data,
+      timestamp: Date.now(),
+    });
+  }
+
+  /**
+   * Notify when auto-pick is enabled for a team (due to timer expiration)
+   */
+  notifyAutoPickEnabled(leagueId: number, data: {
+    teamId: number;
+    teamName: string;
+    reason: 'timer_expired';
+  }) {
+    this.broadcastToDraftRoom(leagueId, {
+      type: 'auto_pick_enabled',
+      ...data,
+      timestamp: Date.now(),
+    });
+  }
+
+  /**
+   * Notify when wishlist player is drafted (for auto-pick from queue feature)
+   */
+  notifyWishlistPlayerDrafted(leagueId: number, data: {
+    assetType: string;
+    assetId: number;
+    assetName: string;
+    draftedByTeamId: number;
+    draftedByTeamName: string;
+  }) {
+    this.broadcastToDraftRoom(leagueId, {
+      type: 'wishlist_player_drafted',
       ...data,
       timestamp: Date.now(),
     });

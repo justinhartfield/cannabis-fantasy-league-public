@@ -1,6 +1,6 @@
 import { wsManager } from "./websocket";
 import { getDb } from "./db";
-import { leagues } from "../drizzle/schema";
+import { leagues, teams } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { calculateNextPick } from "./draftLogic";
 
@@ -26,6 +26,7 @@ class DraftTimerManager {
 
   /**
    * Start timer for current pick
+   * If the current team has auto-pick enabled, immediately auto-pick instead of starting timer
    */
   async startTimer(leagueId: number): Promise<void> {
     // Clear any existing timer for this league
@@ -46,6 +47,26 @@ class DraftTimerManager {
     }
 
     const nextPick = await calculateNextPick(leagueId);
+    
+    // Check if this team has auto-pick enabled
+    const [team] = await db
+      .select()
+      .from(teams)
+      .where(eq(teams.id, nextPick.teamId))
+      .limit(1);
+
+    if (team && team.autoPickEnabled === 1) {
+      // Team has auto-pick enabled, immediately make the pick
+      console.log(`[DraftTimer] Team ${nextPick.teamId} (${team.name}) has auto-pick enabled - skipping timer and auto-picking`);
+      
+      // Small delay to prevent race conditions and allow UI to update
+      setTimeout(async () => {
+        await this.handleTimeExpired(leagueId, nextPick.teamId);
+      }, 1500); // 1.5 second delay so users can see the pick happening
+      
+      return;
+    }
+
     const timeLimit = league.draftPickTimeLimit || 90;
     const startTime = Date.now();
 
@@ -104,20 +125,48 @@ class DraftTimerManager {
   }
 
   /**
-   * Handle timer expiration - auto-pick a player
+   * Handle timer expiration - enable auto-pick for the team and auto-pick a player
    */
   private async handleTimeExpired(leagueId: number, teamId: number): Promise<void> {
     try {
       // Import here to avoid circular dependency
       const { makeAutoPick } = await import("./autoPick");
       
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      // Get team details
+      const [team] = await db
+        .select()
+        .from(teams)
+        .where(eq(teams.id, teamId))
+        .limit(1);
+
+      if (!team) {
+        throw new Error(`Team ${teamId} not found`);
+      }
+
+      // Enable auto-pick for this team (persists for rest of draft)
+      // Only enable if not already enabled
+      if (team.autoPickEnabled !== 1) {
+        await db
+          .update(teams)
+          .set({ autoPickEnabled: 1, updatedAt: new Date().toISOString() })
+          .where(eq(teams.id, teamId));
+
+        console.log(`[DraftTimer] Auto-pick ENABLED for team ${teamId} (${team.name}) in league ${leagueId} due to timer expiration`);
+
+        // Notify all clients that auto-pick has been enabled for this team
+        wsManager.notifyAutoPickEnabled(leagueId, {
+          teamId,
+          teamName: team.name,
+          reason: 'timer_expired',
+        });
+      }
+      
       console.log(`[DraftTimer] Auto-picking for team ${teamId} in league ${leagueId}`);
       
       await makeAutoPick(leagueId, teamId);
-
-      // Check if draft is complete
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
       
       const [league] = await db
         .select()

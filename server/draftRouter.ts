@@ -202,6 +202,8 @@ export const draftRouter = router({
       }
 
       const available = await query.limit(input.limit);
+      console.log('[getAvailableManufacturers] Query returned:', available.length, 'manufacturers');
+      
       const { todayStatDate, yesterdayStatDate } = getDailyChallengeStatDates();
       const manufacturerIds = available.map((mfg) => mfg.id);
       const { todayMap, yesterdayMap } = await getDailyChallengePoints(db, {
@@ -212,7 +214,7 @@ export const draftRouter = router({
         yesterdayStatDate,
       });
 
-      return available.map((mfg) => ({
+      const result = available.map((mfg) => ({
         id: mfg.id,
         name: mfg.name,
         productCount: mfg.productCount || 0,
@@ -221,8 +223,15 @@ export const draftRouter = router({
         yesterdayPoints: yesterdayMap.get(mfg.id) ?? null,
         todayStatDate,
         yesterdayStatDate,
-        // TODO: Add more stats
       }));
+      
+      console.log('[getAvailableManufacturers] Sample data:', result.slice(0, 3).map(m => ({ 
+        name: m.name, 
+        yesterdayPoints: m.yesterdayPoints, 
+        todayPoints: m.todayPoints 
+      })));
+      
+      return result;
     }),
 
   /**
@@ -833,6 +842,15 @@ export const draftRouter = router({
         throw new Error("Need at least 2 teams to start draft");
       }
 
+      // Reset auto-pick status for all teams before starting draft
+      await db
+        .update(teams)
+        .set({
+          autoPickEnabled: 0,
+          updatedAt: new Date().toISOString(),
+        })
+        .where(eq(teams.leagueId, input.leagueId));
+
       // Update league status
       await db
         .update(leagues)
@@ -1191,5 +1209,115 @@ export const draftRouter = router({
       }));
 
       return enrichedPicks;
+    }),
+
+  /**
+   * Get auto-pick status for a team
+   */
+  getAutoPickStatus: protectedProcedure
+    .input(z.object({ teamId: z.number() }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      const [team] = await db
+        .select({ autoPickEnabled: teams.autoPickEnabled })
+        .from(teams)
+        .where(eq(teams.id, input.teamId))
+        .limit(1);
+
+      if (!team) {
+        throw new Error("Team not found");
+      }
+
+      return { autoPickEnabled: team.autoPickEnabled === 1 };
+    }),
+
+  /**
+   * Toggle auto-pick status for a team (user can manually enable/disable)
+   */
+  setAutoPickStatus: protectedProcedure
+    .input(z.object({
+      teamId: z.number(),
+      enabled: z.boolean(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      // Verify user owns this team
+      const [team] = await db
+        .select()
+        .from(teams)
+        .where(eq(teams.id, input.teamId))
+        .limit(1);
+
+      if (!team) {
+        throw new Error("Team not found");
+      }
+
+      if (team.userId !== ctx.user.id) {
+        throw new Error("You can only modify your own team's auto-pick settings");
+      }
+
+      // Update auto-pick status
+      await db
+        .update(teams)
+        .set({
+          autoPickEnabled: input.enabled ? 1 : 0,
+          updatedAt: new Date().toISOString(),
+        })
+        .where(eq(teams.id, input.teamId));
+
+      console.log(`[Draft] Auto-pick ${input.enabled ? 'enabled' : 'disabled'} for team ${input.teamId} by user ${ctx.user.id}`);
+
+      // Notify other clients in the draft room
+      wsManager.broadcastToDraftRoom(team.leagueId, {
+        type: input.enabled ? 'auto_pick_enabled' : 'auto_pick_disabled',
+        teamId: input.teamId,
+        teamName: team.name,
+        reason: 'manual',
+        timestamp: Date.now(),
+      });
+
+      return { success: true, autoPickEnabled: input.enabled };
+    }),
+
+  /**
+   * Reset all teams' auto-pick status for a league (used when starting a new draft)
+   */
+  resetAutoPickStatus: protectedProcedure
+    .input(z.object({ leagueId: z.number() }))
+    .mutation(async ({ input, ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      // Verify user is commissioner
+      const [league] = await db
+        .select()
+        .from(leagues)
+        .where(eq(leagues.id, input.leagueId))
+        .limit(1);
+
+      if (!league) {
+        throw new Error("League not found");
+      }
+
+      if (league.commissionerUserId !== ctx.user.id) {
+        throw new Error("Only the commissioner can reset auto-pick status");
+      }
+
+      // Reset auto-pick for all teams in the league
+      await db
+        .update(teams)
+        .set({
+          autoPickEnabled: 0,
+          updatedAt: new Date().toISOString(),
+        })
+        .where(eq(teams.leagueId, input.leagueId));
+
+      console.log(`[Draft] Auto-pick status reset for all teams in league ${input.leagueId}`);
+
+      return { success: true };
     }),
 });
