@@ -127,18 +127,53 @@ export default function DraftBoard({
     flex: Math.max(0, 1 - (myRoster.length - (rosterCounts.manufacturer + rosterCounts.cannabis_strain + rosterCounts.product + rosterCounts.pharmacy + rosterCounts.brand))),
   };
 
-  // Hard limits per position type - max 2 of each (prevents over-drafting even with flex)
-  const positionLimits = {
+  // Base position limits (not including flex)
+  const positionLimits: Record<AssetType, number> = {
     manufacturer: 2,
     cannabis_strain: 2,
     product: 2,
     pharmacy: 2,
+    brand: 1,
+  };
+
+  // Max with flex slot (base + 1)
+  const positionMaxWithFlex: Record<AssetType, number> = {
+    manufacturer: 3,
+    cannabis_strain: 3,
+    product: 3,
+    pharmacy: 3,
     brand: 2,
   };
 
-  // Check if a position type has reached its max limit
+  // Calculate total roster size
+  const totalRosterSize = Object.values(rosterCounts).reduce((a, b) => a + b, 0);
+
+  // Check if FLEX slot is filled
+  const isFlexFilled = (() => {
+    const baseSlotsFilled = Object.entries(rosterCounts).reduce((sum, [type, count]) => {
+      return sum + Math.min(count, positionLimits[type as AssetType]);
+    }, 0);
+    return totalRosterSize > baseSlotsFilled;
+  })();
+
+  // Check if a position type has reached its max limit (accounts for FLEX)
   const isPositionFull = (assetType: AssetType): boolean => {
-    return rosterCounts[assetType] >= positionLimits[assetType];
+    const currentCount = rosterCounts[assetType];
+    const baseLimit = positionLimits[assetType];
+    const maxWithFlex = positionMaxWithFlex[assetType];
+    
+    // If under base limit, not full
+    if (currentCount < baseLimit) {
+      return false;
+    }
+    
+    // If at base limit, can use FLEX if not already filled
+    if (currentCount === baseLimit && !isFlexFilled) {
+      return false;
+    }
+    
+    // At or above max with flex
+    return currentCount >= maxWithFlex || isFlexFilled;
   };
 
   // Sorting helper function
@@ -177,13 +212,14 @@ export default function DraftBoard({
       return;
     }
 
-    // Check if position limit is reached (max 2 of each type)
+    // Check if position limit is reached (accounts for flex)
     if (isPositionFull(assetType)) {
       const positionLabel = assetType === 'manufacturer' ? 'Hersteller' :
                            assetType === 'cannabis_strain' ? 'Strains' :
                            assetType === 'product' ? 'Produkte' :
                            assetType === 'pharmacy' ? 'Apotheken' : 'Brands';
-      toast.error(`Du hast bereits 2 ${positionLabel}. Maximum erreicht!`);
+      const maxCount = positionMaxWithFlex[assetType];
+      toast.error(`Maximum ${maxCount} ${positionLabel} erreicht (inkl. Flex)!`);
       return;
     }
 

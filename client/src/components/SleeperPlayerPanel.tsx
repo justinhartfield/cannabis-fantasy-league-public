@@ -80,6 +80,15 @@ const POSITION_LIMITS: Record<AssetType, number> = {
   brand: 1,
 };
 
+// Max allowed per position including flex (base + 1)
+const POSITION_MAX_WITH_FLEX: Record<AssetType, number> = {
+  manufacturer: 3,
+  cannabis_strain: 3,
+  product: 3,
+  pharmacy: 3,
+  brand: 2,
+};
+
 // Total slots including flex
 const TOTAL_ROSTER_SLOTS = 10; // 9 regular + 1 flex
 
@@ -183,12 +192,18 @@ export function SleeperPlayerPanel({
   // Check if flex slot is available (total roster < 10 means flex is open)
   const isFlexAvailable = totalRosterCount < TOTAL_ROSTER_SLOTS;
   
-  // Check if position is full (considering flex)
+  // Check if position is full (considering flex and max limits)
   // A position can still accept a player if:
-  // 1. Regular slots for that position are not full, OR
-  // 2. Flex slot is available
+  // 1. Under the absolute max (base + 1 for flex), AND
+  // 2. Either regular slots are not full, OR flex is available
   const isPositionFull = (assetType: AssetType) => {
-    const regularFull = rosterCounts[assetType] >= POSITION_LIMITS[assetType];
+    const currentCount = rosterCounts[assetType];
+    const maxWithFlex = POSITION_MAX_WITH_FLEX[assetType];
+    
+    // Hard cap: can never exceed max with flex
+    if (currentCount >= maxWithFlex) return true;
+    
+    const regularFull = currentCount >= POSITION_LIMITS[assetType];
     // If regular is not full, position is open
     if (!regularFull) return false;
     // If regular is full, check if flex is still available
