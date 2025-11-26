@@ -233,6 +233,15 @@ export function ChallengeDraftBoard({
 
   // Filter and sort players
   const filteredPlayers = useMemo(() => {
+    // Sort by points (descending) helper
+    const sortByPoints = <T extends AvailablePlayer>(arr: T[]): T[] => {
+      return [...arr].sort((a, b) => {
+        const pointsA = a.yesterdayPoints ?? a.todayPoints ?? 0;
+        const pointsB = b.yesterdayPoints ?? b.todayPoints ?? 0;
+        return pointsB - pointsA;
+      });
+    };
+
     const filterAndMap = (players: AvailablePlayer[], assetType: AssetType) => {
       return players
         .filter((p) => !isAssetDrafted(assetType, p.id))
@@ -242,12 +251,13 @@ export function ChallengeDraftBoard({
     let result: (AvailablePlayer & { assetType: AssetType })[] = [];
 
     if (selectedPosition === "all") {
+      // Sort each category by points BEFORE slicing to get top performers
       result = [
-        ...filterAndMap(manufacturers.slice(0, 10), "manufacturer"),
-        ...filterAndMap(pharmacies.slice(0, 10), "pharmacy"),
-        ...filterAndMap(products.slice(0, 10), "product"),
-        ...filterAndMap(cannabisStrains.slice(0, 10), "cannabis_strain"),
-        ...filterAndMap(brands.slice(0, 5), "brand"),
+        ...filterAndMap(sortByPoints(manufacturers).slice(0, 10), "manufacturer"),
+        ...filterAndMap(sortByPoints(pharmacies).slice(0, 10), "pharmacy"),
+        ...filterAndMap(sortByPoints(products).slice(0, 10), "product"),
+        ...filterAndMap(sortByPoints(cannabisStrains).slice(0, 10), "cannabis_strain"),
+        ...filterAndMap(sortByPoints(brands).slice(0, 5), "brand"),
       ];
     } else {
       switch (selectedPosition) {
@@ -259,7 +269,7 @@ export function ChallengeDraftBoard({
       }
     }
 
-    // Sort results
+    // Sort combined results
     if (sortBy === "points") {
       result.sort((a, b) => {
         const pointsA = a.yesterdayPoints ?? a.todayPoints ?? 0;
