@@ -12,6 +12,7 @@ import { SleeperDraftHeader } from "@/components/SleeperDraftHeader";
 import { SleeperDraftGrid } from "@/components/SleeperDraftGrid";
 import { SleeperPlayerPanel } from "@/components/SleeperPlayerPanel";
 import { SleeperDraftSettings } from "@/components/SleeperDraftSettings";
+import { ChallengeDraftBoard } from "@/components/ChallengeDraftBoard";
 import { toast } from "sonner";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
@@ -47,8 +48,17 @@ export default function Draft() {
 
   // Sleeper-style state
   const [showSettings, setShowSettings] = useState(false);
-  const [playerPanelTab, setPlayerPanelTab] = useState<"players" | "team">("players");
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Queue state for draft queue feature
+  type QueuedPlayer = {
+    assetType: AssetType;
+    assetId: number;
+    name: string;
+    points: number;
+  };
+  const [draftQueue, setDraftQueue] = useState<QueuedPlayer[]>([]);
+  const [autoPickFromQueue, setAutoPickFromQueue] = useState(false);
 
   // Optimistic tracking of my drafted assets
   const [myDraftedAssets, setMyDraftedAssets] = useState<Array<{
@@ -109,31 +119,32 @@ export default function Draft() {
 
   // Determine if this is a season league (for Sleeper-style) or challenge (existing style)
   const isSeasonLeague = league?.leagueType === "season";
+  const isChallengeLeague = league?.leagueType === "challenge";
 
-  // Fetch available players for auto-draft (only when auto-draft is enabled)
+  // Fetch available players (enabled for challenge leagues, auto-draft, or season leagues)
   const { data: availableManufacturers = [] } = trpc.draft.getAvailableManufacturers.useQuery(
     { leagueId, limit: 200, search: searchQuery || undefined },
-    { enabled: !!id && isAuthenticated && (autoDraftEnabled || isSeasonLeague) }
+    { enabled: !!id && isAuthenticated && (autoDraftEnabled || isSeasonLeague || isChallengeLeague) }
   );
 
   const { data: availableCannabisStrains = [] } = trpc.draft.getAvailableCannabisStrains.useQuery(
     { leagueId, limit: 200, search: searchQuery || undefined },
-    { enabled: !!id && isAuthenticated && (autoDraftEnabled || isSeasonLeague) }
+    { enabled: !!id && isAuthenticated && (autoDraftEnabled || isSeasonLeague || isChallengeLeague) }
   );
 
   const { data: availableProducts = [] } = trpc.draft.getAvailableProducts.useQuery(
     { leagueId, limit: 200, search: searchQuery || undefined },
-    { enabled: !!id && isAuthenticated && (autoDraftEnabled || isSeasonLeague) }
+    { enabled: !!id && isAuthenticated && (autoDraftEnabled || isSeasonLeague || isChallengeLeague) }
   );
 
   const { data: availablePharmacies = [] } = trpc.draft.getAvailablePharmacies.useQuery(
     { leagueId, limit: 200, search: searchQuery || undefined },
-    { enabled: !!id && isAuthenticated && (autoDraftEnabled || isSeasonLeague) }
+    { enabled: !!id && isAuthenticated && (autoDraftEnabled || isSeasonLeague || isChallengeLeague) }
   );
 
   const { data: availableBrands = [] } = trpc.draft.getAvailableBrands.useQuery(
     { leagueId, limit: 200, search: searchQuery || undefined },
-    { enabled: !!id && isAuthenticated && (autoDraftEnabled || isSeasonLeague) }
+    { enabled: !!id && isAuthenticated && (autoDraftEnabled || isSeasonLeague || isChallengeLeague) }
   );
 
   // Fetch all draft picks for the grid (season leagues only)
@@ -144,6 +155,45 @@ export default function Draft() {
     { leagueId, year: currentYear, week: currentWeek, includeStats: false },
     { enabled: !!id && isAuthenticated && isSeasonLeague }
   );
+
+  // For challenge leagues: derive opponent team from league teams
+  const opponentTeam = useMemo(() => {
+    if (!isChallengeLeague || !league?.teams || !myTeam) return null;
+    const teams = league.teams as Array<{ id: number; name: string; userId?: number; userName?: string | null }>;
+    return teams.find(t => t.id !== myTeam.id) || null;
+  }, [isChallengeLeague, league?.teams, myTeam]);
+
+  // Fetch opponent roster for challenge leagues
+  const { data: opponentRoster = [] } = trpc.roster.getTeamRoster.useQuery(
+    { teamId: opponentTeam?.id ?? 0 },
+    { enabled: !!opponentTeam?.id && isChallengeLeague }
+  );
+
+  // Track opponent drafted assets (derived from WebSocket updates)
+  const [opponentDraftedAssets, setOpponentDraftedAssets] = useState<Array<{
+    assetType: AssetType;
+    assetId: number;
+    name: string;
+    imageUrl?: string | null;
+  }>>([]);
+
+  // Merge opponent roster
+  const mergedOpponentRoster = useMemo(() => {
+    const serverRosterIds = new Set(opponentRoster.map((r: any) => `${r.assetType}-${r.assetId}`));
+    const newOpponentAssets = opponentDraftedAssets.filter(
+      asset => !serverRosterIds.has(`${asset.assetType}-${asset.assetId}`)
+    );
+
+    return [
+      ...opponentRoster.map((r: any) => ({
+        assetType: r.assetType as AssetType,
+        assetId: r.assetId,
+        name: r.name || "Unknown",
+        imageUrl: r.imageUrl,
+      })),
+      ...newOpponentAssets
+    ];
+  }, [opponentRoster, opponentDraftedAssets]);
 
   // Merge server roster with local optimistic updates
   const mergedRoster = useMemo(() => {
@@ -228,6 +278,17 @@ export default function Draft() {
             }
           ]);
           refetchRoster();
+        } else if (opponentTeam && message.teamId === opponentTeam.id) {
+          // Track opponent's pick for challenge leagues
+          setOpponentDraftedAssets(prev => [
+            ...prev,
+            {
+              assetType,
+              assetId: message.assetId,
+              name: message.assetName,
+              imageUrl: null
+            }
+          ]);
         }
       } else if (message.type === 'next_pick') {
         setCurrentTurnTeamId(message.teamId);
@@ -343,14 +404,17 @@ export default function Draft() {
   });
 
   // Auto-draft logic: when enabled and it's my turn, automatically pick best available
+  // Also handles auto-pick from queue when that setting is enabled
   useEffect(() => {
-    // Only proceed if auto-draft is enabled, it's my turn, and we have a team
-    if (!autoDraftEnabled || !isMyTurn || !myTeam || autoDraftInProgressRef.current) {
+    // Check if we should auto-draft (either via autoDraftEnabled or autoPickFromQueue)
+    const shouldAutoDraft = autoDraftEnabled || autoPickFromQueue;
+    
+    if (!shouldAutoDraft || !isMyTurn || !myTeam || autoDraftInProgressRef.current) {
       return;
     }
 
     // Calculate roster counts from merged roster
-    const rosterCounts = {
+    const localRosterCounts = {
       manufacturer: mergedRoster.filter((r) => r.assetType === "manufacturer").length,
       cannabis_strain: mergedRoster.filter((r) => r.assetType === "cannabis_strain").length,
       product: mergedRoster.filter((r) => r.assetType === "product").length,
@@ -369,11 +433,11 @@ export default function Draft() {
 
     // Find positions that still need to be filled
     const neededPositions: AssetType[] = [];
-    if (rosterCounts.manufacturer < positionLimits.manufacturer) neededPositions.push("manufacturer");
-    if (rosterCounts.cannabis_strain < positionLimits.cannabis_strain) neededPositions.push("cannabis_strain");
-    if (rosterCounts.product < positionLimits.product) neededPositions.push("product");
-    if (rosterCounts.pharmacy < positionLimits.pharmacy) neededPositions.push("pharmacy");
-    if (rosterCounts.brand < positionLimits.brand) neededPositions.push("brand");
+    if (localRosterCounts.manufacturer < positionLimits.manufacturer) neededPositions.push("manufacturer");
+    if (localRosterCounts.cannabis_strain < positionLimits.cannabis_strain) neededPositions.push("cannabis_strain");
+    if (localRosterCounts.product < positionLimits.product) neededPositions.push("product");
+    if (localRosterCounts.pharmacy < positionLimits.pharmacy) neededPositions.push("pharmacy");
+    if (localRosterCounts.brand < positionLimits.brand) neededPositions.push("brand");
 
     if (neededPositions.length === 0) {
       console.log('[AutoDraft] All positions filled');
@@ -387,58 +451,94 @@ export default function Draft() {
       return assets.filter((asset) => !draftedSet.has(asset.id));
     };
 
-    // Find best available player for each needed position (sorted by yesterdayPoints desc)
+    // Check if position is available for a given asset type
+    const isPositionAvailable = (assetType: AssetType): boolean => {
+      return localRosterCounts[assetType] < positionLimits[assetType];
+    };
+
     type PlayerCandidate = { assetType: AssetType; id: number; name: string; points: number };
-    const candidates: PlayerCandidate[] = [];
+    let bestPick: PlayerCandidate | null = null;
 
-    for (const position of neededPositions) {
-      let bestPlayer: PlayerCandidate | null = null;
-
-      if (position === "manufacturer") {
-        const undrafted = filterUndrafted(availableManufacturers, "manufacturer");
-        const sorted = [...undrafted].sort((a, b) => (b.yesterdayPoints ?? 0) - (a.yesterdayPoints ?? 0));
-        if (sorted.length > 0) {
-          bestPlayer = { assetType: "manufacturer", id: sorted[0].id, name: sorted[0].name, points: sorted[0].yesterdayPoints ?? 0 };
+    // PRIORITY 1: If autoPickFromQueue is enabled, try to pick from queue first
+    if (autoPickFromQueue && draftQueue.length > 0) {
+      // Find first available player in queue that hasn't been drafted and has an open position
+      for (const queuedPlayer of draftQueue) {
+        const isDrafted = draftedAssets[queuedPlayer.assetType]?.has(queuedPlayer.assetId);
+        const hasOpenPosition = isPositionAvailable(queuedPlayer.assetType);
+        
+        if (!isDrafted && hasOpenPosition) {
+          bestPick = {
+            assetType: queuedPlayer.assetType,
+            id: queuedPlayer.assetId,
+            name: queuedPlayer.name,
+            points: queuedPlayer.points,
+          };
+          console.log('[AutoDraft] Picking from queue:', bestPick);
+          // Remove from queue after picking
+          setDraftQueue(prev => prev.filter(p => 
+            !(p.assetType === queuedPlayer.assetType && p.assetId === queuedPlayer.assetId)
+          ));
+          break;
         }
-      } else if (position === "cannabis_strain") {
-        const undrafted = filterUndrafted(availableCannabisStrains, "cannabis_strain");
-        const sorted = [...undrafted].sort((a, b) => (b.yesterdayPoints ?? 0) - (a.yesterdayPoints ?? 0));
-        if (sorted.length > 0) {
-          bestPlayer = { assetType: "cannabis_strain", id: sorted[0].id, name: sorted[0].name, points: sorted[0].yesterdayPoints ?? 0 };
-        }
-      } else if (position === "product") {
-        const undrafted = filterUndrafted(availableProducts, "product");
-        const sorted = [...undrafted].sort((a, b) => (b.yesterdayPoints ?? 0) - (a.yesterdayPoints ?? 0));
-        if (sorted.length > 0) {
-          bestPlayer = { assetType: "product", id: sorted[0].id, name: sorted[0].name, points: sorted[0].yesterdayPoints ?? 0 };
-        }
-      } else if (position === "pharmacy") {
-        const undrafted = filterUndrafted(availablePharmacies, "pharmacy");
-        const sorted = [...undrafted].sort((a, b) => (b.yesterdayPoints ?? 0) - (a.yesterdayPoints ?? 0));
-        if (sorted.length > 0) {
-          bestPlayer = { assetType: "pharmacy", id: sorted[0].id, name: sorted[0].name, points: sorted[0].yesterdayPoints ?? 0 };
-        }
-      } else if (position === "brand") {
-        const undrafted = filterUndrafted(availableBrands, "brand");
-        const sorted = [...undrafted].sort((a, b) => (b.yesterdayPoints ?? 0) - (a.yesterdayPoints ?? 0));
-        if (sorted.length > 0) {
-          bestPlayer = { assetType: "brand", id: sorted[0].id, name: sorted[0].name, points: sorted[0].yesterdayPoints ?? 0 };
-        }
-      }
-
-      if (bestPlayer) {
-        candidates.push(bestPlayer);
       }
     }
 
-    if (candidates.length === 0) {
-      console.log('[AutoDraft] No available players found for needed positions');
+    // PRIORITY 2: If no queue pick available and autoDraftEnabled, use best available algorithm
+    if (!bestPick && autoDraftEnabled) {
+      const candidates: PlayerCandidate[] = [];
+
+      for (const position of neededPositions) {
+        let bestPlayer: PlayerCandidate | null = null;
+
+        if (position === "manufacturer") {
+          const undrafted = filterUndrafted(availableManufacturers, "manufacturer");
+          const sorted = [...undrafted].sort((a, b) => (b.yesterdayPoints ?? 0) - (a.yesterdayPoints ?? 0));
+          if (sorted.length > 0) {
+            bestPlayer = { assetType: "manufacturer", id: sorted[0].id, name: sorted[0].name, points: sorted[0].yesterdayPoints ?? 0 };
+          }
+        } else if (position === "cannabis_strain") {
+          const undrafted = filterUndrafted(availableCannabisStrains, "cannabis_strain");
+          const sorted = [...undrafted].sort((a, b) => (b.yesterdayPoints ?? 0) - (a.yesterdayPoints ?? 0));
+          if (sorted.length > 0) {
+            bestPlayer = { assetType: "cannabis_strain", id: sorted[0].id, name: sorted[0].name, points: sorted[0].yesterdayPoints ?? 0 };
+          }
+        } else if (position === "product") {
+          const undrafted = filterUndrafted(availableProducts, "product");
+          const sorted = [...undrafted].sort((a, b) => (b.yesterdayPoints ?? 0) - (a.yesterdayPoints ?? 0));
+          if (sorted.length > 0) {
+            bestPlayer = { assetType: "product", id: sorted[0].id, name: sorted[0].name, points: sorted[0].yesterdayPoints ?? 0 };
+          }
+        } else if (position === "pharmacy") {
+          const undrafted = filterUndrafted(availablePharmacies, "pharmacy");
+          const sorted = [...undrafted].sort((a, b) => (b.yesterdayPoints ?? 0) - (a.yesterdayPoints ?? 0));
+          if (sorted.length > 0) {
+            bestPlayer = { assetType: "pharmacy", id: sorted[0].id, name: sorted[0].name, points: sorted[0].yesterdayPoints ?? 0 };
+          }
+        } else if (position === "brand") {
+          const undrafted = filterUndrafted(availableBrands, "brand");
+          const sorted = [...undrafted].sort((a, b) => (b.yesterdayPoints ?? 0) - (a.yesterdayPoints ?? 0));
+          if (sorted.length > 0) {
+            bestPlayer = { assetType: "brand", id: sorted[0].id, name: sorted[0].name, points: sorted[0].yesterdayPoints ?? 0 };
+          }
+        }
+
+        if (bestPlayer) {
+          candidates.push(bestPlayer);
+        }
+      }
+
+      if (candidates.length > 0) {
+        // Sort candidates by points (highest first) and pick the best one
+        candidates.sort((a, b) => b.points - a.points);
+        bestPick = candidates[0];
+        console.log('[AutoDraft] Best available pick:', bestPick);
+      }
+    }
+
+    if (!bestPick) {
+      console.log('[AutoDraft] No available players found');
       return;
     }
-
-    // Sort candidates by points (highest first) and pick the best one
-    candidates.sort((a, b) => b.points - a.points);
-    const bestPick = candidates[0];
 
     console.log('[AutoDraft] Auto-picking:', bestPick);
     
@@ -470,6 +570,8 @@ export default function Draft() {
     };
   }, [
     autoDraftEnabled,
+    autoPickFromQueue,
+    draftQueue,
     isMyTurn,
     myTeam,
     mergedRoster,
@@ -644,6 +746,7 @@ export default function Draft() {
 
         {/* Player Panel */}
         <SleeperPlayerPanel
+          leagueId={leagueId}
           rosterCounts={rosterCounts}
           manufacturers={availableManufacturers}
           cannabisStrains={availableCannabisStrains}
@@ -657,25 +760,34 @@ export default function Draft() {
           isLoading={false}
           draftedAssets={draftedAssets}
           myRoster={mergedRoster}
-          activeTab={playerPanelTab}
-          onTabChange={setPlayerPanelTab}
+          queue={draftQueue}
+          onAddToQueue={(player) => {
+            setDraftQueue(prev => [...prev, player]);
+            toast.success(`${player.name} added to queue`);
+          }}
+          onRemoveFromQueue={(assetType, assetId) => {
+            setDraftQueue(prev => prev.filter(p => !(p.assetType === assetType && p.assetId === assetId)));
+          }}
+          onReorderQueue={setDraftQueue}
+          autoPickFromQueue={autoPickFromQueue}
+          onAutoPickFromQueueChange={setAutoPickFromQueue}
         />
       </div>
     );
   }
 
   // ============================================
-  // CHALLENGE LEAGUE - ORIGINAL DRAFT STYLE
+  // CHALLENGE LEAGUE - FIELD DRAFT STYLE
   // ============================================
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#fdf6e9] via-[#f8eedb] to-[#f4e4c9] relative">
+    <div className="h-screen flex flex-col bg-[#0f0f16]">
       {/* Draft Complete Dialog */}
       <Dialog open={showDraftCompleteDialog} onOpenChange={setShowDraftCompleteDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md bg-[#1a1d29] border-white/10 text-white">
           <DialogHeader>
             <DialogTitle className="text-2xl">🎉 Draft Complete!</DialogTitle>
-            <DialogDescription className="text-base pt-2">
-              All roster slots filled (10/10). Go to your Lineup Editor to review and adjust your starting lineup.
+            <DialogDescription className="text-base pt-2 text-white/70">
+              All roster slots filled (9/9). Your challenge lineup is ready!
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-col sm:flex-row gap-2">
@@ -683,241 +795,77 @@ export default function Draft() {
               variant="default"
               onClick={() => {
                 setShowDraftCompleteDialog(false);
-                setLocation(`/challenge/${leagueId}/lineup`);
+                setLocation(`/challenge/${leagueId}`);
               }}
-              className="w-full sm:w-auto"
+              className="w-full sm:w-auto bg-[#cfff4d] text-black hover:bg-[#cfff4d]/90"
             >
-              Go to Lineup Editor
+              View Challenge
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Header */}
-      <div className="relative z-20">
-        <div className="w-full max-w-[1600px] mx-auto px-4 md:px-6 lg:px-8 py-8">
-          <div className="rounded-[36px] bg-white/85 backdrop-blur shadow-[0_20px_60px_rgba(20,15,45,0.12)] px-6 py-6 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-start gap-4 w-full">
-              <button
-                onClick={() => window.history.back()}
-                className="inline-flex items-center gap-2 rounded-full bg-[#f0e8d5] px-4 py-2 text-sm font-semibold text-[#3c2c53] transition hover:bg-[#e7ddc5]"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Zurück
-              </button>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs uppercase tracking-[0.4em] text-[#c38eff]">Live Draft</p>
-                <h1 className="text-2xl md:text-3xl font-bold text-[#2c1941] leading-tight">
-                  {league.name}
-                </h1>
-                <p className="text-sm text-[#6c5b7b]">
-                  Draft • {myTeam.name}
-                </p>
-              </div>
+      <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-[#1a0a2e] via-[#0f0f16] to-[#1a0a2e] border-b border-white/10">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => window.history.back()}
+            className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5 text-white" />
+          </button>
+          <div>
+            <h1 className="text-lg font-bold text-white">{league.name}</h1>
+            <p className="text-xs text-white/50">{myTeam.name}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {timerSeconds !== null && !isNaN(timerSeconds) && timerSeconds >= 0 && (
+            <div className="px-3 py-1.5 rounded-full bg-white/10 text-sm font-semibold text-white">
+              ⏱️ {Math.floor(timerSeconds / 60)}:{String(timerSeconds % 60).padStart(2, "0")}
             </div>
-            {/* Desktop Timer Display */}
-            <div className="hidden lg:flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end w-full">
-              {/* Auto-Draft Toggle */}
-              <div className="rounded-[18px] bg-[#2f1546]/80 text-white px-4 py-3 shadow-inner flex items-center gap-3">
-                <Zap className={`w-4 h-4 ${autoDraftEnabled ? 'text-[#cfff4d]' : 'text-white/60'}`} />
-                <label htmlFor="auto-draft-toggle" className="text-sm font-medium cursor-pointer whitespace-nowrap">
-                  Auto-Draft
-                </label>
-                <Switch
-                  id="auto-draft-toggle"
-                  checked={autoDraftEnabled}
-                  onCheckedChange={setAutoDraftEnabled}
-                  className="data-[state=checked]:bg-[#cfff4d]"
-                />
-              </div>
-              {timerSeconds !== null && !isNaN(timerSeconds) && timerSeconds >= 0 && (
-                <div className="rounded-[18px] bg-[#2f1546] text-white px-4 py-3 shadow-inner flex items-center gap-2 text-sm font-semibold">
-                  ⏱️ {Math.floor(timerSeconds / 60)}:{String(timerSeconds % 60).padStart(2, "0")}
-                </div>
-              )}
-              {currentTurnTeamName && (
-                <div
-                  className={`rounded-[18px] px-5 py-3 text-center text-sm font-semibold ${isMyTurn
-                    ? "bg-gradient-to-r from-[#cfff4d] to-[#8dff8c] text-black shadow-[0_10px_30px_rgba(207,255,77,0.5)]"
-                    : "bg-[#f1d9ff] text-[#8d4bff]"
-                    }`}
-                >
-                  {isMyTurn ? "🎯 Dein Zug!" : `${currentTurnTeamName} ist dran`}
-                </div>
-              )}
-            </div>
+          )}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10">
+            <Zap className={`w-4 h-4 ${autoDraftEnabled ? 'text-[#cfff4d]' : 'text-white/40'}`} />
+            <Switch
+              id="auto-draft-toggle-challenge"
+              checked={autoDraftEnabled}
+              onCheckedChange={setAutoDraftEnabled}
+              className="data-[state=checked]:bg-[#cfff4d] scale-75"
+            />
           </div>
         </div>
       </div>
 
-      {/* Floating Mobile Draft Clock */}
-      <div className="lg:hidden fixed top-4 right-4 z-50 pointer-events-none">
-        {timerSeconds !== null && currentTurnTeamName && (
-          <div className="pointer-events-auto shadow-2xl">
-            <DraftClock
-              pickNumber={currentPickNumber}
-              round={currentRound}
-              teamName={currentTurnTeamName}
-              isYourTurn={isMyTurn}
-              timeLimit={timeLimit}
-              remainingTime={timerSeconds}
-              isPaused={isPaused}
-              compact={true}
-              onTimerExpired={() => {
-                toast.warning('Time expired! Auto-pick will be triggered.');
-              }}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Mobile Auto-Draft Toggle */}
-      <div className="lg:hidden fixed bottom-20 left-4 z-50">
-        <div className="rounded-full bg-[#2f1546]/95 backdrop-blur text-white px-4 py-3 shadow-xl flex items-center gap-3">
-          <Zap className={`w-4 h-4 ${autoDraftEnabled ? 'text-[#cfff4d]' : 'text-white/60'}`} />
-          <label htmlFor="auto-draft-toggle-mobile" className="text-sm font-medium cursor-pointer">
-            Auto
-          </label>
-          <Switch
-            id="auto-draft-toggle-mobile"
-            checked={autoDraftEnabled}
-            onCheckedChange={setAutoDraftEnabled}
-            className="data-[state=checked]:bg-[#cfff4d]"
-          />
-        </div>
-      </div>
-
-      {/* Draft Board */}
-      <div className="w-full max-w-[1600px] mx-auto px-4 md:px-6 lg:px-8 pb-12 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-[2.4fr_1fr] gap-6">
-
-          {/* Mobile: Wähle deine Picks first */}
-          <div className="lg:hidden order-1">
-            <DraftBoard
-              leagueId={leagueId}
-              currentPick={currentPick}
-              isMyTurn={isMyTurn}
-              myRoster={mergedRoster}
-              draftedAssets={draftedAssets}
-              onDraftPick={handleDraftPick}
-            />
-          </div>
-
-          {/* Mobile: My Roster (Player's Team) second */}
-          <div className="lg:hidden order-2">
-            <MyRoster
-              roster={mergedRoster}
-              teamName={myTeam.name || "My Team"}
-            />
-          </div>
-
-          {/* Mobile: Recent Picks third */}
-          <div className="lg:hidden order-3">
-            <div className="bg-weed-purple border-2 border-weed-green shadow-xl rounded-lg p-4">
-              <h3 className="headline-secondary text-lg text-white uppercase mb-4">
-                Draft Board
-              </h3>
-              {recentPicks.length === 0 ? (
-                <p className="text-sm text-white/70 text-center py-8">
-                  Noch keine Picks
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {recentPicks.map((pick, index) => (
-                    <div
-                      key={`${pick.pickNumber}-${index}`}
-                      className="p-3 bg-white/10 rounded-lg border-2 border-white/20"
-                    >
-                      <div className="flex items-start justify-between mb-1">
-                        <span className="text-xs font-medium text-white/70">
-                          Pick #{pick.pickNumber}
-                        </span>
-                      </div>
-                      <p className="text-sm font-medium text-white mb-1">
-                        {pick.assetName}
-                      </p>
-                      <p className="text-xs text-white/70">
-                        {pick.teamName}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Desktop: Draft Board (Recent Picks) + Draft Board - 3 cols on desktop */}
-          <div className="hidden lg:block lg:order-1">
-            <div className="space-y-6">
-              {/* Draft Board - Reskinned Recent Picks */}
-              <div className="bg-weed-purple border-2 border-weed-green shadow-xl rounded-lg p-4">
-                <h3 className="headline-secondary text-lg text-white uppercase mb-4">
-                  Draft Board
-                </h3>
-                {recentPicks.length === 0 ? (
-                  <p className="text-sm text-white/70 text-center py-8">
-                    Noch keine Picks
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {recentPicks.map((pick, index) => (
-                      <div
-                        key={`${pick.pickNumber}-${index}`}
-                        className="p-3 bg-white/10 rounded-lg border-2 border-white/20"
-                      >
-                        <div className="flex items-start justify-between mb-1">
-                          <span className="text-xs font-medium text-white/70">
-                            Pick #{pick.pickNumber}
-                          </span>
-                        </div>
-                        <p className="text-sm font-medium text-white mb-1">
-                          {pick.assetName}
-                        </p>
-                        <p className="text-xs text-white/70">
-                          {pick.teamName}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <DraftBoard
-                leagueId={leagueId}
-                currentPick={currentPick}
-                isMyTurn={isMyTurn}
-                myRoster={mergedRoster}
-                draftedAssets={draftedAssets}
-                onDraftPick={handleDraftPick}
-              />
-            </div>
-          </div>
-
-          {/* Desktop: Sidebar - 1 col on desktop */}
-          <div className="hidden lg:block lg:order-2 space-y-6">
-            {/* Draft Clock */}
-            {timerSeconds !== null && currentTurnTeamName && (
-              <DraftClock
-                pickNumber={currentPickNumber}
-                round={currentRound}
-                teamName={currentTurnTeamName}
-                isYourTurn={isMyTurn}
-                timeLimit={timeLimit}
-                remainingTime={timerSeconds}
-                isPaused={isPaused}
-                onTimerExpired={() => {
-                  toast.warning('Time expired! Auto-pick will be triggered.');
-                }}
-              />
-            )}
-
-            {/* My Roster */}
-            <MyRoster
-              roster={mergedRoster}
-              teamName={myTeam.name || "My Team"}
-            />
-          </div>
-        </div>
-      </div>
+      {/* Challenge Draft Board with Fields */}
+      <ChallengeDraftBoard
+        leagueId={leagueId}
+        myTeam={{
+          id: myTeam.id,
+          name: myTeam.name,
+          userName: user?.name || null,
+        }}
+        opponentTeam={opponentTeam ? {
+          id: opponentTeam.id,
+          name: opponentTeam.name,
+          userName: opponentTeam.userName || null,
+        } : null}
+        myRoster={mergedRoster}
+        opponentRoster={mergedOpponentRoster}
+        currentPickNumber={currentPickNumber}
+        currentTurnTeamId={currentTurnTeamId}
+        isMyTurn={isMyTurn}
+        manufacturers={availableManufacturers}
+        cannabisStrains={availableCannabisStrains}
+        products={availableProducts}
+        pharmacies={availablePharmacies}
+        brands={availableBrands}
+        onDraftPick={handleDraftPick}
+        onSearchChange={setSearchQuery}
+        searchQuery={searchQuery}
+        isLoading={false}
+        draftedAssets={draftedAssets}
+      />
     </div>
   );
 }
