@@ -1,8 +1,9 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { getLoginUrl } from "@/const";
 import DraftBoard, { type AssetType } from "@/components/DraftBoard";
 // import { DraftPicksGrid } from "@/components/DraftPicksGrid";
@@ -10,7 +11,7 @@ import { MyRoster } from "@/components/MyRoster";
 import { DraftClock } from "@/components/DraftClock";
 import { toast } from "sonner";
 import { useWebSocket } from "@/hooks/useWebSocket";
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -38,6 +39,8 @@ export default function Draft() {
   const [currentPickNumber, setCurrentPickNumber] = useState<number>(1);
   const [currentRound, setCurrentRound] = useState<number>(1);
   const [showDraftCompleteDialog, setShowDraftCompleteDialog] = useState(false);
+  const [autoDraftEnabled, setAutoDraftEnabled] = useState(false);
+  const autoDraftInProgressRef = useRef(false);
 
   // Optimistic tracking of my drafted assets
   const [myDraftedAssets, setMyDraftedAssets] = useState<Array<{
@@ -96,6 +99,32 @@ export default function Draft() {
     { enabled: !!id && isAuthenticated }
   );
 
+  // Fetch available players for auto-draft (only when auto-draft is enabled)
+  const { data: availableManufacturers = [] } = trpc.draft.getAvailableManufacturers.useQuery(
+    { leagueId, limit: 200 },
+    { enabled: !!id && isAuthenticated && autoDraftEnabled }
+  );
+
+  const { data: availableCannabisStrains = [] } = trpc.draft.getAvailableCannabisStrains.useQuery(
+    { leagueId, limit: 200 },
+    { enabled: !!id && isAuthenticated && autoDraftEnabled }
+  );
+
+  const { data: availableProducts = [] } = trpc.draft.getAvailableProducts.useQuery(
+    { leagueId, limit: 200 },
+    { enabled: !!id && isAuthenticated && autoDraftEnabled }
+  );
+
+  const { data: availablePharmacies = [] } = trpc.draft.getAvailablePharmacies.useQuery(
+    { leagueId, limit: 200 },
+    { enabled: !!id && isAuthenticated && autoDraftEnabled }
+  );
+
+  const { data: availableBrands = [] } = trpc.draft.getAvailableBrands.useQuery(
+    { leagueId, limit: 200 },
+    { enabled: !!id && isAuthenticated && autoDraftEnabled }
+  );
+
   // Merge server roster with local optimistic updates
   const mergedRoster = useMemo(() => {
     const serverRosterIds = new Set(roster.map((r: any) => `${r.assetType}-${r.assetId}`));
@@ -113,6 +142,11 @@ export default function Draft() {
       ...newLocalAssets
     ];
   }, [roster, myDraftedAssets]);
+
+  // Check if it's the user's turn (computed early for hooks)
+  const isMyTurn = useMemo(() => {
+    return currentTurnTeamId !== null && myTeam?.id !== undefined && currentTurnTeamId === myTeam.id;
+  }, [currentTurnTeamId, myTeam?.id]);
 
   const { data: draftStatus } = trpc.draft.getDraftStatus.useQuery(
     { leagueId },
@@ -289,6 +323,148 @@ export default function Draft() {
     },
   });
 
+  // Auto-draft logic: when enabled and it's my turn, automatically pick best available
+  useEffect(() => {
+    // Only proceed if auto-draft is enabled, it's my turn, and we have a team
+    if (!autoDraftEnabled || !isMyTurn || !myTeam || autoDraftInProgressRef.current) {
+      return;
+    }
+
+    // Calculate roster counts from merged roster
+    const rosterCounts = {
+      manufacturer: mergedRoster.filter((r) => r.assetType === "manufacturer").length,
+      cannabis_strain: mergedRoster.filter((r) => r.assetType === "cannabis_strain").length,
+      product: mergedRoster.filter((r) => r.assetType === "product").length,
+      pharmacy: mergedRoster.filter((r) => r.assetType === "pharmacy").length,
+      brand: mergedRoster.filter((r) => r.assetType === "brand").length,
+    };
+
+    // Position limits (max 2 of each, 1 for brand)
+    const positionLimits: Record<AssetType, number> = {
+      manufacturer: 2,
+      cannabis_strain: 2,
+      product: 2,
+      pharmacy: 2,
+      brand: 1,
+    };
+
+    // Find positions that still need to be filled
+    const neededPositions: AssetType[] = [];
+    if (rosterCounts.manufacturer < positionLimits.manufacturer) neededPositions.push("manufacturer");
+    if (rosterCounts.cannabis_strain < positionLimits.cannabis_strain) neededPositions.push("cannabis_strain");
+    if (rosterCounts.product < positionLimits.product) neededPositions.push("product");
+    if (rosterCounts.pharmacy < positionLimits.pharmacy) neededPositions.push("pharmacy");
+    if (rosterCounts.brand < positionLimits.brand) neededPositions.push("brand");
+
+    if (neededPositions.length === 0) {
+      console.log('[AutoDraft] All positions filled');
+      return;
+    }
+
+    // Helper to filter out already drafted assets
+    const filterUndrafted = <T extends { id: number }>(assets: T[], assetType: AssetType): T[] => {
+      const draftedSet = draftedAssets[assetType];
+      if (!draftedSet || draftedSet.size === 0) return assets;
+      return assets.filter((asset) => !draftedSet.has(asset.id));
+    };
+
+    // Find best available player for each needed position (sorted by yesterdayPoints desc)
+    type PlayerCandidate = { assetType: AssetType; id: number; name: string; points: number };
+    const candidates: PlayerCandidate[] = [];
+
+    for (const position of neededPositions) {
+      let bestPlayer: PlayerCandidate | null = null;
+
+      if (position === "manufacturer") {
+        const undrafted = filterUndrafted(availableManufacturers, "manufacturer");
+        const sorted = [...undrafted].sort((a, b) => (b.yesterdayPoints ?? 0) - (a.yesterdayPoints ?? 0));
+        if (sorted.length > 0) {
+          bestPlayer = { assetType: "manufacturer", id: sorted[0].id, name: sorted[0].name, points: sorted[0].yesterdayPoints ?? 0 };
+        }
+      } else if (position === "cannabis_strain") {
+        const undrafted = filterUndrafted(availableCannabisStrains, "cannabis_strain");
+        const sorted = [...undrafted].sort((a, b) => (b.yesterdayPoints ?? 0) - (a.yesterdayPoints ?? 0));
+        if (sorted.length > 0) {
+          bestPlayer = { assetType: "cannabis_strain", id: sorted[0].id, name: sorted[0].name, points: sorted[0].yesterdayPoints ?? 0 };
+        }
+      } else if (position === "product") {
+        const undrafted = filterUndrafted(availableProducts, "product");
+        const sorted = [...undrafted].sort((a, b) => (b.yesterdayPoints ?? 0) - (a.yesterdayPoints ?? 0));
+        if (sorted.length > 0) {
+          bestPlayer = { assetType: "product", id: sorted[0].id, name: sorted[0].name, points: sorted[0].yesterdayPoints ?? 0 };
+        }
+      } else if (position === "pharmacy") {
+        const undrafted = filterUndrafted(availablePharmacies, "pharmacy");
+        const sorted = [...undrafted].sort((a, b) => (b.yesterdayPoints ?? 0) - (a.yesterdayPoints ?? 0));
+        if (sorted.length > 0) {
+          bestPlayer = { assetType: "pharmacy", id: sorted[0].id, name: sorted[0].name, points: sorted[0].yesterdayPoints ?? 0 };
+        }
+      } else if (position === "brand") {
+        const undrafted = filterUndrafted(availableBrands, "brand");
+        const sorted = [...undrafted].sort((a, b) => (b.yesterdayPoints ?? 0) - (a.yesterdayPoints ?? 0));
+        if (sorted.length > 0) {
+          bestPlayer = { assetType: "brand", id: sorted[0].id, name: sorted[0].name, points: sorted[0].yesterdayPoints ?? 0 };
+        }
+      }
+
+      if (bestPlayer) {
+        candidates.push(bestPlayer);
+      }
+    }
+
+    if (candidates.length === 0) {
+      console.log('[AutoDraft] No available players found for needed positions');
+      return;
+    }
+
+    // Sort candidates by points (highest first) and pick the best one
+    candidates.sort((a, b) => b.points - a.points);
+    const bestPick = candidates[0];
+
+    console.log('[AutoDraft] Auto-picking:', bestPick);
+    
+    // Prevent multiple picks
+    autoDraftInProgressRef.current = true;
+
+    // Small delay to ensure UI updates and prevent race conditions
+    const timerId = setTimeout(async () => {
+      try {
+        toast.info(`⚡ Auto-Draft: ${bestPick.name} wird gedraftet...`);
+        await makeDraftPickMutation.mutateAsync({
+          leagueId,
+          teamId: myTeam.id,
+          assetType: bestPick.assetType,
+          assetId: bestPick.id,
+        });
+        markAssetDrafted(bestPick.assetType, bestPick.id);
+        toast.success(`⚡ Auto-Draft: ${bestPick.name} erfolgreich gedraftet!`);
+      } catch (error) {
+        console.error('[AutoDraft] Error:', error);
+        toast.error('Auto-Draft fehlgeschlagen');
+      } finally {
+        autoDraftInProgressRef.current = false;
+      }
+    }, 500);
+
+    return () => {
+      clearTimeout(timerId);
+    };
+  }, [
+    autoDraftEnabled,
+    isMyTurn,
+    myTeam,
+    mergedRoster,
+    draftedAssets,
+    availableManufacturers,
+    availableCannabisStrains,
+    availableProducts,
+    availablePharmacies,
+    availableBrands,
+    leagueId,
+    makeDraftPickMutation,
+    markAssetDrafted,
+  ]);
+
   // Redirect to login if not authenticated
   if (!authLoading && !isAuthenticated) {
     const loginUrl = getLoginUrl(); if (loginUrl) window.location.href = loginUrl; else window.location.href = "/login";
@@ -319,9 +495,6 @@ export default function Draft() {
 
   // Use current pick from draft status (WebSocket state)
   const currentPick = currentPickNumber || 1;
-
-  // Check if it's the user's turn
-  const isMyTurn = currentTurnTeamId === myTeam.id;
 
   const handleDraftPick = async (assetType: AssetType, assetId: number) => {
     try {
@@ -418,6 +591,19 @@ export default function Draft() {
             </div>
             {/* Desktop Timer Display */}
             <div className="hidden lg:flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end w-full">
+              {/* Auto-Draft Toggle */}
+              <div className="rounded-[18px] bg-[#2f1546]/80 text-white px-4 py-3 shadow-inner flex items-center gap-3">
+                <Zap className={`w-4 h-4 ${autoDraftEnabled ? 'text-[#cfff4d]' : 'text-white/60'}`} />
+                <label htmlFor="auto-draft-toggle" className="text-sm font-medium cursor-pointer whitespace-nowrap">
+                  Auto-Draft
+                </label>
+                <Switch
+                  id="auto-draft-toggle"
+                  checked={autoDraftEnabled}
+                  onCheckedChange={setAutoDraftEnabled}
+                  className="data-[state=checked]:bg-[#cfff4d]"
+                />
+              </div>
               {timerSeconds !== null && !isNaN(timerSeconds) && timerSeconds >= 0 && (
                 <div className="rounded-[18px] bg-[#2f1546] text-white px-4 py-3 shadow-inner flex items-center gap-2 text-sm font-semibold">
                   ⏱️ {Math.floor(timerSeconds / 60)}:{String(timerSeconds % 60).padStart(2, "0")}
@@ -457,6 +643,22 @@ export default function Draft() {
             />
           </div>
         )}
+      </div>
+
+      {/* Mobile Auto-Draft Toggle */}
+      <div className="lg:hidden fixed bottom-20 left-4 z-50">
+        <div className="rounded-full bg-[#2f1546]/95 backdrop-blur text-white px-4 py-3 shadow-xl flex items-center gap-3">
+          <Zap className={`w-4 h-4 ${autoDraftEnabled ? 'text-[#cfff4d]' : 'text-white/60'}`} />
+          <label htmlFor="auto-draft-toggle-mobile" className="text-sm font-medium cursor-pointer">
+            Auto
+          </label>
+          <Switch
+            id="auto-draft-toggle-mobile"
+            checked={autoDraftEnabled}
+            onCheckedChange={setAutoDraftEnabled}
+            className="data-[state=checked]:bg-[#cfff4d]"
+          />
+        </div>
       </div>
 
       {/* Draft Board */}
