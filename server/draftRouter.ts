@@ -176,9 +176,6 @@ export const draftRouter = router({
         : [];
 
       const draftedIds = draftedManufacturers.map((r) => r.assetId);
-      
-      console.log('[getAvailableManufacturers] Drafted IDs:', draftedIds);
-      console.log('[getAvailableManufacturers] Team IDs in league:', teamIds);
 
       // Get available manufacturers
       // Build where conditions
@@ -202,7 +199,6 @@ export const draftRouter = router({
       }
 
       const available = await query.limit(input.limit);
-      console.log('[getAvailableManufacturers] Query returned:', available.length, 'manufacturers');
       
       const { todayStatDate, yesterdayStatDate } = getDailyChallengeStatDates();
       const manufacturerIds = available.map((mfg) => mfg.id);
@@ -224,12 +220,6 @@ export const draftRouter = router({
         todayStatDate,
         yesterdayStatDate,
       }));
-      
-      console.log('[getAvailableManufacturers] Sample data:', result.slice(0, 3).map(m => ({ 
-        name: m.name, 
-        yesterdayPoints: m.yesterdayPoints, 
-        todayPoints: m.todayPoints 
-      })));
       
       return result;
     }),
@@ -315,12 +305,6 @@ export const draftRouter = router({
         // TODO: Add more stats
       }));
       
-      console.log('[getAvailableCannabisStrains] Sample data:', result.slice(0, 3).map(s => ({
-        name: s.name,
-        yesterdayPoints: s.yesterdayPoints,
-        todayPoints: s.todayPoints
-      })));
-      
       return result;
     }),
 
@@ -361,10 +345,6 @@ export const draftRouter = router({
         : [];
 
       const draftedIds = draftedProducts.map((r) => r.assetId);
-      
-      console.log('[getAvailableProducts] Drafted IDs:', draftedIds);
-      console.log('[getAvailableProducts] Drafted IDs types:', draftedIds.map(id => typeof id));
-      console.log('[getAvailableProducts] Team IDs in league:', teamIds);
 
       // Get available products
       // Build where conditions
@@ -409,20 +389,6 @@ export const draftRouter = router({
         yesterdayStatDate,
         // TODO: Add more stats
       }));
-      
-      console.log('[getAvailableProducts] Sample data:', result.slice(0, 3).map(p => ({
-        name: p.name,
-        yesterdayPoints: p.yesterdayPoints,
-        todayPoints: p.todayPoints,
-      })));
-      
-      // Check if Demecan Typ 1 is in results
-      const demecan = result.find(p => p.name === 'Demecan Typ 1');
-      if (demecan) {
-        console.log('[getAvailableProducts] ⚠️  Demecan Typ 1 FOUND in results (ID:', demecan.id, ')');
-      } else {
-        console.log('[getAvailableProducts] ✅ Demecan Typ 1 NOT in results (correctly filtered)');
-      }
       
       return result;
     }),
@@ -635,17 +601,16 @@ export const draftRouter = router({
       const currentPickNumber = league.currentDraftPick;
       const currentRound = league.currentDraftRound;
 
-      // Validate the draft pick
-      const validationStart = Date.now();
-      const validation = await validateDraftPick(
-        input.leagueId,
-        input.teamId,
-        input.assetType,
-        input.assetId
-      );
-      logDraftTiming("makeDraftPick:validateDraftPick", {
+      // ========== PARALLEL PHASE 1: Validation + Roster Count + Team Lookup ==========
+      const parallelStart = Date.now();
+      const [validation, currentRosterSize, teamResult] = await Promise.all([
+        validateDraftPick(input.leagueId, input.teamId, input.assetType, input.assetId),
+        db.select().from(rosters).where(eq(rosters.teamId, input.teamId)),
+        db.select().from(teams).where(eq(teams.id, input.teamId)).limit(1),
+      ]);
+      logDraftTiming("makeDraftPick:parallelPhase1", {
         leagueId: input.leagueId,
-        durationMs: Date.now() - validationStart,
+        durationMs: Date.now() - parallelStart,
         valid: validation.valid,
       });
 
@@ -653,80 +618,59 @@ export const draftRouter = router({
         throw new Error(validation.error || "Invalid draft pick");
       }
 
-      // Calculate draft round and pick if not provided (per-team view, used only for UI)
-      const rosterStart = Date.now();
-      const currentRosterSize = await db
-        .select()
-        .from(rosters)
-        .where(eq(rosters.teamId, input.teamId));
-      
+      const team = teamResult[0];
       const draftRound = input.draftRound || Math.floor(currentRosterSize.length / 9) + 1;
       const draftPick = input.draftPick || currentRosterSize.length + 1;
-      logDraftTiming("makeDraftPick:loadRoster", {
-        leagueId: input.leagueId,
-        teamId: input.teamId,
-        rosterSize: currentRosterSize.length,
-        durationMs: Date.now() - rosterStart,
-      });
 
-      // Get team and asset details for WebSocket notification
-      const metaStart = Date.now();
-      const [team] = await db
-        .select()
-        .from(teams)
-        .where(eq(teams.id, input.teamId))
-        .limit(1);
-
-      let assetName = "Unknown";
-      let assetImageUrl: string | null = null;
-      if (input.assetType === "manufacturer") {
-        const [mfg] = await db.select().from(manufacturers).where(eq(manufacturers.id, input.assetId)).limit(1);
-        assetName = mfg?.name || "Unknown";
-        assetImageUrl = mfg?.logoUrl || null;
-      } else if (input.assetType === "cannabis_strain") {
-        const [strain] = await db.select().from(cannabisStrains).where(eq(cannabisStrains.id, input.assetId)).limit(1);
-        assetName = strain?.name || "Unknown";
-        assetImageUrl = strain?.imageUrl || null;
-      } else if (input.assetType === "product") {
-        const [product] = await db.select().from(strains).where(eq(strains.id, input.assetId)).limit(1);
-        assetName = product?.name || "Unknown";
-        assetImageUrl = product?.imageUrl || null;
-      } else if (input.assetType === "pharmacy") {
-        const [pharmacy] = await db.select().from(pharmacies).where(eq(pharmacies.id, input.assetId)).limit(1);
-        assetName = pharmacy?.name || "Unknown";
-        assetImageUrl = pharmacy?.logoUrl || null;
-      } else if (input.assetType === "brand") {
-        const [brand] = await db.select().from(brands).where(eq(brands.id, input.assetId)).limit(1);
-        assetName = brand?.name || "Unknown";
-        assetImageUrl = brand?.logoUrl || null;
-      }
-      logDraftTiming("makeDraftPick:loadMeta", {
-        leagueId: input.leagueId,
-        durationMs: Date.now() - metaStart,
-      });
-
-      // Add to roster
+      // ========== PARALLEL PHASE 2: Asset Lookup + DB Writes ==========
+      // Asset lookup runs in parallel with roster/draftPicks inserts
       const writeStart = Date.now();
-      await db.insert(rosters).values({
-        teamId: input.teamId,
-        assetType: input.assetType,
-        assetId: input.assetId,
-        acquiredWeek: 0, // Draft is week 0
-        acquiredVia: "draft",
-      });
+      
+      // Get asset name based on type (single query)
+      const assetLookupPromise = (async () => {
+        if (input.assetType === "manufacturer") {
+          const [mfg] = await db.select().from(manufacturers).where(eq(manufacturers.id, input.assetId)).limit(1);
+          return { name: mfg?.name || "Unknown", imageUrl: mfg?.logoUrl || null };
+        } else if (input.assetType === "cannabis_strain") {
+          const [strain] = await db.select().from(cannabisStrains).where(eq(cannabisStrains.id, input.assetId)).limit(1);
+          return { name: strain?.name || "Unknown", imageUrl: strain?.imageUrl || null };
+        } else if (input.assetType === "product") {
+          const [product] = await db.select().from(strains).where(eq(strains.id, input.assetId)).limit(1);
+          return { name: product?.name || "Unknown", imageUrl: product?.imageUrl || null };
+        } else if (input.assetType === "pharmacy") {
+          const [pharmacy] = await db.select().from(pharmacies).where(eq(pharmacies.id, input.assetId)).limit(1);
+          return { name: pharmacy?.name || "Unknown", imageUrl: pharmacy?.logoUrl || null };
+        } else if (input.assetType === "brand") {
+          const [brand] = await db.select().from(brands).where(eq(brands.id, input.assetId)).limit(1);
+          return { name: brand?.name || "Unknown", imageUrl: brand?.logoUrl || null };
+        }
+        return { name: "Unknown", imageUrl: null };
+      })();
 
-      // Record draft pick in draftPicks table.
-      // Use league's current draft pick/round for the official record.
-      await db.insert(draftPicks).values({
-        leagueId: input.leagueId,
-        teamId: input.teamId,
-        round: currentRound,
-        pickNumber: currentPickNumber,
-        assetType: input.assetType,
-        assetId: input.assetId,
-      });
+      // Run asset lookup, roster insert, and draft pick insert in parallel
+      const [assetInfo] = await Promise.all([
+        assetLookupPromise,
+        db.insert(rosters).values({
+          teamId: input.teamId,
+          assetType: input.assetType,
+          assetId: input.assetId,
+          acquiredWeek: 0,
+          acquiredVia: "draft",
+        }),
+        db.insert(draftPicks).values({
+          leagueId: input.leagueId,
+          teamId: input.teamId,
+          round: currentRound,
+          pickNumber: currentPickNumber,
+          assetType: input.assetType,
+          assetId: input.assetId,
+        }),
+      ]);
 
-      logDraftTiming("makeDraftPick:dbWritesComplete", {
+      const assetName = assetInfo.name;
+      const assetImageUrl = assetInfo.imageUrl;
+
+      logDraftTiming("makeDraftPick:parallelPhase2", {
         leagueId: input.leagueId,
         durationMs: Date.now() - writeStart,
       });
@@ -1016,185 +960,171 @@ export const draftRouter = router({
         );
       }
 
-      // Process each pick to get asset name and stats
-      const enrichedPicks = await Promise.all(picks.map(async (pick) => {
+      // ========== BATCH FETCH ALL DATA UPFRONT (Performance Optimization) ==========
+      // Instead of N+1 queries, we batch-fetch all assets and stats in ~10 queries total
+
+      // Group asset IDs by type
+      const manufacturerIds = picks.filter(p => p.assetType === 'manufacturer').map(p => p.assetId);
+      const cannabisStrainIds = picks.filter(p => p.assetType === 'cannabis_strain').map(p => p.assetId);
+      const productIds = picks.filter(p => p.assetType === 'product').map(p => p.assetId);
+      const pharmacyIds = picks.filter(p => p.assetType === 'pharmacy').map(p => p.assetId);
+      const brandIds = picks.filter(p => p.assetType === 'brand').map(p => p.assetId);
+
+      // Batch fetch all assets (parallel)
+      const [mfgData, strainData, productData, pharmacyData, brandData] = await Promise.all([
+        manufacturerIds.length > 0 
+          ? db.select({ id: manufacturers.id, name: manufacturers.name, logoUrl: manufacturers.logoUrl })
+              .from(manufacturers).where(inArray(manufacturers.id, manufacturerIds))
+          : Promise.resolve([]),
+        cannabisStrainIds.length > 0
+          ? db.select({ id: cannabisStrains.id, name: cannabisStrains.name, imageUrl: cannabisStrains.imageUrl })
+              .from(cannabisStrains).where(inArray(cannabisStrains.id, cannabisStrainIds))
+          : Promise.resolve([]),
+        productIds.length > 0
+          ? db.select({ id: strains.id, name: strains.name, imageUrl: strains.imageUrl })
+              .from(strains).where(inArray(strains.id, productIds))
+          : Promise.resolve([]),
+        pharmacyIds.length > 0
+          ? db.select({ id: pharmacies.id, name: pharmacies.name, logoUrl: pharmacies.logoUrl })
+              .from(pharmacies).where(inArray(pharmacies.id, pharmacyIds))
+          : Promise.resolve([]),
+        brandIds.length > 0
+          ? db.select({ id: brands.id, name: brands.name, logoUrl: brands.logoUrl })
+              .from(brands).where(inArray(brands.id, brandIds))
+          : Promise.resolve([]),
+      ]);
+
+      // Build lookup maps
+      const mfgMap = new Map(mfgData.map(m => [m.id, { name: m.name, imageUrl: m.logoUrl }]));
+      const strainMap = new Map(strainData.map(s => [s.id, { name: s.name, imageUrl: s.imageUrl }]));
+      const productMap = new Map(productData.map(p => [p.id, { name: p.name, imageUrl: p.imageUrl }]));
+      const pharmacyMap = new Map(pharmacyData.map(p => [p.id, { name: p.name, imageUrl: p.logoUrl }]));
+      const brandMap = new Map(brandData.map(b => [b.id, { name: b.name, imageUrl: b.logoUrl }]));
+
+      // Stats maps (only fetch if includeStats is true)
+      type StatsData = { lastWeekPoints: number | null; trendPercent: number | null };
+      const mfgStatsMap = new Map<number, StatsData>();
+      const strainStatsMap = new Map<number, StatsData>();
+      const productStatsMap = new Map<number, StatsData>();
+      const pharmacyStatsMap = new Map<number, StatsData>();
+      const brandStatsMap = new Map<number, StatsData>();
+
+      if (includeStats) {
+        const lastWeek = input.week - 1;
+        const twoWeeksAgo = input.week - 2;
+
+        // Batch fetch all weekly stats (parallel)
+        const [mfgStats1, mfgStats2, strainStats1, strainStats2, productStats1, productStats2, pharmStats1, pharmStats2, brandStats1, brandStats2] = await Promise.all([
+          manufacturerIds.length > 0
+            ? db.select({ id: manufacturerWeeklyStats.manufacturerId, pts: manufacturerWeeklyStats.totalPoints })
+                .from(manufacturerWeeklyStats)
+                .where(and(inArray(manufacturerWeeklyStats.manufacturerId, manufacturerIds), eq(manufacturerWeeklyStats.year, input.year), eq(manufacturerWeeklyStats.week, lastWeek)))
+            : Promise.resolve([]),
+          manufacturerIds.length > 0
+            ? db.select({ id: manufacturerWeeklyStats.manufacturerId, pts: manufacturerWeeklyStats.totalPoints })
+                .from(manufacturerWeeklyStats)
+                .where(and(inArray(manufacturerWeeklyStats.manufacturerId, manufacturerIds), eq(manufacturerWeeklyStats.year, input.year), eq(manufacturerWeeklyStats.week, twoWeeksAgo)))
+            : Promise.resolve([]),
+          cannabisStrainIds.length > 0
+            ? db.select({ id: cannabisStrainWeeklyStats.cannabisStrainId, pts: cannabisStrainWeeklyStats.totalPoints })
+                .from(cannabisStrainWeeklyStats)
+                .where(and(inArray(cannabisStrainWeeklyStats.cannabisStrainId, cannabisStrainIds), eq(cannabisStrainWeeklyStats.year, input.year), eq(cannabisStrainWeeklyStats.week, lastWeek)))
+            : Promise.resolve([]),
+          cannabisStrainIds.length > 0
+            ? db.select({ id: cannabisStrainWeeklyStats.cannabisStrainId, pts: cannabisStrainWeeklyStats.totalPoints })
+                .from(cannabisStrainWeeklyStats)
+                .where(and(inArray(cannabisStrainWeeklyStats.cannabisStrainId, cannabisStrainIds), eq(cannabisStrainWeeklyStats.year, input.year), eq(cannabisStrainWeeklyStats.week, twoWeeksAgo)))
+            : Promise.resolve([]),
+          productIds.length > 0
+            ? db.select({ id: strainWeeklyStats.strainId, pts: strainWeeklyStats.totalPoints })
+                .from(strainWeeklyStats)
+                .where(and(inArray(strainWeeklyStats.strainId, productIds), eq(strainWeeklyStats.year, input.year), eq(strainWeeklyStats.week, lastWeek)))
+            : Promise.resolve([]),
+          productIds.length > 0
+            ? db.select({ id: strainWeeklyStats.strainId, pts: strainWeeklyStats.totalPoints })
+                .from(strainWeeklyStats)
+                .where(and(inArray(strainWeeklyStats.strainId, productIds), eq(strainWeeklyStats.year, input.year), eq(strainWeeklyStats.week, twoWeeksAgo)))
+            : Promise.resolve([]),
+          pharmacyIds.length > 0
+            ? db.select({ id: pharmacyWeeklyStats.pharmacyId, pts: pharmacyWeeklyStats.totalPoints })
+                .from(pharmacyWeeklyStats)
+                .where(and(inArray(pharmacyWeeklyStats.pharmacyId, pharmacyIds), eq(pharmacyWeeklyStats.year, input.year), eq(pharmacyWeeklyStats.week, lastWeek)))
+            : Promise.resolve([]),
+          pharmacyIds.length > 0
+            ? db.select({ id: pharmacyWeeklyStats.pharmacyId, pts: pharmacyWeeklyStats.totalPoints })
+                .from(pharmacyWeeklyStats)
+                .where(and(inArray(pharmacyWeeklyStats.pharmacyId, pharmacyIds), eq(pharmacyWeeklyStats.year, input.year), eq(pharmacyWeeklyStats.week, twoWeeksAgo)))
+            : Promise.resolve([]),
+          brandIds.length > 0
+            ? db.select({ id: brandWeeklyStats.brandId, pts: brandWeeklyStats.totalPoints })
+                .from(brandWeeklyStats)
+                .where(and(inArray(brandWeeklyStats.brandId, brandIds), eq(brandWeeklyStats.year, input.year), eq(brandWeeklyStats.week, lastWeek)))
+            : Promise.resolve([]),
+          brandIds.length > 0
+            ? db.select({ id: brandWeeklyStats.brandId, pts: brandWeeklyStats.totalPoints })
+                .from(brandWeeklyStats)
+                .where(and(inArray(brandWeeklyStats.brandId, brandIds), eq(brandWeeklyStats.year, input.year), eq(brandWeeklyStats.week, twoWeeksAgo)))
+            : Promise.resolve([]),
+        ]);
+
+        // Build stats lookup maps with trend calculation
+        const buildStatsMap = (
+          week1: { id: number; pts: number }[],
+          week2: { id: number; pts: number }[],
+          targetMap: Map<number, StatsData>
+        ) => {
+          const week2Map = new Map(week2.map(s => [s.id, s.pts]));
+          for (const stat of week1) {
+            const prev = week2Map.get(stat.id);
+            const trend = prev && prev > 0 ? ((stat.pts - prev) / prev) * 100 : null;
+            targetMap.set(stat.id, { lastWeekPoints: stat.pts, trendPercent: trend });
+          }
+        };
+
+        buildStatsMap(mfgStats1, mfgStats2, mfgStatsMap);
+        buildStatsMap(strainStats1, strainStats2, strainStatsMap);
+        buildStatsMap(productStats1, productStats2, productStatsMap);
+        buildStatsMap(pharmStats1, pharmStats2, pharmacyStatsMap);
+        buildStatsMap(brandStats1, brandStats2, brandStatsMap);
+      }
+
+      // Build enriched picks using Maps (O(1) lookups)
+      const enrichedPicks = picks.map((pick) => {
         let assetName = "Unknown";
         let imageUrl: string | null = null;
         let lastWeekPoints: number | null = null;
         let trendPercent: number | null = null;
 
-        // Fetch asset name and stats based on type
         if (pick.assetType === 'manufacturer') {
-          const [asset] = await db.select().from(manufacturers).where(eq(manufacturers.id, pick.assetId)).limit(1);
-          assetName = asset?.name || "Unknown";
-          imageUrl = asset?.logoUrl || null;
-
-          if (includeStats) {
-            // Fetch last week stats
-            const [lastWeekStat] = await db
-              .select()
-              .from(manufacturerWeeklyStats)
-              .where(and(
-                eq(manufacturerWeeklyStats.manufacturerId, pick.assetId),
-                eq(manufacturerWeeklyStats.year, input.year),
-                eq(manufacturerWeeklyStats.week, input.week - 1)
-              ))
-              .limit(1);
-            
-            if (lastWeekStat) {
-              lastWeekPoints = lastWeekStat.totalPoints;
-
-              // Get week-2 for trend
-              const [twoWeeksAgo] = await db
-                .select()
-                .from(manufacturerWeeklyStats)
-                .where(and(
-                  eq(manufacturerWeeklyStats.manufacturerId, pick.assetId),
-                  eq(manufacturerWeeklyStats.year, input.year),
-                  eq(manufacturerWeeklyStats.week, input.week - 2)
-                ))
-                .limit(1);
-
-              if (twoWeeksAgo && twoWeeksAgo.totalPoints > 0) {
-                trendPercent = ((lastWeekStat.totalPoints - twoWeeksAgo.totalPoints) / twoWeeksAgo.totalPoints) * 100;
-              }
-            }
-          }
-        } else if (pick.assetType === 'cannabis_strain') {
-          const [asset] = await db.select().from(cannabisStrains).where(eq(cannabisStrains.id, pick.assetId)).limit(1);
+          const asset = mfgMap.get(pick.assetId);
           assetName = asset?.name || "Unknown";
           imageUrl = asset?.imageUrl || null;
-
-          if (includeStats) {
-            const [lastWeekStat] = await db
-              .select()
-              .from(cannabisStrainWeeklyStats)
-              .where(and(
-                eq(cannabisStrainWeeklyStats.cannabisStrainId, pick.assetId),
-                eq(cannabisStrainWeeklyStats.year, input.year),
-                eq(cannabisStrainWeeklyStats.week, input.week - 1)
-              ))
-              .limit(1);
-
-            if (lastWeekStat) {
-              lastWeekPoints = lastWeekStat.totalPoints;
-
-              const [twoWeeksAgo] = await db
-                .select()
-                .from(cannabisStrainWeeklyStats)
-                .where(and(
-                  eq(cannabisStrainWeeklyStats.cannabisStrainId, pick.assetId),
-                  eq(cannabisStrainWeeklyStats.year, input.year),
-                  eq(cannabisStrainWeeklyStats.week, input.week - 2)
-                ))
-                .limit(1);
-
-              if (twoWeeksAgo && twoWeeksAgo.totalPoints > 0) {
-                trendPercent = ((lastWeekStat.totalPoints - twoWeeksAgo.totalPoints) / twoWeeksAgo.totalPoints) * 100;
-              }
-            }
-          }
+          const stats = mfgStatsMap.get(pick.assetId);
+          if (stats) { lastWeekPoints = stats.lastWeekPoints; trendPercent = stats.trendPercent; }
+        } else if (pick.assetType === 'cannabis_strain') {
+          const asset = strainMap.get(pick.assetId);
+          assetName = asset?.name || "Unknown";
+          imageUrl = asset?.imageUrl || null;
+          const stats = strainStatsMap.get(pick.assetId);
+          if (stats) { lastWeekPoints = stats.lastWeekPoints; trendPercent = stats.trendPercent; }
         } else if (pick.assetType === 'product') {
-          const [asset] = await db.select().from(strains).where(eq(strains.id, pick.assetId)).limit(1);
+          const asset = productMap.get(pick.assetId);
           assetName = asset?.name || "Unknown";
-
-          if (includeStats) {
-            const [lastWeekStat] = await db
-              .select()
-              .from(strainWeeklyStats)
-              .where(and(
-                eq(strainWeeklyStats.strainId, pick.assetId),
-                eq(strainWeeklyStats.year, input.year),
-                eq(strainWeeklyStats.week, input.week - 1)
-              ))
-              .limit(1);
-
-            if (lastWeekStat) {
-              lastWeekPoints = lastWeekStat.totalPoints;
-
-              const [twoWeeksAgo] = await db
-                .select()
-                .from(strainWeeklyStats)
-                .where(and(
-                  eq(strainWeeklyStats.strainId, pick.assetId),
-                  eq(strainWeeklyStats.year, input.year),
-                  eq(strainWeeklyStats.week, input.week - 2)
-                ))
-                .limit(1);
-
-              if (twoWeeksAgo && twoWeeksAgo.totalPoints > 0) {
-                trendPercent = ((lastWeekStat.totalPoints - twoWeeksAgo.totalPoints) / twoWeeksAgo.totalPoints) * 100;
-              }
-            }
-          }
+          imageUrl = asset?.imageUrl || null;
+          const stats = productStatsMap.get(pick.assetId);
+          if (stats) { lastWeekPoints = stats.lastWeekPoints; trendPercent = stats.trendPercent; }
         } else if (pick.assetType === 'pharmacy') {
-          const [asset] = await db.select().from(pharmacies).where(eq(pharmacies.id, pick.assetId)).limit(1);
+          const asset = pharmacyMap.get(pick.assetId);
           assetName = asset?.name || "Unknown";
-          imageUrl = asset?.logoUrl || null;
-
-          if (includeStats) {
-            const [lastWeekStat] = await db
-              .select()
-              .from(pharmacyWeeklyStats)
-              .where(and(
-                eq(pharmacyWeeklyStats.pharmacyId, pick.assetId),
-                eq(pharmacyWeeklyStats.year, input.year),
-                eq(pharmacyWeeklyStats.week, input.week - 1)
-              ))
-              .limit(1);
-
-            if (lastWeekStat) {
-              lastWeekPoints = lastWeekStat.totalPoints;
-
-              const [twoWeeksAgo] = await db
-                .select()
-                .from(pharmacyWeeklyStats)
-                .where(and(
-                  eq(pharmacyWeeklyStats.pharmacyId, pick.assetId),
-                  eq(pharmacyWeeklyStats.year, input.year),
-                  eq(pharmacyWeeklyStats.week, input.week - 2)
-                ))
-                .limit(1);
-
-              if (twoWeeksAgo && twoWeeksAgo.totalPoints > 0) {
-                trendPercent = ((lastWeekStat.totalPoints - twoWeeksAgo.totalPoints) / twoWeeksAgo.totalPoints) * 100;
-              }
-            }
-          }
+          imageUrl = asset?.imageUrl || null;
+          const stats = pharmacyStatsMap.get(pick.assetId);
+          if (stats) { lastWeekPoints = stats.lastWeekPoints; trendPercent = stats.trendPercent; }
         } else if (pick.assetType === 'brand') {
-          const [asset] = await db.select().from(brands).where(eq(brands.id, pick.assetId)).limit(1);
+          const asset = brandMap.get(pick.assetId);
           assetName = asset?.name || "Unknown";
-          imageUrl = asset?.logoUrl || null;
-
-          if (includeStats) {
-            const [lastWeekStat] = await db
-              .select()
-              .from(brandWeeklyStats)
-              .where(and(
-                eq(brandWeeklyStats.brandId, pick.assetId),
-                eq(brandWeeklyStats.year, input.year),
-                eq(brandWeeklyStats.week, input.week - 1)
-              ))
-              .limit(1);
-
-            if (lastWeekStat) {
-              lastWeekPoints = lastWeekStat.totalPoints;
-
-              const [twoWeeksAgo] = await db
-                .select()
-                .from(brandWeeklyStats)
-                .where(and(
-                  eq(brandWeeklyStats.brandId, pick.assetId),
-                  eq(brandWeeklyStats.year, input.year),
-                  eq(brandWeeklyStats.week, input.week - 2)
-                ))
-                .limit(1);
-
-              if (twoWeeksAgo && twoWeeksAgo.totalPoints > 0) {
-                trendPercent = ((lastWeekStat.totalPoints - twoWeeksAgo.totalPoints) / twoWeeksAgo.totalPoints) * 100;
-              }
-            }
-          }
+          imageUrl = asset?.imageUrl || null;
+          const stats = brandStatsMap.get(pick.assetId);
+          if (stats) { lastWeekPoints = stats.lastWeekPoints; trendPercent = stats.trendPercent; }
         }
 
         const teamData = teamMap.get(pick.teamId);
@@ -1213,7 +1143,7 @@ export const draftRouter = router({
           trendPercent,
           pickTime: pick.pickTime,
         };
-      }));
+      });
 
       return enrichedPicks;
     }),

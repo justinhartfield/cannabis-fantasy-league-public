@@ -9,12 +9,7 @@
 import { getDb } from './db';
 import { getMetabaseClient } from './metabase';
 import axios from 'axios';
-import {
-  calculateManufacturerScore as calculateOldManufacturerScore,
-  calculateStrainScore as calculateOldStrainScore,
-  calculateProductScore as calculateOldProductScore,
-  calculatePharmacyScore as calculateOldPharmacyScore,
-} from './dailyChallengeScoringEngine';
+// Old scoring functions removed - now using trend-based scoring exclusively
 import {
   calculateManufacturerTrendScore,
   calculateStrainTrendScore,
@@ -208,26 +203,9 @@ export class DailyChallengeAggregatorV2 {
           dailyVolumes: trendData.dailyVolumes,
         };
 
-        if (trendData.trendMetrics === null) {
-          await this.log('warn', `Missing trend metrics for ${name}, using neutral 1.0x multiplier`, {
-            orderCount: data.orderCount,
-            rank
-          }, logger);
-        }
-
         const trendScore = calculateManufacturerTrendScore(stats);
         // Safeguard: trendMultiplier should never be 0 (minimum is 1.0 for neutral)
         const safeTrendMultiplier = trendScore.trendMultiplier || 1.0;
-
-        if (safeTrendMultiplier === 1.0 && trendScore.trendMultiplier !== 1.0) {
-          await this.log('warn', `Trend multiplier defaulted to 1.0 for manufacturer ${name}`, {
-            calculated: trendScore.trendMultiplier,
-            trendMetrics: trendData.trendMetrics,
-          }, logger);
-        }
-
-        // Also calculate old score for comparison
-        const oldScore = calculateOldManufacturerScore(data, rank);
 
         // Upsert stats with new fields
         await db
@@ -271,19 +249,13 @@ export class DailyChallengeAggregatorV2 {
           });
 
         processed += 1;
-
-        await this.log(
-          'info',
-          `${name}: ${data.orderCount} orders, ${trendScore.trendMultiplier.toFixed(2)}x trend, ${trendScore.totalPoints} pts (rank #${rank})`,
-          { oldScore: oldScore.totalPoints, newScore: trendScore.totalPoints },
-          logger
-        );
       } catch (error) {
         await this.log('error', `Error processing manufacturer ${name}:`, error, logger);
         skipped += 1;
       }
     });
 
+    await this.log('info', `Processed ${processed} manufacturers, skipped ${skipped}`, undefined, logger);
     return { processed, skipped };
   }
 
@@ -364,24 +336,10 @@ export class DailyChallengeAggregatorV2 {
           dailyVolumes: trendData.dailyVolumes,
         };
 
-        if (trendData.trendMetrics === null) {
-          await this.log('warn', `Missing trend metrics for strain ${name}, using neutral 1.0x multiplier`, {
-            orderCount: data.orderCount,
-            rank
-          }, logger);
-        }
-
         const trendScore = calculateStrainTrendScore(stats);
 
         // Safeguard: trendMultiplier should never be 0 (minimum is 1.0 for neutral)
         const safeTrendMultiplier = trendScore.trendMultiplier || 1.0;
-
-        if (safeTrendMultiplier === 1.0 && trendScore.trendMultiplier !== 1.0) {
-          await this.log('warn', `Trend multiplier defaulted to 1.0 for strain ${name}`, {
-            calculated: trendScore.trendMultiplier,
-            trendMetrics: trendData.trendMetrics,
-          }, logger);
-        }
 
         await db
           .insert(strainDailyChallengeStats)
@@ -425,6 +383,7 @@ export class DailyChallengeAggregatorV2 {
       }
     });
 
+    await this.log('info', `Processed ${processed} strains, skipped ${skipped}`, undefined, logger);
     return { processed, skipped };
   }
 
@@ -513,14 +472,9 @@ export class DailyChallengeAggregatorV2 {
         }); // No need for onConflictDoUpdate since we deleted beforehand
 
       processed += 1;
-      await this.log(
-        'info',
-        `${brandData.name}: ${brandData.totalRatings} ratings, avg ${brandData.averageRating}, ${scoring.totalPoints} pts (rank #${rank})`,
-        undefined,
-        logger
-      );
     });
 
+    await this.log('info', `Processed ${processed} brands, skipped ${skipped}`, undefined, logger);
     return { processed, skipped };
   }
 

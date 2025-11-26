@@ -1726,15 +1726,28 @@ export async function calculateDailyChallengeScores(challengeId: number, statDat
 
   const statDateString = targetDate.toISOString().split('T')[0];
 
-  // Automatically aggregate daily stats with trend-based scoring
-  console.log(`[calculateDailyChallengeScores] Aggregating daily stats with trend scoring for ${statDateString}...`);
-  const { dailyChallengeAggregatorV2 } = await import('./dailyChallengeAggregatorV2');
-  try {
-    await dailyChallengeAggregatorV2.aggregateForDate(statDateString);
-    console.log(`[calculateDailyChallengeScores] Daily stats aggregated successfully with trend scoring for ${statDateString}`);
-  } catch (error) {
-    console.error(`[calculateDailyChallengeScores] Failed to aggregate daily stats:`, error);
-    // Continue anyway - maybe stats already exist
+  // Check if daily challenge stats already exist for this date before running expensive aggregation
+  const existingStats = await db
+    .select({ count: count() })
+    .from(manufacturerDailyChallengeStats)
+    .where(eq(manufacturerDailyChallengeStats.statDate, statDateString))
+    .limit(1);
+
+  const statsExist = (existingStats[0]?.count ?? 0) > 0;
+
+  if (!statsExist) {
+    // Only aggregate if stats don't exist - this is the expensive operation (30+ seconds)
+    console.log(`[calculateDailyChallengeScores] No existing stats for ${statDateString}, running aggregation...`);
+    const { dailyChallengeAggregatorV2 } = await import('./dailyChallengeAggregatorV2');
+    try {
+      await dailyChallengeAggregatorV2.aggregateForDate(statDateString);
+      console.log(`[calculateDailyChallengeScores] Daily stats aggregated for ${statDateString}`);
+    } catch (error) {
+      console.error(`[calculateDailyChallengeScores] Failed to aggregate daily stats:`, error);
+      // Continue anyway - maybe partial stats exist
+    }
+  } else {
+    console.log(`[calculateDailyChallengeScores] Using cached stats for ${statDateString} (${existingStats[0].count} manufacturer records)`);
   }
 
   const challengeTeams = await db
@@ -1742,8 +1755,7 @@ export async function calculateDailyChallengeScores(challengeId: number, statDat
     .from(teams)
     .where(eq(teams.leagueId, challengeId));
 
-  console.log(`[calculateDailyChallengeScores] Found ${challengeTeams.length} teams in challenge ${challengeId}`);
-  console.log(`[calculateDailyChallengeScores] Using stat date: ${statDateString}`);
+  console.log(`[calculateDailyChallengeScores] Scoring ${challengeTeams.length} teams for challenge ${challengeId}`);
 
   const scarcityMultipliers = await getScarcityMultipliers(db);
 
@@ -1751,7 +1763,6 @@ export async function calculateDailyChallengeScores(challengeId: number, statDat
   await Promise.all(
     challengeTeams.map(async (team) => {
       try {
-        console.log(`[calculateDailyChallengeScores] Processing team ${team.id} (${team.name})`);
         await calculateTeamDailyScore(team.id, challengeId, statDateString, {
           scarcityMultipliers,
         });

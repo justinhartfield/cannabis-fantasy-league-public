@@ -3,7 +3,6 @@
  */
 
 import { calculatePharmacyTrendScore, TrendScoringStats } from './trendScoringEngine';
-import { calculatePharmacyScore as calculateOldPharmacyScore } from './dailyChallengeScoringEngine';
 import { fetchTrendDataForScoring, fetchTotalMarketVolume, fetchTrendMetricsBatch } from './trendMetricsFetcher';
 import { pharmacyDailyChallengeStats } from '../drizzle/dailyChallengeSchema';
 import { pLimit } from './utils/concurrency';
@@ -102,27 +101,10 @@ export async function aggregatePharmaciesWithTrends(
         dailyVolumes: trendData.dailyVolumes,
       };
 
-      if (trendData.trendMetrics === null) {
-        await log('warn', `Missing trend metrics for pharmacy ${name}, using neutral 1.0x multiplier`, {
-          orderCount: data.orderCount,
-          rank
-        }, logger);
-      }
-
       const trendScore = calculatePharmacyTrendScore(stats);
 
       // Safeguard: trendMultiplier should never be 0 (minimum is 1.0 for neutral)
       const safeTrendMultiplier = trendScore.trendMultiplier || 1.0;
-
-      if (safeTrendMultiplier === 1.0 && trendScore.trendMultiplier !== 1.0) {
-        await log('warn', `Trend multiplier defaulted to 1.0 for pharmacy ${name}`, {
-          calculated: trendScore.trendMultiplier,
-          trendMetrics: trendData.trendMetrics,
-        }, logger);
-      }
-
-      // Also calculate old score for comparison
-      const oldScore = calculateOldPharmacyScore(data, rank);
 
       // Upsert stats with new fields
       await db
@@ -164,18 +146,12 @@ export async function aggregatePharmaciesWithTrends(
         });
 
       processed += 1;
-
-      await log(
-        'info',
-        `${name}: ${data.orderCount} orders, ${trendScore.trendMultiplier.toFixed(2)}x trend, ${trendScore.totalPoints} pts (rank #${rank})`,
-        { oldScore: oldScore.totalPoints, newScore: trendScore.totalPoints },
-        logger
-      );
     } catch (error) {
       await log('error', `Error processing pharmacy ${name}:`, error, logger);
       skipped += 1;
     }
   });
 
+  await log('info', `Processed ${processed} pharmacies, skipped ${skipped}`, undefined, logger);
   return { processed, skipped };
 }

@@ -78,7 +78,8 @@ class DraftTimerManager {
       startTime,
     });
 
-    // Send countdown updates every second
+    // Send countdown sync updates every 5 seconds (client interpolates in between)
+    // This reduces WebSocket traffic by 80% while maintaining accurate time sync
     const interval = setInterval(() => {
       const elapsed = Math.floor((Date.now() - startTime) / 1000);
       const remaining = Math.max(0, timeLimit - elapsed);
@@ -91,7 +92,7 @@ class DraftTimerManager {
       if (remaining === 0) {
         clearInterval(interval);
       }
-    }, 1000);
+    }, 5000);
 
     // Auto-pick when timer expires
     const timeout = setTimeout(async () => {
@@ -243,7 +244,7 @@ class DraftTimerManager {
       if (remaining === 0) {
         clearInterval(interval);
       }
-    }, 1000);
+    }, 5000);
 
     const timeout = setTimeout(async () => {
       await this.handleTimeExpired(leagueId, nextPick.teamId);

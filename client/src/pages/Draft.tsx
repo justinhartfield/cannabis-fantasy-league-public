@@ -38,6 +38,33 @@ export default function Draft() {
   const [timerSeconds, setTimerSeconds] = useState<number | null>(null);
   const [timeLimit, setTimeLimit] = useState<number>(90);
   const [isPaused, setIsPaused] = useState(false);
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Local timer countdown (server syncs every 5s, we interpolate locally for smooth UI)
+  useEffect(() => {
+    // Clear any existing interval
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = null;
+    }
+
+    // Only run local countdown if we have a timer and it's not paused
+    if (timerSeconds !== null && timerSeconds > 0 && !isPaused) {
+      timerIntervalRef.current = setInterval(() => {
+        setTimerSeconds((prev) => {
+          if (prev === null || prev <= 0) return prev;
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+    };
+  }, [timerSeconds !== null && timerSeconds > 0, isPaused]);
   const [currentTurnTeamId, setCurrentTurnTeamId] = useState<number | null>(null);
   const [currentTurnTeamName, setCurrentTurnTeamName] = useState<string>("");
   const [currentPickNumber, setCurrentPickNumber] = useState<number>(1);
@@ -831,6 +858,7 @@ export default function Draft() {
           onReorderQueue={setDraftQueue}
           autoPickFromQueue={autoPickFromQueue}
           onAutoPickFromQueueChange={setAutoPickFromQueue}
+          draftPending={makeDraftPickMutation.isPending}
         />
       </div>
     );
@@ -912,6 +940,7 @@ export default function Draft() {
         autoDraftEnabled={autoDraftEnabled}
         onAutoDraftChange={handleAutoDraftChange}
         timerSeconds={timerSeconds}
+        draftPending={makeDraftPickMutation.isPending}
       />
     </div>
   );

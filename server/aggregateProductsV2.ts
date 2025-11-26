@@ -3,7 +3,6 @@
  */
 
 import { calculateProductTrendScore, TrendScoringStats } from './trendScoringEngine';
-import { calculateProductScore as calculateOldProductScore } from './dailyChallengeScoringEngine';
 import { fetchTrendDataForScoring, fetchTotalMarketVolume, fetchTrendMetricsBatch } from './trendMetricsFetcher';
 import { productDailyChallengeStats } from '../drizzle/dailyChallengeSchema';
 import { pLimit } from './utils/concurrency';
@@ -113,27 +112,10 @@ export async function aggregateProductsWithTrends(
         dailyVolumes: trendData.dailyVolumes,
       };
 
-      if (trendData.trendMetrics === null) {
-        await log('warn', `Missing trend metrics for product ${name}, using neutral 1.0x multiplier`, {
-          orderCount,
-          rank
-        }, logger);
-      }
-
       const trendScore = calculateProductTrendScore(stats);
 
       // Safeguard: trendMultiplier should never be 0 (minimum is 1.0 for neutral)
       const safeTrendMultiplier = trendScore.trendMultiplier || 1.0;
-
-      if (safeTrendMultiplier === 1.0 && trendScore.trendMultiplier !== 1.0) {
-        await log('warn', `Trend multiplier defaulted to 1.0 for product ${name}`, {
-          calculated: trendScore.trendMultiplier,
-          trendMetrics: trendData.trendMetrics,
-        }, logger);
-      }
-
-      // Also calculate old score for comparison
-      const oldScore = calculateOldProductScore({ salesVolumeGrams, orderCount }, rank);
 
       // Upsert stats with new fields
       await db
@@ -175,18 +157,12 @@ export async function aggregateProductsWithTrends(
         });
 
       processed += 1;
-
-      await log(
-        'info',
-        `${name}: ${orderCount} orders, ${trendScore.trendMultiplier.toFixed(2)}x trend, ${trendScore.totalPoints} pts (rank #${rank})`,
-        { oldScore: oldScore.totalPoints, newScore: trendScore.totalPoints },
-        logger
-      );
     } catch (error) {
       await log('error', `Error processing product ${name}:`, error, logger);
       skipped += 1;
     }
   });
 
+  await log('info', `Processed ${processed} products, skipped ${skipped}`, undefined, logger);
   return { processed, skipped };
 }

@@ -225,22 +225,10 @@ export function SleeperPlayerPanel({
 
     let allPlayers: Array<AvailablePlayer & { assetType: AssetType }> = [];
 
-    // Debug: Log input data
-    console.log('[SleeperPlayerPanel] Input counts:', {
-      manufacturers: manufacturers?.length ?? 0,
-      cannabisStrains: cannabisStrains?.length ?? 0,
-      products: products?.length ?? 0,
-      pharmacies: pharmacies?.length ?? 0,
-      brands: brands?.length ?? 0,
-    });
-
     // "all" and "flex" both show all players (flex is just a filter for showing all available)
     if (selectedPosition === "all" || selectedPosition === "flex") {
-      const mfgFiltered = filterAndMap(manufacturers, "manufacturer");
-      console.log('[SleeperPlayerPanel] MFG after filter:', mfgFiltered.length, 'from', manufacturers?.length);
-      
       allPlayers = [
-        ...mfgFiltered,
+        ...filterAndMap(manufacturers, "manufacturer"),
         ...filterAndMap(cannabisStrains, "cannabis_strain"),
         ...filterAndMap(products, "product"),
         ...filterAndMap(pharmacies, "pharmacy"),
