@@ -146,16 +146,17 @@ export function DraftFieldPlayer({
     ? ASSET_TYPE_LABELS[player.assetType] 
     : ASSET_TYPE_LABELS[assetType as AssetType | "flex"];
 
+  // Sizes increased by 10%
   const sizeClasses = {
-    sm: "w-16 h-20",
-    md: "w-20 h-24",
-    lg: "w-24 h-28",
+    sm: "w-[70px] h-[88px]",
+    md: "w-[88px] h-[106px]",
+    lg: "w-[106px] h-[123px]",
   };
 
   const jerseySizes = {
-    sm: { width: 48, height: 56, avatarSize: 20, avatarY: 28 },
-    md: { width: 60, height: 70, avatarSize: 26, avatarY: 34 },
-    lg: { width: 72, height: 84, avatarSize: 32, avatarY: 40 },
+    sm: { width: 53, height: 62, avatarSize: 22, avatarY: 31 },
+    md: { width: 66, height: 77, avatarSize: 29, avatarY: 37 },
+    lg: { width: 79, height: 92, avatarSize: 35, avatarY: 44 },
   };
 
   const jerseySize = jerseySizes[size];
@@ -299,7 +300,7 @@ export function DraftFieldPlayer({
       </div>
 
       {/* Player name or role label */}
-      <div className="text-center max-w-20">
+      <div className="text-center max-w-[88px]">
         {player ? (
           <>
             <div className="text-[11px] font-semibold text-white truncate leading-tight drop-shadow-sm">

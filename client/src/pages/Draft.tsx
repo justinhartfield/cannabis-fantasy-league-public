@@ -805,7 +805,7 @@ export default function Draft() {
         </DialogContent>
       </Dialog>
 
-      {/* Header */}
+      {/* Header - Simplified, controls moved to ChallengeDraftBoard */}
       <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-[#1a0a2e] via-[#0f0f16] to-[#1a0a2e] border-b border-white/10">
         <div className="flex items-center gap-3">
           <button
@@ -817,22 +817,6 @@ export default function Draft() {
           <div>
             <h1 className="text-lg font-bold text-white">{league.name}</h1>
             <p className="text-xs text-white/50">{myTeam.name}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {timerSeconds !== null && !isNaN(timerSeconds) && timerSeconds >= 0 && (
-            <div className="px-3 py-1.5 rounded-full bg-white/10 text-sm font-semibold text-white">
-              ⏱️ {Math.floor(timerSeconds / 60)}:{String(timerSeconds % 60).padStart(2, "0")}
-            </div>
-          )}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10">
-            <Zap className={`w-4 h-4 ${autoDraftEnabled ? 'text-[#cfff4d]' : 'text-white/40'}`} />
-            <Switch
-              id="auto-draft-toggle-challenge"
-              checked={autoDraftEnabled}
-              onCheckedChange={setAutoDraftEnabled}
-              className="data-[state=checked]:bg-[#cfff4d] scale-75"
-            />
           </div>
         </div>
       </div>
@@ -865,6 +849,9 @@ export default function Draft() {
         searchQuery={searchQuery}
         isLoading={false}
         draftedAssets={draftedAssets}
+        autoDraftEnabled={autoDraftEnabled}
+        onAutoDraftChange={setAutoDraftEnabled}
+        timerSeconds={timerSeconds}
       />
     </div>
   );

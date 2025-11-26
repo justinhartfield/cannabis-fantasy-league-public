@@ -87,7 +87,8 @@ export function DraftField({
     onPositionClick?.(position);
   };
 
-  const fieldHeight = size === "sm" ? "h-[340px]" : "h-[420px]";
+  // Increased field height to accommodate larger player slots with more spacing
+  const fieldHeight = size === "sm" ? "h-[420px]" : "h-[500px]";
   const playerSize = size === "sm" ? "sm" : "md";
 
   return (
@@ -139,10 +140,10 @@ export function DraftField({
           "bg-gradient-to-b from-[#0a0a0f] via-[#0f1015] to-[#0a0a0f]"
         )}
       >
-        {/* Futuristic field markings */}
+        {/* Futuristic field markings - Taller field with 5 rows of players */}
         <svg
           className="absolute inset-0 w-full h-full"
-          viewBox="0 0 200 340"
+          viewBox="0 0 200 400"
           preserveAspectRatio="none"
         >
           {/* Grid pattern effect */}
@@ -162,14 +163,14 @@ export function DraftField({
           </defs>
 
           {/* Background grid */}
-          <rect x="0" y="0" width="200" height="340" fill="url(#grid-pattern)" />
+          <rect x="0" y="0" width="200" height="400" fill="url(#grid-pattern)" />
 
           {/* Field border with glow */}
           <rect
             x="10"
             y="10"
             width="180"
-            height="320"
+            height="380"
             fill="none"
             stroke="rgba(207,255,77,0.2)"
             strokeWidth="1.5"
@@ -179,9 +180,9 @@ export function DraftField({
           {/* Center line */}
           <line
             x1="10"
-            y1="170"
+            y1="200"
             x2="190"
-            y2="170"
+            y2="200"
             stroke="rgba(207,255,77,0.15)"
             strokeWidth="1"
           />
@@ -189,22 +190,22 @@ export function DraftField({
           {/* Center circle with glow */}
           <circle
             cx="100"
-            cy="170"
-            r="35"
+            cy="200"
+            r="40"
             fill="url(#center-glow)"
             stroke="rgba(207,255,77,0.2)"
             strokeWidth="1"
           />
 
           {/* Center dot */}
-          <circle cx="100" cy="170" r="4" fill="rgba(207,255,77,0.4)" />
+          <circle cx="100" cy="200" r="4" fill="rgba(207,255,77,0.4)" />
 
           {/* Top penalty area */}
           <rect
             x="35"
             y="10"
             width="130"
-            height="55"
+            height="65"
             fill="none"
             stroke="rgba(207,255,77,0.12)"
             strokeWidth="1"
@@ -216,7 +217,7 @@ export function DraftField({
             x="55"
             y="10"
             width="90"
-            height="25"
+            height="30"
             fill="none"
             stroke="rgba(207,255,77,0.12)"
             strokeWidth="1"
@@ -226,9 +227,9 @@ export function DraftField({
           {/* Bottom penalty area */}
           <rect
             x="35"
-            y="275"
+            y="325"
             width="130"
-            height="55"
+            height="65"
             fill="none"
             stroke="rgba(207,255,77,0.12)"
             strokeWidth="1"
@@ -238,9 +239,9 @@ export function DraftField({
           {/* Bottom goal area */}
           <rect
             x="55"
-            y="305"
+            y="360"
             width="90"
-            height="25"
+            height="30"
             fill="none"
             stroke="rgba(207,255,77,0.12)"
             strokeWidth="1"
@@ -249,13 +250,13 @@ export function DraftField({
 
           {/* Penalty arcs */}
           <path
-            d="M 50 65 Q 100 90 150 65"
+            d="M 50 75 Q 100 100 150 75"
             fill="none"
             stroke="rgba(207,255,77,0.12)"
             strokeWidth="1"
           />
           <path
-            d="M 50 275 Q 100 250 150 275"
+            d="M 50 325 Q 100 300 150 325"
             fill="none"
             stroke="rgba(207,255,77,0.12)"
             strokeWidth="1"
@@ -264,8 +265,8 @@ export function DraftField({
           {/* Corner arcs */}
           <path d="M 10 25 Q 25 10 40 10" fill="none" stroke="rgba(207,255,77,0.1)" strokeWidth="1" />
           <path d="M 160 10 Q 175 10 190 25" fill="none" stroke="rgba(207,255,77,0.1)" strokeWidth="1" />
-          <path d="M 10 315 Q 25 330 40 330" fill="none" stroke="rgba(207,255,77,0.1)" strokeWidth="1" />
-          <path d="M 160 330 Q 175 330 190 315" fill="none" stroke="rgba(207,255,77,0.1)" strokeWidth="1" />
+          <path d="M 10 375 Q 25 390 40 390" fill="none" stroke="rgba(207,255,77,0.1)" strokeWidth="1" />
+          <path d="M 160 390 Q 175 390 190 375" fill="none" stroke="rgba(207,255,77,0.1)" strokeWidth="1" />
         </svg>
 
         {/* Ambient glow effects */}
@@ -275,9 +276,10 @@ export function DraftField({
         </div>
 
         {/* Position slots - Arranged in formation with FLEX in center */}
-        <div className="absolute inset-0 flex flex-col items-center justify-between py-2 px-2">
+        {/* Increased padding and gap values to prevent text overlap */}
+        <div className="absolute inset-0 flex flex-col items-center justify-between py-4 px-4">
           {/* Strikers Row (Manufacturers) */}
-          <div className="flex items-center justify-center gap-6">
+          <div className="flex items-center justify-center gap-16">
             <DraftFieldPlayer
               position="ST1"
               player={getPlayer("ST1")}
@@ -296,8 +298,8 @@ export function DraftField({
             />
           </div>
 
-          {/* Wings Row (Pharmacies) */}
-          <div className="flex items-center justify-between w-full max-w-[240px]">
+          {/* Wings Row (Pharmacies) - wider spread */}
+          <div className="flex items-center justify-between w-full max-w-[320px]">
             <DraftFieldPlayer
               position="LW"
               player={getPlayer("LW")}
@@ -316,14 +318,22 @@ export function DraftField({
             />
           </div>
 
-          {/* Midfield Row (Products) */}
-          <div className="flex items-center justify-center gap-10">
+          {/* Midfield Row (Products) with FLEX in center */}
+          <div className="flex items-center justify-center gap-8">
             <DraftFieldPlayer
               position="CM1"
               player={getPlayer("CM1")}
               isActive={isPositionActive("CM1")}
               isMyTurn={isOnTheClock}
               onClick={onPositionClick ? () => handlePositionClick("CM1") : undefined}
+              size={playerSize}
+            />
+            <DraftFieldPlayer
+              position="FLEX"
+              player={getPlayer("FLEX")}
+              isActive={isPositionActive("FLEX")}
+              isMyTurn={isOnTheClock}
+              onClick={onPositionClick ? () => handlePositionClick("FLEX") : undefined}
               size={playerSize}
             />
             <DraftFieldPlayer
@@ -336,20 +346,8 @@ export function DraftField({
             />
           </div>
 
-          {/* FLEX Row (Center of pitch - Any type) */}
-          <div className="flex items-center justify-center">
-            <DraftFieldPlayer
-              position="FLEX"
-              player={getPlayer("FLEX")}
-              isActive={isPositionActive("FLEX")}
-              isMyTurn={isOnTheClock}
-              onClick={onPositionClick ? () => handlePositionClick("FLEX") : undefined}
-              size={playerSize}
-            />
-          </div>
-
           {/* Defense Row (Strains) */}
-          <div className="flex items-center justify-center gap-12">
+          <div className="flex items-center justify-center gap-20">
             <DraftFieldPlayer
               position="CB1"
               player={getPlayer("CB1")}

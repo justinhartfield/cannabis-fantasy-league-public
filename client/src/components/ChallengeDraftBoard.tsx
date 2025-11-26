@@ -3,6 +3,14 @@ import { cn } from "@/lib/utils";
 import { DraftField, rosterToFieldPlayers } from "./DraftField";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Switch } from "@/components/ui/switch";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   DraftPosition,
   CHALLENGE_DRAFT_ORDER,
@@ -11,7 +19,7 @@ import {
   ASSET_TYPE_LABELS,
   type AssetType,
 } from "./DraftFieldPlayer";
-import { Search, Users, Building2, Leaf, Package, Tag } from "lucide-react";
+import { Search, Users, Building2, Leaf, Package, Tag, TrendingUp, SortAsc, Zap, Info } from "lucide-react";
 import { toast } from "sonner";
 
 interface RosterItem {
@@ -66,6 +74,11 @@ interface ChallengeDraftBoardProps {
   searchQuery: string;
   isLoading: boolean;
   draftedAssets: Record<AssetType, Set<number>>;
+  // Auto-pick settings
+  autoDraftEnabled?: boolean;
+  onAutoDraftChange?: (enabled: boolean) => void;
+  // Timer display
+  timerSeconds?: number | null;
 }
 
 // Position filter pills configuration
@@ -123,8 +136,12 @@ export function ChallengeDraftBoard({
   searchQuery,
   isLoading,
   draftedAssets,
+  autoDraftEnabled = false,
+  onAutoDraftChange,
+  timerSeconds,
 }: ChallengeDraftBoardProps) {
   const [selectedPosition, setSelectedPosition] = useState<AssetType | "all">("all");
+  const [sortBy, setSortBy] = useState<"points" | "name">("points");
 
   // Convert rosters to field player maps
   const myFieldPlayers = useMemo(() => rosterToFieldPlayers(myRoster), [myRoster]);
@@ -223,7 +240,7 @@ export function ChallengeDraftBoard({
     return true;
   }, [rosterCounts, isFlexFilled]);
 
-  // Filter players
+  // Filter and sort players
   const filteredPlayers = useMemo(() => {
     const filterAndMap = (players: AvailablePlayer[], assetType: AssetType) => {
       return players
@@ -231,25 +248,39 @@ export function ChallengeDraftBoard({
         .map((p) => ({ ...p, assetType, imageUrl: p.imageUrl || p.logoUrl }));
     };
 
+    let result: (AvailablePlayer & { assetType: AssetType })[] = [];
+
     if (selectedPosition === "all") {
-      return [
-        ...filterAndMap(manufacturers.slice(0, 5), "manufacturer"),
-        ...filterAndMap(pharmacies.slice(0, 5), "pharmacy"),
-        ...filterAndMap(products.slice(0, 5), "product"),
-        ...filterAndMap(cannabisStrains.slice(0, 5), "cannabis_strain"),
-        ...filterAndMap(brands.slice(0, 3), "brand"),
+      result = [
+        ...filterAndMap(manufacturers.slice(0, 10), "manufacturer"),
+        ...filterAndMap(pharmacies.slice(0, 10), "pharmacy"),
+        ...filterAndMap(products.slice(0, 10), "product"),
+        ...filterAndMap(cannabisStrains.slice(0, 10), "cannabis_strain"),
+        ...filterAndMap(brands.slice(0, 5), "brand"),
       ];
+    } else {
+      switch (selectedPosition) {
+        case "manufacturer": result = filterAndMap(manufacturers, "manufacturer"); break;
+        case "pharmacy": result = filterAndMap(pharmacies, "pharmacy"); break;
+        case "product": result = filterAndMap(products, "product"); break;
+        case "cannabis_strain": result = filterAndMap(cannabisStrains, "cannabis_strain"); break;
+        case "brand": result = filterAndMap(brands, "brand"); break;
+      }
     }
 
-    switch (selectedPosition) {
-      case "manufacturer": return filterAndMap(manufacturers, "manufacturer");
-      case "pharmacy": return filterAndMap(pharmacies, "pharmacy");
-      case "product": return filterAndMap(products, "product");
-      case "cannabis_strain": return filterAndMap(cannabisStrains, "cannabis_strain");
-      case "brand": return filterAndMap(brands, "brand");
-      default: return [];
+    // Sort results
+    if (sortBy === "points") {
+      result.sort((a, b) => {
+        const pointsA = a.yesterdayPoints ?? a.todayPoints ?? 0;
+        const pointsB = b.yesterdayPoints ?? b.todayPoints ?? 0;
+        return pointsB - pointsA;
+      });
+    } else {
+      result.sort((a, b) => a.name.localeCompare(b.name));
     }
-  }, [selectedPosition, manufacturers, pharmacies, products, cannabisStrains, brands, draftedAssets]);
+
+    return result;
+  }, [selectedPosition, manufacturers, pharmacies, products, cannabisStrains, brands, draftedAssets, sortBy]);
 
   // Handle draft pick
   const handleDraft = (player: AvailablePlayer & { assetType: AssetType }) => {
@@ -266,7 +297,69 @@ export function ChallengeDraftBoard({
   };
 
   return (
+    <TooltipProvider>
     <div className="flex flex-col h-full bg-[#0a0a0f] overflow-y-auto">
+      {/* Draft Controls Header */}
+      <div className="px-4 pt-3 pb-2 flex items-center justify-between border-b border-white/5 bg-[#0a0a0f]/80 backdrop-blur-sm sticky top-0 z-10">
+        <div className="flex items-center gap-3">
+          {/* Timer */}
+          {timerSeconds !== null && timerSeconds !== undefined && !isNaN(timerSeconds) && timerSeconds >= 0 && (
+            <div className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
+              <span className="text-sm font-mono font-semibold text-white">
+                ⏱️ {Math.floor(timerSeconds / 60)}:{String(timerSeconds % 60).padStart(2, "0")}
+              </span>
+            </div>
+          )}
+          
+          {/* Turn indicator */}
+          {isMyTurn ? (
+            <span className="px-3 py-1.5 rounded-lg bg-[#cfff4d] text-black text-xs font-bold uppercase animate-pulse">
+              Your Turn
+            </span>
+          ) : (
+            <span className="px-3 py-1.5 rounded-lg bg-white/5 text-white/50 text-xs font-medium">
+              Opponent's Turn
+            </span>
+          )}
+        </div>
+        
+        {/* Auto-Pick Toggle with Label and Info */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
+            <Zap className={cn(
+              "w-4 h-4 transition-colors",
+              autoDraftEnabled ? "text-[#cfff4d]" : "text-white/40"
+            )} />
+            <span className={cn(
+              "text-xs font-medium transition-colors",
+              autoDraftEnabled ? "text-[#cfff4d]" : "text-white/50"
+            )}>
+              Auto-Pick
+            </span>
+            <Switch
+              checked={autoDraftEnabled}
+              onCheckedChange={onAutoDraftChange}
+              className="data-[state=checked]:bg-[#cfff4d] scale-75"
+            />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button className="p-1 rounded-full hover:bg-white/10 transition-colors">
+                  <Info className="w-3.5 h-3.5 text-white/40" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[280px] bg-[#1a1d29] border-white/10 text-white">
+                <p className="text-xs leading-relaxed">
+                  <strong className="text-[#cfff4d]">Auto-Pick Mode</strong><br/>
+                  When enabled, the system will automatically draft the best available player based on yesterday's points when it's your turn.
+                  <br/><br/>
+                  <span className="text-white/60">💡 If both players enable auto-pick, the entire draft completes in seconds!</span>
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </div>
+      </div>
+
       {/* Fields Container - Side by Side on Desktop, Single on Mobile */}
       <div className="p-4 pb-2">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-w-5xl mx-auto">
@@ -311,108 +404,175 @@ export function ChallengeDraftBoard({
         </div>
       </div>
 
-      {/* Bottom Panel - Available Players */}
-      <div className="border-t border-white/10 bg-[#0f1015]">
-        <div className="max-w-2xl mx-auto">
-          {/* Panel 1: Available Players */}
-          <div className="bg-[#0f1015] p-3">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-[10px] font-semibold text-white/70 uppercase tracking-wider">Available</h3>
+      {/* Bottom Panel - Available Players (Expanded to fill remaining space) */}
+      <div className="flex-1 border-t border-white/10 bg-[#0f1015] flex flex-col min-h-0">
+        <div className="max-w-3xl mx-auto w-full flex flex-col flex-1 min-h-0 px-3 py-3">
+          {/* Header Row */}
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <h3 className="text-xs font-semibold text-white/70 uppercase tracking-wider">Available Players</h3>
               {isMyTurn && (
-                <span className="px-1.5 py-0.5 rounded-full bg-[#cfff4d] text-black text-[9px] font-bold animate-pulse">
-                  Pick Now
+                <span className="px-2 py-0.5 rounded-full bg-[#cfff4d] text-black text-[10px] font-bold animate-pulse">
+                  Your Pick
                 </span>
               )}
             </div>
-
-            {/* Position Filter Pills */}
-            <div className="flex gap-1 mb-2 overflow-x-auto pb-1">
-              {POSITION_PILLS.map((pill) => {
-                const key = pill.key;
-                const isFull = key !== "all" && isPositionFull(key as AssetType);
-                return (
-                  <button
-                    key={key}
-                    onClick={() => setSelectedPosition(key)}
-                    className={cn(
-                      "flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold transition-colors whitespace-nowrap",
-                      selectedPosition === key
-                        ? "bg-white text-black"
-                        : isFull
-                        ? "bg-white/5 text-white/20"
-                        : "bg-white/10 text-white/60 hover:bg-white/20"
-                    )}
-                  >
-                    {pill.icon}
-                    <span>{pill.label}</span>
-                  </button>
-                );
-              })}
+            
+            {/* Sort Toggle */}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setSortBy("points")}
+                className={cn(
+                  "flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors",
+                  sortBy === "points"
+                    ? "bg-[#cfff4d]/20 text-[#cfff4d]"
+                    : "text-white/40 hover:text-white/60"
+                )}
+              >
+                <TrendingUp className="w-3 h-3" />
+                Points
+              </button>
+              <button
+                onClick={() => setSortBy("name")}
+                className={cn(
+                  "flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors",
+                  sortBy === "name"
+                    ? "bg-[#cfff4d]/20 text-[#cfff4d]"
+                    : "text-white/40 hover:text-white/60"
+                )}
+              >
+                <SortAsc className="w-3 h-3" />
+                A-Z
+              </button>
             </div>
+          </div>
 
-            {/* Search */}
-            <div className="relative mb-3">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-white/30" />
-              <Input
-                placeholder="Search..."
-                value={searchQuery}
-                onChange={(e) => onSearchChange(e.target.value)}
-                className="pl-7 h-7 text-xs bg-white/5 border-white/10 text-white placeholder:text-white/30 rounded-lg"
-              />
-            </div>
+          {/* Position Filter Pills */}
+          <div className="flex gap-1.5 mb-2 overflow-x-auto pb-1">
+            {POSITION_PILLS.map((pill) => {
+              const key = pill.key;
+              const isFull = key !== "all" && isPositionFull(key as AssetType);
+              return (
+                <button
+                  key={key}
+                  onClick={() => setSelectedPosition(key)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-colors whitespace-nowrap",
+                    selectedPosition === key
+                      ? "bg-white text-black"
+                      : isFull
+                      ? "bg-white/5 text-white/20"
+                      : "bg-white/10 text-white/60 hover:bg-white/20"
+                  )}
+                >
+                  {pill.icon}
+                  <span>{pill.label}</span>
+                </button>
+              );
+            })}
+          </div>
 
-            {/* Player List */}
-            <ScrollArea className="h-[120px]">
-              <div className="space-y-1 pr-2">
-                {isLoading ? (
-                  <p className="text-xs text-white/30 text-center py-4">Loading...</p>
-                ) : filteredPlayers.length === 0 ? (
-                  <p className="text-xs text-white/30 text-center py-4">No players found</p>
-                ) : (
-                  filteredPlayers.map((player) => {
-                    const colors = POSITION_COLORS[player.assetType];
-                    const isFull = isPositionFull(player.assetType);
-                    const points = player.yesterdayPoints ?? player.todayPoints ?? 0;
+          {/* Search */}
+          <div className="relative mb-3">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+            <Input
+              placeholder="Search players..."
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className="pl-9 h-9 text-sm bg-white/5 border-white/10 text-white placeholder:text-white/30 rounded-lg"
+            />
+          </div>
 
-                    return (
-                      <div
-                        key={`${player.assetType}-${player.id}`}
-                        className="flex items-center gap-2 p-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+          {/* Player List - Scrollable and fills remaining space */}
+          <ScrollArea className="flex-1 min-h-0">
+            <div className="space-y-1.5 pr-2 pb-4">
+              {isLoading ? (
+                <p className="text-sm text-white/30 text-center py-8">Loading players...</p>
+              ) : filteredPlayers.length === 0 ? (
+                <p className="text-sm text-white/30 text-center py-8">No players found</p>
+              ) : (
+                filteredPlayers.map((player) => {
+                  const colors = POSITION_COLORS[player.assetType];
+                  const isFull = isPositionFull(player.assetType);
+                  const yesterdayPts = player.yesterdayPoints ?? 0;
+                  const todayPts = player.todayPoints ?? 0;
+
+                  return (
+                    <div
+                      key={`${player.assetType}-${player.id}`}
+                      className={cn(
+                        "flex items-center gap-3 p-2.5 rounded-xl transition-all",
+                        isFull 
+                          ? "bg-white/[0.02] opacity-50" 
+                          : "bg-white/5 hover:bg-white/10"
+                      )}
+                    >
+                      {/* Draft Button */}
+                      <button
+                        onClick={() => handleDraft(player)}
+                        disabled={!isMyTurn || isFull}
+                        className={cn(
+                          "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all shrink-0",
+                          !isMyTurn || isFull
+                            ? "bg-white/5 text-white/20 cursor-not-allowed"
+                            : "bg-[#cfff4d] text-black hover:bg-[#dfff6d] hover:scale-105"
+                        )}
                       >
-                        <button
-                          onClick={() => handleDraft(player)}
-                          disabled={!isMyTurn || isFull}
-                          className={cn(
-                            "px-2 py-1 rounded text-[9px] font-bold uppercase transition-colors",
-                            !isMyTurn || isFull
-                              ? "bg-white/5 text-white/20 cursor-not-allowed"
-                              : "bg-[#cfff4d] text-black hover:bg-[#dfff6d]"
-                          )}
+                        Draft
+                      </button>
+                      
+                      {/* Player Thumbnail */}
+                      <Avatar className="w-10 h-10 shrink-0 border-2" style={{ borderColor: colors.jersey }}>
+                        <AvatarImage src={player.imageUrl || ""} alt={player.name} />
+                        <AvatarFallback 
+                          className="text-xs font-bold"
+                          style={{ backgroundColor: `${colors.jersey}20`, color: colors.jersey }}
                         >
-                          Draft
-                        </button>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[11px] font-medium text-white truncate">{player.name}</p>
-                          <div className="flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors.jersey }} />
-                            <span className="text-[9px]" style={{ color: colors.jersey }}>
-                              {ASSET_TYPE_LABELS[player.assetType]}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[10px] font-semibold text-white">{points.toFixed(1)}</p>
-                          <p className="text-[8px] text-white/40">pts</p>
+                          {player.name.slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      
+                      {/* Player Info */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white truncate">{player.name}</p>
+                        <div className="flex items-center gap-1.5">
+                          <span 
+                            className="w-2 h-2 rounded-full" 
+                            style={{ backgroundColor: colors.jersey }} 
+                          />
+                          <span className="text-[10px] font-medium" style={{ color: colors.jersey }}>
+                            {ASSET_TYPE_LABELS[player.assetType]}
+                          </span>
                         </div>
                       </div>
-                    );
-                  })
-                )}
-              </div>
-            </ScrollArea>
-          </div>
+                      
+                      {/* Yesterday's Points */}
+                      <div className="text-right shrink-0">
+                        <div className="flex items-baseline gap-1">
+                          <p className="text-base font-bold text-white">{yesterdayPts.toFixed(1)}</p>
+                          <p className="text-[9px] text-white/40 uppercase">pts</p>
+                        </div>
+                        <p className="text-[10px] text-white/40">Yesterday</p>
+                      </div>
+                      
+                      {/* Today's Points (if available) */}
+                      {todayPts > 0 && (
+                        <div className="text-right shrink-0 pl-2 border-l border-white/10">
+                          <div className="flex items-baseline gap-1">
+                            <p className="text-sm font-semibold text-[#cfff4d]">{todayPts.toFixed(1)}</p>
+                          </div>
+                          <p className="text-[9px] text-white/40">Today</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </ScrollArea>
         </div>
       </div>
     </div>
+    </TooltipProvider>
   );
 }
