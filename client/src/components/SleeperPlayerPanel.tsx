@@ -1,7 +1,9 @@
-import { useState, useMemo } from "react";
-import { Search, ChevronUp, ChevronDown } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Search, ChevronUp, ChevronDown, Plus, X, ArrowUpDown, GripVertical, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { LeagueChat } from "@/components/LeagueChat";
 
 type AssetType = "manufacturer" | "cannabis_strain" | "product" | "pharmacy" | "brand";
 
@@ -18,7 +20,6 @@ interface AvailablePlayer {
   logoUrl?: string | null;
   yesterdayPoints?: number | null;
   todayPoints?: number | null;
-  // Additional stats depending on type
   productCount?: number;
   type?: string;
   effects?: string[];
@@ -30,8 +31,15 @@ interface AvailablePlayer {
   totalViews?: number;
 }
 
+interface QueuedPlayer {
+  assetType: AssetType;
+  assetId: number;
+  name: string;
+  points: number;
+}
+
 interface SleeperPlayerPanelProps {
-  // Roster counts for filter pills
+  leagueId: number;
   rosterCounts: {
     manufacturer: number;
     cannabis_strain: number;
@@ -39,24 +47,25 @@ interface SleeperPlayerPanelProps {
     pharmacy: number;
     brand: number;
   };
-  // Available players per category
   manufacturers: AvailablePlayer[];
   cannabisStrains: AvailablePlayer[];
   products: AvailablePlayer[];
   pharmacies: AvailablePlayer[];
   brands: AvailablePlayer[];
-  // Callbacks
   onDraftPick: (assetType: AssetType, assetId: number) => void;
   onSearchChange: (query: string) => void;
   searchQuery: string;
-  // State
   isMyTurn: boolean;
   isLoading: boolean;
   draftedAssets?: Record<AssetType, Set<number>>;
   myRoster: RosterItem[];
-  // Active tab
-  activeTab?: "players" | "team";
-  onTabChange?: (tab: "players" | "team") => void;
+  // Queue
+  queue: QueuedPlayer[];
+  onAddToQueue: (player: QueuedPlayer) => void;
+  onRemoveFromQueue: (assetType: AssetType, assetId: number) => void;
+  onReorderQueue: (queue: QueuedPlayer[]) => void;
+  autoPickFromQueue: boolean;
+  onAutoPickFromQueueChange: (enabled: boolean) => void;
 }
 
 // Position limits
@@ -78,13 +87,18 @@ const POSITION_PILLS: { key: AssetType | "all"; label: string; color: string }[]
   { key: "brand", label: "BRD", color: "bg-yellow-500" },
 ];
 
+type TabType = "players" | "queue" | "team" | "chat";
+type SortBy = "stats" | "name";
+type SortOrder = "asc" | "desc";
+
 /**
  * SleeperPlayerPanel
  * 
  * Bottom panel for player selection in Sleeper-style draft.
- * Features tabbed interface, position filter pills, and scrollable player list.
+ * Features: PLAYERS, QUEUE, TEAM, CHAT tabs with expandable panel.
  */
 export function SleeperPlayerPanel({
+  leagueId,
   rosterCounts,
   manufacturers,
   cannabisStrains,
@@ -98,11 +112,27 @@ export function SleeperPlayerPanel({
   isLoading,
   draftedAssets,
   myRoster,
-  activeTab = "players",
-  onTabChange,
+  queue,
+  onAddToQueue,
+  onRemoveFromQueue,
+  onReorderQueue,
+  autoPickFromQueue,
+  onAutoPickFromQueueChange,
 }: SleeperPlayerPanelProps) {
   const [selectedPosition, setSelectedPosition] = useState<AssetType | "all">("all");
   const [isPanelExpanded, setIsPanelExpanded] = useState(true);
+  const [activeTab, setActiveTab] = useState<TabType>("players");
+  const [sortBy, setSortBy] = useState<SortBy>("stats");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+
+  // When TEAM tab is selected, minimize the panel
+  useEffect(() => {
+    if (activeTab === "team") {
+      setIsPanelExpanded(false);
+    } else if (activeTab === "players" || activeTab === "queue" || activeTab === "chat") {
+      setIsPanelExpanded(true);
+    }
+  }, [activeTab]);
 
   // Check if asset is drafted
   const isAssetDrafted = (assetType: AssetType, assetId: number) => {
@@ -110,12 +140,33 @@ export function SleeperPlayerPanel({
     return draftedAssets[assetType]?.has(assetId) ?? false;
   };
 
+  // Check if asset is in queue
+  const isInQueue = (assetType: AssetType, assetId: number) => {
+    return queue.some(q => q.assetType === assetType && q.assetId === assetId);
+  };
+
   // Check if position is full
   const isPositionFull = (assetType: AssetType) => {
     return rosterCounts[assetType] >= POSITION_LIMITS[assetType];
   };
 
-  // Filter players based on selected position and remove drafted ones
+  // Sort function
+  const sortPlayers = <T extends { name: string; yesterdayPoints?: number | null; todayPoints?: number | null }>(
+    players: T[]
+  ): T[] => {
+    return [...players].sort((a, b) => {
+      if (sortBy === "name") {
+        const comparison = a.name.localeCompare(b.name);
+        return sortOrder === "asc" ? comparison : -comparison;
+      } else {
+        const aPoints = a.yesterdayPoints ?? a.todayPoints ?? 0;
+        const bPoints = b.yesterdayPoints ?? b.todayPoints ?? 0;
+        return sortOrder === "asc" ? aPoints - bPoints : bPoints - aPoints;
+      }
+    });
+  };
+
+  // Filter and sort players based on selected position
   const filteredPlayers = useMemo(() => {
     const filterAndMap = (
       players: AvailablePlayer[],
@@ -126,30 +177,37 @@ export function SleeperPlayerPanel({
         .map((p) => ({ ...p, assetType }));
     };
 
+    let allPlayers: Array<AvailablePlayer & { assetType: AssetType }> = [];
+
     if (selectedPosition === "all") {
-      return [
-        ...filterAndMap(manufacturers.slice(0, 5), "manufacturer"),
-        ...filterAndMap(cannabisStrains.slice(0, 5), "cannabis_strain"),
-        ...filterAndMap(products.slice(0, 5), "product"),
-        ...filterAndMap(pharmacies.slice(0, 5), "pharmacy"),
-        ...filterAndMap(brands.slice(0, 5), "brand"),
+      allPlayers = [
+        ...filterAndMap(manufacturers, "manufacturer"),
+        ...filterAndMap(cannabisStrains, "cannabis_strain"),
+        ...filterAndMap(products, "product"),
+        ...filterAndMap(pharmacies, "pharmacy"),
+        ...filterAndMap(brands, "brand"),
       ];
+    } else {
+      switch (selectedPosition) {
+        case "manufacturer":
+          allPlayers = filterAndMap(manufacturers, "manufacturer");
+          break;
+        case "cannabis_strain":
+          allPlayers = filterAndMap(cannabisStrains, "cannabis_strain");
+          break;
+        case "product":
+          allPlayers = filterAndMap(products, "product");
+          break;
+        case "pharmacy":
+          allPlayers = filterAndMap(pharmacies, "pharmacy");
+          break;
+        case "brand":
+          allPlayers = filterAndMap(brands, "brand");
+          break;
+      }
     }
 
-    switch (selectedPosition) {
-      case "manufacturer":
-        return filterAndMap(manufacturers, "manufacturer");
-      case "cannabis_strain":
-        return filterAndMap(cannabisStrains, "cannabis_strain");
-      case "product":
-        return filterAndMap(products, "product");
-      case "pharmacy":
-        return filterAndMap(pharmacies, "pharmacy");
-      case "brand":
-        return filterAndMap(brands, "brand");
-      default:
-        return [];
-    }
+    return sortPlayers(allPlayers);
   }, [
     selectedPosition,
     manufacturers,
@@ -158,6 +216,8 @@ export function SleeperPlayerPanel({
     pharmacies,
     brands,
     draftedAssets,
+    sortBy,
+    sortOrder,
   ]);
 
   // Calculate total roster slots
@@ -170,12 +230,39 @@ export function SleeperPlayerPanel({
     onDraftPick(player.assetType, player.id);
   };
 
+  const handleAddToQueue = (player: AvailablePlayer & { assetType: AssetType }) => {
+    if (isInQueue(player.assetType, player.id)) return;
+    onAddToQueue({
+      assetType: player.assetType,
+      assetId: player.id,
+      name: player.name,
+      points: player.yesterdayPoints ?? player.todayPoints ?? 0,
+    });
+  };
+
+  const moveQueueItem = (index: number, direction: "up" | "down") => {
+    const newQueue = [...queue];
+    const newIndex = direction === "up" ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= queue.length) return;
+    [newQueue[index], newQueue[newIndex]] = [newQueue[newIndex], newQueue[index]];
+    onReorderQueue(newQueue);
+  };
+
+  const toggleSort = () => {
+    setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+  };
+
   return (
-    <div className="bg-[#1a1d29] border-t border-white/10 flex flex-col">
+    <div 
+      className={cn(
+        "bg-[#1a1d29] border-t border-white/10 flex flex-col transition-all duration-300",
+        isPanelExpanded ? "h-[65vh]" : "h-auto"
+      )}
+    >
       {/* Collapse/Expand Handle */}
       <button
         onClick={() => setIsPanelExpanded(!isPanelExpanded)}
-        className="w-full py-1 flex items-center justify-center hover:bg-white/5"
+        className="w-full py-2 flex items-center justify-center hover:bg-white/5 transition-colors"
       >
         {isPanelExpanded ? (
           <ChevronDown className="w-5 h-5 text-white/40" />
@@ -184,38 +271,31 @@ export function SleeperPlayerPanel({
         )}
       </button>
 
-      {isPanelExpanded && (
-        <>
-          {/* Tab Bar */}
-          <div className="flex border-b border-white/10">
-            <button
-              onClick={() => onTabChange?.("players")}
-              className={cn(
-                "flex-1 py-3 text-sm font-semibold uppercase tracking-wider transition-colors",
-                activeTab === "players"
-                  ? "text-white border-b-2 border-[#00d4aa]"
-                  : "text-white/50 hover:text-white/70"
-              )}
-            >
-              Players
-            </button>
-            <button
-              onClick={() => onTabChange?.("team")}
-              className={cn(
-                "flex-1 py-3 text-sm font-semibold uppercase tracking-wider transition-colors",
-                activeTab === "team"
-                  ? "text-white border-b-2 border-[#00d4aa]"
-                  : "text-white/50 hover:text-white/70"
-              )}
-            >
-              Team
-            </button>
-          </div>
+      {/* Tab Bar - Always visible */}
+      <div className="flex border-b border-white/10 shrink-0">
+        {(["players", "queue", "team", "chat"] as TabType[]).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={cn(
+              "flex-1 py-3 text-sm font-semibold uppercase tracking-wider transition-colors",
+              activeTab === tab
+                ? "text-white border-b-2 border-[#00d4aa]"
+                : "text-white/50 hover:text-white/70"
+            )}
+          >
+            {tab === "queue" ? `Queue (${queue.length})` : tab}
+          </button>
+        ))}
+      </div>
 
-          {activeTab === "players" ? (
+      {isPanelExpanded && (
+        <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+          {/* PLAYERS TAB */}
+          {activeTab === "players" && (
             <>
-              {/* Position Filter Pills */}
-              <div className="flex gap-2 px-3 py-2 overflow-x-auto">
+              {/* Position Filter Pills + Sort Controls */}
+              <div className="flex items-center gap-2 px-3 py-2 overflow-x-auto shrink-0">
                 <button
                   onClick={() => setSelectedPosition("all")}
                   className={cn(
@@ -227,9 +307,6 @@ export function SleeperPlayerPanel({
                 >
                   <Search className="w-3.5 h-3.5" />
                   <span>ALL</span>
-                  <span className="text-white/50">
-                    {totalRoster}/{maxRoster}
-                  </span>
                 </button>
 
                 {POSITION_PILLS.slice(1).map((pill) => {
@@ -264,10 +341,39 @@ export function SleeperPlayerPanel({
                     </button>
                   );
                 })}
+
+                {/* Sort Controls */}
+                <div className="flex items-center gap-1 ml-auto">
+                  <button
+                    onClick={() => setSortBy("stats")}
+                    className={cn(
+                      "px-2 py-1 rounded text-xs font-semibold transition-colors",
+                      sortBy === "stats" ? "bg-[#00d4aa] text-black" : "bg-white/10 text-white/60"
+                    )}
+                  >
+                    Stats
+                  </button>
+                  <button
+                    onClick={() => setSortBy("name")}
+                    className={cn(
+                      "px-2 py-1 rounded text-xs font-semibold transition-colors",
+                      sortBy === "name" ? "bg-[#00d4aa] text-black" : "bg-white/10 text-white/60"
+                    )}
+                  >
+                    Name
+                  </button>
+                  <button
+                    onClick={toggleSort}
+                    className="p-1 rounded bg-white/10 text-white/60 hover:bg-white/20"
+                    title={sortOrder === "asc" ? "Ascending" : "Descending"}
+                  >
+                    <ArrowUpDown className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
 
               {/* Search */}
-              <div className="px-3 pb-2">
+              <div className="px-3 pb-2 shrink-0">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
                   <Input
@@ -280,7 +386,7 @@ export function SleeperPlayerPanel({
               </div>
 
               {/* Player List */}
-              <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-1.5 max-h-64">
+              <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-1.5 min-h-0">
                 {isLoading ? (
                   <div className="text-center py-8 text-white/50 text-sm">Loading...</div>
                 ) : filteredPlayers.length === 0 ? (
@@ -289,19 +395,20 @@ export function SleeperPlayerPanel({
                   filteredPlayers.map((player) => {
                     const posConfig = POSITION_PILLS.find((p) => p.key === player.assetType);
                     const isFull = isPositionFull(player.assetType);
+                    const inQueue = isInQueue(player.assetType, player.id);
                     const points = player.yesterdayPoints ?? player.todayPoints ?? 0;
 
                     return (
                       <div
                         key={`${player.assetType}-${player.id}`}
-                        className="flex items-center gap-3 p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+                        className="flex items-center gap-2 p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
                       >
                         {/* Draft Button */}
                         <button
                           onClick={() => handleDraft(player)}
                           disabled={!isMyTurn || isFull}
                           className={cn(
-                            "px-3 py-1.5 rounded-md text-xs font-bold uppercase transition-colors",
+                            "px-3 py-1.5 rounded-md text-xs font-bold uppercase transition-colors shrink-0",
                             !isMyTurn || isFull
                               ? "bg-white/10 text-white/30 cursor-not-allowed"
                               : "bg-[#00d4aa] text-black hover:bg-[#00e4b8]"
@@ -310,10 +417,20 @@ export function SleeperPlayerPanel({
                           Draft
                         </button>
 
-                        {/* Rank/ADP placeholder */}
-                        <span className="text-xs text-white/40 w-6 text-right">
-                          {player.id % 100}
-                        </span>
+                        {/* Queue Button */}
+                        <button
+                          onClick={() => handleAddToQueue(player)}
+                          disabled={inQueue}
+                          className={cn(
+                            "p-1.5 rounded-md transition-colors shrink-0",
+                            inQueue
+                              ? "bg-[#00d4aa]/20 text-[#00d4aa]"
+                              : "bg-white/10 text-white/50 hover:bg-white/20 hover:text-white"
+                          )}
+                          title={inQueue ? "In Queue" : "Add to Queue"}
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
 
                         {/* Player Info */}
                         <div className="flex-1 min-w-0">
@@ -334,7 +451,7 @@ export function SleeperPlayerPanel({
                         </div>
 
                         {/* Stats */}
-                        <div className="text-right">
+                        <div className="text-right shrink-0">
                           <div className="text-xs text-white/40">PTS</div>
                           <div className="text-sm font-semibold text-white">
                             {points.toFixed(1)}
@@ -346,9 +463,109 @@ export function SleeperPlayerPanel({
                 )}
               </div>
             </>
-          ) : (
-            /* Team Tab - My Roster View */
-            <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2 max-h-64">
+          )}
+
+          {/* QUEUE TAB */}
+          {activeTab === "queue" && (
+            <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+              {/* Auto-Draft from Queue Toggle */}
+              <div className="px-3 py-3 border-b border-white/10 shrink-0">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-medium text-white">Auto-Draft from Queue</div>
+                    <div className="text-xs text-white/50">Automatically pick top player from queue</div>
+                  </div>
+                  <Switch
+                    checked={autoPickFromQueue}
+                    onCheckedChange={onAutoPickFromQueueChange}
+                    className="data-[state=checked]:bg-[#00d4aa]"
+                  />
+                </div>
+              </div>
+
+              {/* Queue List */}
+              <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5 min-h-0">
+                {queue.length === 0 ? (
+                  <div className="text-center py-8 text-white/50 text-sm">
+                    <p>No players in queue</p>
+                    <p className="text-xs mt-1">Add players from the PLAYERS tab</p>
+                  </div>
+                ) : (
+                  queue.map((item, idx) => {
+                    const posConfig = POSITION_PILLS.find((p) => p.key === item.assetType);
+                    const isDrafted = isAssetDrafted(item.assetType, item.assetId);
+
+                    return (
+                      <div
+                        key={`queue-${item.assetType}-${item.assetId}`}
+                        className={cn(
+                          "flex items-center gap-2 p-2 rounded-lg transition-colors",
+                          isDrafted ? "bg-red-500/10 opacity-50" : "bg-white/5"
+                        )}
+                      >
+                        {/* Rank */}
+                        <span className="text-sm font-bold text-white/40 w-6 text-center">
+                          {idx + 1}
+                        </span>
+
+                        {/* Reorder Buttons */}
+                        <div className="flex flex-col gap-0.5">
+                          <button
+                            onClick={() => moveQueueItem(idx, "up")}
+                            disabled={idx === 0}
+                            className="p-0.5 text-white/40 hover:text-white disabled:opacity-30"
+                          >
+                            <ChevronUp className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={() => moveQueueItem(idx, "down")}
+                            disabled={idx === queue.length - 1}
+                            className="p-0.5 text-white/40 hover:text-white disabled:opacity-30"
+                          >
+                            <ChevronDown className="w-3 h-3" />
+                          </button>
+                        </div>
+
+                        {/* Player Info */}
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm font-medium text-white truncate block">
+                            {item.name}
+                          </span>
+                          <div className="flex items-center gap-2 text-xs text-white/50">
+                            <span
+                              className={cn(
+                                "w-1.5 h-1.5 rounded-full",
+                                posConfig?.color || "bg-gray-500"
+                              )}
+                            />
+                            <span>{posConfig?.label || "?"}</span>
+                            {isDrafted && <span className="text-red-400">• Drafted</span>}
+                          </div>
+                        </div>
+
+                        {/* Points */}
+                        <div className="text-sm font-semibold text-white shrink-0">
+                          {item.points.toFixed(1)}
+                        </div>
+
+                        {/* Remove Button */}
+                        <button
+                          onClick={() => onRemoveFromQueue(item.assetType, item.assetId)}
+                          className="p-1.5 rounded text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TEAM TAB */}
+          {activeTab === "team" && (
+            <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2 min-h-0">
               <div className="text-xs text-white/50 uppercase tracking-wider mb-2">
                 My Roster ({totalRoster}/{maxRoster})
               </div>
@@ -379,9 +596,15 @@ export function SleeperPlayerPanel({
               )}
             </div>
           )}
-        </>
+
+          {/* CHAT TAB */}
+          {activeTab === "chat" && (
+            <div className="flex-1 overflow-hidden min-h-0">
+              <LeagueChat leagueId={leagueId} variant="dark" className="h-full" />
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
 }
-
