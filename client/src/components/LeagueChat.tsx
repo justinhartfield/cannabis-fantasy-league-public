@@ -5,7 +5,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Send, MessageCircle, Image as ImageIcon, Zap } from "lucide-react";
+import { Send, MessageCircle, Image as ImageIcon, Zap, Maximize2, Minimize2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useLeagueChat } from "@/hooks/useLeagueChat";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -53,6 +53,7 @@ export function LeagueChat({ leagueId, className, variant = "default" }: LeagueC
   const [gifs, setGifs] = useState<any[]>([]);
   const [isGiphyLoading, setIsGiphyLoading] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Initial Load
@@ -101,7 +102,8 @@ export function LeagueChat({ leagueId, className, variant = "default" }: LeagueC
 
   return (
     <div className={cn(
-      "flex flex-col h-[260px] overflow-hidden",
+      "flex flex-col overflow-hidden transition-all duration-300",
+      isExpanded ? "h-[780px]" : "h-[260px]",
       isDark 
         ? "bg-transparent" 
         : "border rounded-lg bg-background shadow-sm",
@@ -112,9 +114,25 @@ export function LeagueChat({ leagueId, className, variant = "default" }: LeagueC
         isDark ? "border-b border-white/10" : "border-b"
       )}>
         <MessageCircle className={cn("w-5 h-5", isDark ? "text-[#cfff4d]" : "text-primary")} />
-        <span className={isDark ? "text-white" : ""}>
+        <span className={cn("flex-1", isDark ? "text-white" : "")}>
           {isDark ? "💩 Smack Talk" : "League Chat"}
         </span>
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(
+            "h-8 w-8",
+            isDark ? "text-white/60 hover:text-white hover:bg-white/10" : ""
+          )}
+          onClick={() => setIsExpanded(!isExpanded)}
+          title={isExpanded ? "Collapse chat" : "Expand chat (3x)"}
+        >
+          {isExpanded ? (
+            <Minimize2 className="w-4 h-4" />
+          ) : (
+            <Maximize2 className="w-4 h-4" />
+          )}
+        </Button>
       </div>
 
       <ScrollArea className="flex-1 min-h-0 overflow-hidden">

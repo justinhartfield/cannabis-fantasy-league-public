@@ -177,25 +177,6 @@ export default function DailyChallenge() {
     }
   );
 
-  // Trigger scoring play animations when breakdown data loads
-  useEffect(() => {
-    if (breakdown?.breakdowns && selectedTeamId && selectedTeam) {
-      // Create a unique ID for this breakdown to prevent re-triggering
-      const breakdownId = `${selectedTeamId}-${breakdown.breakdowns.length}-${breakdown.breakdowns.reduce((sum: number, b: any) => sum + (b.totalPoints || 0), 0)}`;
-      
-      if (lastBreakdownIdRef.current !== breakdownId) {
-        lastBreakdownIdRef.current = breakdownId;
-        
-        // Queue scoring plays from breakdown
-        scoringPlayAnimation.queuePlaysFromBreakdown(
-          selectedTeamId,
-          selectedTeam.teamName,
-          breakdown.breakdowns
-        );
-      }
-    }
-  }, [breakdown, selectedTeamId, selectedTeam, scoringPlayAnimation]);
-
   const { data: userLeagues } = trpc.league.list.useQuery(undefined, {
     enabled: !!isAuthenticated,
   });
@@ -482,6 +463,25 @@ export default function DailyChallenge() {
     () => sortedScores.find((team) => team.teamId === selectedTeamId) || null,
     [sortedScores, selectedTeamId]
   );
+
+  // Trigger scoring play animations when breakdown data loads
+  useEffect(() => {
+    if (breakdown?.breakdowns && selectedTeamId && selectedTeam) {
+      // Create a unique ID for this breakdown to prevent re-triggering
+      const breakdownId = `${selectedTeamId}-${breakdown.breakdowns.length}-${breakdown.breakdowns.reduce((sum: number, b: any) => sum + (b.totalPoints || 0), 0)}`;
+      
+      if (lastBreakdownIdRef.current !== breakdownId) {
+        lastBreakdownIdRef.current = breakdownId;
+        
+        // Queue scoring plays from breakdown
+        scoringPlayAnimation.queuePlaysFromBreakdown(
+          selectedTeamId,
+          selectedTeam.teamName,
+          breakdown.breakdowns
+        );
+      }
+    }
+  }, [breakdown, selectedTeamId, selectedTeam, scoringPlayAnimation]);
 
   const topPerformers = useMemo<
     { name: string; type: string; total: number; breakdown: any; imageUrl?: string | null }[]
