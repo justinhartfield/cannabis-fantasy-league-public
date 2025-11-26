@@ -11,7 +11,7 @@ import {
   ASSET_TYPE_LABELS,
   type AssetType,
 } from "./DraftFieldPlayer";
-import { Search, Users, Clock, TrendingUp, Building2, Leaf, Package, Tag } from "lucide-react";
+import { Search, Users, Building2, Leaf, Package, Tag } from "lucide-react";
 import { toast } from "sonner";
 
 interface RosterItem {
@@ -311,9 +311,9 @@ export function ChallengeDraftBoard({
         </div>
       </div>
 
-      {/* Bottom Panels - 2 Across */}
+      {/* Bottom Panel - Available Players */}
       <div className="border-t border-white/10 bg-[#0f1015]">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-white/5">
+        <div className="max-w-2xl mx-auto">
           {/* Panel 1: Available Players */}
           <div className="bg-[#0f1015] p-3">
             <div className="flex items-center justify-between mb-2">
@@ -407,83 +407,6 @@ export function ChallengeDraftBoard({
                       </div>
                     );
                   })
-                )}
-              </div>
-            </ScrollArea>
-          </div>
-
-          {/* Panel 2: Recent Picks */}
-          <div className="bg-[#0f1015] p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-xs font-semibold text-white/70 uppercase tracking-wider">Recent Picks</h3>
-              <span className="flex items-center gap-1 text-[10px] text-white/40">
-                <Clock className="w-3 h-3" />
-                Pick #{currentPickNumber}
-              </span>
-            </div>
-            <ScrollArea className="h-[200px]">
-              <div className="space-y-2 pr-2">
-                {/* Show combined roster picks as recent history */}
-                {[...myRoster, ...opponentRoster].length === 0 ? (
-                  <p className="text-xs text-white/30 text-center py-4">No picks yet</p>
-                ) : (
-                  [...myRoster].reverse().slice(0, 5).map((item, idx) => {
-                    const colors = POSITION_COLORS[item.assetType];
-                    return (
-                      <div
-                        key={`recent-${item.assetType}-${item.assetId}-${idx}`}
-                        className="flex items-center gap-2 p-2 rounded-lg bg-[#cfff4d]/5 border border-[#cfff4d]/10"
-                      >
-                        <div className="w-6 h-6 rounded-full flex items-center justify-center bg-[#cfff4d]/20">
-                          <span className="text-[9px] font-bold text-[#cfff4d]">
-                            {myRoster.length - idx}
-                          </span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[11px] font-medium text-white truncate">{item.name}</p>
-                          <p className="text-[9px] text-[#cfff4d]/70">{myTeam.name}</p>
-                        </div>
-                        <span
-                          className="px-1.5 py-0.5 rounded text-[8px] font-bold"
-                          style={{ backgroundColor: colors.jersey + '33', color: colors.jersey }}
-                        >
-                          {ASSET_TYPE_LABELS[item.assetType].slice(0, 3).toUpperCase()}
-                        </span>
-                      </div>
-                    );
-                  })
-                )}
-                {opponentRoster.length > 0 && (
-                  <>
-                    <div className="text-[10px] text-white/30 text-center py-1 border-t border-white/5 mt-2">
-                      Opponent Picks
-                    </div>
-                    {[...opponentRoster].reverse().slice(0, 3).map((item, idx) => {
-                      const colors = POSITION_COLORS[item.assetType];
-                      return (
-                        <div
-                          key={`opp-${item.assetType}-${item.assetId}-${idx}`}
-                          className="flex items-center gap-2 p-2 rounded-lg bg-[#ff6b6b]/5 border border-[#ff6b6b]/10"
-                        >
-                          <div className="w-6 h-6 rounded-full flex items-center justify-center bg-[#ff6b6b]/20">
-                            <span className="text-[9px] font-bold text-[#ff6b6b]">
-                              {opponentRoster.length - idx}
-                            </span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[11px] font-medium text-white truncate">{item.name}</p>
-                            <p className="text-[9px] text-[#ff6b6b]/70">{opponentTeam?.name || "Opponent"}</p>
-                          </div>
-                          <span
-                            className="px-1.5 py-0.5 rounded text-[8px] font-bold"
-                            style={{ backgroundColor: colors.jersey + '33', color: colors.jersey }}
-                          >
-                            {ASSET_TYPE_LABELS[item.assetType].slice(0, 3).toUpperCase()}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </>
                 )}
               </div>
             </ScrollArea>
