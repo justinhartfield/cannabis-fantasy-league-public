@@ -949,6 +949,13 @@ export default function DailyChallenge() {
                     <span className="px-3 py-1 rounded-full bg-[#cfff4d] text-black text-sm font-semibold">
                       #{index + 1}
                     </span>
+                    {performer.imageUrl && (
+                      <img
+                        src={performer.imageUrl}
+                        alt={performer.name}
+                        className="w-12 h-12 rounded-xl object-cover border border-white/10"
+                      />
+                    )}
                     <div>
                       <div className="text-lg font-semibold">{performer.name}</div>
                       <div className="text-xs uppercase text-white/60">
