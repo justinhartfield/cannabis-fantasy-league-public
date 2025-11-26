@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { Search, ChevronUp, ChevronDown, Plus, X, ArrowUpDown, Building2, Leaf, Package, Award } from "lucide-react";
+import { Search, ChevronUp, ChevronDown, Plus, X, ArrowUpDown, Building2, Leaf, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -210,22 +210,6 @@ export function SleeperPlayerPanel({
     return !isFlexAvailable;
   };
 
-  // Sort function
-  const sortPlayers = <T extends { name: string; yesterdayPoints?: number | null; todayPoints?: number | null }>(
-    players: T[]
-  ): T[] => {
-    return [...players].sort((a, b) => {
-      if (sortBy === "name") {
-        const comparison = a.name.localeCompare(b.name);
-        return sortOrder === "asc" ? comparison : -comparison;
-      } else {
-        const aPoints = a.yesterdayPoints ?? a.todayPoints ?? 0;
-        const bPoints = b.yesterdayPoints ?? b.todayPoints ?? 0;
-        return sortOrder === "asc" ? aPoints - bPoints : bPoints - aPoints;
-      }
-    });
-  };
-
   // Filter and sort players based on selected position
   const filteredPlayers = useMemo(() => {
     const filterAndMap = (
@@ -268,7 +252,18 @@ export function SleeperPlayerPanel({
       }
     }
 
-    return sortPlayers(allPlayers);
+    // Sort players - inline to ensure correct closure values
+    return [...allPlayers].sort((a, b) => {
+      if (sortBy === "name") {
+        const comparison = a.name.localeCompare(b.name);
+        return sortOrder === "asc" ? comparison : -comparison;
+      } else {
+        // Sort by stats (yesterdayPoints, fallback to todayPoints)
+        const aPoints = a.yesterdayPoints ?? a.todayPoints ?? 0;
+        const bPoints = b.yesterdayPoints ?? b.todayPoints ?? 0;
+        return sortOrder === "asc" ? aPoints - bPoints : bPoints - aPoints;
+      }
+    });
   }, [
     selectedPosition,
     manufacturers,
@@ -507,7 +502,7 @@ export function SleeperPlayerPanel({
                         case "pharmacy":
                           return <Building2 className="w-5 h-5 text-green-400" />;
                         case "brand":
-                          return <Award className="w-5 h-5 text-yellow-400" />;
+                          return <Building2 className="w-5 h-5 text-yellow-400" />;
                         default:
                           return <Building2 className="w-5 h-5 text-gray-400" />;
                       }
@@ -748,7 +743,7 @@ export function SleeperPlayerPanel({
           )}
 
           {/* CHAT TAB */}
-          {activeTab === "chat" && (
+          {activeTab === "chat" && leagueId && (
             <div className="flex-1 overflow-hidden min-h-0">
               <LeagueChat leagueId={leagueId} variant="dark" className="h-full" />
             </div>
