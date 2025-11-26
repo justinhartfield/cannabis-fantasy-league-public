@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Search, ChevronUp, ChevronDown, Plus, X, ArrowUpDown, GripVertical, Trash2 } from "lucide-react";
+import { Search, ChevronUp, ChevronDown, Plus, X, ArrowUpDown, Building2, Leaf, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -283,10 +283,10 @@ export function SleeperPlayerPanel({
         isPanelExpanded ? "h-[65vh]" : "h-auto"
       )}
     >
-      {/* Collapse/Expand Handle */}
+      {/* Collapse/Expand Handle - Always visible */}
       <button
         onClick={() => setIsPanelExpanded(!isPanelExpanded)}
-        className="w-full py-2 flex items-center justify-center hover:bg-white/5 transition-colors"
+        className="w-full py-2 flex items-center justify-center hover:bg-white/5 transition-colors shrink-0"
       >
         {isPanelExpanded ? (
           <ChevronDown className="w-5 h-5 text-white/40" />
@@ -300,7 +300,13 @@ export function SleeperPlayerPanel({
         {availableTabs.map((tab) => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab)}
+            onClick={() => {
+              setActiveTab(tab);
+              // Auto-expand when clicking a tab while collapsed
+              if (!isPanelExpanded && tab !== "team") {
+                setIsPanelExpanded(true);
+              }
+            }}
             className={cn(
               "flex-1 py-3 text-sm font-semibold uppercase tracking-wider transition-colors",
               activeTab === tab
@@ -313,6 +319,7 @@ export function SleeperPlayerPanel({
         ))}
       </div>
 
+      {/* Content Area - Only visible when expanded */}
       {isPanelExpanded && (
         <div className="flex-1 overflow-hidden flex flex-col min-h-0">
           {/* PLAYERS TAB */}
@@ -421,18 +428,38 @@ export function SleeperPlayerPanel({
                     const isFull = isPositionFull(player.assetType);
                     const inQueue = isInQueue(player.assetType, player.id);
                     const points = player.yesterdayPoints ?? player.todayPoints ?? 0;
+                    const imageUrl = player.imageUrl || player.logoUrl;
+                    const isValidImage = imageUrl && imageUrl.length > 5 && !imageUrl.includes("undefined");
+
+                    // Get icon for fallback
+                    const getIcon = () => {
+                      switch (player.assetType) {
+                        case "manufacturer":
+                          return <Building2 className="w-5 h-5 text-blue-400" />;
+                        case "cannabis_strain":
+                          return <Leaf className="w-5 h-5 text-purple-400" />;
+                        case "product":
+                          return <Package className="w-5 h-5 text-pink-400" />;
+                        case "pharmacy":
+                          return <Building2 className="w-5 h-5 text-green-400" />;
+                        case "brand":
+                          return <Building2 className="w-5 h-5 text-yellow-400" />;
+                        default:
+                          return <Building2 className="w-5 h-5 text-gray-400" />;
+                      }
+                    };
 
                     return (
                       <div
                         key={`${player.assetType}-${player.id}`}
-                        className="flex items-center gap-2 p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+                        className="flex items-center gap-3 p-2.5 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
                       >
                         {/* Draft Button */}
                         <button
                           onClick={() => handleDraft(player)}
                           disabled={!isMyTurn || isFull}
                           className={cn(
-                            "px-3 py-1.5 rounded-md text-xs font-bold uppercase transition-colors shrink-0",
+                            "px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition-colors shrink-0",
                             !isMyTurn || isFull
                               ? "bg-white/10 text-white/30 cursor-not-allowed"
                               : "bg-[#00d4aa] text-black hover:bg-[#00e4b8]"
@@ -447,7 +474,7 @@ export function SleeperPlayerPanel({
                             onClick={() => handleAddToQueue(player)}
                             disabled={inQueue}
                             className={cn(
-                              "p-1.5 rounded-md transition-colors shrink-0",
+                              "p-1.5 rounded-lg transition-colors shrink-0",
                               inQueue
                                 ? "bg-[#00d4aa]/20 text-[#00d4aa]"
                                 : "bg-white/10 text-white/50 hover:bg-white/20 hover:text-white"
@@ -458,28 +485,57 @@ export function SleeperPlayerPanel({
                           </button>
                         )}
 
+                        {/* Thumbnail */}
+                        <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                          {isValidImage ? (
+                            <img
+                              src={imageUrl}
+                              alt={player.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                                e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                              }}
+                            />
+                          ) : null}
+                          <div className={cn("flex items-center justify-center", isValidImage && "hidden")}>
+                            {getIcon()}
+                          </div>
+                        </div>
+
                         {/* Player Info */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-white truncate">
+                            <span className="text-sm font-semibold text-white truncate">
                               {player.name}
                             </span>
                           </div>
                           <div className="flex items-center gap-2 text-xs text-white/50">
                             <span
                               className={cn(
-                                "w-1.5 h-1.5 rounded-full",
-                                posConfig?.color || "bg-gray-500"
+                                "px-1.5 py-0.5 rounded text-[10px] font-bold",
+                                posConfig?.color || "bg-gray-500",
+                                "text-white"
                               )}
-                            />
-                            <span>{posConfig?.label || "?"}</span>
+                            >
+                              {posConfig?.label || "?"}
+                            </span>
+                            {player.manufacturer && (
+                              <span className="truncate">{player.manufacturer}</span>
+                            )}
+                            {player.city && (
+                              <span className="truncate">{player.city}</span>
+                            )}
                           </div>
                         </div>
 
                         {/* Stats */}
-                        <div className="text-right shrink-0">
-                          <div className="text-xs text-white/40">PTS</div>
-                          <div className="text-sm font-semibold text-white">
+                        <div className="text-right shrink-0 min-w-[60px]">
+                          <div className="text-[10px] text-white/40 uppercase">Yesterday</div>
+                          <div className={cn(
+                            "text-lg font-bold",
+                            points > 0 ? "text-[#00d4aa]" : "text-white/50"
+                          )}>
                             {points.toFixed(1)}
                           </div>
                         </div>
