@@ -87,7 +87,7 @@ export function DraftField({
     onPositionClick?.(position);
   };
 
-  const fieldHeight = size === "sm" ? "h-[380px]" : "h-[480px]";
+  const fieldHeight = size === "sm" ? "h-[340px]" : "h-[420px]";
   const playerSize = size === "sm" ? "sm" : "md";
 
   return (
@@ -95,16 +95,16 @@ export function DraftField({
       {/* Team Header */}
       <div
         className={cn(
-          "flex items-center justify-between px-4 py-3 rounded-t-2xl border-b backdrop-blur-sm",
+          "flex items-center justify-between px-3 py-2 rounded-t-xl border-b backdrop-blur-sm",
           isUserTeam
             ? "bg-gradient-to-r from-[#cfff4d]/20 via-[#1a1d29] to-[#cfff4d]/10 border-[#cfff4d]/30"
             : "bg-gradient-to-r from-[#ff6b6b]/20 via-[#1a1d29] to-[#ff6b6b]/10 border-[#ff6b6b]/30"
         )}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <div
             className={cn(
-              "w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border-2",
+              "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2",
               isUserTeam
                 ? "bg-[#cfff4d]/20 border-[#cfff4d] text-[#cfff4d]"
                 : "bg-[#ff6b6b]/20 border-[#ff6b6b] text-[#ff6b6b]"
@@ -113,18 +113,18 @@ export function DraftField({
             {teamName.slice(0, 2).toUpperCase()}
           </div>
           <div>
-            <div className="text-sm font-semibold text-white">{teamName}</div>
+            <div className="text-xs font-semibold text-white">{teamName}</div>
             {userName && (
-              <div className="text-xs text-white/50">@{userName}</div>
+              <div className="text-[10px] text-white/50">@{userName}</div>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-white/50 uppercase tracking-wider">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-white/50 uppercase tracking-wider">
             {filledCount}/10
           </span>
           {isOnTheClock && (
-            <span className="px-2 py-1 rounded-full bg-[#cfff4d] text-black text-[10px] font-bold uppercase animate-pulse shadow-[0_0_20px_rgba(207,255,77,0.5)]">
+            <span className="px-1.5 py-0.5 rounded-full bg-[#cfff4d] text-black text-[9px] font-bold uppercase animate-pulse shadow-[0_0_15px_rgba(207,255,77,0.5)]">
               Drafting
             </span>
           )}
@@ -134,7 +134,7 @@ export function DraftField({
       {/* Futuristic Dark Field */}
       <div
         className={cn(
-          "relative overflow-hidden rounded-b-2xl",
+          "relative overflow-hidden rounded-b-xl",
           fieldHeight,
           "bg-gradient-to-b from-[#0a0a0f] via-[#0f1015] to-[#0a0a0f]"
         )}
@@ -275,9 +275,9 @@ export function DraftField({
         </div>
 
         {/* Position slots - Arranged in formation with FLEX in center */}
-        <div className="absolute inset-0 flex flex-col items-center justify-between py-3 px-2">
+        <div className="absolute inset-0 flex flex-col items-center justify-between py-2 px-2">
           {/* Strikers Row (Manufacturers) */}
-          <div className="flex items-center justify-center gap-8">
+          <div className="flex items-center justify-center gap-6">
             <DraftFieldPlayer
               position="ST1"
               player={getPlayer("ST1")}
@@ -297,7 +297,7 @@ export function DraftField({
           </div>
 
           {/* Wings Row (Pharmacies) */}
-          <div className="flex items-center justify-between w-full max-w-[280px]">
+          <div className="flex items-center justify-between w-full max-w-[240px]">
             <DraftFieldPlayer
               position="LW"
               player={getPlayer("LW")}
@@ -317,7 +317,7 @@ export function DraftField({
           </div>
 
           {/* Midfield Row (Products) */}
-          <div className="flex items-center justify-center gap-12">
+          <div className="flex items-center justify-center gap-10">
             <DraftFieldPlayer
               position="CM1"
               player={getPlayer("CM1")}
@@ -349,7 +349,7 @@ export function DraftField({
           </div>
 
           {/* Defense Row (Strains) */}
-          <div className="flex items-center justify-center gap-16">
+          <div className="flex items-center justify-center gap-12">
             <DraftFieldPlayer
               position="CB1"
               player={getPlayer("CB1")}

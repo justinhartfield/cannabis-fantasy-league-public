@@ -266,11 +266,11 @@ export function ChallengeDraftBoard({
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#0a0a0f]">
-      {/* Fields Container - Side by Side */}
-      <div className="flex-1 overflow-y-auto p-4">
+    <div className="flex flex-col h-full bg-[#0a0a0f] overflow-y-auto">
+      {/* Fields Container - Side by Side on Desktop, Single on Mobile */}
+      <div className="p-4 pb-2">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-w-5xl mx-auto">
-          {/* My Field */}
+          {/* My Field - Always visible */}
           <DraftField
             teamName={myTeam.name}
             userName={myTeam.userName}
@@ -278,94 +278,55 @@ export function ChallengeDraftBoard({
             currentDraftIndex={myActiveDraftIndex}
             isUserTeam={true}
             isOnTheClock={isMyTurn}
-            size="md"
-            className="shadow-[0_20px_50px_rgba(207,255,77,0.08)]"
+            size="sm"
+            className="shadow-[0_10px_30px_rgba(207,255,77,0.06)]"
           />
 
-          {/* Opponent Field */}
-          {opponentTeam ? (
-            <DraftField
-              teamName={opponentTeam.name}
-              userName={opponentTeam.userName}
-              players={opponentFieldPlayers}
-              currentDraftIndex={opponentActiveDraftIndex}
-              isUserTeam={false}
-              isOnTheClock={isOpponentTurn}
-              size="md"
-              className="shadow-[0_20px_50px_rgba(255,107,107,0.08)]"
-            />
-          ) : (
-            <div className="flex flex-col rounded-2xl bg-[#0f1015] border border-dashed border-white/10">
-              <div className="flex items-center justify-center h-full min-h-[480px]">
-                <div className="text-center space-y-2 p-8">
-                  <div className="w-16 h-16 mx-auto rounded-full bg-white/5 flex items-center justify-center border border-white/10">
-                    <Users className="w-8 h-8 text-white/30" />
+          {/* Opponent Field - Hidden on mobile, visible on lg+ */}
+          <div className="hidden lg:block">
+            {opponentTeam ? (
+              <DraftField
+                teamName={opponentTeam.name}
+                userName={opponentTeam.userName}
+                players={opponentFieldPlayers}
+                currentDraftIndex={opponentActiveDraftIndex}
+                isUserTeam={false}
+                isOnTheClock={isOpponentTurn}
+                size="sm"
+                className="shadow-[0_10px_30px_rgba(255,107,107,0.06)]"
+              />
+            ) : (
+              <div className="flex flex-col rounded-xl bg-[#0f1015] border border-dashed border-white/10 h-full">
+                <div className="flex items-center justify-center h-full min-h-[340px]">
+                  <div className="text-center space-y-2 p-6">
+                    <div className="w-12 h-12 mx-auto rounded-full bg-white/5 flex items-center justify-center border border-white/10">
+                      <Users className="w-6 h-6 text-white/30" />
+                    </div>
+                    <p className="text-xs text-white/40">Waiting for opponent...</p>
                   </div>
-                  <p className="text-sm text-white/40">Waiting for opponent...</p>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Bottom Panels - 3 Across */}
+      {/* Bottom Panels - 2 Across */}
       <div className="border-t border-white/10 bg-[#0f1015]">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-white/5">
-          {/* Panel 1: My Roster */}
-          <div className="bg-[#0f1015] p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-xs font-semibold text-white/70 uppercase tracking-wider">My Roster</h3>
-              <span className="text-xs text-[#cfff4d]">{totalRoster}/10</span>
-            </div>
-            <ScrollArea className="h-[200px]">
-              <div className="space-y-2 pr-2">
-                {myRoster.length === 0 ? (
-                  <p className="text-xs text-white/30 text-center py-4">No players drafted yet</p>
-                ) : (
-                  myRoster.map((item, idx) => {
-                    const colors = POSITION_COLORS[item.assetType];
-                    return (
-                      <div
-                        key={`${item.assetType}-${item.assetId}-${idx}`}
-                        className="flex items-center gap-2 p-2 rounded-lg bg-white/5 border border-white/5"
-                      >
-                        {item.imageUrl ? (
-                          <img src={item.imageUrl} alt={item.name} className="w-8 h-8 rounded-full object-cover" />
-                        ) : (
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: colors.jersey + '33' }}>
-                            <span className="text-[10px] font-bold" style={{ color: colors.jersey }}>
-                              {item.name.slice(0, 2).toUpperCase()}
-                            </span>
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-white truncate">{item.name}</p>
-                          <p className="text-[10px] uppercase" style={{ color: colors.jersey }}>
-                            {ASSET_TYPE_LABELS[item.assetType]}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </ScrollArea>
-          </div>
-
-          {/* Panel 2: Available Players */}
-          <div className="bg-[#0f1015] p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-xs font-semibold text-white/70 uppercase tracking-wider">Available</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-white/5">
+          {/* Panel 1: Available Players */}
+          <div className="bg-[#0f1015] p-3">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-[10px] font-semibold text-white/70 uppercase tracking-wider">Available</h3>
               {isMyTurn && (
-                <span className="px-2 py-0.5 rounded-full bg-[#cfff4d] text-black text-[10px] font-bold animate-pulse">
+                <span className="px-1.5 py-0.5 rounded-full bg-[#cfff4d] text-black text-[9px] font-bold animate-pulse">
                   Pick Now
                 </span>
               )}
             </div>
 
             {/* Position Filter Pills */}
-            <div className="flex gap-1 mb-3 overflow-x-auto pb-1">
+            <div className="flex gap-1 mb-2 overflow-x-auto pb-1">
               {POSITION_PILLS.map((pill) => {
                 const key = pill.key;
                 const isFull = key !== "all" && isPositionFull(key as AssetType);
@@ -451,7 +412,7 @@ export function ChallengeDraftBoard({
             </ScrollArea>
           </div>
 
-          {/* Panel 3: Draft Queue / Recent Picks */}
+          {/* Panel 2: Recent Picks */}
           <div className="bg-[#0f1015] p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-xs font-semibold text-white/70 uppercase tracking-wider">Recent Picks</h3>
