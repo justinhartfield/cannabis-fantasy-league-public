@@ -12,6 +12,7 @@ import {
   leagues, 
   teams, 
   draftPicks,
+  users,
   manufacturerWeeklyStats,
   cannabisStrainWeeklyStats,
   strainWeeklyStats,
