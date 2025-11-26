@@ -347,58 +347,6 @@ export default function DailyChallenge() {
     });
   }, [calculateChallengeDayMutation, challengeId, statDate]);
 
-  // Demo function to test battle animations
-  const triggerDemoPlays = useCallback(() => {
-    if (!leader || !challenger) {
-      toast.error("Need both teams to demo battle animations");
-      return;
-    }
-
-    const demoPlays: ScoringPlayData[] = [
-      {
-        attackingTeamId: leader.teamId,
-        attackingTeamName: leader.teamName,
-        defendingTeamId: challenger.teamId,
-        defendingTeamName: challenger.teamName,
-        playerName: "Blue Dream",
-        playerType: "cannabis_strain",
-        pointsScored: 8.5,
-        attackerNewTotal: leader.points + 8.5,
-        defenderTotal: challenger.points,
-        imageUrl: "https://images.leafly.com/flower-images/blue-dream.png",
-      },
-      {
-        attackingTeamId: challenger.teamId,
-        attackingTeamName: challenger.teamName,
-        defendingTeamId: leader.teamId,
-        defendingTeamName: leader.teamName,
-        playerName: "STIIIZY",
-        playerType: "manufacturer",
-        pointsScored: 12.3,
-        attackerNewTotal: challenger.points + 12.3,
-        defenderTotal: leader.points + 8.5,
-        imageUrl: null,
-      },
-      {
-        attackingTeamId: leader.teamId,
-        attackingTeamName: leader.teamName,
-        defendingTeamId: challenger.teamId,
-        defendingTeamName: challenger.teamName,
-        playerName: "OG Kush Pre-Roll",
-        playerType: "product",
-        pointsScored: 5.2,
-        attackerNewTotal: leader.points + 8.5 + 5.2,
-        defenderTotal: challenger.points + 12.3,
-        imageUrl: null,
-      },
-    ];
-
-    // Queue up demo plays
-    scoringPlayQueueRef.current = [...demoPlays];
-    toast.success(`Queued ${demoPlays.length} demo scoring plays!`);
-    playNextScoringPlay();
-  }, [leader, challenger, playNextScoringPlay]);
-
   // Auto-trigger live score update for new challenges on first visit
   useEffect(() => {
     // Only trigger if league is active and we haven't updated yet
@@ -524,6 +472,58 @@ export default function DailyChallenge() {
     () => sortedScores.find((team) => team.teamId === selectedTeamId) || null,
     [sortedScores, selectedTeamId]
   );
+
+  // Demo function to test battle animations (must be after leader/challenger are defined)
+  const triggerDemoPlays = useCallback(() => {
+    if (!leader || !challenger) {
+      toast.error("Need both teams to demo battle animations");
+      return;
+    }
+
+    const demoPlays: ScoringPlayData[] = [
+      {
+        attackingTeamId: leader.teamId,
+        attackingTeamName: leader.teamName,
+        defendingTeamId: challenger.teamId,
+        defendingTeamName: challenger.teamName,
+        playerName: "Blue Dream",
+        playerType: "cannabis_strain",
+        pointsScored: 8.5,
+        attackerNewTotal: leader.points + 8.5,
+        defenderTotal: challenger.points,
+        imageUrl: "https://images.leafly.com/flower-images/blue-dream.png",
+      },
+      {
+        attackingTeamId: challenger.teamId,
+        attackingTeamName: challenger.teamName,
+        defendingTeamId: leader.teamId,
+        defendingTeamName: leader.teamName,
+        playerName: "STIIIZY",
+        playerType: "manufacturer",
+        pointsScored: 12.3,
+        attackerNewTotal: challenger.points + 12.3,
+        defenderTotal: leader.points + 8.5,
+        imageUrl: null,
+      },
+      {
+        attackingTeamId: leader.teamId,
+        attackingTeamName: leader.teamName,
+        defendingTeamId: challenger.teamId,
+        defendingTeamName: challenger.teamName,
+        playerName: "OG Kush Pre-Roll",
+        playerType: "product",
+        pointsScored: 5.2,
+        attackerNewTotal: leader.points + 8.5 + 5.2,
+        defenderTotal: challenger.points + 12.3,
+        imageUrl: null,
+      },
+    ];
+
+    // Queue up demo plays
+    scoringPlayQueueRef.current = [...demoPlays];
+    toast.success(`Queued ${demoPlays.length} demo scoring plays!`);
+    playNextScoringPlay();
+  }, [leader, challenger, playNextScoringPlay]);
 
   const topPerformers = useMemo<
     { name: string; type: string; total: number; breakdown: any; imageUrl?: string | null }[]
