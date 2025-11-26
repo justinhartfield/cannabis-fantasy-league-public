@@ -54,11 +54,12 @@ export function MolecularField({
   };
 
   // Layout Configuration (Coordinate System)
-  // ViewBox 800x600
+  // ViewBox 800x750
+  // Shifted center Y down significantly to ensure top nodes (FLEX) are not cut off
   const CX = 400;
-  const CY = 300;
-  const SPACING = 130; // Distance unit
-  const Y_STRETCH = 1.1; // Vertical spacing multiplier
+  const CY = 400; 
+  const SPACING = 118; // Compact spacing
+  const Y_STRETCH = 1.0; // Vertical spacing multiplier
 
   const positions: Record<DraftPosition, { x: number; y: number }> = {
     // Center Nucleus
@@ -80,8 +81,8 @@ export function MolecularField({
     CM2: { x: CX + SPACING * 1.5, y: CY }, // Product
     RW:  { x: CX + SPACING * 2.5, y: CY }, // Pharmacy
 
-    // Top Flex
-    FLEX: { x: CX, y: CY - SPACING * 2.2 * Y_STRETCH }
+    // Top Flex - Positioned at the apex, ensuring visibility
+    FLEX: { x: CX, y: CY - SPACING * 2.0 * Y_STRETCH }
   };
 
   // Bonds definitions (connections between positions)
@@ -102,11 +103,6 @@ export function MolecularField({
     ["FLEX", "ST2"],
   ];
 
-  // Dimensions logic
-  // We use a fixed viewBox but scale the container via CSS if needed, 
-  // or we can adjust coordinates. 
-  // Here we stick to fixed SVG coords and let the container handle responsive width.
-  
   return (
     <div className={cn("flex flex-col w-full", className)}>
        {/* Team Header */}
@@ -183,8 +179,8 @@ export function MolecularField({
                 y1={p1.y}
                 x2={p2.x}
                 y2={p2.y}
-                stroke="rgba(255, 255, 255, 0.15)"
-                strokeWidth="2"
+                stroke="rgba(255, 255, 255, 0.2)"
+                strokeWidth="2.5"
                 strokeDasharray="4 4"
                 className="animate-pulse"
                 style={{ animationDuration: `${3 + idx % 2}s` }}
@@ -192,8 +188,6 @@ export function MolecularField({
             );
           })}
 
-          {/* Active Connections Highlights (optional logic could go here) */}
-          
           {/* Nodes */}
           {Object.entries(positions).map(([posKey, coords]) => {
             const pos = posKey as DraftPosition;
@@ -222,4 +216,3 @@ export function MolecularField({
     </div>
   );
 }
-
