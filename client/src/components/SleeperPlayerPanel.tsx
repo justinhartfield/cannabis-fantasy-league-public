@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { Search, ChevronUp, ChevronDown, Plus, X, ArrowUpDown, Building2, Leaf, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -71,7 +71,7 @@ interface SleeperPlayerPanelProps {
   onTabChange?: (tab: "players" | "team") => void;
 }
 
-// Position limits
+// Position limits (regular slots only)
 const POSITION_LIMITS: Record<AssetType, number> = {
   manufacturer: 2,
   cannabis_strain: 2,
@@ -80,14 +80,18 @@ const POSITION_LIMITS: Record<AssetType, number> = {
   brand: 1,
 };
 
+// Total slots including flex
+const TOTAL_ROSTER_SLOTS = 10; // 9 regular + 1 flex
+
 // Position config for pills
-const POSITION_PILLS: { key: AssetType | "all"; label: string; color: string }[] = [
+const POSITION_PILLS: { key: AssetType | "all" | "flex"; label: string; color: string }[] = [
   { key: "all", label: "ALL", color: "bg-white/20" },
   { key: "manufacturer", label: "MFG", color: "bg-blue-500" },
   { key: "cannabis_strain", label: "STR", color: "bg-purple-500" },
   { key: "product", label: "PRD", color: "bg-pink-500" },
   { key: "pharmacy", label: "PHM", color: "bg-green-500" },
   { key: "brand", label: "BRD", color: "bg-yellow-500" },
+  { key: "flex", label: "FLEX", color: "bg-orange-500" },
 ];
 
 type TabType = "players" | "queue" | "team" | "chat";
@@ -124,7 +128,7 @@ export function SleeperPlayerPanel({
   activeTab: externalActiveTab,
   onTabChange: externalOnTabChange,
 }: SleeperPlayerPanelProps) {
-  const [selectedPosition, setSelectedPosition] = useState<AssetType | "all">("all");
+  const [selectedPosition, setSelectedPosition] = useState<AssetType | "all" | "flex">("all");
   const [isPanelExpanded, setIsPanelExpanded] = useState(true);
   const [internalActiveTab, setInternalActiveTab] = useState<TabType>("players");
   const [sortBy, setSortBy] = useState<SortBy>("stats");
@@ -156,20 +160,39 @@ export function SleeperPlayerPanel({
     }
   }, [activeTab]);
 
-  // Check if asset is drafted
-  const isAssetDrafted = (assetType: AssetType, assetId: number) => {
+  // Check if asset is drafted - use useCallback to ensure proper memoization
+  const isAssetDrafted = useCallback((assetType: AssetType, assetId: number) => {
     if (!draftedAssets) return false;
     return draftedAssets[assetType]?.has(assetId) ?? false;
-  };
+  }, [draftedAssets]);
 
   // Check if asset is in queue
   const isInQueue = (assetType: AssetType, assetId: number) => {
     return queue.some(q => q.assetType === assetType && q.assetId === assetId);
   };
 
-  // Check if position is full
+  // Calculate total roster count
+  const totalRosterCount = Object.values(rosterCounts).reduce((a, b) => a + b, 0);
+  
+  // Regular slots total = 9 (2+2+2+2+1)
+  const regularSlotsTotal = Object.values(POSITION_LIMITS).reduce((a, b) => a + b, 0);
+  
+  // Flex is used when total roster > regular slots
+  const flexUsed = totalRosterCount > regularSlotsTotal ? 1 : 0;
+  
+  // Check if flex slot is available (total roster < 10 means flex is open)
+  const isFlexAvailable = totalRosterCount < TOTAL_ROSTER_SLOTS;
+  
+  // Check if position is full (considering flex)
+  // A position can still accept a player if:
+  // 1. Regular slots for that position are not full, OR
+  // 2. Flex slot is available
   const isPositionFull = (assetType: AssetType) => {
-    return rosterCounts[assetType] >= POSITION_LIMITS[assetType];
+    const regularFull = rosterCounts[assetType] >= POSITION_LIMITS[assetType];
+    // If regular is not full, position is open
+    if (!regularFull) return false;
+    // If regular is full, check if flex is still available
+    return !isFlexAvailable;
   };
 
   // Sort function
@@ -201,7 +224,8 @@ export function SleeperPlayerPanel({
 
     let allPlayers: Array<AvailablePlayer & { assetType: AssetType }> = [];
 
-    if (selectedPosition === "all") {
+    // "all" and "flex" both show all players (flex is just a filter for showing all available)
+    if (selectedPosition === "all" || selectedPosition === "flex") {
       allPlayers = [
         ...filterAndMap(manufacturers, "manufacturer"),
         ...filterAndMap(cannabisStrains, "cannabis_strain"),
@@ -237,14 +261,14 @@ export function SleeperPlayerPanel({
     products,
     pharmacies,
     brands,
-    draftedAssets,
+    isAssetDrafted,
     sortBy,
     sortOrder,
   ]);
 
   // Calculate total roster slots
-  const totalRoster = Object.values(rosterCounts).reduce((a, b) => a + b, 0);
-  const maxRoster = Object.values(POSITION_LIMITS).reduce((a, b) => a + b, 0) + 1; // +1 for flex
+  const totalRoster = totalRosterCount;
+  const maxRoster = TOTAL_ROSTER_SLOTS;
 
   const handleDraft = (player: AvailablePlayer & { assetType: AssetType }) => {
     if (!isMyTurn) return;
@@ -340,11 +364,12 @@ export function SleeperPlayerPanel({
                   <span>ALL</span>
                 </button>
 
-                {POSITION_PILLS.slice(1).map((pill) => {
+                {/* Regular position pills (skip "all" which is index 0 and "flex" which is last) */}
+                {POSITION_PILLS.slice(1, -1).map((pill) => {
                   const key = pill.key as AssetType;
                   const count = rosterCounts[key];
                   const max = POSITION_LIMITS[key];
-                  const isFull = count >= max;
+                  const regularFull = count >= max;
 
                   return (
                     <button
@@ -354,7 +379,7 @@ export function SleeperPlayerPanel({
                         "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors whitespace-nowrap",
                         selectedPosition === pill.key
                           ? "bg-white text-black"
-                          : isFull
+                          : regularFull
                           ? "bg-white/5 text-white/30"
                           : "bg-white/10 text-white/70 hover:bg-white/20"
                       )}
@@ -362,16 +387,40 @@ export function SleeperPlayerPanel({
                       <span
                         className={cn(
                           "w-2 h-2 rounded-full",
-                          isFull ? "bg-green-500" : pill.color
+                          regularFull ? "bg-green-500" : pill.color
                         )}
                       />
                       <span>{pill.label}</span>
-                      <span className={cn(isFull ? "text-green-400" : "text-white/50")}>
+                      <span className={cn(regularFull ? "text-green-400" : "text-white/50")}>
                         {count}/{max}
                       </span>
                     </button>
                   );
                 })}
+
+                {/* FLEX pill - shows all players, tracks the flex slot */}
+                <button
+                  onClick={() => setSelectedPosition("flex")}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors whitespace-nowrap",
+                    selectedPosition === "flex"
+                      ? "bg-white text-black"
+                      : !isFlexAvailable
+                      ? "bg-white/5 text-white/30"
+                      : "bg-white/10 text-white/70 hover:bg-white/20"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "w-2 h-2 rounded-full",
+                      !isFlexAvailable ? "bg-green-500" : "bg-orange-500"
+                    )}
+                  />
+                  <span>FLEX</span>
+                  <span className={cn(!isFlexAvailable ? "text-green-400" : "text-white/50")}>
+                    {flexUsed}/1
+                  </span>
+                </button>
 
                 {/* Sort Controls */}
                 <div className="flex items-center gap-1 ml-auto">
