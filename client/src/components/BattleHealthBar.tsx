@@ -189,5 +189,3 @@ export function BattleHealthBar({
   );
 }
 
-export default BattleHealthBar;
-

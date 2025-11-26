@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { Zap, TrendingUp, Flame, Target, Star } from "lucide-react";
+import { Zap, TrendingUp, Flame, Target, Star, type LucideIcon } from "lucide-react";
 import type { ScoringPlayData } from "./ScoringPlayOverlay";
 
 export interface ScoringPlayAnnouncementProps {
@@ -14,7 +14,7 @@ export interface ScoringPlayAnnouncementProps {
 
 const PLAYER_TYPE_CONFIG: Record<string, { 
   label: string; 
-  icon: typeof Zap; 
+  icon: LucideIcon; 
   color: string;
   bgGradient: string;
 }> = {
@@ -218,6 +218,4 @@ export function ScoringPlayAnnouncement({
     </div>
   );
 }
-
-export default ScoringPlayAnnouncement;
 

@@ -162,5 +162,3 @@ export function ComboCounter({
   );
 }
 
-export default ComboCounter;
-

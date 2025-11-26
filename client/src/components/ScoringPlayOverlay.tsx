@@ -209,5 +209,3 @@ export function ScoringPlayOverlay({
   );
 }
 
-export default ScoringPlayOverlay;
-

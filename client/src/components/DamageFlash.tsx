@@ -178,5 +178,3 @@ export function DamageFlash({
   );
 }
 
-export default DamageFlash;
-

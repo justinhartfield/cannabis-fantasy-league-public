@@ -524,5 +524,3 @@ function FighterCard({
     </div>
   );
 }
-
-export default BattleArena;
