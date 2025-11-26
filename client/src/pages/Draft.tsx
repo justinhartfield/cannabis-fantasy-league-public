@@ -571,12 +571,12 @@ export default function Draft() {
 
   // Build teams array for the grid from league teams
   const teamsForGrid = useMemo(() => {
-    if (!league?.teams) return [];
+    if (!league?.teams || !Array.isArray(league.teams)) return [];
     return league.teams.map((t: any) => ({
-      id: t.team.id,
-      name: t.team.name,
-      userName: t.user?.name || null,
-      userAvatarUrl: t.user?.avatarUrl || null,
+      id: t.id,
+      name: t.name,
+      userName: t.userName || null,
+      userAvatarUrl: t.userAvatarUrl || null,
     }));
   }, [league?.teams]);
 
