@@ -125,9 +125,9 @@ export default function Draft() {
     }
   }, [autoPickStatus?.autoPickEnabled]);
 
-  const { data: roster = [], isLoading: rosterLoading, refetch: refetchRoster } = trpc.roster.getMyRoster.useQuery(
+  const { data: roster = [], isLoading: rosterLoading } = trpc.roster.getMyRoster.useQuery(
     { leagueId },
-    { enabled: !!id && isAuthenticated }
+    { enabled: !!id && isAuthenticated, staleTime: 0 }
   );
 
   // Determine if this is a season league (for Sleeper-style) or challenge (existing style)
