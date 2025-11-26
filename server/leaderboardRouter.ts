@@ -178,11 +178,16 @@ export const leaderboardRouter = router({
             id: strains.id,
             name: strains.name,
             score: productDailyChallengeStats.totalPoints,
+            imageUrl: cannabisStrains.imageUrl,
           })
           .from(productDailyChallengeStats)
           .innerJoin(
             strains,
             eq(productDailyChallengeStats.productId, strains.id),
+          )
+          .leftJoin(
+            cannabisStrains,
+            eq(strains.strainId, cannabisStrains.id),
           )
           .where(eq(productDailyChallengeStats.statDate, targetDate!))
           .orderBy(desc(productDailyChallengeStats.totalPoints))
@@ -336,17 +341,19 @@ export const leaderboardRouter = router({
           .select({
             id: strains.id,
             name: strains.name,
+            imageUrl: cannabisStrains.imageUrl,
             score: sql<number>`sum(${productDailyChallengeStats.totalPoints})`.mapWith(Number),
           })
           .from(productDailyChallengeStats)
           .innerJoin(strains, eq(productDailyChallengeStats.productId, strains.id))
+          .leftJoin(cannabisStrains, eq(strains.strainId, cannabisStrains.id))
           .where(
             and(
               sql`${productDailyChallengeStats.statDate} >= ${startDate}`,
               sql`${productDailyChallengeStats.statDate} <= ${endDate}`
             )
           )
-          .groupBy(strains.id, strains.name)
+          .groupBy(strains.id, strains.name, cannabisStrains.imageUrl)
           .orderBy(desc(sql`sum(${productDailyChallengeStats.totalPoints})`))
           .limit(input.limit * 3),
       ]);
