@@ -174,7 +174,27 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {/* Mobile: Compact single-line stats */}
+        <div className="mt-6 flex gap-2 overflow-x-auto pb-2 sm:hidden">
+          {statHighlights.map((stat) => (
+            <div
+              key={stat.label}
+              className={cn(
+                "flex-shrink-0 rounded-xl px-3 py-2 text-white shadow-md",
+                "bg-gradient-to-br",
+                stat.gradient
+              )}
+            >
+              <div className="flex items-center gap-2">
+                <stat.icon className="h-3.5 w-3.5 flex-shrink-0" />
+                <span className="text-sm font-bold whitespace-nowrap">{stat.value.toLocaleString()}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop: Full stat cards */}
+        <div className="mt-6 hidden gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-3">
           {statHighlights.map((stat) => (
             <div
               key={stat.label}

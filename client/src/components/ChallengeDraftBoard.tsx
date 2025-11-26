@@ -142,8 +142,8 @@ export function ChallengeDraftBoard({
 }: ChallengeDraftBoardProps) {
   const [selectedPosition, setSelectedPosition] = useState<AssetType | "all">("all");
   const [sortBy, setSortBy] = useState<"points" | "name">("points");
-  // Mobile: track if player panel is expanded (collapsed by default to show field)
-  const [isMobileExpanded, setIsMobileExpanded] = useState(false);
+  // Mobile: track if player panel is expanded (expanded by default to show available players)
+  const [isMobileExpanded, setIsMobileExpanded] = useState(true);
 
   // Convert rosters to field player maps
   const myFieldPlayers = useMemo(() => rosterToFieldPlayers(myRoster), [myRoster]);

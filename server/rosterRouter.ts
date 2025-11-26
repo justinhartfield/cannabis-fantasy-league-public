@@ -85,11 +85,17 @@ export const rosterRouter = router({
             }
           }
 
+          // Get imageUrl based on asset type (some use logoUrl, some use imageUrl)
+          const imageUrl = entry.assetType === "manufacturer" || entry.assetType === "pharmacy" || entry.assetType === "brand"
+            ? (assetDetails as any)?.logoUrl
+            : (assetDetails as any)?.imageUrl;
+
           return {
             id: entry.id,
             assetType: entry.assetType,
             assetId: entry.assetId,
             assetName: assetDetails?.name || "Unknown",
+            imageUrl: imageUrl || null,
             acquiredWeek: entry.acquiredWeek,
             acquiredVia: entry.acquiredVia,
             // TODO: Add performance metrics from weeklyTeamScores
@@ -278,10 +284,16 @@ export const rosterRouter = router({
             }
           }
 
+          // Get imageUrl based on asset type (some use logoUrl, some use imageUrl)
+          const imageUrl = entry.assetType === "manufacturer" || entry.assetType === "pharmacy" || entry.assetType === "brand"
+            ? (assetDetails as any)?.logoUrl
+            : (assetDetails as any)?.imageUrl;
+
           return {
             assetType: entry.assetType,
             assetId: entry.assetId,
             name: assetDetails?.name || "Unknown",
+            imageUrl: imageUrl || null,
           };
         })
       );
