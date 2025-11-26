@@ -609,4 +609,463 @@
   .bg-gradient-radial {
     background: radial-gradient(ellipse at center, var(--tw-gradient-from), var(--tw-gradient-to));
   }
+
+  /* ===========================================
+   * SCORING PLAY ANIMATIONS - Game Show Style
+   * =========================================== */
+
+  /* Scoring Play Feed Entry - Slide in from right with bounce */
+  .scoring-play-entry-new {
+    animation: scoring-play-slide-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+
+  @keyframes scoring-play-slide-in {
+    0% {
+      opacity: 0;
+      transform: translateX(100px) scale(0.8);
+    }
+    60% {
+      opacity: 1;
+      transform: translateX(-10px) scale(1.02);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+    }
+  }
+
+  /* Big Play Emphasis - Scale and glow */
+  .scoring-play-big-play {
+    animation: scoring-play-big-entrance 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+
+  @keyframes scoring-play-big-entrance {
+    0% {
+      opacity: 0;
+      transform: translateX(100px) scale(0.5);
+    }
+    30% {
+      opacity: 1;
+      transform: translateX(-20px) scale(1.1);
+    }
+    50% {
+      transform: translateX(10px) scale(0.95);
+    }
+    70% {
+      transform: translateX(-5px) scale(1.02);
+    }
+    100% {
+      transform: translateX(0) scale(1);
+    }
+  }
+
+  /* Scoring Play Glow Effect - Pulsing glow for big plays */
+  .scoring-play-glow {
+    animation: scoring-play-glow-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes scoring-play-glow-pulse {
+    0%, 100% {
+      box-shadow: 
+        0 0 20px rgba(207, 255, 77, 0.3),
+        0 0 40px rgba(207, 255, 77, 0.1),
+        inset 0 0 20px rgba(207, 255, 77, 0.05);
+    }
+    50% {
+      box-shadow: 
+        0 0 40px rgba(207, 255, 77, 0.5),
+        0 0 80px rgba(207, 255, 77, 0.2),
+        inset 0 0 30px rgba(207, 255, 77, 0.1);
+    }
+  }
+
+  /* Scoring Play Shimmer - Light sweep effect */
+  .scoring-play-shimmer {
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.1) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: scoring-play-shimmer-sweep 1.5s ease-out;
+  }
+
+  @keyframes scoring-play-shimmer-sweep {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  /* ===========================================
+   * SCORING ALERT ANIMATIONS - Dramatic Banner
+   * =========================================== */
+
+  /* Alert Container - Slide down from top */
+  .scoring-alert-container {
+    animation: scoring-alert-enter 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    box-shadow: 
+      0 10px 40px rgba(0, 0, 0, 0.3),
+      0 0 60px rgba(207, 255, 77, 0.2);
+  }
+
+  @keyframes scoring-alert-enter {
+    0% {
+      opacity: 0;
+      transform: translateY(-100%) scale(0.95);
+    }
+    60% {
+      opacity: 1;
+      transform: translateY(10px) scale(1.02);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  /* Alert Exit Animation */
+  .scoring-alert-exit {
+    animation: scoring-alert-exit 0.5s ease-in forwards;
+  }
+
+  @keyframes scoring-alert-exit {
+    0% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-100%) scale(0.95);
+    }
+  }
+
+  /* Alert Shine Effect - Moving light */
+  .scoring-alert-shine {
+    background: linear-gradient(
+      105deg,
+      transparent 20%,
+      rgba(255, 255, 255, 0.3) 50%,
+      transparent 80%
+    );
+    background-size: 300% 100%;
+    animation: scoring-alert-shine-sweep 2s ease-in-out infinite;
+  }
+
+  @keyframes scoring-alert-shine-sweep {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+
+  /* Alert Icon Animation */
+  .scoring-alert-icon {
+    animation: scoring-alert-icon-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    animation-delay: 0.2s;
+    opacity: 0;
+    transform: scale(0);
+  }
+
+  @keyframes scoring-alert-icon-pop {
+    0% {
+      opacity: 0;
+      transform: scale(0) rotate(-180deg);
+    }
+    60% {
+      opacity: 1;
+      transform: scale(1.2) rotate(10deg);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1) rotate(0deg);
+    }
+  }
+
+  /* Alert Icon Bounce */
+  .scoring-alert-icon-bounce {
+    animation: scoring-alert-bounce 1s ease-in-out infinite;
+    animation-delay: 0.5s;
+  }
+
+  @keyframes scoring-alert-bounce {
+    0%, 100% {
+      transform: translateY(0) scale(1);
+    }
+    50% {
+      transform: translateY(-3px) scale(1.1);
+    }
+  }
+
+  /* Alert Points Counter Pop */
+  .scoring-alert-points {
+    animation: scoring-alert-points-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    animation-delay: 0.3s;
+    opacity: 0;
+    transform: scale(0.5);
+  }
+
+  @keyframes scoring-alert-points-pop {
+    0% {
+      opacity: 0;
+      transform: scale(0.5);
+    }
+    60% {
+      opacity: 1;
+      transform: scale(1.15);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  /* Alert Progress Bar */
+  .scoring-alert-progress {
+    animation: scoring-alert-progress-countdown linear forwards;
+    width: 100%;
+  }
+
+  @keyframes scoring-alert-progress-countdown {
+    0% {
+      width: 100%;
+    }
+    100% {
+      width: 0%;
+    }
+  }
+
+  /* Alert Floating Particles */
+  .scoring-alert-particle {
+    animation: scoring-alert-particle-float 2s ease-in-out infinite;
+  }
+
+  @keyframes scoring-alert-particle-float {
+    0%, 100% {
+      transform: translateY(0) scale(1);
+      opacity: 0.6;
+    }
+    50% {
+      transform: translateY(-20px) scale(1.2);
+      opacity: 0.3;
+    }
+  }
+
+  /* ===========================================
+   * SCORE COUNTER ANIMATIONS
+   * =========================================== */
+
+  /* Dramatic Score Reveal */
+  .score-reveal-dramatic {
+    animation: score-reveal-dramatic 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes score-reveal-dramatic {
+    0% {
+      opacity: 0;
+      transform: scale(0.3) rotateX(-90deg);
+      filter: blur(10px);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.3) rotateX(10deg);
+      filter: blur(0);
+    }
+    70% {
+      transform: scale(0.95) rotateX(-5deg);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1) rotateX(0deg);
+      filter: blur(0);
+    }
+  }
+
+  /* Score Shake Attention */
+  .score-shake-attention {
+    animation: score-shake-attention 0.5s ease-in-out;
+  }
+
+  @keyframes score-shake-attention {
+    0%, 100% {
+      transform: translateX(0);
+    }
+    10%, 30%, 50%, 70%, 90% {
+      transform: translateX(-4px);
+    }
+    20%, 40%, 60%, 80% {
+      transform: translateX(4px);
+    }
+  }
+
+  /* Score Glow Pulse on Update */
+  .score-glow-update {
+    animation: score-glow-update 1s ease-out;
+  }
+
+  @keyframes score-glow-update {
+    0% {
+      text-shadow: 
+        0 0 20px currentColor,
+        0 0 40px currentColor,
+        0 0 60px currentColor;
+    }
+    100% {
+      text-shadow: none;
+    }
+  }
+
+  /* ===========================================
+   * CONFETTI / CELEBRATION ANIMATIONS
+   * =========================================== */
+
+  /* Celebration Burst Container */
+  .celebration-burst {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 100;
+    overflow: hidden;
+  }
+
+  /* Confetti Piece Base */
+  .confetti-piece {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    animation: confetti-fall linear forwards;
+  }
+
+  @keyframes confetti-fall {
+    0% {
+      opacity: 1;
+      transform: translateY(-100px) rotate(0deg);
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(100vh) rotate(720deg);
+    }
+  }
+
+  /* Star Burst for Big Milestones */
+  .star-burst {
+    animation: star-burst 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+
+  @keyframes star-burst {
+    0% {
+      opacity: 0;
+      transform: scale(0) rotate(-180deg);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.5) rotate(0deg);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(2) rotate(45deg);
+    }
+  }
+
+  /* Rank Up Animation */
+  .rank-up-animation {
+    animation: rank-up 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes rank-up {
+    0% {
+      opacity: 0;
+      transform: translateY(20px) scale(0.8);
+    }
+    30% {
+      opacity: 1;
+      transform: translateY(-10px) scale(1.1);
+    }
+    50% {
+      transform: translateY(5px) scale(0.95);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  /* Streak Fire Animation */
+  .streak-fire {
+    animation: streak-fire 0.5s ease-in-out infinite alternate;
+  }
+
+  @keyframes streak-fire {
+    0% {
+      filter: drop-shadow(0 0 5px #ff6b35) drop-shadow(0 0 10px #ff6b35);
+      transform: scale(1);
+    }
+    100% {
+      filter: drop-shadow(0 0 15px #ff6b35) drop-shadow(0 0 30px #ffcc00);
+      transform: scale(1.1);
+    }
+  }
+
+  /* Victory Crown Animation */
+  .victory-crown {
+    animation: victory-crown 2s ease-in-out infinite;
+  }
+
+  @keyframes victory-crown {
+    0%, 100% {
+      transform: translateY(0) rotate(-5deg);
+    }
+    25% {
+      transform: translateY(-5px) rotate(0deg);
+    }
+    50% {
+      transform: translateY(0) rotate(5deg);
+    }
+    75% {
+      transform: translateY(-3px) rotate(0deg);
+    }
+  }
+
+  /* Battle Arena Score Shake on Update */
+  .battle-score-shake {
+    animation: battle-score-shake 0.6s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+  }
+
+  @keyframes battle-score-shake {
+    0%, 100% {
+      transform: translateX(0);
+    }
+    10% {
+      transform: translateX(-8px) scale(1.02);
+    }
+    20% {
+      transform: translateX(8px) scale(1.02);
+    }
+    30% {
+      transform: translateX(-6px);
+    }
+    40% {
+      transform: translateX(6px);
+    }
+    50% {
+      transform: translateX(-4px);
+    }
+    60% {
+      transform: translateX(4px);
+    }
+    70% {
+      transform: translateX(-2px);
+    }
+    80% {
+      transform: translateX(2px);
+    }
+  }
 }
