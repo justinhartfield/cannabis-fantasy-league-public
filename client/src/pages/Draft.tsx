@@ -6,9 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { getLoginUrl } from "@/const";
 import DraftBoard, { type AssetType } from "@/components/DraftBoard";
-// import { DraftPicksGrid } from "@/components/DraftPicksGrid";
 import { MyRoster } from "@/components/MyRoster";
 import { DraftClock } from "@/components/DraftClock";
+import { SleeperDraftHeader } from "@/components/SleeperDraftHeader";
+import { SleeperDraftGrid } from "@/components/SleeperDraftGrid";
+import { SleeperPlayerPanel } from "@/components/SleeperPlayerPanel";
+import { SleeperDraftSettings } from "@/components/SleeperDraftSettings";
 import { toast } from "sonner";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
@@ -41,6 +44,11 @@ export default function Draft() {
   const [showDraftCompleteDialog, setShowDraftCompleteDialog] = useState(false);
   const [autoDraftEnabled, setAutoDraftEnabled] = useState(false);
   const autoDraftInProgressRef = useRef(false);
+
+  // Sleeper-style state
+  const [showSettings, setShowSettings] = useState(false);
+  const [playerPanelTab, setPlayerPanelTab] = useState<"players" | "team">("players");
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Optimistic tracking of my drafted assets
   const [myDraftedAssets, setMyDraftedAssets] = useState<Array<{
@@ -99,30 +107,42 @@ export default function Draft() {
     { enabled: !!id && isAuthenticated }
   );
 
+  // Determine if this is a season league (for Sleeper-style) or challenge (existing style)
+  const isSeasonLeague = league?.leagueType === "season";
+
   // Fetch available players for auto-draft (only when auto-draft is enabled)
   const { data: availableManufacturers = [] } = trpc.draft.getAvailableManufacturers.useQuery(
-    { leagueId, limit: 200 },
-    { enabled: !!id && isAuthenticated && autoDraftEnabled }
+    { leagueId, limit: 200, search: searchQuery || undefined },
+    { enabled: !!id && isAuthenticated && (autoDraftEnabled || isSeasonLeague) }
   );
 
   const { data: availableCannabisStrains = [] } = trpc.draft.getAvailableCannabisStrains.useQuery(
-    { leagueId, limit: 200 },
-    { enabled: !!id && isAuthenticated && autoDraftEnabled }
+    { leagueId, limit: 200, search: searchQuery || undefined },
+    { enabled: !!id && isAuthenticated && (autoDraftEnabled || isSeasonLeague) }
   );
 
   const { data: availableProducts = [] } = trpc.draft.getAvailableProducts.useQuery(
-    { leagueId, limit: 200 },
-    { enabled: !!id && isAuthenticated && autoDraftEnabled }
+    { leagueId, limit: 200, search: searchQuery || undefined },
+    { enabled: !!id && isAuthenticated && (autoDraftEnabled || isSeasonLeague) }
   );
 
   const { data: availablePharmacies = [] } = trpc.draft.getAvailablePharmacies.useQuery(
-    { leagueId, limit: 200 },
-    { enabled: !!id && isAuthenticated && autoDraftEnabled }
+    { leagueId, limit: 200, search: searchQuery || undefined },
+    { enabled: !!id && isAuthenticated && (autoDraftEnabled || isSeasonLeague) }
   );
 
   const { data: availableBrands = [] } = trpc.draft.getAvailableBrands.useQuery(
-    { leagueId, limit: 200 },
-    { enabled: !!id && isAuthenticated && autoDraftEnabled }
+    { leagueId, limit: 200, search: searchQuery || undefined },
+    { enabled: !!id && isAuthenticated && (autoDraftEnabled || isSeasonLeague) }
+  );
+
+  // Fetch all draft picks for the grid (season leagues only)
+  const currentYear = league?.seasonYear || new Date().getFullYear();
+  const currentWeek = league?.currentWeek || 1;
+
+  const { data: allDraftPicks = [] } = trpc.draft.getAllDraftPicks.useQuery(
+    { leagueId, year: currentYear, week: currentWeek, includeStats: false },
+    { enabled: !!id && isAuthenticated && isSeasonLeague }
   );
 
   // Merge server roster with local optimistic updates
@@ -152,9 +172,6 @@ export default function Draft() {
     { leagueId },
     { enabled: !!id && isAuthenticated, refetchInterval: 5000 }
   );
-
-  const currentYear = league?.seasonYear || new Date().getFullYear();
-  const currentWeek = league?.currentWeek || 1;
 
   // Initialize current turn from draft status
   useEffect(() => {
@@ -212,7 +229,6 @@ export default function Draft() {
           ]);
           refetchRoster();
         }
-        // invalidateAvailableByType(assetType);
       } else if (message.type === 'next_pick') {
         setCurrentTurnTeamId(message.teamId);
         setCurrentTurnTeamName(message.teamName);
@@ -250,7 +266,6 @@ export default function Draft() {
         if (message.teamId === myTeam?.id) {
           refetchRoster();
         }
-        // invalidateAvailableByType(message.assetType as AssetType);
       }
     },
     onConnect: () => {
@@ -313,6 +328,10 @@ export default function Draft() {
     onSuccess: (_data, variables) => {
       toast.success("Draft Pick erfolgreich!");
       invalidateAvailableByType(variables.assetType as AssetType);
+      // Refetch all draft picks for grid update
+      if (isSeasonLeague) {
+        utils.draft.getAllDraftPicks.invalidate();
+      }
     },
     onError: (error) => {
       toast.error(`Draft Pick fehlgeschlagen: ${error.message}`);
@@ -473,17 +492,17 @@ export default function Draft() {
 
   if (authLoading || leagueLoading || teamLoading || rosterLoading) {
     return (
-      <div className="min-h-screen bg-weed-cream flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="min-h-screen bg-[#1a1d29] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-[#00d4aa]" />
       </div>
     );
   }
 
   if (!league || !myTeam) {
     return (
-      <div className="min-h-screen bg-weed-cream flex items-center justify-center">
+      <div className="min-h-screen bg-[#1a1d29] flex items-center justify-center">
         <div className="text-center space-y-4">
-          <h2 className="text-2xl font-bold text-foreground">Liga oder Team nicht gefunden</h2>
+          <h2 className="text-2xl font-bold text-white">Liga oder Team nicht gefunden</h2>
           <Button onClick={() => setLocation("/")}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Zurück zum Dashboard
@@ -541,6 +560,113 @@ export default function Draft() {
     }
   };
 
+  // Calculate roster counts for player panel
+  const rosterCounts = {
+    manufacturer: mergedRoster.filter((r) => r.assetType === "manufacturer").length,
+    cannabis_strain: mergedRoster.filter((r) => r.assetType === "cannabis_strain").length,
+    product: mergedRoster.filter((r) => r.assetType === "product").length,
+    pharmacy: mergedRoster.filter((r) => r.assetType === "pharmacy").length,
+    brand: mergedRoster.filter((r) => r.assetType === "brand").length,
+  };
+
+  // Build teams array for the grid from league teams
+  const teamsForGrid = useMemo(() => {
+    if (!league?.teams) return [];
+    return league.teams.map((t: any) => ({
+      id: t.team.id,
+      name: t.team.name,
+      userName: t.user?.name || null,
+      userAvatarUrl: t.user?.avatarUrl || null,
+    }));
+  }, [league?.teams]);
+
+  // Total rounds = 10 picks per team (2+2+2+2+1+1 = 10 roster slots)
+  const totalRounds = 10;
+
+  // ============================================
+  // SEASON LEAGUE - SLEEPER STYLE DRAFT
+  // ============================================
+  if (isSeasonLeague) {
+    return (
+      <div className="h-screen flex flex-col bg-[#1a1d29]">
+        {/* Draft Complete Dialog */}
+        <Dialog open={showDraftCompleteDialog} onOpenChange={setShowDraftCompleteDialog}>
+          <DialogContent className="sm:max-w-md bg-[#1a1d29] border-white/10 text-white">
+            <DialogHeader>
+              <DialogTitle className="text-2xl">🎉 Draft Complete!</DialogTitle>
+              <DialogDescription className="text-base pt-2 text-white/70">
+                All roster slots filled (10/10). Go to your Lineup Editor to review and adjust your starting lineup.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button
+                variant="default"
+                onClick={() => {
+                  setShowDraftCompleteDialog(false);
+                  setLocation(`/league/${leagueId}/lineup`);
+                }}
+                className="w-full sm:w-auto bg-[#00d4aa] text-black hover:bg-[#00e4b8]"
+              >
+                Go to Lineup Editor
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Settings Modal */}
+        <SleeperDraftSettings
+          isOpen={showSettings}
+          onClose={() => setShowSettings(false)}
+          autoDraftEnabled={autoDraftEnabled}
+          onAutoDraftChange={setAutoDraftEnabled}
+        />
+
+        {/* Header */}
+        <SleeperDraftHeader
+          isYourTurn={isMyTurn}
+          currentTeamName={currentTurnTeamName || "Waiting..."}
+          timerSeconds={timerSeconds}
+          onClose={() => window.history.back()}
+          onSettingsClick={() => setShowSettings(true)}
+          autoDraftEnabled={autoDraftEnabled}
+        />
+
+        {/* Draft Grid */}
+        <SleeperDraftGrid
+          teams={teamsForGrid}
+          picks={allDraftPicks}
+          currentPickNumber={currentPickNumber}
+          currentRound={currentRound}
+          currentTeamId={currentTurnTeamId}
+          totalRounds={totalRounds}
+          myTeamId={myTeam.id}
+        />
+
+        {/* Player Panel */}
+        <SleeperPlayerPanel
+          rosterCounts={rosterCounts}
+          manufacturers={availableManufacturers}
+          cannabisStrains={availableCannabisStrains}
+          products={availableProducts}
+          pharmacies={availablePharmacies}
+          brands={availableBrands}
+          onDraftPick={handleDraftPick}
+          onSearchChange={setSearchQuery}
+          searchQuery={searchQuery}
+          isMyTurn={isMyTurn}
+          isLoading={false}
+          draftedAssets={draftedAssets}
+          myRoster={mergedRoster}
+          activeTab={playerPanelTab}
+          onTabChange={setPlayerPanelTab}
+        />
+      </div>
+    );
+  }
+
+  // ============================================
+  // CHALLENGE LEAGUE - ORIGINAL DRAFT STYLE
+  // ============================================
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#fdf6e9] via-[#f8eedb] to-[#f4e4c9] relative">
       {/* Draft Complete Dialog */}
