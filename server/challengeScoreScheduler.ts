@@ -14,7 +14,7 @@ import { wsManager } from './websocket';
 
 class ChallengeScoreScheduler {
   private intervalId: NodeJS.Timeout | null = null;
-  private lastUpdateHour: number = -1;
+  private lastUpdateKey: string = ''; // Track hour:minute to prevent duplicate runs
   private lastFinalizationDate: string = '';
 
   /**
@@ -62,10 +62,13 @@ class ChallengeScoreScheduler {
       console.log(`[ChallengeScoreScheduler] Health check at ${now.toISOString()} - Hour: ${currentHour}, Minute: ${currentMinute}`);
     }
 
-    // Check for hourly update (at :00 minutes)
-    if (currentMinute === 0 && currentHour !== this.lastUpdateHour) {
-      console.log(`[ChallengeScoreScheduler] Triggering hourly update at ${now.toISOString()}`);
-      this.lastUpdateHour = currentHour;
+    // Check for 30-minute update (at :00 and :30 minutes)
+    const updateKey = `${currentHour}:${currentMinute}`;
+    const isUpdateTime = currentMinute === 0 || currentMinute === 30;
+    
+    if (isUpdateTime && updateKey !== this.lastUpdateKey) {
+      console.log(`[ChallengeScoreScheduler] Triggering 30-minute update at ${now.toISOString()}`);
+      this.lastUpdateKey = updateKey;
       await this.updateHourlyScores();
     }
 
@@ -78,10 +81,10 @@ class ChallengeScoreScheduler {
   }
 
   /**
-   * Update scores for ALL active challenges
+   * Update scores for ALL active challenges (runs every 30 minutes)
    */
   private async updateHourlyScores() {
-    console.log('[ChallengeScoreScheduler] Running hourly score update...');
+    console.log('[ChallengeScoreScheduler] Running 30-minute score update...');
 
     const db = await getDb();
     if (!db) {
@@ -124,9 +127,9 @@ class ChallengeScoreScheduler {
         }
       }
 
-      console.log('[ChallengeScoreScheduler] Hourly score update complete');
+      console.log('[ChallengeScoreScheduler] 30-minute score update complete');
     } catch (error) {
-      console.error('[ChallengeScoreScheduler] Error in hourly update:', error);
+      console.error('[ChallengeScoreScheduler] Error in 30-minute update:', error);
     }
   }
 

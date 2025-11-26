@@ -68,6 +68,9 @@ export default function DailyChallenge() {
   const [currentScoringPlay, setCurrentScoringPlay] = useState<ScoringPlayData | null>(null);
   const scoringPlayQueueRef = useRef<ScoringPlayData[]>([]);
   const isPlayingRef = useRef(false);
+  
+  // Track previous scores for polling comparison
+  const prevScoresRef = useRef<Map<number, number>>(new Map());
 
   // Cache scores in localStorage for instant display on page load
   const SCORE_CACHE_KEY = `challenge-${challengeId}-scores`;
@@ -456,6 +459,78 @@ export default function DailyChallenge() {
       setWinner(sortedScores[0]);
     }
   }, [league, sortedScores, winner]);
+
+  // Poll for score changes every 30 seconds when challenge is active
+  useEffect(() => {
+    // Only poll for active challenges
+    if (league?.status !== 'active' || !challengeId) return;
+
+    // Initialize previous scores from current data
+    if (sortedScores.length > 0 && prevScoresRef.current.size === 0) {
+      sortedScores.forEach(team => {
+        prevScoresRef.current.set(team.teamId, team.points);
+      });
+    }
+
+    const pollInterval = setInterval(async () => {
+      console.log('[ScorePoll] Polling for score changes...');
+      
+      try {
+        // Refetch scores from DB
+        const result = await refetchScores();
+        
+        if (result.data && result.data.length > 0) {
+          // Compare with previous scores
+          const newScores = result.data;
+          const scoringPlays: ScoringPlayData[] = [];
+          
+          newScores.forEach((newScore: any) => {
+            const prevPoints = prevScoresRef.current.get(newScore.teamId) ?? 0;
+            const newPoints = newScore.totalPoints ?? 0;
+            const delta = newPoints - prevPoints;
+            
+            if (delta > 0.1) { // Only if meaningful change (> 0.1 points)
+              console.log(`[ScorePoll] Score change detected: Team ${newScore.teamId} +${delta.toFixed(1)} points`);
+              
+              // Find opponent team
+              const opponentScore = newScores.find((s: any) => s.teamId !== newScore.teamId);
+              
+              if (opponentScore) {
+                // Create a scoring play from the delta
+                scoringPlays.push({
+                  attackingTeamId: newScore.teamId,
+                  attackingTeamName: newScore.teamName || 'Team',
+                  defendingTeamId: opponentScore.teamId,
+                  defendingTeamName: opponentScore.teamName || 'Opponent',
+                  playerName: 'Score Update',
+                  playerType: 'cannabis_strain', // Default type
+                  pointsScored: delta,
+                  attackerNewTotal: newPoints,
+                  defenderTotal: opponentScore.totalPoints ?? 0,
+                  imageUrl: null,
+                });
+              }
+              
+              // Update tracked score
+              prevScoresRef.current.set(newScore.teamId, newPoints);
+            }
+          });
+          
+          // Queue up detected scoring plays for animation
+          if (scoringPlays.length > 0 && !isPlayingRef.current) {
+            scoringPlayQueueRef.current = [...scoringPlayQueueRef.current, ...scoringPlays];
+            playNextScoringPlay();
+          }
+        }
+      } catch (error) {
+        console.error('[ScorePoll] Error polling scores:', error);
+      }
+    }, 30000); // Poll every 30 seconds
+
+    return () => {
+      clearInterval(pollInterval);
+    };
+  }, [league?.status, challengeId, refetchScores, sortedScores, playNextScoringPlay]);
 
   const leader = sortedScores[0];
   const challenger = sortedScores[1];
