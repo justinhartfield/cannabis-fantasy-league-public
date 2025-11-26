@@ -10,7 +10,9 @@ import ScoringBreakdownV2 from "@/components/ScoringBreakdownV2";
 import { CoinFlip } from "@/components/CoinFlip";
 import { BattleArena } from "@/components/BattleArena";
 import { LeagueChat } from "@/components/LeagueChat";
+import { ChallengeInviteLanding } from "@/components/ChallengeInviteLanding";
 import type { ScoringPlayData } from "@/components/ScoringPlayOverlay";
+import { ScoringPlayAnnouncement } from "@/components/ScoringPlayAnnouncement";
 
 import {
   Loader2,
@@ -22,7 +24,6 @@ import {
   Copy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getLoginUrl } from "@/const";
 import { toast } from "sonner";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { TeamAvatar } from "@/components/TeamAvatar";
@@ -205,12 +206,14 @@ export default function DailyChallenge() {
     setCurrentScoringPlay(nextPlay);
   }, []);
 
-  // Handle scoring play completion
+  // Handle scoring play completion (called when announcement finishes)
   const handleScoringPlayComplete = useCallback(() => {
+    // Clear current play and move to next
+    setCurrentScoringPlay(null);
     // Small delay before next play for visual clarity
     setTimeout(() => {
       playNextScoringPlay();
-    }, 300);
+    }, 500);
   }, [playNextScoringPlay]);
 
   // WebSocket connection for real-time updates
@@ -359,17 +362,9 @@ export default function DailyChallenge() {
   }, [league?.status, challengeId, handleCalculateScores]);
 
 
-  // Auth guard
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      const loginUrl = getLoginUrl();
-      if (loginUrl) window.location.href = loginUrl;
-      else setLocation("/login");
-    }
-  }, [authLoading, isAuthenticated, setLocation]);
-
+  // Show invite landing page for unauthenticated users
   if (!authLoading && !isAuthenticated) {
-    return null;
+    return <ChallengeInviteLanding challengeId={challengeId} />;
   }
 
   // Helper to get fighter illustration from league teams
@@ -570,6 +565,13 @@ export default function DailyChallenge() {
           </div>
         </div>
 
+        {/* Scoring Play Announcement Banner */}
+        <ScoringPlayAnnouncement
+          play={currentScoringPlay}
+          duration={5000}
+          onComplete={handleScoringPlayComplete}
+        />
+
         {/* Battle Arena Hero Section */}
         <BattleArena
           leftTeam={leader ? {
@@ -595,7 +597,6 @@ export default function DailyChallenge() {
           onFighterChange={() => refetchLeague()}
           onTeamClick={(teamId) => setSelectedTeamId(teamId)}
           scoringPlay={currentScoringPlay}
-          onScoringPlayComplete={handleScoringPlayComplete}
         />
 
         {/* Invite Block (when waiting for opponent) */}

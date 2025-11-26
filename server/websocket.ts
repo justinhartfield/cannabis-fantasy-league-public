@@ -512,10 +512,11 @@ class WebSocketManager {
     position?: string;
   }>) {
     // Send plays with staggered delays for animation sequencing
+    // 6 seconds between plays: 5 seconds for announcement display + 1 second buffer
     plays.forEach((play, index) => {
       setTimeout(() => {
         this.notifyScoringPlay(leagueId, play);
-      }, index * 800); // 800ms between each play for animation timing
+      }, index * 6000);
     });
   }
 }

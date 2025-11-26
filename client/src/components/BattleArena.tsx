@@ -30,8 +30,6 @@ interface BattleArenaProps {
   onTeamClick?: (teamId: number) => void;
   /** Optional: External scoring play to trigger battle animation */
   scoringPlay?: ScoringPlayData | null;
-  /** Callback when scoring play animation completes */
-  onScoringPlayComplete?: () => void;
 }
 
 // Default fighter if none selected
@@ -47,7 +45,6 @@ export function BattleArena({
   onFighterChange,
   onTeamClick,
   scoringPlay,
-  onScoringPlayComplete,
 }: BattleArenaProps) {
   const [fighterPickerOpen, setFighterPickerOpen] = useState(false);
   const [editingTeamId, setEditingTeamId] = useState<number | null>(null);
@@ -153,13 +150,12 @@ export function BattleArena({
 
   }, [scoringPlay, leftTeam?.teamId]);
 
-  // Handle scoring play animation complete
+  // Handle scoring play animation complete (internal cleanup)
   const handleScoringPlayComplete = useCallback(() => {
     setActiveScoringPlay(null);
     setLeftFighterAttacking(false);
     setRightFighterAttacking(false);
-    onScoringPlayComplete?.();
-  }, [onScoringPlayComplete]);
+  }, []);
 
   // Handle damage flash complete
   const handleDamageFlashComplete = useCallback(() => {
