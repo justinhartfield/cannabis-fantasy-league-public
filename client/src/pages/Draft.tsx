@@ -484,6 +484,26 @@ export default function Draft() {
     markAssetDrafted,
   ]);
 
+  // Calculate roster counts for player panel (must be before early returns to maintain hook order)
+  const rosterCounts = useMemo(() => ({
+    manufacturer: mergedRoster.filter((r) => r.assetType === "manufacturer").length,
+    cannabis_strain: mergedRoster.filter((r) => r.assetType === "cannabis_strain").length,
+    product: mergedRoster.filter((r) => r.assetType === "product").length,
+    pharmacy: mergedRoster.filter((r) => r.assetType === "pharmacy").length,
+    brand: mergedRoster.filter((r) => r.assetType === "brand").length,
+  }), [mergedRoster]);
+
+  // Build teams array for the grid from league teams (must be before early returns to maintain hook order)
+  const teamsForGrid = useMemo(() => {
+    if (!league?.teams || !Array.isArray(league.teams)) return [];
+    return league.teams.map((t: any) => ({
+      id: t.id,
+      name: t.name,
+      userName: t.userName || null,
+      userAvatarUrl: t.userAvatarUrl || null,
+    }));
+  }, [league?.teams]);
+
   // Redirect to login if not authenticated
   if (!authLoading && !isAuthenticated) {
     const loginUrl = getLoginUrl(); if (loginUrl) window.location.href = loginUrl; else window.location.href = "/login";
@@ -559,26 +579,6 @@ export default function Draft() {
       }
     }
   };
-
-  // Calculate roster counts for player panel
-  const rosterCounts = {
-    manufacturer: mergedRoster.filter((r) => r.assetType === "manufacturer").length,
-    cannabis_strain: mergedRoster.filter((r) => r.assetType === "cannabis_strain").length,
-    product: mergedRoster.filter((r) => r.assetType === "product").length,
-    pharmacy: mergedRoster.filter((r) => r.assetType === "pharmacy").length,
-    brand: mergedRoster.filter((r) => r.assetType === "brand").length,
-  };
-
-  // Build teams array for the grid from league teams
-  const teamsForGrid = useMemo(() => {
-    if (!league?.teams || !Array.isArray(league.teams)) return [];
-    return league.teams.map((t: any) => ({
-      id: t.id,
-      name: t.name,
-      userName: t.userName || null,
-      userAvatarUrl: t.userAvatarUrl || null,
-    }));
-  }, [league?.teams]);
 
   // Total rounds = 10 picks per team (2+2+2+2+1+1 = 10 roster slots)
   const totalRounds = 10;
