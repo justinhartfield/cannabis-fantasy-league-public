@@ -4,31 +4,34 @@ export type DraftPosition =
   | "ST1" | "ST2"           // Strikers (Manufacturers)
   | "LW" | "RW"             // Wings (Pharmacies)
   | "CM1" | "CM2"           // Midfield (Products)
+  | "FLEX"                  // Flex (Any type - center of pitch)
   | "CB1" | "CB2"           // Defense (Strains)
   | "GK";                   // Goalkeeper (Brand)
 
 export type AssetType = "manufacturer" | "cannabis_strain" | "product" | "pharmacy" | "brand";
 
-// Maps positions to their asset types
-export const POSITION_ASSET_MAP: Record<DraftPosition, AssetType> = {
+// Maps positions to their asset types (FLEX can be any)
+export const POSITION_ASSET_MAP: Record<DraftPosition, AssetType | "flex"> = {
   ST1: "manufacturer",
   ST2: "manufacturer",
   LW: "pharmacy",
   RW: "pharmacy",
   CM1: "product",
   CM2: "product",
+  FLEX: "flex",
   CB1: "cannabis_strain",
   CB2: "cannabis_strain",
   GK: "brand",
 };
 
-// Draft order for challenge mode
+// Draft order for challenge mode (10 picks total)
 export const CHALLENGE_DRAFT_ORDER: DraftPosition[] = [
   "ST1", "ST2",   // Manufacturers first
   "LW", "RW",     // Pharmacies
   "CM1", "CM2",   // Products
   "CB1", "CB2",   // Strains
-  "GK",           // Brand last
+  "GK",           // Brand
+  "FLEX",         // Flex last
 ];
 
 // Position display labels
@@ -39,52 +42,66 @@ export const POSITION_LABELS: Record<DraftPosition, string> = {
   RW: "Right Wing",
   CM1: "Midfield",
   CM2: "Midfield",
+  FLEX: "Flex",
   CB1: "Defense",
   CB2: "Defense",
   GK: "Keeper",
 };
 
 // Position colors matching the asset types
-export const POSITION_COLORS: Record<AssetType, { bg: string; border: string; text: string; jersey: string }> = {
+export const POSITION_COLORS: Record<AssetType | "flex", { bg: string; border: string; text: string; jersey: string; glow: string }> = {
   manufacturer: { 
     bg: "bg-blue-500/20", 
     border: "border-blue-400", 
     text: "text-blue-300",
-    jersey: "#3b82f6"
+    jersey: "#3b82f6",
+    glow: "rgba(59, 130, 246, 0.5)"
   },
   pharmacy: { 
     bg: "bg-emerald-500/20", 
     border: "border-emerald-400", 
     text: "text-emerald-300",
-    jersey: "#10b981"
+    jersey: "#10b981",
+    glow: "rgba(16, 185, 129, 0.5)"
   },
   product: { 
     bg: "bg-pink-500/20", 
     border: "border-pink-400", 
     text: "text-pink-300",
-    jersey: "#ec4899"
+    jersey: "#ec4899",
+    glow: "rgba(236, 72, 153, 0.5)"
   },
   cannabis_strain: { 
     bg: "bg-purple-500/20", 
     border: "border-purple-400", 
     text: "text-purple-300",
-    jersey: "#a855f7"
+    jersey: "#a855f7",
+    glow: "rgba(168, 85, 247, 0.5)"
   },
   brand: { 
     bg: "bg-yellow-500/20", 
     border: "border-yellow-400", 
     text: "text-yellow-300",
-    jersey: "#eab308"
+    jersey: "#eab308",
+    glow: "rgba(234, 179, 8, 0.5)"
+  },
+  flex: { 
+    bg: "bg-orange-500/20", 
+    border: "border-orange-400", 
+    text: "text-orange-300",
+    jersey: "#f97316",
+    glow: "rgba(249, 115, 22, 0.5)"
   },
 };
 
 // Role labels for display
-export const ASSET_TYPE_LABELS: Record<AssetType, string> = {
+export const ASSET_TYPE_LABELS: Record<AssetType | "flex", string> = {
   manufacturer: "Hersteller",
   pharmacy: "Apotheke",
   product: "Produkt",
   cannabis_strain: "Strain",
   brand: "Brand",
+  flex: "Flex",
 };
 
 interface DraftFieldPlayerProps {
@@ -93,6 +110,7 @@ interface DraftFieldPlayerProps {
     id: number;
     name: string;
     imageUrl?: string | null;
+    assetType?: AssetType;
   } | null;
   isActive?: boolean;
   isMyTurn?: boolean;
@@ -105,7 +123,7 @@ interface DraftFieldPlayerProps {
  * 
  * Displays a jersey shape with:
  * - Position color coding based on asset type
- * - Player thumbnail and name when filled
+ * - Player thumbnail embedded in jersey when filled
  * - Pulsing animation when active (being drafted)
  * - Empty state with position label
  */
@@ -117,10 +135,16 @@ export function DraftFieldPlayer({
   onClick,
   size = "md",
 }: DraftFieldPlayerProps) {
-  const assetType = POSITION_ASSET_MAP[position];
-  const colors = POSITION_COLORS[assetType];
+  // For FLEX position, use the actual asset type if player is drafted, otherwise use "flex"
+  const positionAssetType = POSITION_ASSET_MAP[position];
+  const assetType = position === "FLEX" && player?.assetType 
+    ? player.assetType 
+    : positionAssetType;
+  const colors = POSITION_COLORS[assetType as AssetType | "flex"];
   const positionLabel = POSITION_LABELS[position];
-  const roleLabel = ASSET_TYPE_LABELS[assetType];
+  const roleLabel = position === "FLEX" && player?.assetType 
+    ? ASSET_TYPE_LABELS[player.assetType] 
+    : ASSET_TYPE_LABELS[assetType as AssetType | "flex"];
 
   const sizeClasses = {
     sm: "w-16 h-20",
@@ -129,9 +153,9 @@ export function DraftFieldPlayer({
   };
 
   const jerseySizes = {
-    sm: { width: 48, height: 56 },
-    md: { width: 60, height: 70 },
-    lg: { width: 72, height: 84 },
+    sm: { width: 48, height: 56, avatarSize: 20, avatarY: 28 },
+    md: { width: 60, height: 70, avatarSize: 26, avatarY: 34 },
+    lg: { width: 72, height: 84, avatarSize: 32, avatarY: 40 },
   };
 
   const jerseySize = jerseySizes[size];
@@ -158,23 +182,33 @@ export function DraftFieldPlayer({
         {/* Active glow effect */}
         {isActive && (
           <div
-            className={cn(
-              "absolute inset-0 rounded-lg blur-xl opacity-60 animate-pulse",
-              colors.bg
-            )}
+            className="absolute inset-0 rounded-full blur-xl opacity-70 animate-pulse"
+            style={{ backgroundColor: colors.glow }}
           />
         )}
 
-        {/* Jersey SVG */}
+        {/* Jersey SVG with embedded avatar */}
         <svg
           width={jerseySize.width}
           height={jerseySize.height}
           viewBox="0 0 60 70"
           className={cn(
-            "relative z-10 drop-shadow-lg transition-all duration-300",
-            isActive && "drop-shadow-[0_0_12px_rgba(255,255,255,0.5)]"
+            "relative z-10 transition-all duration-300",
+            isActive && "drop-shadow-[0_0_20px_rgba(207,255,77,0.6)]",
+            player && "drop-shadow-[0_4px_12px_rgba(0,0,0,0.4)]"
           )}
         >
+          {/* Definitions for clip path and gradients */}
+          <defs>
+            <clipPath id={`avatar-clip-${position}`}>
+              <circle cx="30" cy={jerseySize.avatarY} r={jerseySize.avatarSize / 2} />
+            </clipPath>
+            <linearGradient id={`jersey-gradient-${position}`} x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor={player ? colors.jersey : "rgba(255,255,255,0.15)"} />
+              <stop offset="100%" stopColor={player ? `${colors.jersey}cc` : "rgba(255,255,255,0.05)"} />
+            </linearGradient>
+          </defs>
+
           {/* Jersey shape */}
           <path
             d={`
@@ -194,63 +228,81 @@ export function DraftFieldPlayer({
               Q 18 5 15 0
               Z
             `}
-            fill={player ? colors.jersey : "rgba(255,255,255,0.1)"}
-            stroke={isActive ? "#fff" : colors.jersey}
-            strokeWidth={isActive ? 2 : 1}
+            fill={`url(#jersey-gradient-${position})`}
+            stroke={isActive ? "#cfff4d" : player ? colors.jersey : "rgba(255,255,255,0.3)"}
+            strokeWidth={isActive ? 2.5 : 1.5}
             className="transition-all duration-300"
           />
 
-          {/* Collar */}
+          {/* Collar detail */}
           <path
             d="M 20 0 Q 30 8 40 0"
             fill="none"
-            stroke={player ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.2)"}
+            stroke={player ? "rgba(0,0,0,0.4)" : "rgba(255,255,255,0.15)"}
             strokeWidth="2"
           />
 
-          {/* Player thumbnail or position text */}
-          {player?.imageUrl ? (
-            <clipPath id={`avatar-clip-${position}`}>
-              <circle cx="30" cy="32" r="14" />
-            </clipPath>
-          ) : null}
-        </svg>
-
-        {/* Player thumbnail overlay */}
-        {player?.imageUrl && (
-          <div
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/3 w-7 h-7 rounded-full overflow-hidden border-2 border-white/50 shadow-md z-20"
-          >
-            <img
-              src={player.imageUrl}
-              alt={player.name}
-              className="w-full h-full object-cover"
-            />
-          </div>
-        )}
-
-        {/* Position badge when empty */}
-        {!player && (
-          <div className="absolute inset-0 flex items-center justify-center z-20">
-            <span
-              className={cn(
-                "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded",
-                colors.bg,
-                colors.text,
-                isActive && "bg-white/20"
-              )}
+          {/* Jersey number/pattern detail */}
+          {!player && (
+            <text
+              x="30"
+              y="45"
+              textAnchor="middle"
+              fontSize="16"
+              fontWeight="bold"
+              fill="rgba(255,255,255,0.15)"
             >
-              {positionLabel.slice(0, 3)}
-            </span>
-          </div>
-        )}
+              {position === "FLEX" ? "F" : position.replace(/[0-9]/g, "").slice(0, 2)}
+            </text>
+          )}
+
+          {/* Player avatar embedded in jersey */}
+          {player?.imageUrl && (
+            <>
+              {/* Avatar background circle */}
+              <circle
+                cx="30"
+                cy={jerseySize.avatarY}
+                r={jerseySize.avatarSize / 2 + 2}
+                fill="rgba(0,0,0,0.3)"
+                stroke="rgba(255,255,255,0.4)"
+                strokeWidth="1.5"
+              />
+              {/* Avatar image */}
+              <image
+                href={player.imageUrl}
+                x={30 - jerseySize.avatarSize / 2}
+                y={jerseySize.avatarY - jerseySize.avatarSize / 2}
+                width={jerseySize.avatarSize}
+                height={jerseySize.avatarSize}
+                clipPath={`url(#avatar-clip-${position})`}
+                preserveAspectRatio="xMidYMid slice"
+              />
+            </>
+          )}
+
+          {/* Position badge when empty */}
+          {!player && (
+            <text
+              x="30"
+              y="32"
+              textAnchor="middle"
+              fontSize="9"
+              fontWeight="bold"
+              fill={colors.jersey}
+              className="uppercase"
+            >
+              {positionLabel.slice(0, 4)}
+            </text>
+          )}
+        </svg>
       </div>
 
       {/* Player name or role label */}
       <div className="text-center max-w-20">
         {player ? (
           <>
-            <div className="text-[11px] font-semibold text-white truncate leading-tight">
+            <div className="text-[11px] font-semibold text-white truncate leading-tight drop-shadow-sm">
               {player.name}
             </div>
             <div className={cn("text-[9px] uppercase tracking-wide", colors.text)}>
@@ -258,7 +310,7 @@ export function DraftFieldPlayer({
             </div>
           </>
         ) : (
-          <div className={cn("text-[10px] uppercase tracking-wide", colors.text)}>
+          <div className={cn("text-[10px] uppercase tracking-wide opacity-70", colors.text)}>
             {roleLabel}
           </div>
         )}

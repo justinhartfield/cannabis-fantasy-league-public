@@ -21,7 +21,7 @@ interface DraftFieldProps {
   userName?: string | null;
   /** Drafted players mapped by position */
   players: Partial<Record<DraftPosition, DraftedPlayer | null>>;
-  /** Current position being drafted (0-8 index into CHALLENGE_DRAFT_ORDER) */
+  /** Current position being drafted (0-9 index into CHALLENGE_DRAFT_ORDER) */
   currentDraftIndex?: number;
   /** Whether this is the user's own field (for styling) */
   isUserTeam?: boolean;
@@ -36,15 +36,16 @@ interface DraftFieldProps {
 }
 
 /**
- * DraftField - Soccer field visualization for the challenge draft
+ * DraftField - Futuristic soccer field visualization for the challenge draft
  * 
- * Displays a stylized soccer pitch with 9 position slots arranged in a
- * 2-2-2-2-1 formation (strikers at top, goalkeeper at bottom).
+ * Displays a stylized dark pitch with 10 position slots arranged in a
+ * 2-2-1-2-2-1 formation (strikers at top, FLEX in center, goalkeeper at bottom).
  * 
  * Position mapping:
  * - ST1, ST2 (Strikers) → Manufacturers
  * - LW, RW (Wings) → Pharmacies
  * - CM1, CM2 (Midfield) → Products
+ * - FLEX (Center) → Any type
  * - CB1, CB2 (Defense) → Strains
  * - GK (Goalkeeper) → Brand
  */
@@ -74,6 +75,7 @@ export function DraftField({
       id: player.id,
       name: player.name,
       imageUrl: player.imageUrl,
+      assetType: player.assetType,
     };
   };
 
@@ -85,7 +87,7 @@ export function DraftField({
     onPositionClick?.(position);
   };
 
-  const fieldHeight = size === "sm" ? "h-[320px]" : "h-[420px]";
+  const fieldHeight = size === "sm" ? "h-[380px]" : "h-[480px]";
   const playerSize = size === "sm" ? "sm" : "md";
 
   return (
@@ -93,10 +95,10 @@ export function DraftField({
       {/* Team Header */}
       <div
         className={cn(
-          "flex items-center justify-between px-4 py-3 rounded-t-2xl border-b",
+          "flex items-center justify-between px-4 py-3 rounded-t-2xl border-b backdrop-blur-sm",
           isUserTeam
-            ? "bg-gradient-to-r from-emerald-600/30 to-emerald-500/10 border-emerald-500/30"
-            : "bg-gradient-to-r from-rose-600/30 to-rose-500/10 border-rose-500/30"
+            ? "bg-gradient-to-r from-[#cfff4d]/20 via-[#1a1d29] to-[#cfff4d]/10 border-[#cfff4d]/30"
+            : "bg-gradient-to-r from-[#ff6b6b]/20 via-[#1a1d29] to-[#ff6b6b]/10 border-[#ff6b6b]/30"
         )}
       >
         <div className="flex items-center gap-3">
@@ -104,8 +106,8 @@ export function DraftField({
             className={cn(
               "w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border-2",
               isUserTeam
-                ? "bg-emerald-500/20 border-emerald-400 text-emerald-300"
-                : "bg-rose-500/20 border-rose-400 text-rose-300"
+                ? "bg-[#cfff4d]/20 border-[#cfff4d] text-[#cfff4d]"
+                : "bg-[#ff6b6b]/20 border-[#ff6b6b] text-[#ff6b6b]"
             )}
           >
             {teamName.slice(0, 2).toUpperCase()}
@@ -119,134 +121,161 @@ export function DraftField({
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-white/50 uppercase tracking-wider">
-            {filledCount}/9
+            {filledCount}/10
           </span>
           {isOnTheClock && (
-            <span className="px-2 py-1 rounded-full bg-[#cfff4d] text-black text-[10px] font-bold uppercase animate-pulse">
+            <span className="px-2 py-1 rounded-full bg-[#cfff4d] text-black text-[10px] font-bold uppercase animate-pulse shadow-[0_0_20px_rgba(207,255,77,0.5)]">
               Drafting
             </span>
           )}
         </div>
       </div>
 
-      {/* Soccer Field */}
+      {/* Futuristic Dark Field */}
       <div
         className={cn(
           "relative overflow-hidden rounded-b-2xl",
           fieldHeight,
-          "bg-gradient-to-b from-[#1a5f2c] via-[#1a7034] to-[#1a5f2c]"
+          "bg-gradient-to-b from-[#0a0a0f] via-[#0f1015] to-[#0a0a0f]"
         )}
       >
-        {/* Field markings */}
+        {/* Futuristic field markings */}
         <svg
           className="absolute inset-0 w-full h-full"
-          viewBox="0 0 200 300"
+          viewBox="0 0 200 340"
           preserveAspectRatio="none"
         >
-          {/* Grass stripes effect */}
+          {/* Grid pattern effect */}
           <defs>
-            <pattern id="grass-pattern" x="0" y="0" width="200" height="40" patternUnits="userSpaceOnUse">
-              <rect x="0" y="0" width="200" height="20" fill="rgba(255,255,255,0.02)" />
-              <rect x="0" y="20" width="200" height="20" fill="transparent" />
+            <pattern id="grid-pattern" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+              <rect x="0" y="0" width="20" height="20" fill="none" stroke="rgba(207,255,77,0.03)" strokeWidth="0.5" />
             </pattern>
+            <linearGradient id="field-glow" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="rgba(207,255,77,0.1)" />
+              <stop offset="50%" stopColor="rgba(207,255,77,0.02)" />
+              <stop offset="100%" stopColor="rgba(207,255,77,0.1)" />
+            </linearGradient>
+            <radialGradient id="center-glow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="rgba(207,255,77,0.15)" />
+              <stop offset="100%" stopColor="transparent" />
+            </radialGradient>
           </defs>
-          <rect x="0" y="0" width="200" height="300" fill="url(#grass-pattern)" />
 
-          {/* Field border */}
+          {/* Background grid */}
+          <rect x="0" y="0" width="200" height="340" fill="url(#grid-pattern)" />
+
+          {/* Field border with glow */}
           <rect
             x="10"
             y="10"
             width="180"
-            height="280"
+            height="320"
             fill="none"
-            stroke="rgba(255,255,255,0.2)"
-            strokeWidth="1"
+            stroke="rgba(207,255,77,0.2)"
+            strokeWidth="1.5"
+            rx="4"
           />
 
           {/* Center line */}
           <line
             x1="10"
-            y1="150"
+            y1="170"
             x2="190"
-            y2="150"
-            stroke="rgba(255,255,255,0.15)"
+            y2="170"
+            stroke="rgba(207,255,77,0.15)"
             strokeWidth="1"
           />
 
-          {/* Center circle */}
+          {/* Center circle with glow */}
           <circle
             cx="100"
-            cy="150"
-            r="30"
-            fill="none"
-            stroke="rgba(255,255,255,0.15)"
+            cy="170"
+            r="35"
+            fill="url(#center-glow)"
+            stroke="rgba(207,255,77,0.2)"
             strokeWidth="1"
           />
 
           {/* Center dot */}
-          <circle cx="100" cy="150" r="3" fill="rgba(255,255,255,0.2)" />
+          <circle cx="100" cy="170" r="4" fill="rgba(207,255,77,0.4)" />
 
           {/* Top penalty area */}
           <rect
-            x="40"
+            x="35"
             y="10"
-            width="120"
-            height="50"
+            width="130"
+            height="55"
             fill="none"
-            stroke="rgba(255,255,255,0.15)"
+            stroke="rgba(207,255,77,0.12)"
             strokeWidth="1"
+            rx="2"
           />
 
           {/* Top goal area */}
           <rect
-            x="60"
+            x="55"
             y="10"
-            width="80"
-            height="20"
+            width="90"
+            height="25"
             fill="none"
-            stroke="rgba(255,255,255,0.15)"
+            stroke="rgba(207,255,77,0.12)"
             strokeWidth="1"
+            rx="2"
           />
 
           {/* Bottom penalty area */}
           <rect
-            x="40"
-            y="240"
-            width="120"
-            height="50"
+            x="35"
+            y="275"
+            width="130"
+            height="55"
             fill="none"
-            stroke="rgba(255,255,255,0.15)"
+            stroke="rgba(207,255,77,0.12)"
             strokeWidth="1"
+            rx="2"
           />
 
           {/* Bottom goal area */}
           <rect
-            x="60"
-            y="270"
-            width="80"
-            height="20"
+            x="55"
+            y="305"
+            width="90"
+            height="25"
             fill="none"
-            stroke="rgba(255,255,255,0.15)"
+            stroke="rgba(207,255,77,0.12)"
             strokeWidth="1"
+            rx="2"
           />
 
           {/* Penalty arcs */}
           <path
-            d="M 55 60 Q 100 80 145 60"
+            d="M 50 65 Q 100 90 150 65"
             fill="none"
-            stroke="rgba(255,255,255,0.15)"
+            stroke="rgba(207,255,77,0.12)"
             strokeWidth="1"
           />
           <path
-            d="M 55 240 Q 100 220 145 240"
+            d="M 50 275 Q 100 250 150 275"
             fill="none"
-            stroke="rgba(255,255,255,0.15)"
+            stroke="rgba(207,255,77,0.12)"
             strokeWidth="1"
           />
+
+          {/* Corner arcs */}
+          <path d="M 10 25 Q 25 10 40 10" fill="none" stroke="rgba(207,255,77,0.1)" strokeWidth="1" />
+          <path d="M 160 10 Q 175 10 190 25" fill="none" stroke="rgba(207,255,77,0.1)" strokeWidth="1" />
+          <path d="M 10 315 Q 25 330 40 330" fill="none" stroke="rgba(207,255,77,0.1)" strokeWidth="1" />
+          <path d="M 160 330 Q 175 330 190 315" fill="none" stroke="rgba(207,255,77,0.1)" strokeWidth="1" />
         </svg>
 
-        {/* Position slots - Arranged in formation */}
-        <div className="absolute inset-0 flex flex-col items-center justify-between py-4 px-2">
+        {/* Ambient glow effects */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-20 bg-[#cfff4d]/5 blur-3xl" />
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-40 h-20 bg-[#cfff4d]/5 blur-3xl" />
+        </div>
+
+        {/* Position slots - Arranged in formation with FLEX in center */}
+        <div className="absolute inset-0 flex flex-col items-center justify-between py-3 px-2">
           {/* Strikers Row (Manufacturers) */}
           <div className="flex items-center justify-center gap-8">
             <DraftFieldPlayer
@@ -307,6 +336,18 @@ export function DraftField({
             />
           </div>
 
+          {/* FLEX Row (Center of pitch - Any type) */}
+          <div className="flex items-center justify-center">
+            <DraftFieldPlayer
+              position="FLEX"
+              player={getPlayer("FLEX")}
+              isActive={isPositionActive("FLEX")}
+              isMyTurn={isOnTheClock}
+              onClick={onPositionClick ? () => handlePositionClick("FLEX") : undefined}
+              size={playerSize}
+            />
+          </div>
+
           {/* Defense Row (Strains) */}
           <div className="flex items-center justify-center gap-16">
             <DraftFieldPlayer
@@ -340,11 +381,11 @@ export function DraftField({
           </div>
         </div>
 
-        {/* Decorative corner flags */}
-        <div className="absolute top-2 left-2 w-2 h-2 rounded-full bg-white/20" />
-        <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-white/20" />
-        <div className="absolute bottom-2 left-2 w-2 h-2 rounded-full bg-white/20" />
-        <div className="absolute bottom-2 right-2 w-2 h-2 rounded-full bg-white/20" />
+        {/* Decorative corner markers */}
+        <div className="absolute top-3 left-3 w-3 h-3 border-l-2 border-t-2 border-[#cfff4d]/30 rounded-tl" />
+        <div className="absolute top-3 right-3 w-3 h-3 border-r-2 border-t-2 border-[#cfff4d]/30 rounded-tr" />
+        <div className="absolute bottom-3 left-3 w-3 h-3 border-l-2 border-b-2 border-[#cfff4d]/30 rounded-bl" />
+        <div className="absolute bottom-3 right-3 w-3 h-3 border-r-2 border-b-2 border-[#cfff4d]/30 rounded-br" />
       </div>
     </div>
   );
@@ -352,6 +393,7 @@ export function DraftField({
 
 /**
  * Helper to convert a roster array to the position-based player map
+ * Handles overflow players by placing them in FLEX position
  */
 export function rosterToFieldPlayers(
   roster: Array<{ assetType: AssetType; assetId: number; name: string; imageUrl?: string | null }>
@@ -367,7 +409,7 @@ export function rosterToFieldPlayers(
     brand: 0,
   };
 
-  // Position mapping for each type
+  // Position mapping for each type (primary slots)
   const positionMap: Record<AssetType, DraftPosition[]> = {
     manufacturer: ["ST1", "ST2"],
     pharmacy: ["LW", "RW"],
@@ -375,6 +417,9 @@ export function rosterToFieldPlayers(
     cannabis_strain: ["CB1", "CB2"],
     brand: ["GK"],
   };
+
+  // Overflow players go to FLEX
+  const overflowPlayers: Array<{ assetType: AssetType; assetId: number; name: string; imageUrl?: string | null }> = [];
 
   roster.forEach((player) => {
     const positions = positionMap[player.assetType];
@@ -389,8 +434,22 @@ export function rosterToFieldPlayers(
         assetType: player.assetType,
       };
       counts[player.assetType]++;
+    } else {
+      // This player overflows their position, add to flex candidates
+      overflowPlayers.push(player);
     }
   });
+
+  // Place the first overflow player in FLEX if not already filled
+  if (!result["FLEX"] && overflowPlayers.length > 0) {
+    const flexPlayer = overflowPlayers[0];
+    result["FLEX"] = {
+      id: flexPlayer.assetId,
+      name: flexPlayer.name,
+      imageUrl: flexPlayer.imageUrl,
+      assetType: flexPlayer.assetType,
+    };
+  }
 
   return result;
 }
