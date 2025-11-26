@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { useState, useEffect } from "react";
 
 export type DraftPosition = 
   | "ST1" | "ST2"           // Strikers (Manufacturers)
@@ -149,6 +150,38 @@ export function DraftFieldPlayer({
   onClick,
   size = "md",
 }: DraftFieldPlayerProps) {
+  // Track if the image loaded successfully
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
+  // Preload image to check if it's valid
+  useEffect(() => {
+    if (!player?.imageUrl) {
+      setImageLoaded(false);
+      setImageError(false);
+      return;
+    }
+
+    setImageLoaded(false);
+    setImageError(false);
+
+    const img = new Image();
+    img.onload = () => {
+      setImageLoaded(true);
+      setImageError(false);
+    };
+    img.onerror = () => {
+      setImageLoaded(false);
+      setImageError(true);
+    };
+    img.src = player.imageUrl;
+
+    return () => {
+      img.onload = null;
+      img.onerror = null;
+    };
+  }, [player?.imageUrl]);
+
   // For FLEX position, use the actual asset type if player is drafted, otherwise use "flex"
   const positionAssetType = POSITION_ASSET_MAP[position];
   const assetType = position === "FLEX" && player?.assetType 
@@ -160,6 +193,9 @@ export function DraftFieldPlayer({
   const roleLabel = position === "FLEX" && player?.assetType 
     ? ASSET_TYPE_LABELS[player.assetType] 
     : ASSET_TYPE_LABELS[assetType as AssetType | "flex"];
+
+  // Determine if we should show the image (only if loaded successfully)
+  const showImage = player?.imageUrl && imageLoaded && !imageError;
 
   // Sizes increased by 10%
   const sizeClasses = {
@@ -279,10 +315,10 @@ export function DraftFieldPlayer({
                 stroke={colors.jersey}
                 strokeWidth="2"
               />
-              {player.imageUrl ? (
-                /* Avatar image when available */
+              {showImage ? (
+                /* Avatar image when available and loaded successfully */
                 <image
-                  href={player.imageUrl}
+                  href={player.imageUrl!}
                   x={avatarConfig.cx - avatarConfig.radius}
                   y={avatarConfig.cy - avatarConfig.radius}
                   width={avatarConfig.radius * 2}
@@ -291,7 +327,7 @@ export function DraftFieldPlayer({
                   preserveAspectRatio="xMidYMid slice"
                 />
               ) : (
-                /* Fallback initials when no image */
+                /* Fallback initials when no image or image failed to load */
                 <text
                   x={avatarConfig.cx}
                   y={avatarConfig.cy + 4}
