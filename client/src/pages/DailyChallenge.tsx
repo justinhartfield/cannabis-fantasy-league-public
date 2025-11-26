@@ -22,6 +22,7 @@ import {
   Clock,
   UserPlus,
   Copy,
+  Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -346,6 +347,58 @@ export default function DailyChallenge() {
     });
   }, [calculateChallengeDayMutation, challengeId, statDate]);
 
+  // Demo function to test battle animations
+  const triggerDemoPlays = useCallback(() => {
+    if (!leader || !challenger) {
+      toast.error("Need both teams to demo battle animations");
+      return;
+    }
+
+    const demoPlays: ScoringPlayData[] = [
+      {
+        attackingTeamId: leader.teamId,
+        attackingTeamName: leader.teamName,
+        defendingTeamId: challenger.teamId,
+        defendingTeamName: challenger.teamName,
+        playerName: "Blue Dream",
+        playerType: "cannabis_strain",
+        pointsScored: 8.5,
+        attackerNewTotal: leader.points + 8.5,
+        defenderTotal: challenger.points,
+        imageUrl: "https://images.leafly.com/flower-images/blue-dream.png",
+      },
+      {
+        attackingTeamId: challenger.teamId,
+        attackingTeamName: challenger.teamName,
+        defendingTeamId: leader.teamId,
+        defendingTeamName: leader.teamName,
+        playerName: "STIIIZY",
+        playerType: "manufacturer",
+        pointsScored: 12.3,
+        attackerNewTotal: challenger.points + 12.3,
+        defenderTotal: leader.points + 8.5,
+        imageUrl: null,
+      },
+      {
+        attackingTeamId: leader.teamId,
+        attackingTeamName: leader.teamName,
+        defendingTeamId: challenger.teamId,
+        defendingTeamName: challenger.teamName,
+        playerName: "OG Kush Pre-Roll",
+        playerType: "product",
+        pointsScored: 5.2,
+        attackerNewTotal: leader.points + 8.5 + 5.2,
+        defenderTotal: challenger.points + 12.3,
+        imageUrl: null,
+      },
+    ];
+
+    // Queue up demo plays
+    scoringPlayQueueRef.current = [...demoPlays];
+    toast.success(`Queued ${demoPlays.length} demo scoring plays!`);
+    playNextScoringPlay();
+  }, [leader, challenger, playNextScoringPlay]);
+
   // Auto-trigger live score update for new challenges on first visit
   useEffect(() => {
     // Only trigger if league is active and we haven't updated yet
@@ -558,10 +611,6 @@ export default function DailyChallenge() {
           </Button>
           <div>
             <h1 className="text-2xl font-bold text-white">{league.name}</h1>
-            <div className="flex items-center gap-2 text-white/60 text-sm">
-              <Clock className="w-4 h-4" />
-              <span>Next update: {timeUntilUpdate || "Calculating..."}</span>
-            </div>
           </div>
         </div>
 
@@ -610,16 +659,36 @@ export default function DailyChallenge() {
 
         {/* Action Bar */}
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-white/5 border border-white/10 p-4">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {isLive ? <LiveIndicator size="sm" /> : <Badge variant="outline">Final</Badge>}
             {(league?.status === 'active' || league?.status === 'draft') && (
-              <span className="text-xs text-white/60">
-                {isConnected ? "Live updates connected" : "Connecting..."}
-                {lastUpdateTime && ` • ${lastUpdateTime.toLocaleTimeString()}`}
-              </span>
+              <>
+                <span className="text-xs text-white/60">
+                  {isConnected ? "Connected" : "Connecting..."}
+                  {lastUpdateTime && ` • ${lastUpdateTime.toLocaleTimeString()}`}
+                </span>
+                <span className="text-white/30">•</span>
+                <span className="flex items-center gap-1.5 text-xs text-white/60">
+                  <Clock className="w-3 h-3" />
+                  Next: {timeUntilUpdate || "..."}
+                </span>
+              </>
             )}
           </div>
           <div className="flex flex-wrap gap-2">
+            {/* Demo Button for testing animations */}
+            {leader && challenger && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-2xl border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10"
+                onClick={triggerDemoPlays}
+                disabled={!!currentScoringPlay}
+              >
+                <Zap className="w-4 h-4 mr-2" />
+                Demo Battle
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
