@@ -1,10 +1,13 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { LiveIndicator } from "@/components/LiveIndicator";
-import { FighterPicker, FighterDisplay, FIGHTER_ILLUSTRATIONS, getFighterByFile } from "@/components/FighterPicker";
+import { FighterPicker, FIGHTER_ILLUSTRATIONS, getFighterByFile } from "@/components/FighterPicker";
 import { AnimatedScoreCounter } from "@/components/AnimatedScoreCounter";
+import { DamageFlash } from "@/components/DamageFlash";
+import { ScoringPlayOverlay, ScoringPlayData } from "@/components/ScoringPlayOverlay";
+import { BattleHealthBar } from "@/components/BattleHealthBar";
+import { ComboCounter } from "@/components/ComboCounter";
 import { Swords, Sparkles, Edit3 } from "lucide-react";
 
 interface TeamData {
@@ -25,6 +28,10 @@ interface BattleArenaProps {
   selectedTeamId?: number | null;
   onFighterChange?: () => void;
   onTeamClick?: (teamId: number) => void;
+  /** Optional: External scoring play to trigger battle animation */
+  scoringPlay?: ScoringPlayData | null;
+  /** Callback when scoring play animation completes */
+  onScoringPlayComplete?: () => void;
 }
 
 // Default fighter if none selected
@@ -39,6 +46,8 @@ export function BattleArena({
   selectedTeamId,
   onFighterChange,
   onTeamClick,
+  scoringPlay,
+  onScoringPlayComplete,
 }: BattleArenaProps) {
   const [fighterPickerOpen, setFighterPickerOpen] = useState(false);
   const [editingTeamId, setEditingTeamId] = useState<number | null>(null);
@@ -48,6 +57,22 @@ export function BattleArena({
   const prevRightScoreRef = useRef<number>(rightTeam?.points ?? 0);
   const [leftPrevScore, setLeftPrevScore] = useState<number>(leftTeam?.points ?? 0);
   const [rightPrevScore, setRightPrevScore] = useState<number>(rightTeam?.points ?? 0);
+
+  // Battle effect states
+  const [activeScoringPlay, setActiveScoringPlay] = useState<ScoringPlayData | null>(null);
+  const [damageFlashSide, setDamageFlashSide] = useState<"left" | "right" | null>(null);
+  const [damageData, setDamageData] = useState<{ damage: number; playerName: string; playerType: string } | null>(null);
+  const [leftFighterHit, setLeftFighterHit] = useState(false);
+  const [rightFighterHit, setRightFighterHit] = useState(false);
+  const [leftFighterAttacking, setLeftFighterAttacking] = useState(false);
+  const [rightFighterAttacking, setRightFighterAttacking] = useState(false);
+  
+  // Combo tracking
+  const [comboCount, setComboCount] = useState(0);
+  const [comboTeamSide, setComboTeamSide] = useState<"left" | "right" | null>(null);
+  const [isNewComboHit, setIsNewComboHit] = useState(false);
+  const comboTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastAttackerRef = useRef<number | null>(null);
 
   // Update previous scores when current scores change
   useEffect(() => {
@@ -63,6 +88,86 @@ export function BattleArena({
       prevRightScoreRef.current = rightTeam.points;
     }
   }, [rightTeam?.points]);
+
+  // Handle incoming scoring play
+  useEffect(() => {
+    if (!scoringPlay) return;
+
+    const attackerIsLeft = scoringPlay.attackingTeamId === leftTeam?.teamId;
+    const defenderSide = attackerIsLeft ? "right" : "left";
+
+    // Update combo counter
+    if (lastAttackerRef.current === scoringPlay.attackingTeamId) {
+      // Same attacker - continue combo
+      setComboCount((c) => c + 1);
+      setIsNewComboHit(true);
+    } else {
+      // New attacker - reset combo
+      setComboCount(1);
+      setComboTeamSide(attackerIsLeft ? "left" : "right");
+      setIsNewComboHit(true);
+      lastAttackerRef.current = scoringPlay.attackingTeamId;
+    }
+
+    // Reset combo timeout
+    if (comboTimeoutRef.current) {
+      clearTimeout(comboTimeoutRef.current);
+    }
+    comboTimeoutRef.current = setTimeout(() => {
+      setComboCount(0);
+      setComboTeamSide(null);
+      lastAttackerRef.current = null;
+    }, 5000);
+
+    // Set active scoring play for overlay
+    setActiveScoringPlay(scoringPlay);
+
+    // Trigger attack animation
+    if (attackerIsLeft) {
+      setLeftFighterAttacking(true);
+    } else {
+      setRightFighterAttacking(true);
+    }
+
+    // Trigger damage flash after brief delay
+    setTimeout(() => {
+      setDamageFlashSide(defenderSide);
+      setDamageData({
+        damage: scoringPlay.pointsScored,
+        playerName: scoringPlay.playerName,
+        playerType: scoringPlay.playerType,
+      });
+
+      // Trigger hit animation on defender
+      if (defenderSide === "left") {
+        setLeftFighterHit(true);
+      } else {
+        setRightFighterHit(true);
+      }
+    }, 200);
+
+    // Clear new hit flag after animation
+    setTimeout(() => {
+      setIsNewComboHit(false);
+    }, 400);
+
+  }, [scoringPlay, leftTeam?.teamId]);
+
+  // Handle scoring play animation complete
+  const handleScoringPlayComplete = useCallback(() => {
+    setActiveScoringPlay(null);
+    setLeftFighterAttacking(false);
+    setRightFighterAttacking(false);
+    onScoringPlayComplete?.();
+  }, [onScoringPlayComplete]);
+
+  // Handle damage flash complete
+  const handleDamageFlashComplete = useCallback(() => {
+    setDamageFlashSide(null);
+    setDamageData(null);
+    setLeftFighterHit(false);
+    setRightFighterHit(false);
+  }, []);
 
   const leftFighter = leftTeam?.fighterIllustration
     ? getFighterByFile(leftTeam.fighterIllustration)
@@ -108,6 +213,31 @@ export function BattleArena({
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-gradient-radial from-white/5 to-transparent rounded-full" />
         </div>
 
+        {/* Battle Effect Overlays */}
+        <ScoringPlayOverlay
+          play={activeScoringPlay}
+          leftTeamId={leftTeam?.teamId ?? 0}
+          rightTeamId={rightTeam?.teamId ?? 0}
+          onComplete={handleScoringPlayComplete}
+        />
+
+        <DamageFlash
+          side={damageFlashSide || "right"}
+          damage={damageData?.damage ?? 0}
+          playerName={damageData?.playerName ?? ""}
+          playerType={damageData?.playerType as any}
+          isActive={damageFlashSide !== null}
+          onComplete={handleDamageFlashComplete}
+        />
+
+        {/* Combo Counter */}
+        <ComboCounter
+          count={comboCount}
+          teamSide={comboTeamSide}
+          teamColor={comboTeamSide === "left" ? "#A3FF12" : "#FF5C47"}
+          isNewHit={isNewComboHit}
+        />
+
         {/* Content */}
         <div className="relative z-10 px-6 py-8 sm:px-10 sm:py-10">
           {/* Header with status */}
@@ -123,6 +253,26 @@ export function BattleArena({
             )}
           </div>
 
+          {/* Health Bars */}
+          {leftTeam && rightTeam && (
+            <div className="flex justify-between mb-4 px-2">
+              <BattleHealthBar
+                teamName={leftTeam.teamName}
+                score={leftTeam.points}
+                opponentScore={rightTeam.points}
+                side="left"
+                isHit={leftFighterHit}
+              />
+              <BattleHealthBar
+                teamName={rightTeam.teamName}
+                score={rightTeam.points}
+                opponentScore={leftTeam.points}
+                side="right"
+                isHit={rightFighterHit}
+              />
+            </div>
+          )}
+
           {/* Battle Layout */}
           <div className="flex items-center justify-between gap-4">
             {/* Left Fighter */}
@@ -135,6 +285,8 @@ export function BattleArena({
                 isSelected={selectedTeamId === leftTeam?.teamId}
                 onEditFighter={() => leftTeam && handleEditFighter(leftTeam.teamId)}
                 onClick={leftTeam && onTeamClick ? () => onTeamClick(leftTeam.teamId) : undefined}
+                isHit={leftFighterHit}
+                isAttacking={leftFighterAttacking}
               />
             </div>
 
@@ -159,6 +311,8 @@ export function BattleArena({
                 isSelected={selectedTeamId === rightTeam?.teamId}
                 onEditFighter={() => rightTeam && handleEditFighter(rightTeam.teamId)}
                 onClick={rightTeam && onTeamClick ? () => onTeamClick(rightTeam.teamId) : undefined}
+                isHit={rightFighterHit}
+                isAttacking={rightFighterAttacking}
               />
             </div>
           </div>
@@ -242,9 +396,21 @@ interface FighterCardProps {
   isSelected?: boolean;
   onEditFighter?: () => void;
   onClick?: () => void;
+  isHit?: boolean;
+  isAttacking?: boolean;
 }
 
-function FighterCard({ team, fighter, side, isUserTeam, isSelected, onEditFighter, onClick }: FighterCardProps) {
+function FighterCard({ 
+  team, 
+  fighter, 
+  side, 
+  isUserTeam, 
+  isSelected, 
+  onEditFighter, 
+  onClick,
+  isHit = false,
+  isAttacking = false,
+}: FighterCardProps) {
   if (!team) {
     return (
       <div className="w-full max-w-[160px] flex flex-col items-center opacity-50">
@@ -260,7 +426,7 @@ function FighterCard({ team, fighter, side, isUserTeam, isSelected, onEditFighte
     <div 
       className={cn(
         "w-full max-w-[160px] flex flex-col items-center transition-all duration-200",
-        side === "left" ? "animate-float-left" : "animate-float-right",
+        !isHit && !isAttacking && (side === "left" ? "animate-float-left" : "animate-float-right"),
         isSelected && "scale-105",
         onClick && "cursor-pointer hover:scale-105 active:scale-95"
       )}
@@ -281,20 +447,27 @@ function FighterCard({ team, fighter, side, isUserTeam, isSelected, onEditFighte
         )}
         {/* Glow effect */}
         <div className={cn(
-          "absolute inset-0 rounded-full blur-xl",
+          "absolute inset-0 rounded-full blur-xl transition-opacity duration-200",
           isSelected ? "opacity-70" : "opacity-50",
-          side === "left" ? "bg-primary/30" : "bg-secondary/30"
+          isHit ? "opacity-100 bg-red-500/50" : (side === "left" ? "bg-primary/30" : "bg-secondary/30")
         )} />
         
         {/* Fighter Image */}
-        <div className="relative w-24 h-24 sm:w-32 sm:h-32 flex items-center justify-center">
+        <div 
+          className={cn(
+            "relative w-24 h-24 sm:w-32 sm:h-32 flex items-center justify-center",
+            isHit && "animate-fighter-hit",
+            isAttacking && (side === "left" ? "animate-attack-lunge" : "animate-attack-lunge-left")
+          )}
+        >
           {fighter ? (
             <img
               src={`/assets/illustrations/${fighter.file}`}
               alt={fighter.name}
               className={cn(
-                "w-full h-full object-contain drop-shadow-2xl",
-                side === "right" && "-scale-x-100" // Mirror right fighter
+                "w-full h-full object-contain drop-shadow-2xl transition-all duration-100",
+                side === "right" && "-scale-x-100", // Mirror right fighter
+                isHit && "brightness-150"
               )}
             />
           ) : (
@@ -356,3 +529,4 @@ function FighterCard({ team, fighter, side, isUserTeam, isSelected, onEditFighte
   );
 }
 
+export default BattleArena;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useParams, useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
@@ -10,6 +10,7 @@ import ScoringBreakdownV2 from "@/components/ScoringBreakdownV2";
 import { CoinFlip } from "@/components/CoinFlip";
 import { BattleArena } from "@/components/BattleArena";
 import { LeagueChat } from "@/components/LeagueChat";
+import type { ScoringPlayData } from "@/components/ScoringPlayOverlay";
 
 import {
   Loader2,
@@ -60,6 +61,11 @@ export default function DailyChallenge() {
   const [timeUntilUpdate, setTimeUntilUpdate] = useState<string>("");
   const [showCoinFlip, setShowCoinFlip] = useState(false);
   const [coinFlipWinner, setCoinFlipWinner] = useState<{ teamId: number; teamName: string } | null>(null);
+  
+  // Scoring play state for battle animations
+  const [currentScoringPlay, setCurrentScoringPlay] = useState<ScoringPlayData | null>(null);
+  const scoringPlayQueueRef = useRef<ScoringPlayData[]>([]);
+  const isPlayingRef = useRef(false);
 
   // Cache scores in localStorage for instant display on page load
   const SCORE_CACHE_KEY = `challenge-${challengeId}-scores`;
@@ -186,6 +192,27 @@ export default function DailyChallenge() {
     return team?.id;
   }, [league, user]);
 
+  // Function to play next scoring play from queue
+  const playNextScoringPlay = useCallback(() => {
+    if (scoringPlayQueueRef.current.length === 0) {
+      isPlayingRef.current = false;
+      setCurrentScoringPlay(null);
+      return;
+    }
+    
+    isPlayingRef.current = true;
+    const nextPlay = scoringPlayQueueRef.current.shift()!;
+    setCurrentScoringPlay(nextPlay);
+  }, []);
+
+  // Handle scoring play completion
+  const handleScoringPlayComplete = useCallback(() => {
+    // Small delay before next play for visual clarity
+    setTimeout(() => {
+      playNextScoringPlay();
+    }, 300);
+  }, [playNextScoringPlay]);
+
   // WebSocket connection for real-time updates
   const { isConnected } = useWebSocket({
     userId: user?.id || 0,
@@ -219,6 +246,28 @@ export default function DailyChallenge() {
         setTimeout(() => {
           setLocation(`/challenge/${challengeId}/draft`);
         }, 5000);
+      } else if (message.type === 'scoring_play') {
+        // Queue the scoring play for battle animation
+        const scoringPlay: ScoringPlayData = {
+          attackingTeamId: message.attackingTeamId,
+          attackingTeamName: message.attackingTeamName,
+          defendingTeamId: message.defendingTeamId,
+          defendingTeamName: message.defendingTeamName,
+          playerName: message.playerName,
+          playerType: message.playerType,
+          pointsScored: message.pointsScored,
+          attackerNewTotal: message.attackerNewTotal,
+          defenderTotal: message.defenderTotal,
+          imageUrl: message.imageUrl,
+          position: message.position,
+        };
+        
+        scoringPlayQueueRef.current.push(scoringPlay);
+        
+        // Start playing if not already
+        if (!isPlayingRef.current) {
+          playNextScoringPlay();
+        }
       }
     },
     autoConnect: !!challengeId && !!user?.id,
@@ -545,6 +594,8 @@ export default function DailyChallenge() {
           selectedTeamId={selectedTeamId}
           onFighterChange={() => refetchLeague()}
           onTeamClick={(teamId) => setSelectedTeamId(teamId)}
+          scoringPlay={currentScoringPlay}
+          onScoringPlayComplete={handleScoringPlayComplete}
         />
 
         {/* Invite Block (when waiting for opponent) */}

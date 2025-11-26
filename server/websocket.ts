@@ -469,6 +469,55 @@ class WebSocketManager {
         ...data,
     });
   }
+
+  /**
+   * Notify when an individual scoring play happens (for battle animations)
+   * This triggers attack effects in the BattleArena component
+   */
+  notifyScoringPlay(leagueId: number, data: {
+    attackingTeamId: number;
+    attackingTeamName: string;
+    defendingTeamId: number;
+    defendingTeamName: string;
+    playerName: string;
+    playerType: 'manufacturer' | 'cannabis_strain' | 'product' | 'pharmacy' | 'brand';
+    pointsScored: number;
+    attackerNewTotal: number;
+    defenderTotal: number;
+    imageUrl?: string | null;
+    position?: string;
+  }) {
+    this.broadcastToLeague(leagueId, {
+      type: 'scoring_play',
+      ...data,
+      timestamp: Date.now(),
+    });
+  }
+
+  /**
+   * Batch notify multiple scoring plays (for when scores are calculated)
+   * Sends plays with staggered timestamps for sequential animation
+   */
+  notifyScoringPlaysBatch(leagueId: number, plays: Array<{
+    attackingTeamId: number;
+    attackingTeamName: string;
+    defendingTeamId: number;
+    defendingTeamName: string;
+    playerName: string;
+    playerType: 'manufacturer' | 'cannabis_strain' | 'product' | 'pharmacy' | 'brand';
+    pointsScored: number;
+    attackerNewTotal: number;
+    defenderTotal: number;
+    imageUrl?: string | null;
+    position?: string;
+  }>) {
+    // Send plays with staggered delays for animation sequencing
+    plays.forEach((play, index) => {
+      setTimeout(() => {
+        this.notifyScoringPlay(leagueId, play);
+      }, index * 800); // 800ms between each play for animation timing
+    });
+  }
 }
 
 export const wsManager = new WebSocketManager();

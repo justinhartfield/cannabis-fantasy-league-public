@@ -1795,6 +1795,184 @@ export async function calculateDailyChallengeScores(challengeId: number, statDat
     scores,
     updateTime: new Date().toISOString(),
   });
+
+  // Generate and emit individual scoring plays for battle animations
+  if (challengeTeams.length === 2) {
+    await emitScoringPlaysForChallenge(db, challengeId, challengeTeams, statDateString, scores);
+  }
+}
+
+/**
+ * Generate and emit individual scoring plays for battle animations
+ * This creates attack events for each position that scored points
+ */
+async function emitScoringPlaysForChallenge(
+  db: Awaited<ReturnType<typeof getDb>>,
+  challengeId: number,
+  challengeTeams: Array<{ id: number; name: string }>,
+  statDate: string,
+  scores: Array<{ teamId: number; teamName: string; points: number }>
+): Promise<void> {
+  if (!db) return;
+
+  // Get breakdowns for both teams
+  const breakdownsQuery = await db
+    .select({
+      teamId: dailyTeamScores.teamId,
+      breakdownId: dailyScoringBreakdowns.id,
+      assetType: dailyScoringBreakdowns.assetType,
+      assetId: dailyScoringBreakdowns.assetId,
+      position: dailyScoringBreakdowns.position,
+      totalPoints: dailyScoringBreakdowns.totalPoints,
+    })
+    .from(dailyTeamScores)
+    .innerJoin(dailyScoringBreakdowns, eq(dailyScoringBreakdowns.dailyTeamScoreId, dailyTeamScores.id))
+    .where(and(
+      eq(dailyTeamScores.challengeId, challengeId),
+      eq(dailyTeamScores.statDate, statDate)
+    ));
+
+  // Get asset names for better display
+  const assetNames = await getAssetNamesForBreakdowns(db, breakdownsQuery);
+
+  // Create scoring plays
+  const scoringPlays: Array<{
+    attackingTeamId: number;
+    attackingTeamName: string;
+    defendingTeamId: number;
+    defendingTeamName: string;
+    playerName: string;
+    playerType: 'manufacturer' | 'cannabis_strain' | 'product' | 'pharmacy' | 'brand';
+    pointsScored: number;
+    attackerNewTotal: number;
+    defenderTotal: number;
+    imageUrl?: string | null;
+    position?: string;
+  }> = [];
+
+  const team1 = challengeTeams[0];
+  const team2 = challengeTeams[1];
+  const team1Score = scores.find(s => s.teamId === team1.id);
+  const team2Score = scores.find(s => s.teamId === team2.id);
+
+  // Process breakdowns for each team
+  for (const breakdown of breakdownsQuery) {
+    if (breakdown.totalPoints <= 0) continue;
+
+    const isTeam1 = breakdown.teamId === team1.id;
+    const attackingTeam = isTeam1 ? team1 : team2;
+    const defendingTeam = isTeam1 ? team2 : team1;
+    const attackerTotal = isTeam1 ? (team1Score?.points ?? 0) : (team2Score?.points ?? 0);
+    const defenderTotal = isTeam1 ? (team2Score?.points ?? 0) : (team1Score?.points ?? 0);
+
+    const assetKey = `${breakdown.assetType}-${breakdown.assetId}`;
+    const assetInfo = assetNames.get(assetKey);
+
+    scoringPlays.push({
+      attackingTeamId: attackingTeam.id,
+      attackingTeamName: attackingTeam.name,
+      defendingTeamId: defendingTeam.id,
+      defendingTeamName: defendingTeam.name,
+      playerName: assetInfo?.name ?? `Unknown ${breakdown.assetType}`,
+      playerType: breakdown.assetType as any,
+      pointsScored: breakdown.totalPoints,
+      attackerNewTotal: attackerTotal,
+      defenderTotal: defenderTotal,
+      imageUrl: assetInfo?.imageUrl ?? null,
+      position: breakdown.position ?? undefined,
+    });
+  }
+
+  // Sort by points (highest first) for more dramatic effect
+  scoringPlays.sort((a, b) => b.pointsScored - a.pointsScored);
+
+  // Emit batch with staggered timing
+  if (scoringPlays.length > 0) {
+    console.log(`[ScoringPlays] Emitting ${scoringPlays.length} scoring plays for challenge ${challengeId}`);
+    wsManager.notifyScoringPlaysBatch(challengeId, scoringPlays);
+  }
+}
+
+/**
+ * Get asset names and images for breakdown display
+ */
+async function getAssetNamesForBreakdowns(
+  db: Awaited<ReturnType<typeof getDb>>,
+  breakdowns: Array<{ assetType: string | null; assetId: number | null }>
+): Promise<Map<string, { name: string; imageUrl?: string | null }>> {
+  if (!db) return new Map();
+
+  const result = new Map<string, { name: string; imageUrl?: string | null }>();
+
+  // Group by asset type
+  const manufacturerIds: number[] = [];
+  const strainIds: number[] = [];
+  const pharmacyIds: number[] = [];
+  const brandIds: number[] = [];
+
+  for (const b of breakdowns) {
+    if (!b.assetId || !b.assetType) continue;
+    if (b.assetType === 'manufacturer') manufacturerIds.push(b.assetId);
+    else if (b.assetType === 'cannabis_strain' || b.assetType === 'product') strainIds.push(b.assetId);
+    else if (b.assetType === 'pharmacy') pharmacyIds.push(b.assetId);
+    else if (b.assetType === 'brand') brandIds.push(b.assetId);
+  }
+
+  // Fetch manufacturers
+  if (manufacturerIds.length > 0) {
+    const mfgData = await db
+      .select({ id: manufacturers.id, name: manufacturers.name, imageUrl: manufacturers.logoUrl })
+      .from(manufacturers)
+      .where(sql`${manufacturers.id} = ANY(ARRAY[${sql.raw(manufacturerIds.join(','))}]::int[])`);
+    for (const m of mfgData) {
+      result.set(`manufacturer-${m.id}`, { name: m.name, imageUrl: m.imageUrl });
+    }
+  }
+
+  // Fetch strains/products (using cannabisStrains table for genetics)
+  if (strainIds.length > 0) {
+    // Try cannabis_strains first
+    const strainData = await db
+      .select({ id: cannabisStrains.id, name: cannabisStrains.name, imageUrl: cannabisStrains.imageUrl })
+      .from(cannabisStrains)
+      .where(sql`${cannabisStrains.id} = ANY(ARRAY[${sql.raw(strainIds.join(','))}]::int[])`);
+    for (const s of strainData) {
+      result.set(`cannabis_strain-${s.id}`, { name: s.name, imageUrl: s.imageUrl });
+    }
+    
+    // Also check strains table for products
+    const productData = await db
+      .select({ id: strains.id, name: strains.name, imageUrl: strains.imageUrl })
+      .from(strains)
+      .where(sql`${strains.id} = ANY(ARRAY[${sql.raw(strainIds.join(','))}]::int[])`);
+    for (const p of productData) {
+      result.set(`product-${p.id}`, { name: p.name, imageUrl: p.imageUrl });
+    }
+  }
+
+  // Fetch pharmacies
+  if (pharmacyIds.length > 0) {
+    const pharmData = await db
+      .select({ id: pharmacies.id, name: pharmacies.name, imageUrl: pharmacies.logoUrl })
+      .from(pharmacies)
+      .where(sql`${pharmacies.id} = ANY(ARRAY[${sql.raw(pharmacyIds.join(','))}]::int[])`);
+    for (const p of pharmData) {
+      result.set(`pharmacy-${p.id}`, { name: p.name, imageUrl: p.imageUrl });
+    }
+  }
+
+  // Fetch brands
+  if (brandIds.length > 0) {
+    const brandData = await db
+      .select({ id: brands.id, name: brands.name, imageUrl: brands.logoUrl })
+      .from(brands)
+      .where(sql`${brands.id} = ANY(ARRAY[${sql.raw(brandIds.join(','))}]::int[])`);
+    for (const b of brandData) {
+      result.set(`brand-${b.id}`, { name: b.name, imageUrl: b.imageUrl });
+    }
+  }
+
+  return result;
 }
 
 interface TeamScoreComputationOptions {
