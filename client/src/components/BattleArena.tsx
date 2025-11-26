@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LiveIndicator } from "@/components/LiveIndicator";
 import { FighterPicker, FighterDisplay, FIGHTER_ILLUSTRATIONS, getFighterByFile } from "@/components/FighterPicker";
+import { AnimatedScoreCounter } from "@/components/AnimatedScoreCounter";
 import { Swords, Sparkles, Edit3 } from "lucide-react";
 
 interface TeamData {
@@ -41,6 +42,27 @@ export function BattleArena({
 }: BattleArenaProps) {
   const [fighterPickerOpen, setFighterPickerOpen] = useState(false);
   const [editingTeamId, setEditingTeamId] = useState<number | null>(null);
+  
+  // Track previous scores for animation
+  const prevLeftScoreRef = useRef<number>(leftTeam?.points ?? 0);
+  const prevRightScoreRef = useRef<number>(rightTeam?.points ?? 0);
+  const [leftPrevScore, setLeftPrevScore] = useState<number>(leftTeam?.points ?? 0);
+  const [rightPrevScore, setRightPrevScore] = useState<number>(rightTeam?.points ?? 0);
+
+  // Update previous scores when current scores change
+  useEffect(() => {
+    if (leftTeam?.points !== undefined && leftTeam.points !== prevLeftScoreRef.current) {
+      setLeftPrevScore(prevLeftScoreRef.current);
+      prevLeftScoreRef.current = leftTeam.points;
+    }
+  }, [leftTeam?.points]);
+
+  useEffect(() => {
+    if (rightTeam?.points !== undefined && rightTeam.points !== prevRightScoreRef.current) {
+      setRightPrevScore(prevRightScoreRef.current);
+      prevRightScoreRef.current = rightTeam.points;
+    }
+  }, [rightTeam?.points]);
 
   const leftFighter = leftTeam?.fighterIllustration
     ? getFighterByFile(leftTeam.fighterIllustration)
@@ -141,23 +163,31 @@ export function BattleArena({
             </div>
           </div>
 
-          {/* Score Display */}
+          {/* Score Display with Animated Counters */}
           <div className="mt-6 flex items-center justify-center gap-4 sm:gap-8">
-            <div className="text-center">
-              <div className="text-4xl sm:text-5xl font-black text-white tabular-nums">
-                {leftTeam?.points?.toFixed(1) ?? "0.0"}
-              </div>
-              <div className="text-xs text-white/50 uppercase tracking-wider mt-1">Points</div>
-            </div>
+            <AnimatedScoreCounter
+              value={leftTeam?.points ?? 0}
+              previousValue={leftPrevScore}
+              size="lg"
+              label="Points"
+              glowColor="#a3ff12"
+              showParticles={true}
+              showDelta={true}
+              bigChangeThreshold={5}
+            />
             
             <div className="text-2xl text-white/30">—</div>
             
-            <div className="text-center">
-              <div className="text-4xl sm:text-5xl font-black text-white tabular-nums">
-                {rightTeam?.points?.toFixed(1) ?? "0.0"}
-              </div>
-              <div className="text-xs text-white/50 uppercase tracking-wider mt-1">Points</div>
-            </div>
+            <AnimatedScoreCounter
+              value={rightTeam?.points ?? 0}
+              previousValue={rightPrevScore}
+              size="lg"
+              label="Points"
+              glowColor="#ff5c47"
+              showParticles={true}
+              showDelta={true}
+              bigChangeThreshold={5}
+            />
           </div>
 
           {/* Score Bar */}

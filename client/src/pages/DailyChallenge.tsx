@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams, useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
@@ -10,10 +10,6 @@ import ScoringBreakdownV2 from "@/components/ScoringBreakdownV2";
 import { CoinFlip } from "@/components/CoinFlip";
 import { BattleArena } from "@/components/BattleArena";
 import { LeagueChat } from "@/components/LeagueChat";
-import { ScoringPlayFeed } from "@/components/ScoringPlayFeed";
-import { ScoringPlayAlert, useScoringAlertQueue } from "@/components/ScoringPlayAlert";
-import { useConfetti, CONFETTI_PRESETS } from "@/components/ConfettiCelebration";
-import { useScoringPlayAnimation } from "@/hooks/useScoringPlayAnimation";
 
 import {
   Loader2,
@@ -23,7 +19,6 @@ import {
   Clock,
   UserPlus,
   Copy,
-  Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getLoginUrl } from "@/const";
@@ -65,37 +60,6 @@ export default function DailyChallenge() {
   const [timeUntilUpdate, setTimeUntilUpdate] = useState<string>("");
   const [showCoinFlip, setShowCoinFlip] = useState(false);
   const [coinFlipWinner, setCoinFlipWinner] = useState<{ teamId: number; teamName: string } | null>(null);
-  const [scoreShakeClass, setScoreShakeClass] = useState("");
-  const lastBreakdownIdRef = useRef<string | null>(null);
-
-  // Scoring Play Animation System
-  const { currentAlert, addAlert, dismissCurrent } = useScoringAlertQueue();
-  const { isActive: confettiActive, trigger: triggerConfetti, ConfettiComponent } = useConfetti();
-  
-  const scoringPlayAnimation = useScoringPlayAnimation({
-    playInterval: 600,
-    initialDelay: 800,
-    bigPlayThreshold: 20,
-    onPlayRevealed: (play) => {
-      // Add shake effect to scores when plays are revealed
-      setScoreShakeClass("battle-score-shake");
-      setTimeout(() => setScoreShakeClass(""), 600);
-    },
-    onBigPlay: (play) => {
-      // Show alert for big plays
-      addAlert(play);
-    },
-    onCelebration: (play, type) => {
-      // Trigger confetti for celebrations
-      if (type === 'streak') {
-        triggerConfetti(CONFETTI_PRESETS.streak);
-      } else if (type === 'rank') {
-        triggerConfetti(CONFETTI_PRESETS.champion);
-      } else {
-        triggerConfetti(CONFETTI_PRESETS.bigWin);
-      }
-    },
-  });
 
   // Cache scores in localStorage for instant display on page load
   const SCORE_CACHE_KEY = `challenge-${challengeId}-scores`;
@@ -464,25 +428,6 @@ export default function DailyChallenge() {
     [sortedScores, selectedTeamId]
   );
 
-  // Trigger scoring play animations when breakdown data loads
-  useEffect(() => {
-    if (breakdown?.breakdowns && selectedTeamId && selectedTeam) {
-      // Create a unique ID for this breakdown to prevent re-triggering
-      const breakdownId = `${selectedTeamId}-${breakdown.breakdowns.length}-${breakdown.breakdowns.reduce((sum: number, b: any) => sum + (b.totalPoints || 0), 0)}`;
-      
-      if (lastBreakdownIdRef.current !== breakdownId) {
-        lastBreakdownIdRef.current = breakdownId;
-        
-        // Queue scoring plays from breakdown
-        scoringPlayAnimation.queuePlaysFromBreakdown(
-          selectedTeamId,
-          selectedTeam.teamName,
-          breakdown.breakdowns
-        );
-      }
-    }
-  }, [breakdown, selectedTeamId, selectedTeam, scoringPlayAnimation]);
-
   const topPerformers = useMemo<
     { name: string; type: string; total: number; breakdown: any; imageUrl?: string | null }[]
   >(() => {
@@ -547,16 +492,6 @@ export default function DailyChallenge() {
 
   return (
     <div className="min-h-screen gradient-dark">
-      {/* Confetti Celebration */}
-      {ConfettiComponent}
-
-      {/* Scoring Play Alert Banner */}
-      <ScoringPlayAlert
-        play={currentAlert}
-        onDismiss={dismissCurrent}
-        autoDismissDelay={4000}
-      />
-
       {/* Coin Flip Overlay */}
       {showCoinFlip && league?.teams && league.teams.length >= 2 && (
         <CoinFlip
@@ -721,87 +656,6 @@ export default function DailyChallenge() {
         {league?.status !== 'complete' && (
           <div className="rounded-[32px] bg-[#2a1027] border border-white/10 overflow-hidden">
             <LeagueChat leagueId={challengeId} variant="dark" />
-          </div>
-        )}
-
-        {/* Live Scoring Plays Feed */}
-        {isLive && scoringPlayAnimation.revealedPlays.length > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Scoring Play Feed - Takes 1 column */}
-            <div className="lg:col-span-1">
-              <ScoringPlayFeed
-                plays={scoringPlayAnimation.revealedPlays}
-                currentPlay={scoringPlayAnimation.currentPlay}
-                maxVisible={6}
-              />
-              
-              {/* Animation Controls */}
-              {scoringPlayAnimation.isAnimating && (
-                <div className="mt-4 flex items-center justify-between p-3 rounded-2xl bg-white/5 border border-white/10">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-[#cfff4d] animate-pulse" />
-                    <span className="text-xs text-white/60">
-                      {scoringPlayAnimation.playsRemaining} plays remaining
-                    </span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={scoringPlayAnimation.skipToEnd}
-                    className="text-xs text-white/50 hover:text-white"
-                  >
-                    Skip to End
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            {/* Stats Summary - Takes 2 columns */}
-            <div className="lg:col-span-2 space-y-4">
-              {/* Total Points Revealed */}
-              <div className="rounded-2xl bg-gradient-to-br from-[#1a0a1f] to-[#0f0f16] border border-white/10 p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-[#cfff4d]/20 flex items-center justify-center">
-                      <Zap className="w-6 h-6 text-[#cfff4d]" />
-                    </div>
-                    <div>
-                      <div className="text-xs uppercase tracking-wider text-white/50">
-                        Points Revealed
-                      </div>
-                      <div className={cn(
-                        "text-4xl font-black text-white tabular-nums",
-                        scoreShakeClass
-                      )}>
-                        {scoringPlayAnimation.totalPointsRevealed.toFixed(0)}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Progress Indicator */}
-                  <div className="text-right">
-                    <div className="text-sm text-white/60">
-                      {scoringPlayAnimation.revealedPlays.length} / {scoringPlayAnimation.plays.length}
-                    </div>
-                    <div className="text-xs text-white/40">scoring plays</div>
-                  </div>
-                </div>
-
-                {/* Progress Bar */}
-                <div className="h-2 rounded-full bg-white/10 overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-[#cfff4d] to-[#a3ff12] rounded-full transition-all duration-500"
-                    style={{
-                      width: `${
-                        scoringPlayAnimation.plays.length > 0
-                          ? (scoringPlayAnimation.revealedPlays.length / scoringPlayAnimation.plays.length) * 100
-                          : 0
-                      }%`,
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
           </div>
         )}
 
