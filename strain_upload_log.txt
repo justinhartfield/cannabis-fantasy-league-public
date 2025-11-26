@@ -1,0 +1,43 @@
+✓ Connected to Bunny.net FTP
+✓ Changed to /cfls/strains/
+✓ Uploaded: ak-47_YWstNDc=.png
+✓ Uploaded: amnesia-haze_YW1uZXNpYS1oYXpl.png
+✓ Uploaded: blue-dream_Ymx1ZS1kcmVhbQ==.png
+✓ Uploaded: blueberry_Ymx1ZWJlcnJ5.png
+✓ Uploaded: bubba-kush_YnViYmEta3VzaA==.png
+✓ Uploaded: chemdawg_Y2hlbWRhd2c=.png
+✓ Uploaded: cherry-pie_Y2hlcnJ5LXBpZQ==.png
+✓ Uploaded: cookies_Y29va2llcw==.png
+✓ Uploaded: critical-kush_Y3JpdGljYWwta3VzaA==.png
+✓ Uploaded: do-si-dos_ZG8tc2ktZG9z.png
+✓ Uploaded: durban-poison_ZHVyYmFuLXBvaXNvbg==.png
+✓ Uploaded: gelato_Z2VsYXRv.png
+✓ Uploaded: girl-scout-cookies_Z2lybC1zY291dC1jb29raWVz.png
+✓ Uploaded: gorilla-glue_Z29yaWxsYS1nbHVl.png
+✓ Uploaded: granddaddy-purple_Z3JhbmRkYWRkeS1wdXJwbGU=.png
+✓ Uploaded: green-crack_Z3JlZW4tY3JhY2s=.png
+✓ Uploaded: jack-herer_amFjay1oZXJlcg==.png
+✓ Uploaded: lemon-haze_bGVtb24taGF6ZQ==.png
+✓ Uploaded: mac1_bWFjMQ==.png
+✓ Uploaded: northern-lights_bm9ydGhlcm4tbGlnaHRz.png
+✓ Uploaded: og-kush_b2cta3VzaA==.png
+✓ Uploaded: pineapple-express_cGluZWFwcGxlLWV4cHJlc3M=.png
+✓ Uploaded: purple-haze_cHVycGxlLWhhemU=.png
+✓ Uploaded: purple-punch_cHVycGxlLXB1bmNo.png
+✓ Uploaded: runtz_cnVudHo=.png
+✓ Uploaded: skywalker-og_c2t5d2Fsa2VyLW9n.png
+✓ Uploaded: sour-diesel_c291ci1kaWVzZWw=.png
+✓ Uploaded: strawberry-cough_c3RyYXdiZXJyeS1jb3VnaA==.png
+✓ Uploaded: sunset-sherbet_c3Vuc2V0LXNoZXJiZXQ=.png
+✓ Uploaded: super-lemon-haze_c3VwZXItbGVtb24taGF6ZQ==.png
+✓ Uploaded: tangie_dGFuZ2ll.png
+✓ Uploaded: trainwreck_dHJhaW53cmVjaw==.png
+✓ Uploaded: wedding-cake_d2VkZGluZy1jYWtl.png
+✓ Uploaded: white-widow_d2hpdGUtd2lkb3c=.png
+✓ Uploaded: zkittlez-2_emtpdHRsZXotMg==.png
+✓ Uploaded: zkittlez_emtpdHRsZXo=.png
+
+============================================================
+Upload complete: 36/36 images uploaded
+CDN Base URL: https://cfls.b-cdn.net/strains/
+============================================================
