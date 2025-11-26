@@ -129,6 +129,7 @@ export default function DailyChallenge() {
   const {
     data: breakdown,
     isLoading: breakdownLoading,
+    refetch: refetchBreakdown,
   } = trpc.scoring.getChallengeDayBreakdown.useQuery(
     {
       challengeId,
@@ -159,9 +160,13 @@ export default function DailyChallenge() {
   );
 
   const calculateChallengeDayMutation = trpc.scoring.calculateChallengeDay.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Scores calculated successfully!");
-      refetchScores();
+      await refetchScores();
+      // Also refetch the breakdown to show updated scoring details
+      if (selectedTeamId) {
+        await refetchBreakdown();
+      }
       setIsCalculating(false);
     },
     onError: (error) => {
@@ -380,11 +385,25 @@ export default function DailyChallenge() {
     }));
   }, [baseTeamScores, dayScores]);
 
+  // Track if scores were just synced for the first time
+  const [scoresJustSynced, setScoresJustSynced] = useState(false);
+
   useEffect(() => {
     if (sortedScores.length > 0 && !selectedTeamId) {
       setSelectedTeamId(sortedScores[0].teamId);
+      // Mark that we need to refetch breakdown after setting the team
+      setScoresJustSynced(true);
     }
   }, [sortedScores, selectedTeamId]);
+
+  // Refetch breakdown when selectedTeamId is set and scores were just synced
+  useEffect(() => {
+    if (scoresJustSynced && selectedTeamId && dayScores && dayScores.length > 0) {
+      console.log('[AutoRefresh] Scores synced, refetching breakdown for team', selectedTeamId);
+      refetchBreakdown();
+      setScoresJustSynced(false);
+    }
+  }, [scoresJustSynced, selectedTeamId, dayScores, refetchBreakdown]);
 
   // Check for winner when challenge is complete (after sortedScores is defined)
   useEffect(() => {

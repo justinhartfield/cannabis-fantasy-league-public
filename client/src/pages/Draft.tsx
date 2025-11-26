@@ -310,14 +310,17 @@ export default function Draft() {
         setCurrentRound(message.round);
         toast.info(`It's ${message.teamName}'s turn to pick!`);
       } else if (message.type === 'draft_complete') {
-        toast.success('🎉 Draft complete! All roster slots filled.');
         setTimerSeconds(null);
-        // Show the draft completion dialog for season leagues, redirect for challenges
+        // For challenge leagues: Show countdown toast and redirect all players to live matchup
         if (league?.leagueType === 'challenge') {
+          toast.success('🎉 Draft complete! Starting live matchup...', { duration: 3000 });
+          // Redirect after a short delay to show the toast
           setTimeout(() => {
             setLocation(`/challenge/${leagueId}`);
-          }, 2000);
+          }, 1500);
         } else {
+          // For season leagues: Show completion dialog
+          toast.success('🎉 Draft complete! All roster slots filled.');
           setShowDraftCompleteDialog(true);
         }
       } else if (message.type === 'timer_start') {

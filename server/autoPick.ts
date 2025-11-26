@@ -181,8 +181,13 @@ export async function makeAutoPick(leagueId: number, teamId: number): Promise<vo
   // Advance to next pick
   const draftCompletedNow = await advanceDraftPick(leagueId);
 
-  // Calculate and notify next pick if draft is not complete
-  if (!draftCompletedNow) {
+  // Notify draft completion or next pick
+  if (draftCompletedNow) {
+    // Draft is complete - notify all clients so they can redirect to matchup
+    console.log(`[AutoPick] Draft completed for league ${leagueId} after auto-pick`);
+    wsManager.notifyDraftComplete(leagueId);
+  } else {
+    // Calculate and notify next pick
     const nextPickInfo = await calculateNextPick(leagueId).catch(() => null);
     if (nextPickInfo) {
       wsManager.notifyNextPick(leagueId, {
