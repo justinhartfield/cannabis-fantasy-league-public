@@ -69,6 +69,8 @@ interface SleeperPlayerPanelProps {
   // Legacy props for backwards compatibility
   activeTab?: "players" | "team";
   onTabChange?: (tab: "players" | "team") => void;
+  // Prevent double-draft race condition
+  draftPending?: boolean;
 }
 
 // Position limits (regular slots only)
@@ -136,6 +138,7 @@ export function SleeperPlayerPanel({
   onAutoPickFromQueueChange,
   activeTab: externalActiveTab,
   onTabChange: externalOnTabChange,
+  draftPending = false,
 }: SleeperPlayerPanelProps) {
   const [selectedPosition, setSelectedPosition] = useState<AssetType | "all" | "flex">("all");
   const [isPanelExpanded, setIsPanelExpanded] = useState(true);
@@ -292,7 +295,7 @@ export function SleeperPlayerPanel({
   const maxRoster = TOTAL_ROSTER_SLOTS;
 
   const handleDraft = (player: AvailablePlayer & { assetType: AssetType }) => {
-    if (!isMyTurn) return;
+    if (!isMyTurn || draftPending) return;
     if (isPositionFull(player.assetType)) return;
     onDraftPick(player.assetType, player.id);
   };
@@ -527,15 +530,15 @@ export function SleeperPlayerPanel({
                         {/* Draft Button */}
                         <button
                           onClick={() => handleDraft(player)}
-                          disabled={!isMyTurn || isFull}
+                          disabled={!isMyTurn || isFull || draftPending}
                           className={cn(
                             "px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition-colors shrink-0",
-                            !isMyTurn || isFull
+                            !isMyTurn || isFull || draftPending
                               ? "bg-white/10 text-white/30 cursor-not-allowed"
                               : "bg-[#00d4aa] text-black hover:bg-[#00e4b8]"
                           )}
                         >
-                          Draft
+                          {draftPending ? "..." : "Draft"}
                         </button>
 
                         {/* Queue Button - only show if queue feature is enabled */}

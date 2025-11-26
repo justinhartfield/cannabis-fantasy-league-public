@@ -19,7 +19,7 @@ import {
   ASSET_TYPE_LABELS,
   type AssetType,
 } from "./DraftFieldPlayer";
-import { Search, Building2, Leaf, Package, Tag, TrendingUp, SortAsc, Zap, Info, ChevronUp, ChevronDown } from "lucide-react";
+import { Search, Sprout, Leaf, Package, Tag, TrendingUp, SortAsc, Zap, Info, ChevronUp, ChevronDown, Flower2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface RosterItem {
@@ -79,13 +79,15 @@ interface ChallengeDraftBoardProps {
   onAutoDraftChange?: (enabled: boolean) => void;
   // Timer display
   timerSeconds?: number | null;
+  // Prevent double-draft race condition
+  draftPending?: boolean;
 }
 
-// Position filter pills configuration
+// Position filter pills configuration - Grow room themed icons
 const POSITION_PILLS: { key: AssetType | "all"; label: string; icon: React.ReactNode; color: string }[] = [
   { key: "all", label: "All", icon: <Search className="w-3 h-3" />, color: "bg-white/20" },
-  { key: "manufacturer", label: "MFG", icon: <Building2 className="w-3 h-3" />, color: "bg-blue-500" },
-  { key: "pharmacy", label: "PHM", icon: <Building2 className="w-3 h-3" />, color: "bg-emerald-500" },
+  { key: "manufacturer", label: "MFG", icon: <Sprout className="w-3 h-3" />, color: "bg-blue-500" },
+  { key: "pharmacy", label: "PHM", icon: <Flower2 className="w-3 h-3" />, color: "bg-emerald-500" },
   { key: "product", label: "PRD", icon: <Package className="w-3 h-3" />, color: "bg-pink-500" },
   { key: "cannabis_strain", label: "STR", icon: <Leaf className="w-3 h-3" />, color: "bg-purple-500" },
   { key: "brand", label: "BRD", icon: <Tag className="w-3 h-3" />, color: "bg-yellow-500" },
@@ -113,9 +115,9 @@ const POSITION_MAX_WITH_FLEX: Record<AssetType, number> = {
  * ChallengeDraftBoard - Main container for the Daily Challenge draft
  * 
  * Features:
- * - Side-by-side soccer field visualization for user and opponent
+ * - Grow room visualization for user's lineup
  * - Real-time updates as picks are made
- * - 3 panels across: My Team, Available Players, Recent Picks
+ * - Available players panel with filtering and sorting
  */
 export function ChallengeDraftBoard({
   myTeam,
@@ -134,6 +136,7 @@ export function ChallengeDraftBoard({
   autoDraftEnabled = false,
   onAutoDraftChange,
   timerSeconds,
+  draftPending = false,
 }: ChallengeDraftBoardProps) {
   const [selectedPosition, setSelectedPosition] = useState<AssetType | "all">("all");
   const [sortBy, setSortBy] = useState<"points" | "name">("points");
@@ -285,8 +288,8 @@ export function ChallengeDraftBoard({
 
   // Handle draft pick
   const handleDraft = (player: AvailablePlayer & { assetType: AssetType }) => {
-    if (!isMyTurn) {
-      toast.error("Not your turn!");
+    if (!isMyTurn || draftPending) {
+      if (!draftPending) toast.error("Not your turn!");
       return;
     }
     if (isPositionFull(player.assetType)) {
@@ -294,18 +297,18 @@ export function ChallengeDraftBoard({
       return;
     }
     onDraftPick(player.assetType, player.id);
-    toast.success(`Drafted ${player.name}!`);
+    toast.success(`Planted ${player.name}!`);
   };
 
   return (
     <TooltipProvider>
-    <div className="flex flex-col h-full bg-[#0a0a0f] overflow-y-auto">
+    <div className="flex flex-col h-full bg-[#080a08] overflow-y-auto">
       {/* Draft Controls Header */}
-      <div className="px-4 pt-3 pb-2 flex items-center justify-between border-b border-white/5 bg-[#0a0a0f]/80 backdrop-blur-sm sticky top-0 z-10">
+      <div className="px-4 pt-3 pb-2 flex items-center justify-between border-b border-[#4ade80]/10 bg-[#080a08]/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="flex items-center gap-3">
           {/* Timer */}
           {timerSeconds !== null && timerSeconds !== undefined && !isNaN(timerSeconds) && timerSeconds >= 0 && (
-            <div className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
+            <div className="px-3 py-1.5 rounded-lg bg-[#4ade80]/10 border border-[#4ade80]/20">
               <span className="text-sm font-mono font-semibold text-white">
                 ⏱️ {Math.floor(timerSeconds / 60)}:{String(timerSeconds % 60).padStart(2, "0")}
               </span>
@@ -314,7 +317,7 @@ export function ChallengeDraftBoard({
           
           {/* Turn indicator */}
           {isMyTurn ? (
-            <span className="px-3 py-1.5 rounded-lg bg-[#cfff4d] text-black text-xs font-bold uppercase animate-pulse">
+            <span className="px-3 py-1.5 rounded-lg bg-[#4ade80] text-black text-xs font-bold uppercase animate-pulse">
               Your Turn
             </span>
           ) : (
@@ -326,21 +329,21 @@ export function ChallengeDraftBoard({
         
         {/* Auto-Pick Toggle with Label and Info */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#4ade80]/5 border border-[#4ade80]/20">
             <Zap className={cn(
               "w-4 h-4 transition-colors",
-              autoDraftEnabled ? "text-[#cfff4d]" : "text-white/40"
+              autoDraftEnabled ? "text-[#4ade80]" : "text-white/40"
             )} />
             <span className={cn(
               "text-xs font-medium transition-colors",
-              autoDraftEnabled ? "text-[#cfff4d]" : "text-white/50"
+              autoDraftEnabled ? "text-[#4ade80]" : "text-white/50"
             )}>
               Auto-Pick
             </span>
             <Switch
               checked={autoDraftEnabled}
               onCheckedChange={onAutoDraftChange}
-              className="data-[state=checked]:bg-[#cfff4d] scale-75"
+              className="data-[state=checked]:bg-[#4ade80] scale-75"
             />
             <Tooltip>
               <TooltipTrigger asChild>
@@ -348,12 +351,12 @@ export function ChallengeDraftBoard({
                   <Info className="w-3.5 h-3.5 text-white/40" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-[280px] bg-[#1a1d29] border-white/10 text-white">
+              <TooltipContent side="bottom" className="max-w-[280px] bg-[#0f1f0f] border-[#4ade80]/20 text-white">
                 <p className="text-xs leading-relaxed">
-                  <strong className="text-[#cfff4d]">Auto-Pick Mode</strong><br/>
-                  When enabled, the system will automatically draft the best available player based on yesterday's points when it's your turn.
+                  <strong className="text-[#4ade80]">Auto-Pick Mode</strong><br/>
+                  When enabled, the system will automatically plant the best available cultivar based on yesterday's points when it's your turn.
                   <br/><br/>
-                  <span className="text-white/60">💡 If both players enable auto-pick, the entire draft completes in seconds!</span>
+                  <span className="text-white/60">🌱 If both players enable auto-pick, the entire draft completes in seconds!</span>
                 </p>
               </TooltipContent>
             </Tooltip>
@@ -361,10 +364,10 @@ export function ChallengeDraftBoard({
         </div>
       </div>
 
-      {/* Fields Container - Single expanded field for user's team */}
+      {/* Grow Room Container - Single expanded view for user's team */}
       <div className="p-4 pb-2">
         <div className="max-w-2xl mx-auto">
-          {/* My Field - Expanded to show off thumbnails and text */}
+          {/* My Grow Room - Expanded to show off thumbnails and text */}
           <DraftField
             teamName={myTeam.name}
             userName={myTeam.userName}
@@ -373,14 +376,14 @@ export function ChallengeDraftBoard({
             isUserTeam={true}
             isOnTheClock={isMyTurn}
             size="lg"
-            className="shadow-[0_10px_40px_rgba(207,255,77,0.08)]"
+            className="shadow-[0_10px_40px_rgba(74,222,128,0.1)]"
           />
         </div>
       </div>
 
       {/* Bottom Panel - Available Players (Expandable on mobile) */}
       <div className={cn(
-        "border-t border-white/10 bg-[#0f1015] flex flex-col transition-all duration-300",
+        "border-t border-[#4ade80]/10 bg-[#0a0f0a] flex flex-col transition-all duration-300",
         // Mobile: either collapsed (just header) or expanded (full height)
         isMobileExpanded ? "flex-1 min-h-0" : "lg:flex-1 lg:min-h-0"
       )}>
@@ -393,7 +396,7 @@ export function ChallengeDraftBoard({
             <div className="flex items-center gap-2">
               <h3 className="text-xs font-semibold text-white/70 uppercase tracking-wider">Available Players</h3>
               {isMyTurn && (
-                <span className="px-2 py-0.5 rounded-full bg-[#cfff4d] text-black text-[10px] font-bold animate-pulse">
+                <span className="px-2 py-0.5 rounded-full bg-[#4ade80] text-black text-[10px] font-bold animate-pulse">
                   Your Pick
                 </span>
               )}
@@ -423,7 +426,7 @@ export function ChallengeDraftBoard({
                 className={cn(
                   "flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors",
                   sortBy === "points"
-                    ? "bg-[#cfff4d]/20 text-[#cfff4d]"
+                    ? "bg-[#4ade80]/20 text-[#4ade80]"
                     : "text-white/40 hover:text-white/60"
                 )}
               >
@@ -435,7 +438,7 @@ export function ChallengeDraftBoard({
                 className={cn(
                   "flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors",
                   sortBy === "name"
-                    ? "bg-[#cfff4d]/20 text-[#cfff4d]"
+                    ? "bg-[#4ade80]/20 text-[#4ade80]"
                     : "text-white/40 hover:text-white/60"
                 )}
               >
@@ -462,7 +465,7 @@ export function ChallengeDraftBoard({
                     className={cn(
                       "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-colors whitespace-nowrap",
                       selectedPosition === key
-                        ? "bg-white text-black"
+                        ? "bg-[#4ade80] text-black"
                         : isFull
                         ? "bg-white/5 text-white/20"
                         : "bg-white/10 text-white/60 hover:bg-white/20"
@@ -477,12 +480,12 @@ export function ChallengeDraftBoard({
 
             {/* Search */}
             <div className="relative mb-3">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#4ade80]/40" />
               <Input
                 placeholder="Search players..."
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
-                className="pl-9 h-9 text-sm bg-white/5 border-white/10 text-white placeholder:text-white/30 rounded-lg"
+                className="pl-9 h-9 text-sm bg-[#4ade80]/5 border-[#4ade80]/20 text-white placeholder:text-white/30 rounded-lg focus-visible:ring-[#4ade80]/50"
               />
             </div>
 
@@ -511,29 +514,29 @@ export function ChallengeDraftBoard({
                           "flex items-center gap-3 p-2.5 rounded-xl transition-all",
                           isFull 
                             ? "bg-white/[0.02] opacity-50" 
-                            : "bg-white/5 hover:bg-white/10"
+                            : "bg-[#4ade80]/5 hover:bg-[#4ade80]/10"
                         )}
                       >
                         {/* Draft Button */}
                         <button
                           onClick={() => handleDraft(player)}
-                          disabled={!isMyTurn || isFull}
+                          disabled={!isMyTurn || isFull || draftPending}
                           className={cn(
                             "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all shrink-0",
-                            !isMyTurn || isFull
+                            !isMyTurn || isFull || draftPending
                               ? "bg-white/5 text-white/20 cursor-not-allowed"
-                              : "bg-[#cfff4d] text-black hover:bg-[#dfff6d] hover:scale-105"
+                              : "bg-[#4ade80] text-black hover:bg-[#6ee7a0] hover:scale-105"
                           )}
                         >
-                          Draft
+                          {draftPending ? "..." : "Plant"}
                         </button>
                         
                         {/* Player Thumbnail */}
-                        <Avatar className="w-10 h-10 shrink-0 border-2" style={{ borderColor: colors.jersey }}>
+                        <Avatar className="w-10 h-10 shrink-0 border-2" style={{ borderColor: colors.led }}>
                           <AvatarImage src={player.imageUrl || ""} alt={player.name} />
                           <AvatarFallback 
                             className="text-xs font-bold"
-                            style={{ backgroundColor: `${colors.jersey}20`, color: colors.jersey }}
+                            style={{ backgroundColor: `${colors.led}20`, color: colors.led }}
                           >
                             {player.name.slice(0, 2).toUpperCase()}
                           </AvatarFallback>
@@ -545,9 +548,9 @@ export function ChallengeDraftBoard({
                           <div className="flex items-center gap-1.5">
                             <span 
                               className="w-2 h-2 rounded-full" 
-                              style={{ backgroundColor: colors.jersey }} 
+                              style={{ backgroundColor: colors.led }} 
                             />
-                            <span className="text-[10px] font-medium" style={{ color: colors.jersey }}>
+                            <span className="text-[10px] font-medium" style={{ color: colors.led }}>
                               {ASSET_TYPE_LABELS[player.assetType]}
                             </span>
                           </div>
@@ -564,9 +567,9 @@ export function ChallengeDraftBoard({
                         
                         {/* Today's Points (if available) */}
                         {todayPts > 0 && (
-                          <div className="text-right shrink-0 pl-2 border-l border-white/10">
+                          <div className="text-right shrink-0 pl-2 border-l border-[#4ade80]/20">
                             <div className="flex items-baseline gap-1">
-                              <p className="text-sm font-semibold text-[#cfff4d]">{todayPts.toFixed(1)}</p>
+                              <p className="text-sm font-semibold text-[#4ade80]">{todayPts.toFixed(1)}</p>
                             </div>
                             <p className="text-[9px] text-white/40">Today</p>
                           </div>

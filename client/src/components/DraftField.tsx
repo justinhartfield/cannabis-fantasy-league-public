@@ -6,6 +6,7 @@ import {
   POSITION_ASSET_MAP,
   type AssetType,
 } from "./DraftFieldPlayer";
+import { Leaf } from "lucide-react";
 
 interface DraftedPlayer {
   id: number;
@@ -36,18 +37,17 @@ interface DraftFieldProps {
 }
 
 /**
- * DraftField - Futuristic soccer field visualization for the challenge draft
+ * DraftField - Grow Room visualization for the cannabis fantasy draft
  * 
- * Displays a stylized dark pitch with 10 position slots arranged in a
- * 2-2-1-2-2-1 formation (strikers at top, FLEX in center, goalkeeper at bottom).
+ * Displays a stylized indoor grow room with 10 position slots arranged as grow stations.
+ * Each station has a pot, LED light indicator, and displays the drafted player's avatar.
  * 
- * Position mapping:
- * - ST1, ST2 (Strikers) → Manufacturers
- * - LW, RW (Wings) → Pharmacies
- * - CM1, CM2 (Midfield) → Products
- * - FLEX (Center) → Any type
- * - CB1, CB2 (Defense) → Strains
- * - GK (Goalkeeper) → Brand
+ * Layout (top to bottom):
+ * - Back wall: ST1, ST2 (Manufacturers) - tall plants at back
+ * - Side benches: LW, RW (Pharmacies)
+ * - Center row: CM1, FLEX, CM2 (Products + Flex)
+ * - Front row: CB1, CB2 (Strains)
+ * - Entrance: GK (Brand)
  */
 export function DraftField({
   teamName,
@@ -87,204 +87,272 @@ export function DraftField({
     onPositionClick?.(position);
   };
 
-  // Increased field height to accommodate larger player slots with more spacing
-  const fieldHeight = size === "lg" ? "h-[650px]" : size === "md" ? "h-[500px]" : "h-[420px]";
+  // Increased field height to accommodate grow stations with more spacing
+  const fieldHeight = size === "lg" ? "h-[680px]" : size === "md" ? "h-[540px]" : "h-[450px]";
   const playerSize = size === "lg" ? "lg" : size === "md" ? "md" : "sm";
 
   return (
     <div className={cn("flex flex-col", className)}>
-      {/* Team Header */}
+      {/* Team Header - Grow Room Style */}
       <div
         className={cn(
-          "flex items-center justify-between px-3 py-2 rounded-t-xl border-b backdrop-blur-sm",
+          "flex items-center justify-between px-4 py-3 rounded-t-xl border-b backdrop-blur-sm",
           isUserTeam
-            ? "bg-gradient-to-r from-[#cfff4d]/20 via-[#1a1d29] to-[#cfff4d]/10 border-[#cfff4d]/30"
-            : "bg-gradient-to-r from-[#ff6b6b]/20 via-[#1a1d29] to-[#ff6b6b]/10 border-[#ff6b6b]/30"
+            ? "bg-gradient-to-r from-[#1a4d1a]/40 via-[#0f1f0f] to-[#1a4d1a]/20 border-[#4ade80]/30"
+            : "bg-gradient-to-r from-[#4d1a1a]/40 via-[#1f0f0f] to-[#4d1a1a]/20 border-[#f87171]/30"
         )}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <div
             className={cn(
-              "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2",
+              "w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold border-2",
               isUserTeam
-                ? "bg-[#cfff4d]/20 border-[#cfff4d] text-[#cfff4d]"
-                : "bg-[#ff6b6b]/20 border-[#ff6b6b] text-[#ff6b6b]"
+                ? "bg-[#4ade80]/20 border-[#4ade80] text-[#4ade80]"
+                : "bg-[#f87171]/20 border-[#f87171] text-[#f87171]"
             )}
           >
-            {teamName.slice(0, 2).toUpperCase()}
+            <Leaf className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-xs font-semibold text-white">{teamName}</div>
+            <div className="text-sm font-semibold text-white">{teamName}</div>
             {userName && (
               <div className="text-[10px] text-white/50">@{userName}</div>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-white/50 uppercase tracking-wider">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-white/50 uppercase tracking-wider">
             {filledCount}/10
           </span>
           {isOnTheClock && (
-            <span className="px-1.5 py-0.5 rounded-full bg-[#cfff4d] text-black text-[9px] font-bold uppercase animate-pulse shadow-[0_0_15px_rgba(207,255,77,0.5)]">
-              Drafting
+            <span className="px-2 py-1 rounded-lg bg-[#4ade80] text-black text-[10px] font-bold uppercase animate-pulse shadow-[0_0_20px_rgba(74,222,128,0.5)]">
+              Cultivating
             </span>
           )}
         </div>
       </div>
 
-      {/* Futuristic Dark Field */}
+      {/* Grow Room Environment */}
       <div
         className={cn(
           "relative overflow-hidden rounded-b-xl",
           fieldHeight,
-          "bg-gradient-to-b from-[#0a0a0f] via-[#0f1015] to-[#0a0a0f]"
+          "bg-gradient-to-b from-[#0a0f0a] via-[#0d120d] to-[#080a08]"
         )}
       >
-        {/* Futuristic field markings - Taller field with 5 rows of players */}
+        {/* Grow Room SVG Background */}
         <svg
           className="absolute inset-0 w-full h-full"
           viewBox="0 0 200 400"
           preserveAspectRatio="none"
         >
-          {/* Grid pattern effect */}
+          {/* Definitions */}
           <defs>
-            <pattern id="grid-pattern" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
-              <rect x="0" y="0" width="20" height="20" fill="none" stroke="rgba(207,255,77,0.03)" strokeWidth="0.5" />
+            {/* Floor tile pattern */}
+            <pattern id="floor-grid" x="0" y="0" width="25" height="25" patternUnits="userSpaceOnUse">
+              <rect x="0" y="0" width="25" height="25" fill="none" stroke="rgba(74,222,128,0.04)" strokeWidth="0.5" />
             </pattern>
-            <linearGradient id="field-glow" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="rgba(207,255,77,0.1)" />
-              <stop offset="50%" stopColor="rgba(207,255,77,0.02)" />
-              <stop offset="100%" stopColor="rgba(207,255,77,0.1)" />
+            
+            {/* LED panel glow gradient */}
+            <linearGradient id="led-panel-glow" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="rgba(74,222,128,0.2)" />
+              <stop offset="30%" stopColor="rgba(74,222,128,0.05)" />
+              <stop offset="100%" stopColor="transparent" />
             </linearGradient>
-            <radialGradient id="center-glow" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="rgba(207,255,77,0.15)" />
+            
+            {/* Fog/humidity effect */}
+            <radialGradient id="fog-effect" cx="50%" cy="50%" r="60%">
+              <stop offset="0%" stopColor="rgba(74,222,128,0.08)" />
               <stop offset="100%" stopColor="transparent" />
             </radialGradient>
+            
+            {/* Wall gradient */}
+            <linearGradient id="wall-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="rgba(30,40,30,0.8)" />
+              <stop offset="100%" stopColor="rgba(15,20,15,0.4)" />
+            </linearGradient>
           </defs>
 
-          {/* Background grid */}
-          <rect x="0" y="0" width="200" height="400" fill="url(#grid-pattern)" />
+          {/* Floor grid pattern */}
+          <rect x="0" y="0" width="200" height="400" fill="url(#floor-grid)" />
 
-          {/* Field border with glow */}
+          {/* Room walls - outer border */}
           <rect
-            x="10"
-            y="10"
-            width="180"
-            height="380"
+            x="8"
+            y="8"
+            width="184"
+            height="384"
             fill="none"
-            stroke="rgba(207,255,77,0.2)"
-            strokeWidth="1.5"
+            stroke="rgba(74,222,128,0.15)"
+            strokeWidth="2"
             rx="4"
           />
 
-          {/* Center line */}
-          <line
-            x1="10"
-            y1="200"
-            x2="190"
-            y2="200"
-            stroke="rgba(207,255,77,0.15)"
-            strokeWidth="1"
+          {/* LED Panel Bar at top (back wall) */}
+          <rect
+            x="20"
+            y="15"
+            width="160"
+            height="8"
+            fill="rgba(74,222,128,0.3)"
+            rx="2"
+          />
+          <rect
+            x="20"
+            y="15"
+            width="160"
+            height="8"
+            fill="url(#led-panel-glow)"
+            rx="2"
+          />
+          
+          {/* LED panel glow effect */}
+          <rect
+            x="10"
+            y="15"
+            width="180"
+            height="80"
+            fill="url(#led-panel-glow)"
           />
 
-          {/* Center circle with glow */}
+          {/* Grow benches/tables - left side */}
+          <rect
+            x="12"
+            y="100"
+            width="35"
+            height="120"
+            fill="none"
+            stroke="rgba(74,222,128,0.08)"
+            strokeWidth="1"
+            rx="2"
+          />
+          
+          {/* Grow benches/tables - right side */}
+          <rect
+            x="153"
+            y="100"
+            width="35"
+            height="120"
+            fill="none"
+            stroke="rgba(74,222,128,0.08)"
+            strokeWidth="1"
+            rx="2"
+          />
+
+          {/* Center grow area */}
+          <rect
+            x="45"
+            y="160"
+            width="110"
+            height="100"
+            fill="none"
+            stroke="rgba(74,222,128,0.06)"
+            strokeWidth="1"
+            rx="3"
+          />
+
+          {/* Ventilation duct outlines at top */}
+          <rect
+            x="30"
+            y="28"
+            width="40"
+            height="6"
+            fill="rgba(40,50,40,0.5)"
+            rx="1"
+          />
+          <rect
+            x="130"
+            y="28"
+            width="40"
+            height="6"
+            fill="rgba(40,50,40,0.5)"
+            rx="1"
+          />
+
+          {/* Floor drain/circle in center */}
           <circle
             cx="100"
+            cy="210"
+            r="25"
+            fill="none"
+            stroke="rgba(74,222,128,0.06)"
+            strokeWidth="1"
+          />
+
+          {/* Door/entrance at bottom */}
+          <rect
+            x="70"
+            y="370"
+            width="60"
+            height="22"
+            fill="rgba(20,30,20,0.6)"
+            stroke="rgba(74,222,128,0.12)"
+            strokeWidth="1"
+            rx="2"
+          />
+          <line
+            x1="100"
+            y1="375"
+            x2="100"
+            y2="387"
+            stroke="rgba(74,222,128,0.2)"
+            strokeWidth="2"
+            strokeLinecap="round"
+          />
+          
+          {/* Fog/humidity overlay */}
+          <ellipse
+            cx="100"
             cy="200"
-            r="40"
-            fill="url(#center-glow)"
-            stroke="rgba(207,255,77,0.2)"
-            strokeWidth="1"
+            rx="90"
+            ry="150"
+            fill="url(#fog-effect)"
           />
-
-          {/* Center dot */}
-          <circle cx="100" cy="200" r="4" fill="rgba(207,255,77,0.4)" />
-
-          {/* Top penalty area */}
-          <rect
-            x="35"
-            y="10"
-            width="130"
-            height="65"
-            fill="none"
-            stroke="rgba(207,255,77,0.12)"
-            strokeWidth="1"
-            rx="2"
+          
+          {/* Reflective floor highlights */}
+          <ellipse
+            cx="50"
+            cy="300"
+            rx="30"
+            ry="40"
+            fill="rgba(74,222,128,0.02)"
           />
-
-          {/* Top goal area */}
-          <rect
-            x="55"
-            y="10"
-            width="90"
-            height="30"
-            fill="none"
-            stroke="rgba(207,255,77,0.12)"
-            strokeWidth="1"
-            rx="2"
+          <ellipse
+            cx="150"
+            cy="300"
+            rx="30"
+            ry="40"
+            fill="rgba(74,222,128,0.02)"
           />
-
-          {/* Bottom penalty area */}
-          <rect
-            x="35"
-            y="325"
-            width="130"
-            height="65"
-            fill="none"
-            stroke="rgba(207,255,77,0.12)"
-            strokeWidth="1"
-            rx="2"
-          />
-
-          {/* Bottom goal area */}
-          <rect
-            x="55"
-            y="360"
-            width="90"
-            height="30"
-            fill="none"
-            stroke="rgba(207,255,77,0.12)"
-            strokeWidth="1"
-            rx="2"
-          />
-
-          {/* Penalty arcs */}
-          <path
-            d="M 50 75 Q 100 100 150 75"
-            fill="none"
-            stroke="rgba(207,255,77,0.12)"
-            strokeWidth="1"
-          />
-          <path
-            d="M 50 325 Q 100 300 150 325"
-            fill="none"
-            stroke="rgba(207,255,77,0.12)"
-            strokeWidth="1"
-          />
-
-          {/* Corner arcs */}
-          <path d="M 10 25 Q 25 10 40 10" fill="none" stroke="rgba(207,255,77,0.1)" strokeWidth="1" />
-          <path d="M 160 10 Q 175 10 190 25" fill="none" stroke="rgba(207,255,77,0.1)" strokeWidth="1" />
-          <path d="M 10 375 Q 25 390 40 390" fill="none" stroke="rgba(207,255,77,0.1)" strokeWidth="1" />
-          <path d="M 160 390 Q 175 390 190 375" fill="none" stroke="rgba(207,255,77,0.1)" strokeWidth="1" />
         </svg>
 
         {/* Ambient glow effects */}
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-20 bg-[#cfff4d]/5 blur-3xl" />
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-40 h-20 bg-[#cfff4d]/5 blur-3xl" />
+          {/* Top LED glow */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-24 bg-gradient-to-b from-[#4ade80]/10 to-transparent blur-2xl" />
+          
+          {/* Side ambient glows */}
+          <div className="absolute top-1/4 left-0 w-16 h-32 bg-[#4ade80]/5 blur-3xl" />
+          <div className="absolute top-1/4 right-0 w-16 h-32 bg-[#4ade80]/5 blur-3xl" />
+          
+          {/* Animated humidity particles effect */}
+          <div className="absolute inset-0 opacity-30">
+            <div className="absolute top-1/3 left-1/4 w-1 h-1 bg-[#4ade80]/40 rounded-full animate-[float_8s_ease-in-out_infinite]" />
+            <div className="absolute top-1/2 left-1/3 w-0.5 h-0.5 bg-[#4ade80]/30 rounded-full animate-[float_6s_ease-in-out_infinite_1s]" />
+            <div className="absolute top-2/3 right-1/4 w-1 h-1 bg-[#4ade80]/40 rounded-full animate-[float_7s_ease-in-out_infinite_2s]" />
+            <div className="absolute top-1/4 right-1/3 w-0.5 h-0.5 bg-[#4ade80]/30 rounded-full animate-[float_9s_ease-in-out_infinite_0.5s]" />
+          </div>
         </div>
 
-        {/* Position slots - Arranged in formation with FLEX in center */}
-        {/* Increased padding and gap values to prevent text overlap */}
+        {/* Position slots - Arranged in grow room formation */}
         <div className={cn(
           "absolute inset-0 flex flex-col items-center justify-between px-4",
-          size === "lg" ? "py-6" : "py-4"
+          size === "lg" ? "py-8" : "py-6"
         )}>
-          {/* Strikers Row (Manufacturers) */}
+          {/* Back Row - Manufacturers (tall plants at back of room) */}
           <div className={cn(
             "flex items-center justify-center",
-            size === "lg" ? "gap-24" : "gap-16"
+            size === "lg" ? "gap-28" : "gap-20"
           )}>
             <DraftFieldPlayer
               position="ST1"
@@ -304,10 +372,10 @@ export function DraftField({
             />
           </div>
 
-          {/* Wings Row (Pharmacies) - wider spread */}
+          {/* Side Benches Row - Pharmacies (wider spread on side tables) */}
           <div className={cn(
             "flex items-center justify-between w-full",
-            size === "lg" ? "max-w-[480px]" : "max-w-[320px]"
+            size === "lg" ? "max-w-[520px]" : "max-w-[360px]"
           )}>
             <DraftFieldPlayer
               position="LW"
@@ -327,10 +395,10 @@ export function DraftField({
             />
           </div>
 
-          {/* Midfield Row (Products) with FLEX in center */}
+          {/* Center Row - Products with FLEX in center */}
           <div className={cn(
             "flex items-center justify-center",
-            size === "lg" ? "gap-12" : "gap-8"
+            size === "lg" ? "gap-14" : "gap-10"
           )}>
             <DraftFieldPlayer
               position="CM1"
@@ -358,10 +426,10 @@ export function DraftField({
             />
           </div>
 
-          {/* Defense Row (Strains) */}
+          {/* Front Row - Strains */}
           <div className={cn(
             "flex items-center justify-center",
-            size === "lg" ? "gap-28" : "gap-20"
+            size === "lg" ? "gap-32" : "gap-24"
           )}>
             <DraftFieldPlayer
               position="CB1"
@@ -381,7 +449,7 @@ export function DraftField({
             />
           </div>
 
-          {/* Goalkeeper Row (Brand) */}
+          {/* Entrance Row - Brand (at the door) */}
           <div className="flex items-center justify-center">
             <DraftFieldPlayer
               position="GK"
@@ -394,11 +462,33 @@ export function DraftField({
           </div>
         </div>
 
-        {/* Decorative corner markers */}
-        <div className="absolute top-3 left-3 w-3 h-3 border-l-2 border-t-2 border-[#cfff4d]/30 rounded-tl" />
-        <div className="absolute top-3 right-3 w-3 h-3 border-r-2 border-t-2 border-[#cfff4d]/30 rounded-tr" />
-        <div className="absolute bottom-3 left-3 w-3 h-3 border-l-2 border-b-2 border-[#cfff4d]/30 rounded-bl" />
-        <div className="absolute bottom-3 right-3 w-3 h-3 border-r-2 border-b-2 border-[#cfff4d]/30 rounded-br" />
+        {/* Decorative corner brackets */}
+        <div className="absolute top-3 left-3 w-4 h-4 border-l-2 border-t-2 border-[#4ade80]/25 rounded-tl" />
+        <div className="absolute top-3 right-3 w-4 h-4 border-r-2 border-t-2 border-[#4ade80]/25 rounded-tr" />
+        <div className="absolute bottom-3 left-3 w-4 h-4 border-l-2 border-b-2 border-[#4ade80]/25 rounded-bl" />
+        <div className="absolute bottom-3 right-3 w-4 h-4 border-r-2 border-b-2 border-[#4ade80]/25 rounded-br" />
+        
+        {/* CSS for floating animation */}
+        <style>{`
+          @keyframes float {
+            0%, 100% { 
+              transform: translateY(0) translateX(0); 
+              opacity: 0.3;
+            }
+            25% { 
+              transform: translateY(-10px) translateX(5px); 
+              opacity: 0.5;
+            }
+            50% { 
+              transform: translateY(-5px) translateX(-5px); 
+              opacity: 0.4;
+            }
+            75% { 
+              transform: translateY(-15px) translateX(3px); 
+              opacity: 0.5;
+            }
+          }
+        `}</style>
       </div>
     </div>
   );
@@ -466,4 +556,3 @@ export function rosterToFieldPlayers(
 
   return result;
 }
-
