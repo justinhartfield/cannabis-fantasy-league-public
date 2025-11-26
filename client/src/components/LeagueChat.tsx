@@ -101,7 +101,7 @@ export function LeagueChat({ leagueId, className, variant = "default" }: LeagueC
 
   return (
     <div className={cn(
-      "flex flex-col h-[520px] overflow-hidden",
+      "flex flex-col h-[260px] overflow-hidden",
       isDark 
         ? "bg-transparent" 
         : "border rounded-lg bg-background shadow-sm",
