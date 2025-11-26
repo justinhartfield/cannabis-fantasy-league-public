@@ -30,7 +30,7 @@ interface DraftFieldProps {
   /** Callback when a position is clicked */
   onPositionClick?: (position: DraftPosition) => void;
   /** Size variant */
-  size?: "sm" | "md";
+  size?: "sm" | "md" | "lg";
   /** Optional className */
   className?: string;
 }
@@ -88,8 +88,8 @@ export function DraftField({
   };
 
   // Increased field height to accommodate larger player slots with more spacing
-  const fieldHeight = size === "sm" ? "h-[420px]" : "h-[500px]";
-  const playerSize = size === "sm" ? "sm" : "md";
+  const fieldHeight = size === "lg" ? "h-[650px]" : size === "md" ? "h-[500px]" : "h-[420px]";
+  const playerSize = size === "lg" ? "lg" : size === "md" ? "md" : "sm";
 
   return (
     <div className={cn("flex flex-col", className)}>
@@ -277,9 +277,15 @@ export function DraftField({
 
         {/* Position slots - Arranged in formation with FLEX in center */}
         {/* Increased padding and gap values to prevent text overlap */}
-        <div className="absolute inset-0 flex flex-col items-center justify-between py-4 px-4">
+        <div className={cn(
+          "absolute inset-0 flex flex-col items-center justify-between px-4",
+          size === "lg" ? "py-6" : "py-4"
+        )}>
           {/* Strikers Row (Manufacturers) */}
-          <div className="flex items-center justify-center gap-16">
+          <div className={cn(
+            "flex items-center justify-center",
+            size === "lg" ? "gap-24" : "gap-16"
+          )}>
             <DraftFieldPlayer
               position="ST1"
               player={getPlayer("ST1")}
@@ -299,7 +305,10 @@ export function DraftField({
           </div>
 
           {/* Wings Row (Pharmacies) - wider spread */}
-          <div className="flex items-center justify-between w-full max-w-[320px]">
+          <div className={cn(
+            "flex items-center justify-between w-full",
+            size === "lg" ? "max-w-[480px]" : "max-w-[320px]"
+          )}>
             <DraftFieldPlayer
               position="LW"
               player={getPlayer("LW")}
@@ -319,7 +328,10 @@ export function DraftField({
           </div>
 
           {/* Midfield Row (Products) with FLEX in center */}
-          <div className="flex items-center justify-center gap-8">
+          <div className={cn(
+            "flex items-center justify-center",
+            size === "lg" ? "gap-12" : "gap-8"
+          )}>
             <DraftFieldPlayer
               position="CM1"
               player={getPlayer("CM1")}
@@ -347,7 +359,10 @@ export function DraftField({
           </div>
 
           {/* Defense Row (Strains) */}
-          <div className="flex items-center justify-center gap-20">
+          <div className={cn(
+            "flex items-center justify-center",
+            size === "lg" ? "gap-28" : "gap-20"
+          )}>
             <DraftFieldPlayer
               position="CB1"
               player={getPlayer("CB1")}

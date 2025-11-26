@@ -267,20 +267,6 @@ export function DraftFieldPlayer({
             strokeWidth="2"
           />
 
-          {/* Jersey position code watermark */}
-          {!player && (
-            <text
-              x="30"
-              y="48"
-              textAnchor="middle"
-              fontSize="12"
-              fontWeight="bold"
-              fill="rgba(255,255,255,0.15)"
-            >
-              {positionCode}
-            </text>
-          )}
-
           {/* Player avatar embedded in jersey - always show for drafted players */}
           {player && (
             <>
@@ -320,13 +306,13 @@ export function DraftFieldPlayer({
             </>
           )}
 
-          {/* Position code badge when empty */}
+          {/* Position code badge when empty - centered in jersey */}
           {!player && (
             <text
               x="30"
-              y="28"
+              y="38"
               textAnchor="middle"
-              fontSize="10"
+              fontSize="14"
               fontWeight="bold"
               fill={colors.jersey}
             >
@@ -337,18 +323,32 @@ export function DraftFieldPlayer({
       </div>
 
       {/* Player name or role label */}
-      <div className="text-center max-w-[88px]">
+      <div className={cn(
+        "text-center",
+        size === "lg" ? "max-w-[120px]" : "max-w-[88px]"
+      )}>
         {player ? (
           <>
-            <div className="text-[11px] font-semibold text-white truncate leading-tight drop-shadow-sm">
+            <div className={cn(
+              "font-semibold text-white truncate leading-tight drop-shadow-sm",
+              size === "lg" ? "text-sm" : "text-[11px]"
+            )}>
               {player.name}
             </div>
-            <div className={cn("text-[9px] uppercase tracking-wide", colors.text)}>
+            <div className={cn(
+              "uppercase tracking-wide",
+              size === "lg" ? "text-[11px]" : "text-[9px]",
+              colors.text
+            )}>
               {roleLabel}
             </div>
           </>
         ) : (
-          <div className={cn("text-[10px] uppercase tracking-wide opacity-70", colors.text)}>
+          <div className={cn(
+            "uppercase tracking-wide opacity-70",
+            size === "lg" ? "text-[11px]" : "text-[10px]",
+            colors.text
+          )}>
             {roleLabel}
           </div>
         )}

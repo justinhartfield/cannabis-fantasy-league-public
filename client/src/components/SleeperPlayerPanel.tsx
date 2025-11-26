@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { Search, ChevronUp, ChevronDown, Plus, X, ArrowUpDown, Building2, Leaf, Package } from "lucide-react";
+import { Search, ChevronUp, ChevronDown, Plus, X, ArrowUpDown, Building2, Leaf, Package, Award } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -507,7 +507,7 @@ export function SleeperPlayerPanel({
                         case "pharmacy":
                           return <Building2 className="w-5 h-5 text-green-400" />;
                         case "brand":
-                          return <Building2 className="w-5 h-5 text-yellow-400" />;
+                          return <Award className="w-5 h-5 text-yellow-400" />;
                         default:
                           return <Building2 className="w-5 h-5 text-gray-400" />;
                       }

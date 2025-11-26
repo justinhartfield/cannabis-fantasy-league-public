@@ -19,7 +19,7 @@ import {
   ASSET_TYPE_LABELS,
   type AssetType,
 } from "./DraftFieldPlayer";
-import { Search, Users, Building2, Leaf, Package, Tag, TrendingUp, SortAsc, Zap, Info, ChevronUp, ChevronDown } from "lucide-react";
+import { Search, Building2, Leaf, Package, Tag, TrendingUp, SortAsc, Zap, Info, ChevronUp, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 
 interface RosterItem {
@@ -118,13 +118,8 @@ const POSITION_MAX_WITH_FLEX: Record<AssetType, number> = {
  * - 3 panels across: My Team, Available Players, Recent Picks
  */
 export function ChallengeDraftBoard({
-  leagueId,
   myTeam,
-  opponentTeam,
   myRoster,
-  opponentRoster,
-  currentPickNumber,
-  currentTurnTeamId,
   isMyTurn,
   manufacturers,
   cannabisStrains,
@@ -147,10 +142,6 @@ export function ChallengeDraftBoard({
 
   // Convert rosters to field player maps
   const myFieldPlayers = useMemo(() => rosterToFieldPlayers(myRoster), [myRoster]);
-  const opponentFieldPlayers = useMemo(() => rosterToFieldPlayers(opponentRoster), [opponentRoster]);
-
-  // Check if it's opponent's turn
-  const isOpponentTurn = opponentTeam && currentTurnTeamId === opponentTeam.id;
 
   // Calculate roster counts
   const rosterCounts = useMemo(() => ({
@@ -194,8 +185,6 @@ export function ChallengeDraftBoard({
 
   const myActivePosition = isMyTurn ? getNextPositionToDraft(myRoster) : null;
   const myActiveDraftIndex = myActivePosition ? CHALLENGE_DRAFT_ORDER.indexOf(myActivePosition) : -1;
-  const opponentActivePosition = isOpponentTurn ? getNextPositionToDraft(opponentRoster) : null;
-  const opponentActiveDraftIndex = opponentActivePosition ? CHALLENGE_DRAFT_ORDER.indexOf(opponentActivePosition) : -1;
 
   // Total roster count
   const totalRoster = useMemo(() => 
@@ -362,10 +351,10 @@ export function ChallengeDraftBoard({
         </div>
       </div>
 
-      {/* Fields Container - Side by Side on Desktop, Single on Mobile */}
+      {/* Fields Container - Single expanded field for user's team */}
       <div className="p-4 pb-2">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-w-5xl mx-auto">
-          {/* My Field - Always visible */}
+        <div className="max-w-2xl mx-auto">
+          {/* My Field - Expanded to show off thumbnails and text */}
           <DraftField
             teamName={myTeam.name}
             userName={myTeam.userName}
@@ -373,36 +362,9 @@ export function ChallengeDraftBoard({
             currentDraftIndex={myActiveDraftIndex}
             isUserTeam={true}
             isOnTheClock={isMyTurn}
-            size="sm"
-            className="shadow-[0_10px_30px_rgba(207,255,77,0.06)]"
+            size="lg"
+            className="shadow-[0_10px_40px_rgba(207,255,77,0.08)]"
           />
-
-          {/* Opponent Field - Hidden on mobile, visible on lg+ */}
-          <div className="hidden lg:block">
-            {opponentTeam ? (
-              <DraftField
-                teamName={opponentTeam.name}
-                userName={opponentTeam.userName}
-                players={opponentFieldPlayers}
-                currentDraftIndex={opponentActiveDraftIndex}
-                isUserTeam={false}
-                isOnTheClock={isOpponentTurn}
-                size="sm"
-                className="shadow-[0_10px_30px_rgba(255,107,107,0.06)]"
-              />
-            ) : (
-              <div className="flex flex-col rounded-xl bg-[#0f1015] border border-dashed border-white/10 h-full">
-                <div className="flex items-center justify-center h-full min-h-[340px]">
-                  <div className="text-center space-y-2 p-6">
-                    <div className="w-12 h-12 mx-auto rounded-full bg-white/5 flex items-center justify-center border border-white/10">
-                      <Users className="w-6 h-6 text-white/30" />
-                    </div>
-                    <p className="text-xs text-white/40">Waiting for opponent...</p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
         </div>
       </div>
 
