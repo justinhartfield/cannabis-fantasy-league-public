@@ -9,12 +9,10 @@ import { LiveIndicator } from "@/components/LiveIndicator";
 import ScoringBreakdownV2 from "@/components/ScoringBreakdownV2";
 import { CoinFlip } from "@/components/CoinFlip";
 import { BattleArena } from "@/components/BattleArena";
-import { BattleFieldView, lineupToFieldPlayersWithScores } from "@/components/BattleFieldView";
 import { LeagueChat } from "@/components/LeagueChat";
 import { ChallengeInviteLanding } from "@/components/ChallengeInviteLanding";
 import type { ScoringPlayData } from "@/components/ScoringPlayOverlay";
 import { ScoringPlayAnnouncement } from "@/components/ScoringPlayAnnouncement";
-import type { DraftPosition } from "@/components/DraftFieldPlayer";
 
 import {
   Loader2,
@@ -175,40 +173,6 @@ export default function DailyChallenge() {
     }
   );
 
-  // Get team IDs for field view mode from league teams
-  const fieldViewTeamIds = useMemo(() => {
-    if (!league?.teams || league.teams.length < 2) return { team1Id: 0, team2Id: 0 };
-    return {
-      team1Id: league.teams[0]?.id ?? 0,
-      team2Id: league.teams[1]?.id ?? 0,
-    };
-  }, [league?.teams]);
-
-  const {
-    data: team1Lineup,
-  } = trpc.lineup.getWeeklyLineup.useQuery(
-    {
-      teamId: fieldViewTeamIds.team1Id,
-      year: currentYear,
-      week: currentWeek,
-    },
-    {
-      enabled: fieldViewTeamIds.team1Id > 0,
-    }
-  );
-
-  const {
-    data: team2Lineup,
-  } = trpc.lineup.getWeeklyLineup.useQuery(
-    {
-      teamId: fieldViewTeamIds.team2Id,
-      year: currentYear,
-      week: currentWeek,
-    },
-    {
-      enabled: fieldViewTeamIds.team2Id > 0,
-    }
-  );
 
   const calculateChallengeDayMutation = trpc.scoring.calculateChallengeDay.useMutation({
     onSuccess: async () => {
@@ -762,50 +726,6 @@ export default function DailyChallenge() {
     [teamLineup]
   );
 
-  // Convert lineups to field players with scores for field view mode
-  const leaderFieldPlayers = useMemo(() => {
-    if (!leader) return {};
-    // Determine which lineup data corresponds to the leader
-    const leaderLineup = leader.teamId === fieldViewTeamIds.team1Id ? team1Lineup : team2Lineup;
-    if (!leaderLineup) return {};
-    
-    const lineupArray = normalizeLineup(leaderLineup);
-    // Get scores from breakdown data if available
-    const leaderBreakdowns = leader.teamId === selectedTeamId ? breakdown?.breakdowns : null;
-    
-    return lineupToFieldPlayersWithScores(
-      lineupArray.map((slot: any) => ({
-        assetType: slot.assetType || 'cannabis_strain',
-        assetId: slot.assetId || 0,
-        name: slot.assetName || 'Unknown',
-        imageUrl: slot.imageUrl || null,
-        points: leaderBreakdowns?.find((b: any) => b.assetId === slot.assetId)?.breakdown?.total ?? slot.points ?? null,
-        totalPoints: slot.totalPoints,
-      }))
-    );
-  }, [leader, team1Lineup, team2Lineup, fieldViewTeamIds, breakdown, selectedTeamId]);
-
-  const challengerFieldPlayers = useMemo(() => {
-    if (!challenger) return {};
-    // Determine which lineup data corresponds to the challenger
-    const challengerLineup = challenger.teamId === fieldViewTeamIds.team1Id ? team1Lineup : team2Lineup;
-    if (!challengerLineup) return {};
-    
-    const lineupArray = normalizeLineup(challengerLineup);
-    // Get scores from breakdown data if available
-    const challengerBreakdowns = challenger.teamId === selectedTeamId ? breakdown?.breakdowns : null;
-    
-    return lineupToFieldPlayersWithScores(
-      lineupArray.map((slot: any) => ({
-        assetType: slot.assetType || 'cannabis_strain',
-        assetId: slot.assetId || 0,
-        name: slot.assetName || 'Unknown',
-        imageUrl: slot.imageUrl || null,
-        points: challengerBreakdowns?.find((b: any) => b.assetId === slot.assetId)?.breakdown?.total ?? slot.points ?? null,
-        totalPoints: slot.totalPoints,
-      }))
-    );
-  }, [challenger, team1Lineup, team2Lineup, fieldViewTeamIds, breakdown, selectedTeamId]);
 
   if (
     !challengeId ||
@@ -905,28 +825,6 @@ export default function DailyChallenge() {
           scoringPlay={currentScoringPlay}
         />
 
-        {/* Battle Field View - Soccer jersey lineup visualization (not clickable) */}
-        <BattleFieldView
-          leftTeam={leader ? {
-            teamId: leader.teamId,
-            teamName: leader.teamName,
-            userName: leader.userName,
-            userAvatarUrl: leader.userAvatarUrl,
-            points: leader.points,
-            players: leaderFieldPlayers,
-          } : null}
-          rightTeam={challenger ? {
-            teamId: challenger.teamId,
-            teamName: challenger.teamName,
-            userName: challenger.userName,
-            userAvatarUrl: challenger.userAvatarUrl,
-            points: challenger.points,
-            players: challengerFieldPlayers,
-          } : null}
-          isLive={isLive}
-          challengeDate={challengeDateLabel}
-          userTeamId={userTeam?.id}
-        />
 
         {/* Invite Block (when waiting for opponent) */}
         {!challenger && league?.leagueCode && (
