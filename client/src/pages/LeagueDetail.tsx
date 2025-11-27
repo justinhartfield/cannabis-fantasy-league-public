@@ -92,6 +92,15 @@ export default function LeagueDetail() {
     }
   }, [league, userTeam]);
 
+  // Debug logging
+  console.log("[LeagueDetail] State:", {
+    publicInfoLoading,
+    authLoading,
+    publicChallengeInfo: !!publicChallengeInfo,
+    isAuthenticated,
+    leagueId,
+  });
+
   // Show loading while checking public info and auth
   if (publicInfoLoading || authLoading) {
     return (
@@ -103,11 +112,13 @@ export default function LeagueDetail() {
 
   // If this is a challenge and user is NOT authenticated, show the landing page
   if (publicChallengeInfo && !isAuthenticated) {
+    console.log("[LeagueDetail] Showing ChallengeInviteLanding");
     return <ChallengeInviteLanding challengeId={leagueId} />;
   }
 
   // For regular leagues (non-challenges), redirect to login if not authenticated
   if (!isAuthenticated && !publicChallengeInfo) {
+    console.log("[LeagueDetail] Redirecting to login - not authenticated and no publicChallengeInfo");
     const loginUrl = getLoginUrl(); 
     if (loginUrl) window.location.href = loginUrl; 
     else window.location.href = "/login";

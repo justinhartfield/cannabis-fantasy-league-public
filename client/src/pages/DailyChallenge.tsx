@@ -693,38 +693,57 @@ export default function DailyChallenge() {
           onDoubleClick={handleManualSync}
           title="Double-click to sync scores"
         >
-          <div className="flex items-start justify-between gap-4">
-            {/* Left: Status */}
-            <div className="flex items-center gap-3">
-              {isLive ? <LiveIndicator size="sm" /> : <Badge variant="outline">Final</Badge>}
-              {(league?.status === 'active' || league?.status === 'draft') && (
-                <span className="text-xs text-white/60">
-                  {isConnected ? "Live" : "Connecting..."}
-                  {lastUpdateTime && ` • ${lastUpdateTime.toLocaleTimeString()}`}
-                  {syncScoresMutation.isPending && " • Syncing..."}
-                </span>
+          <div className="flex flex-col gap-3">
+            {/* Top Row: Status */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {isLive ? <LiveIndicator size="sm" /> : <Badge variant="outline">Final</Badge>}
+                {(league?.status === 'active' || league?.status === 'draft') && (
+                  <span className="text-xs text-white/60">
+                    {isConnected ? "" : "Connecting..."}
+                    {lastUpdateTime && lastUpdateTime.toLocaleTimeString()}
+                    {syncScoresMutation.isPending && " • Syncing..."}
+                  </span>
+                )}
+              </div>
+
+              {/* Demo Button (dev only) */}
+              {leader && challenger && !recentPlays.length && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-2xl border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10"
+                  onClick={triggerDemoPlays}
+                  disabled={!!currentScoringPlay}
+                >
+                  <Zap className="w-4 h-4 mr-2" />
+                  Demo
+                </Button>
               )}
             </div>
 
-            {/* Right: Recent Plays Feed */}
+            {/* Recent Plays Feed - Left aligned with full width */}
             {recentPlays.length > 0 && (
-              <div className="flex flex-col gap-1.5 items-end">
-                <span className="text-[10px] uppercase tracking-wider text-white/40 mb-0.5">Recent Updates</span>
+              <div className="flex flex-col gap-2 border-t border-white/10 pt-3">
+                <span className="text-[10px] uppercase tracking-wider text-white/40">Recent Scoring Plays</span>
                 {recentPlays.map((play, i) => (
                   <div 
                     key={`${play.playerName}-${play.pointsScored}-${i}`} 
                     className={cn(
-                      "flex items-center gap-2 text-xs transition-opacity",
-                      i === 0 ? "opacity-100" : i === 1 ? "opacity-70" : "opacity-40"
+                      "flex items-center gap-3 text-sm transition-opacity",
+                      i === 0 ? "opacity-100" : i === 1 ? "opacity-70" : "opacity-50"
                     )}
                   >
-                    <span className="text-white/40 text-[10px] tabular-nums">
+                    <span className="text-white/40 text-xs tabular-nums min-w-[60px]">
                       {play.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
-                    <span className="text-white/80 truncate max-w-[100px]">{play.playerName}</span>
+                    <span className="text-white font-medium flex-1">{play.playerName}</span>
+                    <span className="text-white/50 text-xs hidden sm:inline">
+                      for {play.attackingTeamName}
+                    </span>
                     <Badge 
                       className={cn(
-                        "text-[10px] font-semibold px-1.5 py-0",
+                        "text-xs font-bold px-2 py-0.5",
                         play.pointsScored >= 10 
                           ? "bg-primary/30 text-primary border border-primary/50" 
                           : "bg-white/10 text-white/70 border border-white/20"
@@ -735,20 +754,6 @@ export default function DailyChallenge() {
                   </div>
                 ))}
               </div>
-            )}
-
-            {/* Demo Button (dev only) */}
-            {leader && challenger && !recentPlays.length && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-2xl border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10"
-                onClick={triggerDemoPlays}
-                disabled={!!currentScoringPlay}
-              >
-                <Zap className="w-4 h-4 mr-2" />
-                Demo
-              </Button>
             )}
           </div>
         </div>

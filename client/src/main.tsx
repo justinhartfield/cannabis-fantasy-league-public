@@ -29,6 +29,14 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
 
   if (!isUnauthorized) return;
 
+  // Don't redirect on challenge/league pages - they have public landing pages
+  const path = window.location.pathname;
+  if (path.startsWith("/league/") || path.startsWith("/challenge/")) {
+    console.log("[Auth] Skipping redirect on challenge/league page:", path);
+    return;
+  }
+
+  console.log("[Auth] Redirecting to login from path:", path, "Error:", error.message);
   const loginUrl = getLoginUrl();
   if (loginUrl) {
     window.location.href = loginUrl;
