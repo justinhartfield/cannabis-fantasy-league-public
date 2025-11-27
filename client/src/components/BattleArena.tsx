@@ -8,7 +8,7 @@ import { DamageFlash } from "@/components/DamageFlash";
 import { ScoringPlayOverlay, ScoringPlayData } from "@/components/ScoringPlayOverlay";
 import { BattleHealthBar } from "@/components/BattleHealthBar";
 import { ComboCounter } from "@/components/ComboCounter";
-import { Swords, Sparkles, Edit3 } from "lucide-react";
+import { Swords, Sparkles, Edit3, Star } from "lucide-react";
 
 interface TeamData {
   teamId: number;
@@ -59,10 +59,17 @@ export function BattleArena({
   const [activeScoringPlay, setActiveScoringPlay] = useState<ScoringPlayData | null>(null);
   const [damageFlashSide, setDamageFlashSide] = useState<"left" | "right" | null>(null);
   const [damageData, setDamageData] = useState<{ damage: number; playerName: string; playerType: string } | null>(null);
+  
+  // Enhanced fighter states for epic animations
   const [leftFighterHit, setLeftFighterHit] = useState(false);
   const [rightFighterHit, setRightFighterHit] = useState(false);
   const [leftFighterAttacking, setLeftFighterAttacking] = useState(false);
   const [rightFighterAttacking, setRightFighterAttacking] = useState(false);
+  const [leftFighterDamaged, setLeftFighterDamaged] = useState(false);
+  const [rightFighterDamaged, setRightFighterDamaged] = useState(false);
+  const [leftFighterStunned, setLeftFighterStunned] = useState(false);
+  const [rightFighterStunned, setRightFighterStunned] = useState(false);
+  const [lastHitDamage, setLastHitDamage] = useState(0);
   
   // Combo tracking
   const [comboCount, setComboCount] = useState(0);
@@ -86,12 +93,17 @@ export function BattleArena({
     }
   }, [rightTeam?.points]);
 
-  // Handle incoming scoring play
+  // Handle incoming scoring play - EXTENDED TIMINGS FOR EPIC EFFECT
   useEffect(() => {
     if (!scoringPlay) return;
 
     const attackerIsLeft = scoringPlay.attackingTeamId === leftTeam?.teamId;
     const defenderSide = attackerIsLeft ? "right" : "left";
+    const isBigHit = scoringPlay.pointsScored >= 10;
+    const isCriticalHit = scoringPlay.pointsScored >= 20;
+
+    // Store damage for animation intensity
+    setLastHitDamage(scoringPlay.pointsScored);
 
     // Update combo counter
     if (lastAttackerRef.current === scoringPlay.attackingTeamId) {
@@ -114,19 +126,19 @@ export function BattleArena({
       setComboCount(0);
       setComboTeamSide(null);
       lastAttackerRef.current = null;
-    }, 5000);
+    }, 6000); // Extended timeout
 
     // Set active scoring play for overlay
     setActiveScoringPlay(scoringPlay);
 
-    // Trigger attack animation
+    // Trigger attack animation - using epic lunge
     if (attackerIsLeft) {
       setLeftFighterAttacking(true);
     } else {
       setRightFighterAttacking(true);
     }
 
-    // Trigger damage flash after brief delay
+    // Trigger damage effects after attack lunge delay (extended from 200ms to 400ms)
     setTimeout(() => {
       setDamageFlashSide(defenderSide);
       setDamageData({
@@ -135,34 +147,60 @@ export function BattleArena({
         playerType: scoringPlay.playerType,
       });
 
-      // Trigger hit animation on defender
+      // Trigger knockback + hit animation on defender
       if (defenderSide === "left") {
         setLeftFighterHit(true);
+        setLeftFighterDamaged(true);
+        if (isBigHit) {
+          setLeftFighterStunned(true);
+        }
       } else {
         setRightFighterHit(true);
+        setRightFighterDamaged(true);
+        if (isBigHit) {
+          setRightFighterStunned(true);
+        }
       }
-    }, 200);
+    }, 400);
+
+    // Clear knockback animation (but keep damaged state) - extended from 400ms to 1200ms
+    setTimeout(() => {
+      if (defenderSide === "left") {
+        setLeftFighterHit(false);
+      } else {
+        setRightFighterHit(false);
+      }
+    }, 1600);
+
+    // Clear stunned state
+    setTimeout(() => {
+      setLeftFighterStunned(false);
+      setRightFighterStunned(false);
+    }, isCriticalHit ? 2500 : isBigHit ? 2000 : 1500);
 
     // Clear new hit flag after animation
     setTimeout(() => {
       setIsNewComboHit(false);
-    }, 400);
+    }, 600);
 
   }, [scoringPlay, leftTeam?.teamId]);
 
-  // Handle scoring play animation complete (internal cleanup)
+  // Handle scoring play animation complete (internal cleanup) - extended timing
   const handleScoringPlayComplete = useCallback(() => {
     setActiveScoringPlay(null);
     setLeftFighterAttacking(false);
     setRightFighterAttacking(false);
   }, []);
 
-  // Handle damage flash complete
+  // Handle damage flash complete - extended timing
   const handleDamageFlashComplete = useCallback(() => {
     setDamageFlashSide(null);
     setDamageData(null);
-    setLeftFighterHit(false);
-    setRightFighterHit(false);
+    // Clear damaged state with a delay for sustained effect
+    setTimeout(() => {
+      setLeftFighterDamaged(false);
+      setRightFighterDamaged(false);
+    }, 500);
   }, []);
 
   const leftFighter = leftTeam?.fighterIllustration
@@ -283,6 +321,9 @@ export function BattleArena({
                 onClick={leftTeam && onTeamClick ? () => onTeamClick(leftTeam.teamId) : undefined}
                 isHit={leftFighterHit}
                 isAttacking={leftFighterAttacking}
+                isDamaged={leftFighterDamaged}
+                isStunned={leftFighterStunned}
+                damageAmount={lastHitDamage}
               />
             </div>
 
@@ -309,6 +350,9 @@ export function BattleArena({
                 onClick={rightTeam && onTeamClick ? () => onTeamClick(rightTeam.teamId) : undefined}
                 isHit={rightFighterHit}
                 isAttacking={rightFighterAttacking}
+                isDamaged={rightFighterDamaged}
+                isStunned={rightFighterStunned}
+                damageAmount={lastHitDamage}
               />
             </div>
           </div>
@@ -394,6 +438,9 @@ interface FighterCardProps {
   onClick?: () => void;
   isHit?: boolean;
   isAttacking?: boolean;
+  isDamaged?: boolean;
+  isStunned?: boolean;
+  damageAmount?: number;
 }
 
 function FighterCard({ 
@@ -406,12 +453,18 @@ function FighterCard({
   onClick,
   isHit = false,
   isAttacking = false,
+  isDamaged = false,
+  isStunned = false,
+  damageAmount = 0,
 }: FighterCardProps) {
+  const isBigHit = damageAmount >= 10;
+  const isCriticalHit = damageAmount >= 20;
+
   if (!team) {
     return (
-      <div className="w-full max-w-[160px] flex flex-col items-center opacity-50">
-        <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
-          <Sparkles className="w-8 h-8 text-white/30" />
+      <div className="w-full max-w-[180px] flex flex-col items-center opacity-50">
+        <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
+          <Sparkles className="w-10 h-10 text-white/30" />
         </div>
         <span className="mt-3 text-sm text-white/50">Waiting...</span>
       </div>
@@ -421,8 +474,8 @@ function FighterCard({
   return (
     <div 
       className={cn(
-        "w-full max-w-[160px] flex flex-col items-center transition-all duration-200",
-        !isHit && !isAttacking && (side === "left" ? "animate-float-left" : "animate-float-right"),
+        "w-full max-w-[180px] flex flex-col items-center transition-all duration-200",
+        !isHit && !isAttacking && !isDamaged && (side === "left" ? "animate-float-left" : "animate-float-right"),
         isSelected && "scale-105",
         onClick && "cursor-pointer hover:scale-105 active:scale-95"
       )}
@@ -432,28 +485,75 @@ function FighterCard({
       onKeyDown={onClick ? (e) => e.key === "Enter" && onClick() : undefined}
       title={onClick ? "Click to view score breakdown" : undefined}
     >
-      {/* Fighter Illustration */}
+      {/* Fighter Illustration Container */}
       <div className="relative group">
         {/* Selection ring */}
         {isSelected && (
           <div className={cn(
-            "absolute -inset-2 rounded-full border-2 animate-pulse",
+            "absolute -inset-3 rounded-full border-2 animate-pulse",
             side === "left" ? "border-primary" : "border-secondary"
           )} />
         )}
-        {/* Glow effect */}
+
+        {/* Hurt vignette overlay when damaged */}
+        {isDamaged && (
+          <div 
+            className="absolute -inset-4 rounded-full animate-hurt-vignette pointer-events-none z-20"
+            style={{
+              boxShadow: `inset 0 0 40px 15px rgba(255, 0, 0, 0.5)`,
+            }}
+          />
+        )}
+
+        {/* Glow effect - enhanced for damage states */}
         <div className={cn(
-          "absolute inset-0 rounded-full blur-xl transition-opacity duration-200",
+          "absolute inset-0 rounded-full blur-xl transition-all duration-300",
           isSelected ? "opacity-70" : "opacity-50",
-          isHit ? "opacity-100 bg-red-500/50" : (side === "left" ? "bg-primary/30" : "bg-secondary/30")
+          isDamaged 
+            ? "opacity-100 bg-red-500/60" 
+            : isHit 
+              ? "opacity-100 bg-red-500/50" 
+              : (side === "left" ? "bg-primary/30" : "bg-secondary/30"),
+          isCriticalHit && isDamaged && "animate-pulse"
         )} />
+
+        {/* Stun stars indicator */}
+        {isStunned && (
+          <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-30 animate-stun-stars">
+            <div className="flex gap-1">
+              {[...Array(isCriticalHit ? 5 : 3)].map((_, i) => (
+                <Star
+                  key={i}
+                  className={cn(
+                    "text-yellow-400 fill-yellow-400",
+                    isCriticalHit ? "w-4 h-4" : "w-3 h-3"
+                  )}
+                  style={{
+                    animationDelay: `${i * 100}ms`,
+                    filter: "drop-shadow(0 0 4px rgba(250, 204, 21, 0.8))",
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
         
-        {/* Fighter Image */}
+        {/* Fighter Image Container - LARGER SIZE */}
         <div 
           className={cn(
-            "relative w-24 h-24 sm:w-32 sm:h-32 flex items-center justify-center",
-            isHit && "animate-fighter-hit",
-            isAttacking && (side === "left" ? "animate-attack-lunge" : "animate-attack-lunge-left")
+            "relative w-28 h-28 sm:w-36 sm:h-36 flex items-center justify-center",
+            // Knockback animation (extended dramatic version)
+            isHit && (side === "left" 
+              ? "animate-fighter-knockback-left" 
+              : "animate-fighter-knockback"
+            ),
+            // Epic attack lunge
+            isAttacking && (side === "left" 
+              ? "animate-attack-lunge-epic" 
+              : "animate-attack-lunge-epic-left"
+            ),
+            // Sustained damaged flicker state
+            isDamaged && !isHit && "animate-fighter-damaged"
           )}
         >
           {fighter ? (
@@ -461,20 +561,35 @@ function FighterCard({
               src={`/assets/illustrations/${fighter.file}`}
               alt={fighter.name}
               className={cn(
-                "w-full h-full object-contain drop-shadow-2xl transition-all duration-100",
+                "w-full h-full object-contain drop-shadow-2xl transition-all",
                 side === "right" && "-scale-x-100", // Mirror right fighter
-                isHit && "brightness-150"
+                // Enhanced damage visual filters
+                isDamaged && "brightness-125 saturate-50 hue-rotate-[-20deg]",
+                isHit && isCriticalHit && "brightness-200 saturate-0",
+                isHit && !isCriticalHit && "brightness-175"
               )}
+              style={{
+                filter: isDamaged 
+                  ? `brightness(1.25) saturate(0.5) sepia(0.3) hue-rotate(-20deg) drop-shadow(0 0 20px rgba(255,0,0,0.6))`
+                  : undefined,
+              }}
             />
           ) : (
             <div className="w-full h-full rounded-full bg-white/10 flex items-center justify-center">
-              <Sparkles className="w-8 h-8 text-white/40" />
+              <Sparkles className="w-10 h-10 text-white/40" />
             </div>
+          )}
+
+          {/* Impact flash overlay on fighter */}
+          {isHit && (
+            <div 
+              className="absolute inset-0 bg-white/60 rounded-full animate-impact-mega-flash pointer-events-none"
+            />
           )}
         </div>
 
         {/* Edit Button (only for user's team) */}
-        {isUserTeam && onEditFighter && (
+        {isUserTeam && onEditFighter && !isDamaged && (
           <button
             onClick={(e) => {
               e.stopPropagation(); // Prevent triggering team selection
@@ -485,25 +600,45 @@ function FighterCard({
             <Edit3 className="w-4 h-4 text-white/70 group-hover:text-white" />
           </button>
         )}
+
+        {/* Damage state indicator */}
+        {isDamaged && (
+          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 z-30">
+            <div 
+              className={cn(
+                "px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider",
+                "bg-red-600/90 text-white animate-pulse"
+              )}
+              style={{
+                boxShadow: "0 0 10px rgba(255, 0, 0, 0.6)",
+              }}
+            >
+              {isCriticalHit ? "DEVASTATED!" : isBigHit ? "HURT!" : "HIT!"}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Team Info */}
       <div className={cn(
-        "mt-3 text-center transition-all duration-200 rounded-lg px-2 py-1",
+        "mt-4 text-center transition-all duration-200 rounded-lg px-2 py-1",
         onClick && "hover:bg-white/10",
-        isSelected && "bg-white/5"
+        isSelected && "bg-white/5",
+        isDamaged && "opacity-80"
       )}>
         <div className={cn(
-          "font-bold text-sm sm:text-base truncate max-w-[140px] transition-colors",
+          "font-bold text-sm sm:text-base truncate max-w-[160px] transition-colors",
           isSelected 
             ? (side === "left" ? "text-primary" : "text-secondary") 
-            : "text-white"
+            : isDamaged
+              ? "text-red-400"
+              : "text-white"
         )}>
           {team.teamName}
         </div>
         {team.userName && (
           <div className={cn(
-            "text-xs truncate max-w-[140px] transition-colors",
+            "text-xs truncate max-w-[160px] transition-colors",
             isSelected ? "text-white/70" : "text-white/50"
           )}>
             @{team.userName}
@@ -514,7 +649,11 @@ function FighterCard({
             variant="outline" 
             className={cn(
               "mt-1 text-[10px] border-white/20",
-              side === "left" ? "text-primary" : "text-secondary"
+              isDamaged 
+                ? "text-red-400 border-red-400/30"
+                : side === "left" 
+                  ? "text-primary" 
+                  : "text-secondary"
             )}
           >
             {fighter.name}
