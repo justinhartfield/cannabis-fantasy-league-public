@@ -73,9 +73,22 @@ export default function DailyChallenge() {
   const [liveScores, setLiveScores] = useState<Map<number, number>>(new Map());
   const lastScoreSyncRef = useRef<number>(0);
 
-  // Scroll to top on page load/reload
+  // Scroll to top on page load/reload - aggressive version
   useEffect(() => {
+    // Disable browser's automatic scroll restoration
+    if ('scrollRestoration' in history) {
+      history.scrollRestoration = 'manual';
+    }
+    
+    // Immediate scroll
     window.scrollTo(0, 0);
+    
+    // Also scroll after a brief delay to handle any content shifts
+    const timeoutId = setTimeout(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
   }, []);
 
   // Cache scores in localStorage for instant display on page load
