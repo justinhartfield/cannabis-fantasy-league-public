@@ -1,5 +1,9 @@
+import { useState } from "react";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
 import { 
   Trophy, 
@@ -15,15 +19,22 @@ import {
 } from "lucide-react";
 import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
 import { FIGHTER_ILLUSTRATIONS, getFighterByFile } from "@/components/FighterPicker";
+import { toast } from "sonner";
 
 interface ChallengeInviteLandingProps {
   challengeId: number;
+  isAuthenticated?: boolean;
+  leagueCode?: string;
 }
 
 // Default fighter for "VS YOU?" placeholder
 const PLACEHOLDER_FIGHTER = FIGHTER_ILLUSTRATIONS[2]; // Family Flower
 
-export function ChallengeInviteLanding({ challengeId }: ChallengeInviteLandingProps) {
+export function ChallengeInviteLanding({ challengeId, isAuthenticated = false, leagueCode }: ChallengeInviteLandingProps) {
+  const [, setLocation] = useLocation();
+  const [teamName, setTeamName] = useState("");
+  const [isJoining, setIsJoining] = useState(false);
+
   // Fetch public challenge info
   const { data: challenge, isLoading: challengeLoading } = trpc.league.getPublicChallengeInfo.useQuery(
     { challengeId },
@@ -35,6 +46,21 @@ export function ChallengeInviteLanding({ challengeId }: ChallengeInviteLandingPr
     { limit: 3 },
     { retry: false }
   );
+
+  // Join challenge mutation (for authenticated users)
+  const joinByCodeMutation = trpc.league.joinByCode.useMutation({
+    onSuccess: (data) => {
+      toast.success("You've joined the challenge!");
+      // Redirect to the challenge page (which will now show the normal view since user is a member)
+      setLocation(`/challenge/${data.leagueId}`);
+      // Force a refresh to ensure the page shows the updated state
+      window.location.reload();
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to join challenge");
+      setIsJoining(false);
+    },
+  });
 
   const handleSignUpAndDraft = () => {
     // Store the challenge ID for redirect after auth
@@ -48,6 +74,19 @@ export function ChallengeInviteLanding({ challengeId }: ChallengeInviteLandingPr
     } else {
       window.location.href = "/login";
     }
+  };
+
+  const handleAcceptChallenge = () => {
+    if (!leagueCode) {
+      toast.error("Missing challenge code");
+      return;
+    }
+    
+    setIsJoining(true);
+    joinByCodeMutation.mutate({
+      leagueCode,
+      teamName: teamName.trim() || undefined,
+    });
   };
 
   if (challengeLoading) {
@@ -421,22 +460,64 @@ export function ChallengeInviteLanding({ challengeId }: ChallengeInviteLandingPr
                 Ready to Battle?
               </h2>
               <p className="text-xl text-white/80">
-                Sign up in seconds and start drafting your winning team!
+                {isAuthenticated 
+                  ? "Enter your team name and accept the challenge!"
+                  : "Sign up in seconds and start drafting your winning team!"}
               </p>
             </div>
 
-            <Button
-              size="lg"
-              onClick={handleSignUpAndDraft}
-              className="text-xl px-12 py-6 h-auto bg-weed-green hover:bg-weed-green/90 text-black font-bold rounded-2xl shadow-[0_0_40px_rgba(207,255,77,0.3)] hover:shadow-[0_0_60px_rgba(207,255,77,0.5)] transition-all"
-            >
-              Sign Up & Start Draft
-              <ArrowRight className="ml-2 h-6 w-6" />
-            </Button>
+            {isAuthenticated ? (
+              // Authenticated user - show team name input and accept button
+              <div className="space-y-6 max-w-md mx-auto">
+                <div className="space-y-2 text-left">
+                  <Label htmlFor="teamName" className="text-white/80">
+                    Your Team Name (optional)
+                  </Label>
+                  <Input
+                    id="teamName"
+                    placeholder="Enter your team name..."
+                    value={teamName}
+                    onChange={(e) => setTeamName(e.target.value)}
+                    className="h-14 text-lg bg-white/10 border-white/20 text-white placeholder:text-white/40 rounded-xl"
+                    maxLength={50}
+                  />
+                </div>
+                <Button
+                  size="lg"
+                  onClick={handleAcceptChallenge}
+                  disabled={isJoining}
+                  className="w-full text-xl px-12 py-6 h-auto bg-weed-green hover:bg-weed-green/90 text-black font-bold rounded-2xl shadow-[0_0_40px_rgba(207,255,77,0.3)] hover:shadow-[0_0_60px_rgba(207,255,77,0.5)] transition-all"
+                >
+                  {isJoining ? (
+                    <>
+                      <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+                      Joining...
+                    </>
+                  ) : (
+                    <>
+                      Accept Challenge
+                      <Swords className="ml-2 h-6 w-6" />
+                    </>
+                  )}
+                </Button>
+              </div>
+            ) : (
+              // Unauthenticated user - show sign up button
+              <>
+                <Button
+                  size="lg"
+                  onClick={handleSignUpAndDraft}
+                  className="text-xl px-12 py-6 h-auto bg-weed-green hover:bg-weed-green/90 text-black font-bold rounded-2xl shadow-[0_0_40px_rgba(207,255,77,0.3)] hover:shadow-[0_0_60px_rgba(207,255,77,0.5)] transition-all"
+                >
+                  Sign Up & Start Draft
+                  <ArrowRight className="ml-2 h-6 w-6" />
+                </Button>
 
-            <p className="text-sm text-white/50">
-              Free to play • No credit card required
-            </p>
+                <p className="text-sm text-white/50">
+                  Free to play • No credit card required
+                </p>
+              </>
+            )}
           </div>
         </div>
       </section>

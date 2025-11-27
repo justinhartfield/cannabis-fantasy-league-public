@@ -65,8 +65,8 @@ export default function DailyChallenge() {
   const isPlayingRef = useRef(false);
   const lastPlayedRef = useRef<ScoringPlayData | null>(null);
   
-  // Recent plays feed (last 3 scoring plays)
-  const [recentPlays, setRecentPlays] = useState<ScoringPlayData[]>([]);
+  // Recent plays feed (last 3 scoring plays with timestamps)
+  const [recentPlays, setRecentPlays] = useState<(ScoringPlayData & { timestamp: Date })[]>([]);
 
   // Cache scores in localStorage for instant display on page load
   const SCORE_CACHE_KEY = `challenge-${challengeId}-scores`;
@@ -252,8 +252,8 @@ export default function DailyChallenge() {
         
         scoringPlayQueueRef.current.push(scoringPlay);
         
-        // Add to recent plays feed (keep last 3)
-        setRecentPlays(prev => [scoringPlay, ...prev].slice(0, 3));
+        // Add to recent plays feed with timestamp (keep last 3)
+        setRecentPlays(prev => [{ ...scoringPlay, timestamp: new Date() }, ...prev].slice(0, 3));
         
         // Start playing if not already
         if (!isPlayingRef.current) {
@@ -289,9 +289,31 @@ export default function DailyChallenge() {
   // Scores are now calculated automatically by the backend scheduler
   // Real-time updates are pushed via WebSocket
 
-  // Show invite landing page for unauthenticated users
+  // Check if user is a member of this challenge
+  const userTeamInChallenge = useMemo(() => {
+    if (!league?.teams || !user?.id) return null;
+    return league.teams.find((team: any) => team.userId === user.id) || null;
+  }, [league?.teams, user?.id]);
+
+  // Show invite landing page for:
+  // 1. Unauthenticated users
+  // 2. Authenticated users who haven't joined this challenge yet (and challenge is waiting for opponent)
   if (!authLoading && !isAuthenticated) {
     return <ChallengeInviteLanding challengeId={challengeId} />;
+  }
+
+  // For authenticated users who haven't joined - show landing page if challenge is still open
+  if (!authLoading && isAuthenticated && !leagueLoading && league && !userTeamInChallenge) {
+    const isWaitingForOpponent = (league.teams?.length || 0) < (league.teamCount || 2);
+    if (isWaitingForOpponent) {
+      return (
+        <ChallengeInviteLanding 
+          challengeId={challengeId} 
+          isAuthenticated={true}
+          leagueCode={league.leagueCode}
+        />
+      );
+    }
   }
 
   // Helper to get fighter illustration from league teams
@@ -473,8 +495,12 @@ export default function DailyChallenge() {
     // Queue up demo plays
     scoringPlayQueueRef.current = [...demoPlays];
     
-    // Also populate the recent plays feed for demo
-    setRecentPlays(demoPlays.slice(0, 3));
+    // Also populate the recent plays feed with timestamps for demo
+    const now = new Date();
+    setRecentPlays(demoPlays.slice(0, 3).map((play, i) => ({
+      ...play,
+      timestamp: new Date(now.getTime() - i * 30000), // Stagger by 30 seconds each
+    })));
     
     toast.success(`Queued ${demoPlays.length} demo scoring plays!`);
     playNextScoringPlay();
@@ -640,7 +666,10 @@ export default function DailyChallenge() {
                       i === 0 ? "opacity-100" : i === 1 ? "opacity-70" : "opacity-40"
                     )}
                   >
-                    <span className="text-white/80 truncate max-w-[120px]">{play.playerName}</span>
+                    <span className="text-white/40 text-[10px] tabular-nums">
+                      {play.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    <span className="text-white/80 truncate max-w-[100px]">{play.playerName}</span>
                     <Badge 
                       className={cn(
                         "text-[10px] font-semibold px-1.5 py-0",
