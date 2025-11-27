@@ -67,6 +67,11 @@ export default function DailyChallenge() {
   
   // Recent plays feed (last 3 scoring plays with timestamps)
   const [recentPlays, setRecentPlays] = useState<(ScoringPlayData & { timestamp: Date })[]>([]);
+  
+  // Live display scores - updated incrementally with each scoring play for realistic effect
+  // Map of teamId -> current display score
+  const [liveScores, setLiveScores] = useState<Map<number, number>>(new Map());
+  const lastScoreSyncRef = useRef<number>(0);
 
   // Cache scores in localStorage for instant display on page load
   const SCORE_CACHE_KEY = `challenge-${challengeId}-scores`;
@@ -276,14 +281,29 @@ export default function DailyChallenge() {
         // Add to recent plays feed with timestamp (keep last 3)
         setRecentPlays(prev => [{ ...scoringPlay, timestamp: new Date() }, ...prev].slice(0, 3));
         
+        // Update live display scores incrementally (this is the key for realistic feel!)
+        // Don't show final total immediately - let it build up with each play
+        setLiveScores(prev => {
+          const updated = new Map(prev);
+          updated.set(message.attackingTeamId, message.attackerNewTotal);
+          updated.set(message.defendingTeamId, message.defenderTotal);
+          return updated;
+        });
+        
         // Start playing if not already
         if (!isPlayingRef.current) {
           playNextScoringPlay();
         }
         
-        // Update last update time and refetch scores to sync UI
+        // Update last update time (but don't refetch - we're using live scores!)
         setLastUpdateTime(new Date());
-        refetchScores();
+        
+        // Only sync with server every 30 seconds to avoid overwriting live scores
+        const now = Date.now();
+        if (now - lastScoreSyncRef.current > 30000) {
+          lastScoreSyncRef.current = now;
+          refetchScores();
+        }
       }
     },
     autoConnect: !!challengeId && !!user?.id,
@@ -304,8 +324,19 @@ export default function DailyChallenge() {
           console.error('[ScoreCache] Failed to cache scores', e);
         }
       }
+      
+      // Initialize live scores from server scores on first load
+      // (only if we don't already have live scores - don't overwrite incremental updates)
+      if (liveScores.size === 0) {
+        const initialScores = new Map<number, number>();
+        dayScores.forEach(score => {
+          initialScores.set(score.teamId, score.points || 0);
+        });
+        setLiveScores(initialScores);
+        console.log('[LiveScores] Initialized from server scores');
+      }
     }
-  }, [dayScores, SCORE_CACHE_KEY]);
+  }, [dayScores, SCORE_CACHE_KEY, liveScores.size]);
 
   // Scores are now calculated automatically by the backend scheduler
   // Real-time updates are pushed via WebSocket
@@ -335,15 +366,19 @@ export default function DailyChallenge() {
     }));
 
     // If we have day scores, merge them with all teams
+    // BUT prefer liveScores when available (they update incrementally with each play)
     if (dayScores && dayScores.length > 0) {
       const scoreMap = new Map(dayScores.map((score) => [score.teamId, score]));
       return allTeams.map((team) => {
         const score = scoreMap.get(team.teamId);
+        // Use live score if available (for real-time incremental updates)
+        const liveScore = liveScores.get(team.teamId);
         if (score) {
           return {
             teamId: score.teamId,
             teamName: score.teamName || team.teamName,
-            points: score.points || 0,
+            // Prefer liveScore for real-time feel, fall back to server score
+            points: liveScore !== undefined ? liveScore : (score.points || 0),
             userAvatarUrl: score.userAvatarUrl || team.userAvatarUrl,
             userName: score.userName || team.userName,
             fighterIllustration: getFighterForTeam(score.teamId),
@@ -351,6 +386,7 @@ export default function DailyChallenge() {
         }
         return {
           ...team,
+          points: liveScore !== undefined ? liveScore : team.points,
           fighterIllustration: getFighterForTeam(team.teamId),
         };
       });
@@ -362,11 +398,12 @@ export default function DailyChallenge() {
       const scoreMap = new Map(cachedScores.map((score: any) => [score.teamId, score]));
       return allTeams.map((team) => {
         const score = scoreMap.get(team.teamId);
+        const liveScore = liveScores.get(team.teamId);
         if (score) {
           return {
             teamId: score.teamId,
             teamName: score.teamName || team.teamName,
-            points: score.points || 0,
+            points: liveScore !== undefined ? liveScore : (score.points || 0),
             userAvatarUrl: score.userAvatarUrl || team.userAvatarUrl,
             userName: score.userName || team.userName,
             fighterIllustration: getFighterForTeam(score.teamId),
@@ -374,17 +411,22 @@ export default function DailyChallenge() {
         }
         return {
           ...team,
+          points: liveScore !== undefined ? liveScore : team.points,
           fighterIllustration: getFighterForTeam(team.teamId),
         };
       });
     }
 
-    // Return all teams with 0 points if no scores available
-    return allTeams.map((team) => ({
-      ...team,
-      fighterIllustration: getFighterForTeam(team.teamId),
-    }));
-  }, [dayScores, cachedScores, league, getFighterForTeam]);
+    // Return all teams with live scores if available, otherwise 0 points
+    return allTeams.map((team) => {
+      const liveScore = liveScores.get(team.teamId);
+      return {
+        ...team,
+        points: liveScore !== undefined ? liveScore : team.points,
+        fighterIllustration: getFighterForTeam(team.teamId),
+      };
+    });
+  }, [dayScores, cachedScores, league, getFighterForTeam, liveScores]);
 
   const sortedScores: TeamScore[] = useMemo(() => {
     if (baseTeamScores.length === 0) return [];
