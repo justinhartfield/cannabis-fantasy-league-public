@@ -8,44 +8,30 @@ import { scoreBroadcaster } from './scoreBroadcaster';
 /**
  * Challenge Score Scheduler
  * 
- * Uses setInterval (free, runs in Node.js process) instead of external cron jobs
- * - Updates scores every hour at :00 for active challenges created today
- * - Finalizes challenges at midnight (00:00) for challenges from previous day
+ * Checks every minute, runs score updates every 10 minutes (synced with stats aggregation)
+ * Finalizes challenges at midnight
  */
 
 class ChallengeScoreScheduler {
   private intervalId: NodeJS.Timeout | null = null;
-  private lastUpdateKey: string = ''; // Track hour:minute to prevent duplicate runs
+  private lastUpdateKey: string = '';
   private lastFinalizationDate: string = '';
 
-  /**
-   * Start the scheduler
-   */
   start() {
-    if (this.intervalId) {
-      console.log('[ChallengeScoreScheduler] Already running');
-      return;
-    }
+    if (this.intervalId) return;
 
-    // Check every minute
     this.intervalId = setInterval(() => {
       this.checkAndUpdate();
-    }, 60000); // 60 seconds
+    }, 60000);
 
-    console.log('[ChallengeScoreScheduler] Started - checking every minute');
-    
-    // Run immediately on start
+    console.log('[ChallengeScoreScheduler] Started: every 10 min');
     this.checkAndUpdate();
   }
 
-  /**
-   * Stop the scheduler
-   */
   stop() {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
-      console.log('[ChallengeScoreScheduler] Stopped');
     }
   }
 
@@ -56,26 +42,19 @@ class ChallengeScoreScheduler {
     const now = new Date();
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
-    const currentDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
+    const currentDate = now.toISOString().split('T')[0];
 
-    // Log every 15 minutes for monitoring
-    if (currentMinute % 15 === 0) {
-      console.log(`[ChallengeScoreScheduler] Health check at ${now.toISOString()} - Hour: ${currentHour}, Minute: ${currentMinute}`);
-    }
-
-    // Check for 5-minute update (at :00, :05, :10, :15, :20, :25, :30, :35, :40, :45, :50, :55)
+    // Check for 10-minute update (synced with stats aggregation)
     const updateKey = `${currentHour}:${currentMinute}`;
-    const isUpdateTime = currentMinute % 5 === 0;
+    const isUpdateTime = currentMinute % 10 === 0;
     
     if (isUpdateTime && updateKey !== this.lastUpdateKey) {
-      console.log(`[ChallengeScoreScheduler] Triggering 5-minute update at ${now.toISOString()}`);
       this.lastUpdateKey = updateKey;
       await this.updateHourlyScores();
     }
 
     // Check for midnight finalization (00:00)
     if (currentHour === 0 && currentMinute === 0 && currentDate !== this.lastFinalizationDate) {
-      console.log(`[ChallengeScoreScheduler] Triggering midnight finalization at ${now.toISOString()}`);
       this.lastFinalizationDate = currentDate;
       await this.finalizeChallenges();
     }
@@ -85,7 +64,6 @@ class ChallengeScoreScheduler {
    * Manually trigger score update for a specific challenge (for testing/admin)
    */
   async triggerChallengeUpdate(challengeId: number): Promise<number> {
-    console.log(`[ChallengeScoreScheduler] Manual trigger for challenge ${challengeId}`);
     
     const db = await getDb();
     if (!db) {
@@ -116,24 +94,17 @@ class ChallengeScoreScheduler {
       5 // spread over 5 minutes for manual triggers
     );
 
-    console.log(`[ChallengeScoreScheduler] Manual trigger complete - queued ${playCount} plays`);
     return playCount;
   }
 
   /**
-   * Update scores for ALL active challenges (runs every 5 minutes)
+   * Update scores for ALL active challenges (every 10 minutes)
    */
   private async updateHourlyScores() {
-    console.log('[ChallengeScoreScheduler] Running 5-minute score update...');
-
     const db = await getDb();
-    if (!db) {
-      console.error('[ChallengeScoreScheduler] Database not available');
-      return;
-    }
+    if (!db) return;
 
     try {
-      // Find ALL active challenges (not just today's)
       const activeChallenges = await db
         .select()
         .from(leagues)
@@ -142,32 +113,23 @@ class ChallengeScoreScheduler {
           eq(leagues.status, 'active')
         ));
 
-      console.log(`[ChallengeScoreScheduler] Found ${activeChallenges.length} active challenges to update`);
-
       for (const challenge of activeChallenges) {
         try {
-          console.log(`[ChallengeScoreScheduler] Updating scores for challenge ${challenge.id}`);
           const statDateString = new Date(challenge.createdAt).toISOString().split('T')[0];
-          
           await calculateDailyChallengeScores(challenge.id, statDateString);
 
-          // Detect score changes and queue scoring plays for drip-feed broadcast
-          // Plays will be spread over 10 minutes for a sports broadcast feel
-          const playCount = await scoreBroadcaster.detectAndQueuePlays(
+          // Queue scoring plays for drip-feed broadcast over 10 minutes
+          await scoreBroadcaster.detectAndQueuePlays(
             challenge.id,
             statDateString,
-            10 // spread over 10 minutes
+            10
           );
-
-          console.log(`[ChallengeScoreScheduler] Updated challenge ${challenge.id} - queued ${playCount} scoring plays`);
         } catch (error) {
-          console.error(`[ChallengeScoreScheduler] Error updating challenge ${challenge.id}:`, error);
+          console.error(`[ChallengeScoreScheduler] Error challenge ${challenge.id}:`, error);
         }
       }
-
-      console.log('[ChallengeScoreScheduler] 30-minute score update complete');
     } catch (error) {
-      console.error('[ChallengeScoreScheduler] Error in 30-minute update:', error);
+      console.error('[ChallengeScoreScheduler] Update error:', error);
     }
   }
 
@@ -175,13 +137,8 @@ class ChallengeScoreScheduler {
    * Finalize challenges from previous day at midnight
    */
   private async finalizeChallenges() {
-    console.log('[ChallengeScoreScheduler] Running midnight finalization...');
-
     const db = await getDb();
-    if (!db) {
-      console.error('[ChallengeScoreScheduler] Database not available');
-      return;
-    }
+    if (!db) return;
 
     try {
       const now = new Date();
@@ -189,7 +146,6 @@ class ChallengeScoreScheduler {
       const yesterdayEnd = new Date(yesterdayStart);
       yesterdayEnd.setDate(yesterdayEnd.getDate() + 1);
 
-      // Find all active challenges created yesterday
       const allChallenges = await db
         .select()
         .from(leagues)
@@ -198,20 +154,18 @@ class ChallengeScoreScheduler {
           eq(leagues.status, 'active')
         ));
 
-      // Filter challenges created yesterday
       const challengesToFinalize = allChallenges.filter(challenge => {
         const createdAt = new Date(challenge.createdAt);
         return createdAt >= yesterdayStart && createdAt < yesterdayEnd;
       });
 
-      console.log(`[ChallengeScoreScheduler] Found ${challengesToFinalize.length} challenges to finalize`);
-
       for (const challenge of challengesToFinalize) {
         try {
-          console.log(`[ChallengeScoreScheduler] Finalizing challenge ${challenge.id}`);
-
           // Calculate final scores
-          const statDateString = new Date(challenge.createdAt).toISOString().split('T')[0];
+          const createdDate = new Date(challenge.createdAt);
+          const statDateString = createdDate.toISOString().split('T')[0];
+          const statYear = createdDate.getFullYear();
+          const statWeek = this.getWeekNumber(createdDate);
 
           await calculateDailyChallengeScores(challenge.id, statDateString);
 
@@ -269,18 +223,14 @@ class ChallengeScoreScheduler {
             finalizedAt: now.toISOString(),
           });
 
-          // Clear broadcaster state for this challenge
           scoreBroadcaster.clearChallenge(challenge.id);
-
-          console.log(`[ChallengeScoreScheduler] Finalized challenge ${challenge.id} - Winner: ${winner.teamName} (${winner.points} points)`);
+          console.log(`[Scheduler] Finalized ${challenge.id}: ${winner.teamName} won`);
         } catch (error) {
-          console.error(`[ChallengeScoreScheduler] Error finalizing challenge ${challenge.id}:`, error);
+          console.error(`[Scheduler] Finalize error ${challenge.id}:`, error);
         }
       }
-
-      console.log('[ChallengeScoreScheduler] Midnight finalization complete');
     } catch (error) {
-      console.error('[ChallengeScoreScheduler] Error in midnight finalization:', error);
+      console.error('[Scheduler] Finalization error:', error);
     }
   }
 

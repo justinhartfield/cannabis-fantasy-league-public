@@ -1,9 +1,8 @@
 /**
  * Daily Stats Scheduler
  * 
- * Runs every hour to aggregate stats from Metabase into local database
- * for challenge scoring. This ensures stats are updated frequently throughout
- * the day without requiring expensive external cron jobs.
+ * Runs every 10 minutes to aggregate stats from Metabase into local database
+ * for challenge scoring. This ensures real-time score updates for live games.
  */
 
 import cron from 'node-cron';
@@ -16,14 +15,12 @@ export class DailyStatsScheduler {
 
   /**
    * Start the daily stats aggregation scheduler
-   * Runs every hour to keep stats up-to-date throughout the day
    */
   start() {
-    console.log('[DailyStatsScheduler] Initializing...');
+    console.log('[DailyStatsScheduler] Started: every 10 min');
 
-    // Schedule stats aggregation every hour
     this.cronJob = cron.schedule(
-      '0 * * * *', // Every hour at minute 0
+      '*/10 * * * *', // Every 10 minutes
       async () => {
         await this.runDailyAggregation();
       },
@@ -32,36 +29,24 @@ export class DailyStatsScheduler {
         timezone: 'Europe/Berlin',
       }
     );
-
-    console.log('[DailyStatsScheduler] Scheduled:');
-    console.log('  - Daily stats aggregation: Every hour (on the hour) CET');
-    console.log('[DailyStatsScheduler] Started');
   }
 
   /**
    * Run stats aggregation for today and yesterday
-   * This ensures we capture both ongoing today's stats and finalize yesterday's
    */
   async runDailyAggregation() {
     try {
-      // Aggregate for today (ongoing stats)
       const today = new Date();
       const todayStr = today.toISOString().split('T')[0];
-      
-      console.log(`[DailyStatsScheduler] Starting aggregation for today (${todayStr})...`);
       await dailyChallengeAggregatorV2.aggregateForDate(todayStr);
-      console.log(`[DailyStatsScheduler] ✅ Today's aggregation complete`);
 
-      // Also aggregate for yesterday to ensure it's finalized
+      // Also aggregate yesterday to ensure finalization
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       const yesterdayStr = yesterday.toISOString().split('T')[0];
-      
-      console.log(`[DailyStatsScheduler] Starting aggregation for yesterday (${yesterdayStr})...`);
       await dailyChallengeAggregatorV2.aggregateForDate(yesterdayStr);
-      console.log(`[DailyStatsScheduler] ✅ Yesterday's aggregation complete`);
     } catch (error) {
-      console.error('[DailyStatsScheduler] ❌ Aggregation failed:', error);
+      console.error('[DailyStatsScheduler] Aggregation failed:', error);
     }
   }
 
@@ -69,24 +54,17 @@ export class DailyStatsScheduler {
    * Manually trigger aggregation for a specific date
    */
   async aggregateForDate(statDate: string) {
-    console.log(`[DailyStatsScheduler] Manual aggregation triggered for ${statDate}`);
-    
     try {
       await dailyChallengeAggregatorV2.aggregateForDate(statDate);
-      console.log(`[DailyStatsScheduler] ✅ Manual aggregation complete for ${statDate}`);
     } catch (error) {
-      console.error(`[DailyStatsScheduler] ❌ Manual aggregation failed for ${statDate}:`, error);
+      console.error(`[DailyStatsScheduler] Failed for ${statDate}:`, error);
       throw error;
     }
   }
 
-  /**
-   * Stop the scheduler
-   */
   stop() {
     if (this.cronJob) {
       this.cronJob.stop();
-      console.log('[DailyStatsScheduler] Stopped');
     }
   }
 }

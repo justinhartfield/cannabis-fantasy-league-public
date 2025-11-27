@@ -143,45 +143,27 @@ class ScoreBroadcaster {
     statDate: string,
     spreadOverMinutes: number = 10
   ): Promise<number> {
-    console.log(`[ScoreBroadcaster] detectAndQueuePlays called for challenge ${challengeId}, date ${statDate}`);
-    
     try {
       const db = await getDb();
-      if (!db) {
-        console.error('[ScoreBroadcaster] Database not available');
-        return 0;
-      }
+      if (!db) return 0;
 
-      // Get current scores from database
       const currentSnapshot = await this.fetchCurrentScores(challengeId, statDate);
-      if (!currentSnapshot || currentSnapshot.teams.size < 2) {
-        console.log(`[ScoreBroadcaster] Challenge ${challengeId} doesn't have enough teams yet`);
-        return 0;
-      }
+      if (!currentSnapshot || currentSnapshot.teams.size < 2) return 0;
 
-      // Get previous snapshot (or create empty one if first run)
       const previousSnapshot = this.previousScores.get(challengeId);
-
-      // Detect changes and generate scoring plays
       const scoringPlays = this.detectScoringPlays(previousSnapshot, currentSnapshot);
 
       // Update stored snapshot for next comparison
       this.previousScores.set(challengeId, currentSnapshot);
 
-      if (scoringPlays.length === 0) {
-        console.log(`[ScoreBroadcaster] No score changes detected for challenge ${challengeId}`);
-        return 0;
-      }
+      if (scoringPlays.length === 0) return 0;
 
-      console.log(`[ScoreBroadcaster] Detected ${scoringPlays.length} scoring plays for challenge ${challengeId}`);
-
-      // Queue plays for drip-feed broadcast
+      console.log(`[ScoreBroadcaster] ${scoringPlays.length} plays for challenge ${challengeId}`);
       this.queuePlaysForBroadcast(challengeId, scoringPlays, spreadOverMinutes);
 
       return scoringPlays.length;
     } catch (error) {
-      console.error(`[ScoreBroadcaster] Error detecting plays for challenge ${challengeId}:`, error);
-      // Return 0 instead of throwing - don't let broadcaster errors break score calculation
+      console.error(`[ScoreBroadcaster] Error:`, error);
       return 0;
     }
   }
@@ -197,7 +179,6 @@ class ScoreBroadcaster {
     if (!db) return null;
 
     try {
-      console.log(`[ScoreBroadcaster] Fetching scores for challenge ${challengeId}, date ${statDate}`);
       
       // Get all team scores for this challenge with daily score IDs
       const teamScoresRaw = await db
@@ -216,12 +197,7 @@ class ScoreBroadcaster {
           )
         );
 
-      console.log(`[ScoreBroadcaster] Found ${teamScoresRaw.length} team scores`);
-
-      if (teamScoresRaw.length < 2) {
-        console.log(`[ScoreBroadcaster] Not enough teams (need 2, got ${teamScoresRaw.length})`);
-        return null;
-      }
+      if (teamScoresRaw.length < 2) return null;
 
       const snapshot: ChallengeSnapshot = {
         teams: new Map(),
@@ -256,8 +232,6 @@ class ScoreBroadcaster {
           }
         }
         
-        console.log(`[ScoreBroadcaster] Team ${teamScore.teamId} (dailyScoreId: ${teamScore.dailyScoreId}) has ${assetBreakdowns.length} asset breakdowns`);
-        
         allBreakdowns.set(teamScore.teamId, assetBreakdowns);
         
         // Collect asset references for bulk name lookup
@@ -270,7 +244,6 @@ class ScoreBroadcaster {
 
       // Fetch all asset names in bulk
       const assetNames = await this.fetchAssetNames(db, allAssetRefs);
-      console.log(`[ScoreBroadcaster] Fetched ${assetNames.size} asset names`);
 
       // Build team snapshots with real asset names
       for (const teamScore of teamScoresRaw) {
@@ -301,7 +274,6 @@ class ScoreBroadcaster {
         });
       }
 
-      console.log(`[ScoreBroadcaster] Snapshot created with ${snapshot.teams.size} teams`);
       return snapshot;
     } catch (error) {
       console.error('[ScoreBroadcaster] Error fetching scores:', error);
@@ -322,23 +294,16 @@ class ScoreBroadcaster {
     if (teamIds.length < 2) return plays;
 
     const isFirstRun = !previous;
-    console.log(`[ScoreBroadcaster] Detecting plays (first run: ${isFirstRun}, current teams: ${teamIds.join(', ')})`);
 
-    // On first run, we need to establish a baseline for future delta calculations
-    // However, if scores already exist (user returning to game), we should still
-    // send a score update notification (not individual plays, but a refresh trigger)
+    // On first run, establish baseline for future delta calculations
     if (isFirstRun) {
-      console.log(`[ScoreBroadcaster] First run - storing baseline snapshot`);
-      // Don't generate individual scoring plays on first run (would show total as delta)
-      // but the scores will display from the server query
       return plays;
     }
     
-    // Verify previous snapshot has matching team IDs (detect corrupted state)
+    // Verify previous snapshot has matching team IDs
     const previousTeamIds = Array.from(previous.teams.keys());
     const teamsMatch = teamIds.every(id => previousTeamIds.includes(id));
     if (!teamsMatch) {
-      console.warn(`[ScoreBroadcaster] Team mismatch - previous: ${previousTeamIds.join(', ')}, current: ${teamIds.join(', ')}. Treating as first run.`);
       return plays;
     }
 
@@ -346,26 +311,20 @@ class ScoreBroadcaster {
     for (const [teamId, teamSnapshot] of current.teams) {
       const opponentId = teamIds.find(id => id !== teamId)!;
       const opponent = current.teams.get(opponentId)!;
-      
       const previousTeam = previous?.teams.get(teamId);
-      
-      console.log(`[ScoreBroadcaster] Team ${teamId} (${teamSnapshot.teamName}) has ${teamSnapshot.assets.size} assets`);
 
       for (const [assetKey, asset] of teamSnapshot.assets) {
         const previousAsset = previousTeam?.assets.get(assetKey);
         const previousPoints = previousAsset?.points || 0;
         let delta = asset.points - previousPoints;
 
-        // Sanity check: delta should never exceed the asset's total points
-        // This catches edge cases where previous state was corrupted
+        // Cap delta at asset's total points
         if (delta > asset.points) {
-          console.warn(`[ScoreBroadcaster] Capping delta for ${asset.assetName}: calculated ${delta}, max ${asset.points}`);
           delta = asset.points;
         }
 
         // Only broadcast real changes (deltas > 0.5 points)
         if (delta > 0.5) {
-          console.log(`[ScoreBroadcaster] Play: ${asset.assetName} +${delta.toFixed(1)} (was ${previousPoints}, now ${asset.points})`);
           plays.push({
             attackingTeamId: teamId,
             attackingTeamName: teamSnapshot.teamName,
@@ -373,7 +332,7 @@ class ScoreBroadcaster {
             defendingTeamName: opponent.teamName,
             playerName: asset.assetName,
             playerType: asset.assetType,
-            pointsScored: Math.round(delta * 10) / 10, // Round to 1 decimal - this is the CHANGE
+            pointsScored: Math.round(delta * 10) / 10,
             attackerNewTotal: teamSnapshot.totalPoints,
             defenderTotal: opponent.totalPoints,
             imageUrl: asset.imageUrl,
@@ -385,9 +344,6 @@ class ScoreBroadcaster {
 
     // Sort plays by points scored (most exciting plays last)
     plays.sort((a, b) => a.pointsScored - b.pointsScored);
-    
-    console.log(`[ScoreBroadcaster] Generated ${plays.length} scoring plays`);
-
     return plays;
   }
 
@@ -432,7 +388,6 @@ class ScoreBroadcaster {
         if (!remaining || remaining.length === 0) {
           clearInterval(timer);
           this.broadcastTimers.delete(challengeId);
-          console.log(`[ScoreBroadcaster] Finished broadcasting for challenge ${challengeId}`);
           return;
         }
         this.broadcastNextPlay(challengeId);
@@ -482,7 +437,6 @@ class ScoreBroadcaster {
     }
     this.previousScores.delete(challengeId);
     this.pendingPlays.delete(challengeId);
-    console.log(`[ScoreBroadcaster] Cleared state for challenge ${challengeId}`);
   }
 
   /**

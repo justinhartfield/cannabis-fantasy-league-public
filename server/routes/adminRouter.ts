@@ -157,7 +157,7 @@ export const adminRouter = router({
           useTrendScoring: true,
         });
 
-        await logger.info('Daily challenge stats sync complete', { ...summary, useLegacy });
+        await logger.info('Daily challenge stats sync complete', { ...summary });
         await logger.updateJobStatus('completed', `Daily challenge stats synced for ${statDate}`);
 
         return {

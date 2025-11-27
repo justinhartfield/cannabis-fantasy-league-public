@@ -61,27 +61,20 @@ class WebSocketManager {
     });
 
     this.wss.on('connection', (ws: WebSocket, request: IncomingMessage) => {
-      console.log('[WebSocket] New connection');
-      
-      // Parse query parameters for authentication
       const { query } = parse(request.url || '', true);
       const userId = parseInt(query.userId as string);
       const leagueId = query.leagueId ? parseInt(query.leagueId as string) : undefined;
       const teamId = query.teamId ? parseInt(query.teamId as string) : undefined;
 
       if (!userId) {
-        console.log('[WebSocket] Connection rejected: No userId provided');
         ws.close(1008, 'Authentication required');
         return;
       }
 
       const client: Client = { ws, userId, leagueId, teamId };
       this.clients.set(ws, client);
-
-      // Always join user's personal channel for global notifications
       this.joinUserChannel(client);
 
-      // Join league channel if leagueId is provided
       if (leagueId) {
         this.joinLeagueChannel(client, leagueId);
       }
@@ -91,20 +84,18 @@ class WebSocketManager {
           const message = JSON.parse(data.toString());
           this.handleMessage(client, message);
         } catch (error) {
-          console.error('[WebSocket] Error parsing message:', error);
+          console.error('[WS] Parse error:', error);
         }
       });
 
       ws.on('close', () => {
-        console.log('[WebSocket] Connection closed');
         this.handleDisconnect(client);
       });
 
       ws.on('error', (error) => {
-        console.error('[WebSocket] Error:', error);
+        console.error('[WS] Error:', error);
       });
 
-      // Send connection confirmation
       this.sendToClient(client, {
         type: 'connected',
         userId,
@@ -113,12 +104,10 @@ class WebSocketManager {
       });
     });
 
-    console.log('[WebSocket] Server initialized');
+    console.log('[WS] Server initialized');
   }
 
   private handleMessage(client: Client, message: any) {
-    console.log('[WebSocket] Received message:', message.type);
-
     switch (message.type) {
       case 'join_draft':
         this.joinDraftRoom(client, message.leagueId);
@@ -132,8 +121,6 @@ class WebSocketManager {
       case 'ping':
         this.sendToClient(client, { type: 'pong' });
         break;
-      default:
-        console.log('[WebSocket] Unknown message type:', message.type);
     }
   }
 
@@ -152,16 +139,12 @@ class WebSocketManager {
 
     const channel = this.userChannels.get(client.userId)!;
     channel.add(client);
-
-    console.log(`[WebSocket] Client joined user channel for userId ${client.userId}`);
   }
 
   private leaveUserChannel(client: Client) {
     const channel = this.userChannels.get(client.userId);
     if (channel) {
       channel.delete(client);
-
-      // Clean up empty channels
       if (channel.size === 0) {
         this.userChannels.delete(client.userId);
       }
@@ -170,16 +153,11 @@ class WebSocketManager {
 
   /**
    * Send a message to a specific user across all their connected devices/tabs
-   * Used for global notifications like "opponent joined your challenge"
    */
   notifyUser(userId: number, message: any) {
     const channel = this.userChannels.get(userId);
-    if (!channel) {
-      console.log(`[WebSocket] No active connections for user ${userId}`);
-      return;
-    }
+    if (!channel) return;
 
-    console.log(`[WebSocket] Notifying user ${userId} with message type: ${message.type}`);
     channel.forEach((client) => {
       if (client.ws.readyState === WebSocket.OPEN) {
         client.ws.send(JSON.stringify(message));
@@ -201,8 +179,6 @@ class WebSocketManager {
     const room = this.draftRooms.get(leagueId)!;
     room.clients.add(client);
     client.leagueId = leagueId;
-
-    console.log(`[WebSocket] Client ${client.userId} joined draft room ${leagueId}`);
 
     // Send current draft state to the new client
     this.sendToClient(client, {
@@ -226,8 +202,6 @@ class WebSocketManager {
     const room = this.draftRooms.get(client.leagueId);
     if (room) {
       room.clients.delete(client);
-      
-      console.log(`[WebSocket] Client ${client.userId} left draft room ${client.leagueId}`);
 
       // Notify other clients
       this.broadcastToDraftRoom(client.leagueId, {
@@ -252,8 +226,6 @@ class WebSocketManager {
     const channel = this.leagueChannels.get(leagueId)!;
     channel.add(client);
     client.leagueId = leagueId;
-
-    console.log(`[WebSocket] Client ${client.userId} joined league channel ${leagueId}`);
   }
 
   leaveLeagueChannel(client: Client) {
@@ -285,29 +257,19 @@ class WebSocketManager {
   broadcastToLeague(leagueId: number, message: any, exclude?: Client) {
     try {
       const channel = this.leagueChannels.get(leagueId);
-      const channelSize = channel?.size || 0;
-      
-      if (!channel || channelSize === 0) {
-        console.log(`[WebSocket] No clients in league ${leagueId} for ${message.type} (channel exists: ${!!channel})`);
-        return;
-      }
+      if (!channel || channel.size === 0) return;
 
-      let sentCount = 0;
-      let errorCount = 0;
       channel.forEach((client) => {
         try {
           if (client !== exclude && client.ws.readyState === WebSocket.OPEN) {
             client.ws.send(JSON.stringify(message));
-            sentCount++;
           }
         } catch (sendError) {
-          errorCount++;
-          console.error(`[WebSocket] Error sending to client:`, sendError);
+          console.error(`[WS] Send error:`, sendError);
         }
       });
-      console.log(`[WebSocket] Sent ${message.type} to ${sentCount}/${channelSize} clients in league ${leagueId}${errorCount > 0 ? ` (${errorCount} errors)` : ''}`);
     } catch (error) {
-      console.error(`[WebSocket] broadcastToLeague error for league ${leagueId}:`, error);
+      console.error(`[WS] Broadcast error ${leagueId}:`, error);
     }
   }
 
@@ -495,8 +457,6 @@ class WebSocketManager {
     scores: Array<{ teamId: number; teamName: string; points: number }>;
     updateTime: string;
   }) {
-    console.log(`[WebSocket] Broadcasting challenge_score_update to league ${challengeId}, scores:`, 
-      data.scores.map(s => `${s.teamName}: ${s.points}`).join(', '));
     this.broadcastToLeague(challengeId, {
       type: 'challenge_score_update',
       ...data,
