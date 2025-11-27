@@ -20,6 +20,22 @@ export function useWebSocket(options: UseWebSocketOptions) {
     onDisconnect,
     autoConnect = true,
   } = options;
+  
+  // Use refs to avoid stale closures in WebSocket callbacks
+  const onMessageRef = useRef(onMessage);
+  const onConnectRef = useRef(onConnect);
+  const onDisconnectRef = useRef(onDisconnect);
+  
+  // Keep refs up to date
+  useEffect(() => {
+    onMessageRef.current = onMessage;
+  }, [onMessage]);
+  useEffect(() => {
+    onConnectRef.current = onConnect;
+  }, [onConnect]);
+  useEffect(() => {
+    onDisconnectRef.current = onDisconnect;
+  }, [onDisconnect]);
 
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
@@ -63,14 +79,14 @@ export function useWebSocket(options: UseWebSocketOptions) {
         setIsConnected(true);
         setConnectionError(null);
         reconnectAttemptsRef.current = 0;
-        onConnect?.();
+        onConnectRef.current?.();
       };
 
       ws.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
           if (isDev) console.log('[WebSocket] Received:', message.type);
-          onMessage?.(message);
+          onMessageRef.current?.(message);
         } catch (error) {
           console.error('[WebSocket] Error parsing message:', error);
         }
@@ -84,7 +100,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
       ws.onclose = () => {
         if (isDev) console.log('[WebSocket] Disconnected');
         setIsConnected(false);
-        onDisconnect?.();
+        onDisconnectRef.current?.();
 
         // Attempt to reconnect
         if (reconnectAttemptsRef.current < maxReconnectAttempts) {
@@ -107,7 +123,9 @@ export function useWebSocket(options: UseWebSocketOptions) {
       console.error('[WebSocket] Connection error:', error);
       setConnectionError('Failed to connect');
     }
-  }, [userId, leagueId, teamId, onMessage, onConnect, onDisconnect, isDev]);
+    // Note: callbacks (onMessage, onConnect, onDisconnect) are accessed via refs
+    // to avoid stale closures, so they're not in the dependency array
+  }, [userId, leagueId, teamId, isDev]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {

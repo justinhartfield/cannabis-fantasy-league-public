@@ -207,14 +207,19 @@ export default function DailyChallenge() {
     onSuccess: (result) => {
       if (result.success) {
         console.log(`[ScoreSync] Synced! ${result.playsQueued || 0} updates queued`);
+        // Force liveScores to update from server on next dayScores fetch
+        hasReceivedWsUpdateRef.current = false;
         refetchScores();
         if (selectedTeamId) refetchBreakdown();
+        // Show toast for user feedback
+        toast.success("Scores refreshed!");
       } else {
         console.warn('[ScoreSync] Sync returned unsuccessful:', result.message);
       }
     },
     onError: (error) => {
       console.error('[ScoreSync] Sync failed:', error.message);
+      toast.error('Score sync failed');
     },
   });
 
@@ -265,11 +270,19 @@ export default function DailyChallenge() {
     leagueId: challengeId,
     teamId: userTeamId,
     onMessage: (message) => {
+      console.log('[WS] Received message:', message.type);
       if (message.type === 'challenge_score_update') {
+        console.log('[WS] challenge_score_update received:', {
+          msgStatDate: message.statDate,
+          currentStatDate: statDate,
+          scores: message.scores,
+        });
         if (message.statDate && statDate && message.statDate !== statDate) {
+          console.log('[WS] Ignoring update - dates dont match');
           return;
         }
         setLastUpdateTime(new Date(message.updateTime));
+        hasReceivedWsUpdateRef.current = false; // Allow server scores to update
         refetchScores();
         toast.info("Scores updated!");
       } else if (message.type === 'challenge_finalized') {
@@ -367,18 +380,24 @@ export default function DailyChallenge() {
       // - Initialize when empty
       // - Update when server has higher scores and we haven't received WS updates
       //   (WS updates are incremental and should take precedence)
-      const serverHasHigherScores = dayScores.some(score => {
+      // Check if server has different scores than local state
+      const serverScoresDiffer = dayScores.some(score => {
         const liveScore = liveScores.get(score.teamId);
-        return (score.points || 0) > (liveScore || 0);
+        return (score.points || 0) !== (liveScore || 0);
       });
       
-      if (liveScores.size === 0 || (serverHasHigherScores && !hasReceivedWsUpdateRef.current)) {
+      // Update liveScores from server when:
+      // 1. We don't have any live scores yet (initial load)
+      // 2. Server scores are different AND we haven't just received a WS update
+      //    (WS updates are incremental, so we trust them over server for a brief period)
+      if (liveScores.size === 0 || (serverScoresDiffer && !hasReceivedWsUpdateRef.current)) {
         const initialScores = new Map<number, number>();
         dayScores.forEach(score => {
           initialScores.set(score.teamId, score.points || 0);
         });
         setLiveScores(initialScores);
-        console.log('[LiveScores] Updated from server scores');
+        console.log('[LiveScores] Updated from server scores:', 
+          dayScores.map(s => `${s.teamId}:${s.points}`).join(', '));
       }
     }
   }, [dayScores, SCORE_CACHE_KEY, liveScores]);
