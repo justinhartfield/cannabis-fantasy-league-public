@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 
 export interface ScoringPlayData {
@@ -34,15 +34,45 @@ const PLAYER_TYPE_COLORS: Record<string, string> = {
   brand: "#ec4899", // pink
 };
 
+// Attack phrases that get randomly selected
+const ATTACK_PHRASES = [
+  "STRIKES!",
+  "ATTACKS!",
+  "SCORES!",
+  "HITS!",
+  "CONNECTS!",
+  "LANDS A HIT!",
+  "DELIVERS!",
+];
+
+const BIG_HIT_PHRASES = [
+  "DEVASTATING BLOW!",
+  "CRUSHING HIT!",
+  "MASSIVE STRIKE!",
+  "POWERFUL ATTACK!",
+  "HEAVY DAMAGE!",
+  "BRUTAL FORCE!",
+];
+
+const CRITICAL_PHRASES = [
+  "CRITICAL HIT!!!",
+  "SUPER EFFECTIVE!!!",
+  "KNOCKOUT BLOW!!!",
+  "ULTRA COMBO!!!",
+  "MAXIMUM DAMAGE!!!",
+  "OBLITERATION!!!",
+];
+
+// Animation style variants for variety
+type AnimationStyle = "slashes" | "explosion" | "lightning" | "shockwave" | "burst";
+
 /**
  * ScoringPlayOverlay Component
  * 
- * Displays EPIC attack effects when a scoring play happens:
- * - Massive slash marks spanning the screen
- * - Large energy nova bursts
- * - Screen-filling impact particles
- * - Dramatic flash overlays
- * - Fighter lunge animation trigger
+ * Displays EPIC attack effects when a scoring play happens with RANDOMIZED animations:
+ * - Multiple animation styles for variety
+ * - Full-screen attack alerts with verbose text
+ * - Mobile-optimized centered layout
  */
 export function ScoringPlayOverlay({
   play,
@@ -54,31 +84,60 @@ export function ScoringPlayOverlay({
   const [slashMarks, setSlashMarks] = useState<Array<{ id: number; angle: number; delay: number; length: number }>>([]);
   const [showMegaFlash, setShowMegaFlash] = useState(false);
 
+  // Randomize animation style and phrases on each play
+  const animationConfig = useMemo(() => {
+    if (!play) return null;
+    
+    const styles: AnimationStyle[] = ["slashes", "explosion", "lightning", "shockwave", "burst"];
+    const style = styles[Math.floor(Math.random() * styles.length)];
+    
+    const isBigHit = play.pointsScored >= 10;
+    const isCriticalHit = play.pointsScored >= 20;
+    
+    let phrase: string;
+    if (isCriticalHit) {
+      phrase = CRITICAL_PHRASES[Math.floor(Math.random() * CRITICAL_PHRASES.length)];
+    } else if (isBigHit) {
+      phrase = BIG_HIT_PHRASES[Math.floor(Math.random() * BIG_HIT_PHRASES.length)];
+    } else {
+      phrase = ATTACK_PHRASES[Math.floor(Math.random() * ATTACK_PHRASES.length)];
+    }
+    
+    return { style, phrase, isBigHit, isCriticalHit };
+  }, [play]);
+
   // Determine attack direction
   const attackerIsLeft = play?.attackingTeamId === leftTeamId;
   const color = play ? PLAYER_TYPE_COLORS[play.playerType] || PLAYER_TYPE_COLORS.manufacturer : "#fff";
-  const isBigHit = (play?.pointsScored ?? 0) >= 10;
-  const isCriticalHit = (play?.pointsScored ?? 0) >= 20;
 
   useEffect(() => {
-    if (!play) {
+    if (!play || !animationConfig) {
       setPhase("idle");
       setSlashMarks([]);
       setShowMegaFlash(false);
       return;
     }
 
-    // Generate random slash marks - more slashes for bigger hits
-    const numSlashes = isCriticalHit ? 6 : isBigHit ? 4 : 3;
+    const { isBigHit, isCriticalHit, style } = animationConfig;
+
+    // Generate random slash marks based on style
+    const numSlashes = style === "slashes" 
+      ? (isCriticalHit ? 6 : isBigHit ? 4 : 3)
+      : (isCriticalHit ? 4 : isBigHit ? 3 : 2);
+    
     const marks = Array.from({ length: numSlashes }, (_, i) => ({
       id: i,
-      angle: -60 + (Math.random() * 40 - 20) + (i * 15), // Spread slashes across angles
-      delay: i * 100,
-      length: 60 + Math.random() * 30, // 60-90% of available space
+      angle: style === "burst" 
+        ? (i * (360 / numSlashes)) - 90
+        : style === "lightning"
+          ? -90 + (Math.random() * 20 - 10)
+          : -60 + (Math.random() * 40 - 20) + (i * 15),
+      delay: style === "burst" ? i * 50 : i * 100,
+      length: style === "explosion" ? 40 + Math.random() * 20 : 60 + Math.random() * 30,
     }));
     setSlashMarks(marks);
 
-    // Animation sequence - extended timings for epic effect
+    // Animation sequence
     setPhase("lunge");
 
     const impactTimer = setTimeout(() => {
@@ -94,7 +153,6 @@ export function ScoringPlayOverlay({
 
     const sustainTimer = setTimeout(() => setPhase("sustain"), 1500);
 
-    // Extended complete timer for longer animation (3 seconds total)
     const completeTimer = setTimeout(() => {
       setPhase("complete");
       onComplete?.();
@@ -107,9 +165,11 @@ export function ScoringPlayOverlay({
       clearTimeout(sustainTimer);
       clearTimeout(completeTimer);
     };
-  }, [play, onComplete, isBigHit, isCriticalHit]);
+  }, [play, onComplete, animationConfig]);
 
-  if (phase === "idle" || !play) return null;
+  if (phase === "idle" || !play || !animationConfig) return null;
+
+  const { isBigHit, isCriticalHit, phrase, style } = animationConfig;
 
   return (
     <div className="absolute inset-0 pointer-events-none z-40 overflow-hidden">
@@ -141,21 +201,22 @@ export function ScoringPlayOverlay({
           />
         )}
 
-        {/* MASSIVE Energy nova from attacker - much larger radius */}
+        {/* MASSIVE Energy effects - varies by style */}
         {(phase === "impact" || phase === "slash") && (
           <div
             className={cn(
-              "absolute top-1/2 -translate-y-1/2",
-              attackerIsLeft ? "left-[35%]" : "right-[35%]"
+              "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
             )}
           >
-            {/* Primary nova burst - 120px radius */}
+            {/* Primary nova burst */}
             <div
               className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full animate-energy-nova"
               style={{
-                width: isCriticalHit ? "200px" : isBigHit ? "160px" : "120px",
-                height: isCriticalHit ? "200px" : isBigHit ? "160px" : "120px",
-                background: `radial-gradient(circle, ${color}90 0%, ${color}60 30%, ${color}30 60%, transparent 80%)`,
+                width: isCriticalHit ? "250px" : isBigHit ? "200px" : "150px",
+                height: isCriticalHit ? "250px" : isBigHit ? "200px" : "150px",
+                background: style === "explosion"
+                  ? `radial-gradient(circle, white 0%, ${color}90 20%, ${color}60 40%, ${color}30 60%, transparent 80%)`
+                  : `radial-gradient(circle, ${color}90 0%, ${color}60 30%, ${color}30 60%, transparent 80%)`,
                 "--nova-color": `${color}80`,
               } as React.CSSProperties}
             />
@@ -164,8 +225,8 @@ export function ScoringPlayOverlay({
             <div
               className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-4 animate-energy-nova"
               style={{
-                width: isCriticalHit ? "160px" : isBigHit ? "120px" : "100px",
-                height: isCriticalHit ? "160px" : isBigHit ? "120px" : "100px",
+                width: isCriticalHit ? "200px" : isBigHit ? "160px" : "120px",
+                height: isCriticalHit ? "200px" : isBigHit ? "160px" : "120px",
                 borderColor: color,
                 animationDelay: "0.1s",
                 "--nova-color": `${color}60`,
@@ -177,8 +238,8 @@ export function ScoringPlayOverlay({
               <div
                 className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 animate-energy-nova"
                 style={{
-                  width: "240px",
-                  height: "240px",
+                  width: "300px",
+                  height: "300px",
                   borderColor: `${color}80`,
                   animationDelay: "0.2s",
                   "--nova-color": `${color}40`,
@@ -190,65 +251,45 @@ export function ScoringPlayOverlay({
             <div
               className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full"
               style={{
-                width: "40px",
-                height: "40px",
+                width: isCriticalHit ? "60px" : "40px",
+                height: isCriticalHit ? "60px" : "40px",
                 background: `radial-gradient(circle, white 0%, ${color} 50%, transparent 100%)`,
-                boxShadow: `0 0 60px 20px ${color}`,
+                boxShadow: `0 0 80px 30px ${color}`,
                 animation: "energy-blast 0.6s ease-out forwards",
               }}
             />
           </div>
         )}
 
-        {/* EPIC Slash marks - spanning 60-80% of screen width */}
+        {/* Slash marks - style dependent */}
         {(phase === "slash" || phase === "sustain") && slashMarks.map((mark) => (
           <div
             key={mark.id}
-            className={cn(
-              "absolute top-1/2",
-              attackerIsLeft ? "right-[10%]" : "left-[10%]"
-            )}
+            className="absolute top-1/2 left-1/2"
             style={{
-              transform: `translateY(-50%)`,
+              transform: `translate(-50%, -50%)`,
               animationDelay: `${mark.delay}ms`,
             }}
           >
-            {/* MEGA Slash line - much wider */}
             <div
               className="origin-center animate-slash-mega"
               style={{
-                width: `${mark.length}vw`,
+                width: style === "burst" ? "50vw" : `${mark.length}vw`,
                 height: isCriticalHit ? "8px" : isBigHit ? "6px" : "4px",
-                background: `linear-gradient(90deg, transparent 0%, ${color}40 10%, ${color} 30%, white 50%, ${color} 70%, ${color}40 90%, transparent 100%)`,
+                background: style === "lightning"
+                  ? `linear-gradient(90deg, transparent 0%, white 20%, ${color} 50%, white 80%, transparent 100%)`
+                  : `linear-gradient(90deg, transparent 0%, ${color}40 10%, ${color} 30%, white 50%, ${color} 70%, ${color}40 90%, transparent 100%)`,
                 boxShadow: `0 0 30px ${color}, 0 0 60px ${color}, 0 0 90px ${color}80`,
                 "--slash-angle": `${mark.angle}deg`,
-                filter: "blur(0.5px)",
-              } as React.CSSProperties}
-            />
-
-            {/* Slash afterglow trail */}
-            <div
-              className="absolute top-0 left-0 origin-center animate-slash-mega"
-              style={{
-                width: `${mark.length * 0.8}vw`,
-                height: isCriticalHit ? "16px" : isBigHit ? "12px" : "8px",
-                background: `linear-gradient(90deg, transparent 0%, ${color}20 20%, ${color}40 50%, ${color}20 80%, transparent 100%)`,
-                "--slash-angle": `${mark.angle}deg`,
-                animationDelay: `${mark.delay + 50}ms`,
-                filter: "blur(4px)",
+                filter: style === "lightning" ? "blur(1px)" : "blur(0.5px)",
               } as React.CSSProperties}
             />
           </div>
         ))}
 
-        {/* MEGA Impact sparks - more particles, wider spread */}
+        {/* Impact sparks - centered */}
         {(phase === "impact" || phase === "slash" || phase === "sustain") && (
-          <div
-            className={cn(
-              "absolute top-1/2 -translate-y-1/2",
-              attackerIsLeft ? "right-[25%]" : "left-[25%]"
-            )}
-          >
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
             {[...Array(isCriticalHit ? 24 : isBigHit ? 16 : 10)].map((_, i) => (
               <div
                 key={i}
@@ -260,112 +301,90 @@ export function ScoringPlayOverlay({
                   boxShadow: `0 0 ${isBigHit ? 16 : 12}px ${color}`,
                   animationDelay: `${i * 40}ms`,
                   "--particle-angle": `${i * (360 / (isCriticalHit ? 24 : isBigHit ? 16 : 10))}deg`,
-                  "--particle-distance": `${100 + Math.random() * 80}px`,
+                  "--particle-distance": `${120 + Math.random() * 100}px`,
                 } as React.CSSProperties}
               />
             ))}
           </div>
         )}
 
-        {/* Additional spark trails for critical hits */}
-        {isCriticalHit && (phase === "impact" || phase === "slash") && (
-          <div
-            className={cn(
-              "absolute top-1/2 -translate-y-1/2",
-              attackerIsLeft ? "right-[30%]" : "left-[30%]"
-            )}
-          >
+        {/* ========== FULL-SCREEN CENTERED ATTACK ALERT - MOBILE OPTIMIZED ========== */}
+        {(phase === "slash" || phase === "sustain") && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-50">
+            {/* Attack phrase banner */}
+            <div
+              className={cn(
+                "font-black uppercase tracking-wider text-center animate-critical-hit-text px-4",
+                isCriticalHit 
+                  ? "text-3xl sm:text-4xl md:text-5xl" 
+                  : isBigHit 
+                    ? "text-2xl sm:text-3xl md:text-4xl"
+                    : "text-xl sm:text-2xl md:text-3xl"
+              )}
+              style={{
+                color: isCriticalHit ? "#ff4444" : color,
+                textShadow: `0 0 20px ${color}, 0 0 40px ${color}, 0 0 60px ${color}, 0 0 80px white`,
+                WebkitTextStroke: isCriticalHit ? "2px white" : "1px rgba(255,255,255,0.5)",
+              }}
+            >
+              {phrase}
+            </div>
+
+            {/* Player name + team - VERBOSE ALERT */}
+            <div className="mt-4 flex flex-col items-center gap-2 animate-combo-pop">
+              {/* Points badge - large and centered */}
+              <div
+                className={cn(
+                  "px-8 py-3 rounded-full text-white font-black",
+                  isCriticalHit ? "text-5xl sm:text-6xl" : isBigHit ? "text-4xl sm:text-5xl" : "text-3xl sm:text-4xl"
+                )}
+                style={{
+                  backgroundColor: color,
+                  boxShadow: `0 0 40px ${color}, 0 0 80px ${color}80`,
+                }}
+              >
+                +{play.pointsScored.toFixed(1)}
+              </div>
+              
+              {/* Player name - full width visible */}
+              <div 
+                className={cn(
+                  "font-bold text-white bg-black/80 px-6 py-2 rounded-full text-center",
+                  isBigHit ? "text-lg sm:text-xl" : "text-base sm:text-lg"
+                )}
+                style={{
+                  boxShadow: `0 0 20px ${color}60`,
+                  maxWidth: "90vw",
+                }}
+              >
+                {play.playerName}
+              </div>
+
+              {/* Team attribution - new verbose info */}
+              <div 
+                className="text-sm sm:text-base font-medium text-white/80 bg-black/60 px-4 py-1 rounded-full"
+              >
+                {attackerIsLeft ? play.attackingTeamName : play.attackingTeamName} scores!
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Speed lines effect during attack - adjusted for center */}
+        {phase === "lunge" && (
+          <div className="absolute inset-0 overflow-hidden">
             {[...Array(12)].map((_, i) => (
               <div
-                key={`trail-${i}`}
-                className="absolute rounded-full animate-damage-particle-mega"
-                style={{
-                  width: "4px",
-                  height: "12px",
-                  backgroundColor: "white",
-                  boxShadow: `0 0 20px ${color}`,
-                  animationDelay: `${i * 60 + 100}ms`,
-                  "--particle-angle": `${i * 30 + 15}deg`,
-                  "--particle-distance": `${150 + Math.random() * 60}px`,
-                } as React.CSSProperties}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* CRITICAL HIT text for massive damage */}
-        {isCriticalHit && phase === "slash" && (
-          <div className="absolute top-[15%] left-1/2 -translate-x-1/2">
-            <div
-              className="text-4xl sm:text-5xl md:text-6xl font-black uppercase tracking-wider animate-critical-hit-text"
-              style={{
-                color: color,
-                textShadow: `0 0 20px ${color}, 0 0 40px ${color}, 0 0 60px ${color}, 0 0 80px white`,
-                WebkitTextStroke: "2px white",
-              }}
-            >
-              CRITICAL HIT!
-            </div>
-          </div>
-        )}
-
-        {/* Player name and points indicator - larger and more prominent */}
-        {(phase === "slash" || phase === "sustain") && (
-          <div
-            className={cn(
-              "absolute flex flex-col items-center gap-2",
-              attackerIsLeft ? "left-[20%] -translate-x-1/2" : "right-[20%] translate-x-1/2",
-              "top-[25%]"
-            )}
-          >
-            {/* Points badge - larger */}
-            <div
-              className={cn(
-                "px-6 py-2 rounded-full text-white font-black animate-combo-pop",
-                isCriticalHit ? "text-4xl" : isBigHit ? "text-3xl" : "text-2xl"
-              )}
-              style={{
-                backgroundColor: color,
-                boxShadow: `0 0 30px ${color}, 0 0 60px ${color}80`,
-              }}
-            >
-              +{play.pointsScored.toFixed(1)}
-            </div>
-            
-            {/* Player name - larger */}
-            <div 
-              className={cn(
-                "font-bold text-white/95 bg-black/70 px-4 py-1 rounded-full animate-fade-in",
-                isBigHit ? "text-base" : "text-sm"
-              )}
-              style={{
-                maxWidth: "200px",
-                boxShadow: `0 0 20px ${color}40`,
-              }}
-            >
-              <span className="truncate block">{play.playerName}</span>
-            </div>
-          </div>
-        )}
-
-        {/* Speed lines effect during attack */}
-        {phase === "lunge" && (
-          <div className={cn(
-            "absolute inset-0 overflow-hidden",
-            attackerIsLeft ? "speed-lines-right" : "speed-lines-left"
-          )}>
-            {[...Array(8)].map((_, i) => (
-              <div
                 key={i}
-                className="absolute h-0.5 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                className="absolute h-0.5 bg-gradient-to-r from-transparent via-white/40 to-transparent"
                 style={{
-                  top: `${15 + i * 10}%`,
-                  left: attackerIsLeft ? "30%" : "auto",
-                  right: attackerIsLeft ? "auto" : "30%",
-                  width: "40%",
+                  top: `${8 + i * 7}%`,
+                  left: attackerIsLeft ? "20%" : "auto",
+                  right: attackerIsLeft ? "auto" : "20%",
+                  width: "60%",
                   animation: "slash-mega 0.4s ease-out forwards",
-                  animationDelay: `${i * 30}ms`,
-                  "--slash-angle": "0deg",
+                  animationDelay: `${i * 25}ms`,
+                  "--slash-angle": `${(Math.random() * 10 - 5)}deg`,
                 } as React.CSSProperties}
               />
             ))}
