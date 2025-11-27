@@ -5,6 +5,7 @@
  */
 
 import { router, protectedProcedure } from './_core/trpc';
+import { scoreBroadcaster } from './scoreBroadcaster';
 
 // ============================================================================
 // In-Memory Score Cache
@@ -170,9 +171,17 @@ export const scoringRouter = router({
         // Invalidate cache after recalculation to ensure fresh data
         invalidateCachedScores(input.challengeId, input.statDate);
 
+        // Broadcast scoring plays via WebSocket for real-time updates
+        const playCount = await scoreBroadcaster.detectAndQueuePlays(
+          input.challengeId,
+          input.statDate,
+          5 // spread over 5 minutes
+        );
+
         return {
           success: true,
           message: `Scores calculated for challenge ${input.challengeId} (${input.statDate})`,
+          playsQueued: playCount,
         };
       } catch (error) {
         console.error('[Scoring API] Error calculating challenge day scores:', error);

@@ -91,7 +91,7 @@ export default function LeagueDetail() {
     }
   }, [league, userTeam]);
 
-  // Show loading while checking public info
+  // Show loading while checking public info and auth
   if (publicInfoLoading || authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -100,25 +100,9 @@ export default function LeagueDetail() {
     );
   }
 
-  // If this is a challenge and user is not authenticated, show the landing page
+  // If this is a challenge and user is NOT authenticated, show the landing page
   if (publicChallengeInfo && !isAuthenticated) {
     return <ChallengeInviteLanding challengeId={leagueId} />;
-  }
-
-  // If this is a challenge and user is authenticated but not a member, show landing page
-  if (publicChallengeInfo && isAuthenticated && league) {
-    const userHasTeam = league.teams?.some((team: any) => team.userId === user?.id);
-    const isWaitingForOpponent = (league.teams?.length || 0) < (league.teamCount || 2);
-    
-    if (!userHasTeam && isWaitingForOpponent) {
-      return (
-        <ChallengeInviteLanding 
-          challengeId={leagueId} 
-          isAuthenticated={true}
-          leagueCode={league.leagueCode}
-        />
-      );
-    }
   }
 
   // For regular leagues (non-challenges), redirect to login if not authenticated

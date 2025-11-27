@@ -147,12 +147,7 @@ class ScoreBroadcaster {
 
       // For each team, get their asset breakdowns
       for (const teamScore of teamScores) {
-        const breakdowns = await db
-          .select()
-          .from(dailyScoringBreakdowns)
-          .where(eq(dailyScoringBreakdowns.dailyTeamScoreId, teamScore.teamId));
-
-        // Find the daily team score ID for this team
+        // Find the daily team score record ID (not teamId) for this team
         const [dailyScore] = await db
           .select()
           .from(dailyTeamScores)
@@ -164,13 +159,16 @@ class ScoreBroadcaster {
             )
           );
 
-        let assetBreakdowns: typeof breakdowns = [];
+        let assetBreakdowns: any[] = [];
         if (dailyScore) {
+          // Use the dailyTeamScores.id (not teamId) to fetch breakdowns
           assetBreakdowns = await db
             .select()
             .from(dailyScoringBreakdowns)
             .where(eq(dailyScoringBreakdowns.dailyTeamScoreId, dailyScore.id));
         }
+        
+        console.log(`[ScoreBroadcaster] Team ${teamScore.teamId} has ${assetBreakdowns.length} asset breakdowns`);
 
         const assets = new Map<string, AssetScore>();
         for (const breakdown of assetBreakdowns) {
@@ -213,9 +211,8 @@ class ScoreBroadcaster {
 
     if (teamIds.length < 2) return plays;
 
-    // Get the two teams
-    const team1 = current.teams.get(teamIds[0])!;
-    const team2 = current.teams.get(teamIds[1])!;
+    const isFirstRun = !previous;
+    console.log(`[ScoreBroadcaster] Detecting plays (first run: ${isFirstRun})`);
 
     // Check each team's assets for changes
     for (const [teamId, teamSnapshot] of current.teams) {
@@ -223,14 +220,22 @@ class ScoreBroadcaster {
       const opponent = current.teams.get(opponentId)!;
       
       const previousTeam = previous?.teams.get(teamId);
+      
+      console.log(`[ScoreBroadcaster] Team ${teamId} (${teamSnapshot.teamName}) has ${teamSnapshot.assets.size} assets`);
 
       for (const [assetKey, asset] of teamSnapshot.assets) {
         const previousAsset = previousTeam?.assets.get(assetKey);
         const previousPoints = previousAsset?.points || 0;
         const delta = asset.points - previousPoints;
 
-        // Only create plays for meaningful changes (> 0.5 points)
-        if (delta > 0.5) {
+        // On first run, broadcast all assets with points > 0.5
+        // On subsequent runs, only broadcast changes > 0.5
+        const shouldBroadcast = isFirstRun 
+          ? asset.points > 0.5 
+          : delta > 0.5;
+
+        if (shouldBroadcast) {
+          const pointsToShow = isFirstRun ? asset.points : delta;
           plays.push({
             attackingTeamId: teamId,
             attackingTeamName: teamSnapshot.teamName,
@@ -238,7 +243,7 @@ class ScoreBroadcaster {
             defendingTeamName: opponent.teamName,
             playerName: asset.assetName,
             playerType: asset.assetType,
-            pointsScored: Math.round(delta * 10) / 10, // Round to 1 decimal
+            pointsScored: Math.round(pointsToShow * 10) / 10, // Round to 1 decimal
             attackerNewTotal: teamSnapshot.totalPoints,
             defenderTotal: opponent.totalPoints,
             imageUrl: asset.imageUrl,
@@ -250,6 +255,8 @@ class ScoreBroadcaster {
 
     // Sort plays by points scored (most exciting plays last)
     plays.sort((a, b) => a.pointsScored - b.pointsScored);
+    
+    console.log(`[ScoreBroadcaster] Generated ${plays.length} scoring plays`);
 
     return plays;
   }

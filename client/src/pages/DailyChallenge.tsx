@@ -169,6 +169,27 @@ export default function DailyChallenge() {
 
   const isAdmin = user?.role === "admin";
 
+  // Manual score sync mutation (hidden feature - double-click status bar)
+  const syncScoresMutation = trpc.scoring.calculateChallengeDay.useMutation({
+    onSuccess: (result) => {
+      if (result.success) {
+        toast.success(`Synced! ${result.playsQueued || 0} updates queued`);
+        refetchScores();
+        if (selectedTeamId) refetchBreakdown();
+      } else {
+        toast.error(result.message || 'Sync failed');
+      }
+    },
+    onError: (error) => {
+      toast.error(`Sync failed: ${error.message}`);
+    },
+  });
+
+  const handleManualSync = useCallback(() => {
+    if (!statDate || syncScoresMutation.isPending) return;
+    syncScoresMutation.mutate({ challengeId, statDate });
+  }, [challengeId, statDate, syncScoresMutation]);
+
   // Get user's team ID for WebSocket
   const userTeamId = useMemo(() => {
     if (!league?.teams || !user?.id) return undefined;
@@ -289,31 +310,10 @@ export default function DailyChallenge() {
   // Scores are now calculated automatically by the backend scheduler
   // Real-time updates are pushed via WebSocket
 
-  // Check if user is a member of this challenge
-  const userTeamInChallenge = useMemo(() => {
-    if (!league?.teams || !user?.id) return null;
-    return league.teams.find((team: any) => team.userId === user.id) || null;
-  }, [league?.teams, user?.id]);
-
-  // Show invite landing page for:
-  // 1. Unauthenticated users
-  // 2. Authenticated users who haven't joined this challenge yet (and challenge is waiting for opponent)
+  // Show invite landing page for unauthenticated users
+  // (Logged-in users always see the normal challenge page)
   if (!authLoading && !isAuthenticated) {
     return <ChallengeInviteLanding challengeId={challengeId} />;
-  }
-
-  // For authenticated users who haven't joined - show landing page if challenge is still open
-  if (!authLoading && isAuthenticated && !leagueLoading && league && !userTeamInChallenge) {
-    const isWaitingForOpponent = (league.teams?.length || 0) < (league.teamCount || 2);
-    if (isWaitingForOpponent) {
-      return (
-        <ChallengeInviteLanding 
-          challengeId={challengeId} 
-          isAuthenticated={true}
-          leagueCode={league.leagueCode}
-        />
-      );
-    }
   }
 
   // Helper to get fighter illustration from league teams
@@ -640,8 +640,12 @@ export default function DailyChallenge() {
           />
         )}
 
-        {/* Status Bar with Live Feed */}
-        <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
+        {/* Status Bar with Live Feed - Double-click to manually sync */}
+        <div 
+          className="rounded-2xl bg-white/5 border border-white/10 p-4 cursor-pointer select-none"
+          onDoubleClick={handleManualSync}
+          title="Double-click to sync scores"
+        >
           <div className="flex items-start justify-between gap-4">
             {/* Left: Status */}
             <div className="flex items-center gap-3">
@@ -650,6 +654,7 @@ export default function DailyChallenge() {
                 <span className="text-xs text-white/60">
                   {isConnected ? "Live" : "Connecting..."}
                   {lastUpdateTime && ` • ${lastUpdateTime.toLocaleTimeString()}`}
+                  {syncScoresMutation.isPending && " • Syncing..."}
                 </span>
               )}
             </div>

@@ -63,12 +63,12 @@ class ChallengeScoreScheduler {
       console.log(`[ChallengeScoreScheduler] Health check at ${now.toISOString()} - Hour: ${currentHour}, Minute: ${currentMinute}`);
     }
 
-    // Check for 30-minute update (at :00 and :30 minutes)
+    // Check for 5-minute update (at :00, :05, :10, :15, :20, :25, :30, :35, :40, :45, :50, :55)
     const updateKey = `${currentHour}:${currentMinute}`;
-    const isUpdateTime = currentMinute === 0 || currentMinute === 30;
+    const isUpdateTime = currentMinute % 5 === 0;
     
     if (isUpdateTime && updateKey !== this.lastUpdateKey) {
-      console.log(`[ChallengeScoreScheduler] Triggering 30-minute update at ${now.toISOString()}`);
+      console.log(`[ChallengeScoreScheduler] Triggering 5-minute update at ${now.toISOString()}`);
       this.lastUpdateKey = updateKey;
       await this.updateHourlyScores();
     }
@@ -82,10 +82,49 @@ class ChallengeScoreScheduler {
   }
 
   /**
-   * Update scores for ALL active challenges (runs every 30 minutes)
+   * Manually trigger score update for a specific challenge (for testing/admin)
+   */
+  async triggerChallengeUpdate(challengeId: number): Promise<number> {
+    console.log(`[ChallengeScoreScheduler] Manual trigger for challenge ${challengeId}`);
+    
+    const db = await getDb();
+    if (!db) {
+      console.error('[ChallengeScoreScheduler] Database not available');
+      return 0;
+    }
+
+    const [challenge] = await db
+      .select()
+      .from(leagues)
+      .where(eq(leagues.id, challengeId))
+      .limit(1);
+
+    if (!challenge || challenge.leagueType !== 'challenge') {
+      console.error(`[ChallengeScoreScheduler] Challenge ${challengeId} not found`);
+      return 0;
+    }
+
+    const statDateString = new Date(challenge.createdAt).toISOString().split('T')[0];
+    
+    // Calculate scores
+    await calculateDailyChallengeScores(challengeId, statDateString);
+
+    // Detect and broadcast scoring plays
+    const playCount = await scoreBroadcaster.detectAndQueuePlays(
+      challengeId,
+      statDateString,
+      5 // spread over 5 minutes for manual triggers
+    );
+
+    console.log(`[ChallengeScoreScheduler] Manual trigger complete - queued ${playCount} plays`);
+    return playCount;
+  }
+
+  /**
+   * Update scores for ALL active challenges (runs every 5 minutes)
    */
   private async updateHourlyScores() {
-    console.log('[ChallengeScoreScheduler] Running 30-minute score update...');
+    console.log('[ChallengeScoreScheduler] Running 5-minute score update...');
 
     const db = await getDb();
     if (!db) {
