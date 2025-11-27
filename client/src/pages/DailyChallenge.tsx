@@ -72,31 +72,15 @@ export default function DailyChallenge() {
   const [liveScores, setLiveScores] = useState<Map<number, number>>(new Map());
   const lastScoreSyncRef = useRef<number>(0);
 
-  // Scroll to top on page load/reload - using anchor element
+  // Disable browser's automatic scroll restoration on mount
   useEffect(() => {
-    // Disable browser's automatic scroll restoration
     if ('scrollRestoration' in history) {
       history.scrollRestoration = 'manual';
     }
-    
-    // Use anchor-based scrolling
-    const anchor = document.getElementById('page-top');
-    if (anchor) {
-      anchor.scrollIntoView({ behavior: 'instant', block: 'start' });
-    }
-    
-    // Fallback with delay
-    const timeoutId = setTimeout(() => {
-      const anchor = document.getElementById('page-top');
-      if (anchor) {
-        anchor.scrollIntoView({ behavior: 'instant', block: 'start' });
-      }
-      document.documentElement.scrollTop = 0;
-      document.body.scrollTop = 0;
-    }, 50);
-    
-    return () => clearTimeout(timeoutId);
   }, []);
+
+  // Track if we've scrolled to top after content loads
+  const hasScrolledRef = useRef(false);
 
   // Cache scores in localStorage for instant display on page load
   const SCORE_CACHE_KEY = `challenge-${challengeId}-scores`;
@@ -196,22 +180,41 @@ export default function DailyChallenge() {
     }
   );
 
+  // Scroll to top when content finishes loading (not during loading state)
+  const isStillLoading = !challengeId || authLoading || leagueLoading || scoresLoading;
+  
+  useEffect(() => {
+    // Only scroll once when loading completes
+    if (!isStillLoading && !hasScrolledRef.current) {
+      hasScrolledRef.current = true;
+      
+      // Immediate scroll
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      
+      // Backup scroll after a tiny delay (for any async rendering)
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+      });
+    }
+  }, [isStillLoading]);
 
   const isAdmin = user?.role === "admin";
 
-  // Manual score sync mutation (hidden feature - double-click status bar)
+  // Score sync mutation - used for both auto-sync and manual sync
   const syncScoresMutation = trpc.scoring.calculateChallengeDay.useMutation({
     onSuccess: (result) => {
       if (result.success) {
-        toast.success(`Synced! ${result.playsQueued || 0} updates queued`);
+        console.log(`[ScoreSync] Synced! ${result.playsQueued || 0} updates queued`);
         refetchScores();
         if (selectedTeamId) refetchBreakdown();
       } else {
-        toast.error(result.message || 'Sync failed');
+        console.warn('[ScoreSync] Sync returned unsuccessful:', result.message);
       }
     },
     onError: (error) => {
-      toast.error(`Sync failed: ${error.message}`);
+      console.error('[ScoreSync] Sync failed:', error.message);
     },
   });
 
@@ -219,6 +222,30 @@ export default function DailyChallenge() {
     if (!statDate || syncScoresMutation.isPending) return;
     syncScoresMutation.mutate({ challengeId, statDate });
   }, [challengeId, statDate, syncScoresMutation]);
+  
+  // Auto-sync scores when visiting an active challenge with no scores
+  const hasAutoSyncedRef = useRef(false);
+  
+  useEffect(() => {
+    // Only auto-sync once per mount
+    if (hasAutoSyncedRef.current) return;
+    
+    // Wait for data to load
+    if (!league || !statDate || scoresLoading) return;
+    
+    // Only sync for active challenges
+    if (league.status !== 'active') return;
+    
+    // Check if scores are missing or all zeros
+    const hasRealScores = dayScores && dayScores.length > 0 && 
+      dayScores.some(score => (score.points || 0) > 0);
+    
+    if (!hasRealScores && !syncScoresMutation.isPending) {
+      console.log('[ScoreSync] No scores found, auto-triggering score calculation...');
+      hasAutoSyncedRef.current = true;
+      syncScoresMutation.mutate({ challengeId, statDate });
+    }
+  }, [league, statDate, dayScores, scoresLoading, syncScoresMutation, challengeId]);
 
   // Get user's team ID for WebSocket
   const userTeamId = useMemo(() => {
@@ -286,6 +313,9 @@ export default function DailyChallenge() {
           setLocation(`/challenge/${challengeId}/draft`);
         }, 5000);
       } else if (message.type === 'scoring_play') {
+        // Mark that we've received WS updates (don't overwrite with server data)
+        hasReceivedWsUpdateRef.current = true;
+        
         // Queue the scoring play for battle animation
         const scoringPlay: ScoringPlayData = {
           attackingTeamId: message.attackingTeamId,
@@ -334,7 +364,10 @@ export default function DailyChallenge() {
     autoConnect: !!challengeId && !!user?.id,
   });
 
-  // Update cache when new scores arrive
+  // Track whether we've received any WebSocket score updates (to avoid overwriting live data)
+  const hasReceivedWsUpdateRef = useRef(false);
+  
+  // Update cache and live scores when new scores arrive from server
   useEffect(() => {
     if (dayScores && dayScores.length > 0) {
       setCachedScores(dayScores);
@@ -350,18 +383,25 @@ export default function DailyChallenge() {
         }
       }
       
-      // Initialize live scores from server scores on first load
-      // (only if we don't already have live scores - don't overwrite incremental updates)
-      if (liveScores.size === 0) {
+      // Initialize or update live scores from server scores
+      // - Initialize when empty
+      // - Update when server has higher scores and we haven't received WS updates
+      //   (WS updates are incremental and should take precedence)
+      const serverHasHigherScores = dayScores.some(score => {
+        const liveScore = liveScores.get(score.teamId);
+        return (score.points || 0) > (liveScore || 0);
+      });
+      
+      if (liveScores.size === 0 || (serverHasHigherScores && !hasReceivedWsUpdateRef.current)) {
         const initialScores = new Map<number, number>();
         dayScores.forEach(score => {
           initialScores.set(score.teamId, score.points || 0);
         });
         setLiveScores(initialScores);
-        console.log('[LiveScores] Initialized from server scores');
+        console.log('[LiveScores] Updated from server scores');
       }
     }
-  }, [dayScores, SCORE_CACHE_KEY, liveScores.size]);
+  }, [dayScores, SCORE_CACHE_KEY, liveScores]);
 
   // Scores are now calculated automatically by the backend scheduler
   // Real-time updates are pushed via WebSocket
@@ -578,9 +618,6 @@ export default function DailyChallenge() {
 
   return (
     <div className="min-h-screen gradient-dark">
-      {/* Anchor for scroll-to-top */}
-      <div id="page-top" />
-      
       {/* Coin Flip Overlay */}
       {showCoinFlip && league?.teams && league.teams.length >= 2 && (
         <CoinFlip
