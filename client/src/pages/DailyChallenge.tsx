@@ -18,8 +18,6 @@ import {
   Loader2,
   ArrowLeft,
   Trophy,
-  RefreshCw,
-  Clock,
   UserPlus,
   Copy,
   Zap,
@@ -56,11 +54,8 @@ export default function DailyChallenge() {
   const challengeId = parseInt(id || "0", 10);
 
   const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
-  const [isCalculating, setIsCalculating] = useState(false);
   const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
   const [winner, setWinner] = useState<{ teamId: number; teamName: string; points: number } | null>(null);
-  const [nextUpdateTime, setNextUpdateTime] = useState<Date | null>(null);
-  const [timeUntilUpdate, setTimeUntilUpdate] = useState<string>("");
   const [showCoinFlip, setShowCoinFlip] = useState(false);
   const [coinFlipWinner, setCoinFlipWinner] = useState<{ teamId: number; teamName: string } | null>(null);
   
@@ -68,8 +63,10 @@ export default function DailyChallenge() {
   const [currentScoringPlay, setCurrentScoringPlay] = useState<ScoringPlayData | null>(null);
   const scoringPlayQueueRef = useRef<ScoringPlayData[]>([]);
   const isPlayingRef = useRef(false);
-  const lastPlayedRef = useRef<ScoringPlayData | null>(null); // Track last played for repeat
-  const playRepeatCountRef = useRef(0); // Track how many times current play has shown (1 or 2)
+  const lastPlayedRef = useRef<ScoringPlayData | null>(null);
+  
+  // Recent plays feed (last 3 scoring plays)
+  const [recentPlays, setRecentPlays] = useState<ScoringPlayData[]>([]);
 
   // Cache scores in localStorage for instant display on page load
   const SCORE_CACHE_KEY = `challenge-${challengeId}-scores`;
@@ -170,24 +167,6 @@ export default function DailyChallenge() {
   );
 
 
-  const calculateChallengeDayMutation = trpc.scoring.calculateChallengeDay.useMutation({
-    onSuccess: async () => {
-      toast.success("Scores calculated successfully!");
-      await refetchScores();
-      // Also refetch the breakdown to show updated scoring details
-      if (selectedTeamId) {
-        await refetchBreakdown();
-      }
-      setIsCalculating(false);
-    },
-    onError: (error) => {
-      toast.error(`Failed to calculate scores: ${error.message}`);
-      setIsCalculating(false);
-    },
-  });
-
-
-
   const isAdmin = user?.role === "admin";
 
   // Get user's team ID for WebSocket
@@ -197,24 +176,12 @@ export default function DailyChallenge() {
     return team?.id;
   }, [league, user]);
 
-  // Function to play next scoring play from queue (each play shows twice for impact)
+  // Function to play next scoring play from queue (single play with extended timing)
   const playNextScoringPlay = useCallback(() => {
-    // Check if we should repeat the last played animation
-    if (lastPlayedRef.current && playRepeatCountRef.current < 2) {
-      playRepeatCountRef.current++;
-      // Re-trigger the same play
-      setCurrentScoringPlay(null);
-      setTimeout(() => {
-        setCurrentScoringPlay(lastPlayedRef.current);
-      }, 100);
-      return;
-    }
-    
-    // Done with repeats, move to next play
+    // Move to next play in queue
     if (scoringPlayQueueRef.current.length === 0) {
       isPlayingRef.current = false;
       lastPlayedRef.current = null;
-      playRepeatCountRef.current = 0;
       setCurrentScoringPlay(null);
       return;
     }
@@ -223,7 +190,6 @@ export default function DailyChallenge() {
     isPlayingRef.current = true;
     const nextPlay = scoringPlayQueueRef.current.shift()!;
     lastPlayedRef.current = nextPlay;
-    playRepeatCountRef.current = 1; // First showing
     setCurrentScoringPlay(nextPlay);
   }, []);
 
@@ -286,6 +252,9 @@ export default function DailyChallenge() {
         
         scoringPlayQueueRef.current.push(scoringPlay);
         
+        // Add to recent plays feed (keep last 3)
+        setRecentPlays(prev => [scoringPlay, ...prev].slice(0, 3));
+        
         // Start playing if not already
         if (!isPlayingRef.current) {
           playNextScoringPlay();
@@ -298,45 +267,6 @@ export default function DailyChallenge() {
     },
     autoConnect: !!challengeId && !!user?.id,
   });
-
-  // Calculate next update time (top of next hour)
-  useEffect(() => {
-    const updateNextUpdateTime = () => {
-      const now = new Date();
-      const nextHour = new Date(now);
-      nextHour.setHours(now.getHours() + 1, 0, 0, 0);
-      setNextUpdateTime(nextHour);
-    };
-
-    updateNextUpdateTime();
-    const interval = setInterval(updateNextUpdateTime, 60000); // Update every minute
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // Update countdown timer
-  useEffect(() => {
-    if (!nextUpdateTime) return;
-
-    const updateCountdown = () => {
-      const now = new Date();
-      const diff = nextUpdateTime.getTime() - now.getTime();
-      
-      if (diff <= 0) {
-        setTimeUntilUpdate("Updating...");
-        return;
-      }
-
-      const minutes = Math.floor(diff / 60000);
-      const seconds = Math.floor((diff % 60000) / 1000);
-      setTimeUntilUpdate(`${minutes}:${seconds.toString().padStart(2, '0')}`);
-    };
-
-    updateCountdown();
-    const interval = setInterval(updateCountdown, 1000);
-
-    return () => clearInterval(interval);
-  }, [nextUpdateTime]);
 
   // Update cache when new scores arrive
   useEffect(() => {
@@ -356,34 +286,8 @@ export default function DailyChallenge() {
     }
   }, [dayScores, SCORE_CACHE_KEY]);
 
-  // Auto-calculation removed - scores are now calculated by the backend scheduler
-  // Admin users can still manually trigger calculation using the "Calculate Scores" button
-
-  const handleCalculateScores = useCallback(() => {
-    setIsCalculating(true);
-    // Don't pass statDate - let the backend use the challenge creation date
-    // This ensures we calculate scores for the date when stats were recorded
-    calculateChallengeDayMutation.mutate({
-      challengeId,
-      statDate: statDate || '', // Use the challenge's stat date, not today
-    });
-  }, [calculateChallengeDayMutation, challengeId, statDate]);
-
-  // Auto-trigger live score update for new challenges on first visit
-  useEffect(() => {
-    // Only trigger if league is active and we haven't updated yet
-    if (league?.status === 'active' && challengeId) {
-      const AUTO_UPDATE_KEY = `challenge-auto-update-${challengeId}`;
-      const hasAutoUpdated = localStorage.getItem(AUTO_UPDATE_KEY);
-
-      if (!hasAutoUpdated) {
-        console.log('[AutoUpdate] Triggering initial score update for challenge', challengeId);
-        handleCalculateScores();
-        localStorage.setItem(AUTO_UPDATE_KEY, 'true');
-      }
-    }
-  }, [league?.status, challengeId, handleCalculateScores]);
-
+  // Scores are now calculated automatically by the backend scheduler
+  // Real-time updates are pushed via WebSocket
 
   // Show invite landing page for unauthenticated users
   if (!authLoading && !isAuthenticated) {
@@ -568,6 +472,10 @@ export default function DailyChallenge() {
 
     // Queue up demo plays
     scoringPlayQueueRef.current = [...demoPlays];
+    
+    // Also populate the recent plays feed for demo
+    setRecentPlays(demoPlays.slice(0, 3));
+    
     toast.success(`Queued ${demoPlays.length} demo scoring plays!`);
     playNextScoringPlay();
   }, [leader, challenger, playNextScoringPlay]);
@@ -706,27 +614,50 @@ export default function DailyChallenge() {
           />
         )}
 
-        {/* Action Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-white/5 border border-white/10 p-4">
-          <div className="flex items-center gap-3">
-            {isLive ? <LiveIndicator size="sm" /> : <Badge variant="outline">Final</Badge>}
-            {(league?.status === 'active' || league?.status === 'draft') && (
-              <>
+        {/* Status Bar with Live Feed */}
+        <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
+          <div className="flex items-start justify-between gap-4">
+            {/* Left: Status */}
+            <div className="flex items-center gap-3">
+              {isLive ? <LiveIndicator size="sm" /> : <Badge variant="outline">Final</Badge>}
+              {(league?.status === 'active' || league?.status === 'draft') && (
                 <span className="text-xs text-white/60">
-                  {isConnected ? "Connected" : "Connecting..."}
+                  {isConnected ? "Live" : "Connecting..."}
                   {lastUpdateTime && ` • ${lastUpdateTime.toLocaleTimeString()}`}
                 </span>
-                <span className="text-white/30">•</span>
-                <span className="flex items-center gap-1.5 text-xs text-white/60">
-                  <Clock className="w-3 h-3" />
-                  Next: {timeUntilUpdate || "..."}
-                </span>
-              </>
+              )}
+            </div>
+
+            {/* Right: Recent Plays Feed */}
+            {recentPlays.length > 0 && (
+              <div className="flex flex-col gap-1.5 items-end">
+                <span className="text-[10px] uppercase tracking-wider text-white/40 mb-0.5">Recent Updates</span>
+                {recentPlays.map((play, i) => (
+                  <div 
+                    key={`${play.playerName}-${play.pointsScored}-${i}`} 
+                    className={cn(
+                      "flex items-center gap-2 text-xs transition-opacity",
+                      i === 0 ? "opacity-100" : i === 1 ? "opacity-70" : "opacity-40"
+                    )}
+                  >
+                    <span className="text-white/80 truncate max-w-[120px]">{play.playerName}</span>
+                    <Badge 
+                      className={cn(
+                        "text-[10px] font-semibold px-1.5 py-0",
+                        play.pointsScored >= 10 
+                          ? "bg-primary/30 text-primary border border-primary/50" 
+                          : "bg-white/10 text-white/70 border border-white/20"
+                      )}
+                    >
+                      +{play.pointsScored.toFixed(1)}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
             )}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {/* Demo Button for testing animations */}
-            {leader && challenger && (
+
+            {/* Demo Button (dev only) */}
+            {leader && challenger && !recentPlays.length && (
               <Button
                 variant="outline"
                 size="sm"
@@ -735,28 +666,9 @@ export default function DailyChallenge() {
                 disabled={!!currentScoringPlay}
               >
                 <Zap className="w-4 h-4 mr-2" />
-                Demo Battle
+                Demo
               </Button>
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-2xl border-white/30 text-white hover:bg-white/10"
-              onClick={handleCalculateScores}
-              disabled={isCalculating || calculateChallengeDayMutation.isPending}
-            >
-              {isCalculating || calculateChallengeDayMutation.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Updating...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Sync Scores
-                </>
-              )}
-            </Button>
           </div>
         </div>
 
