@@ -73,6 +73,11 @@ export default function DailyChallenge() {
   const [liveScores, setLiveScores] = useState<Map<number, number>>(new Map());
   const lastScoreSyncRef = useRef<number>(0);
 
+  // Scroll to top on page load/reload
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   // Cache scores in localStorage for instant display on page load
   const SCORE_CACHE_KEY = `challenge-${challengeId}-scores`;
   const [cachedScores, setCachedScores] = useState<any[]>(() => {
