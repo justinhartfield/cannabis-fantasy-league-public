@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { LiveIndicator } from "@/components/LiveIndicator";
 import ScoringBreakdownV2 from "@/components/ScoringBreakdownV2";
 import { CoinFlip } from "@/components/CoinFlip";
+import { BattleArena } from "@/components/BattleArena";
 import { BattleFieldView, lineupToFieldPlayersWithScores } from "@/components/BattleFieldView";
 import { LeagueChat } from "@/components/LeagueChat";
 import { ChallengeInviteLanding } from "@/components/ChallengeInviteLanding";
@@ -877,7 +878,34 @@ export default function DailyChallenge() {
           onComplete={handleScoringPlayComplete}
         />
 
-        {/* Battle Field View - Soccer jersey draft visualization */}
+        {/* Battle Arena - Team mascot GIFs (clickable to select team) */}
+        <BattleArena
+          leftTeam={leader ? {
+            teamId: leader.teamId,
+            teamName: leader.teamName,
+            userName: leader.userName,
+            userAvatarUrl: leader.userAvatarUrl,
+            fighterIllustration: leader.fighterIllustration,
+            points: leader.points,
+          } : null}
+          rightTeam={challenger ? {
+            teamId: challenger.teamId,
+            teamName: challenger.teamName,
+            userName: challenger.userName,
+            userAvatarUrl: challenger.userAvatarUrl,
+            fighterIllustration: challenger.fighterIllustration,
+            points: challenger.points,
+          } : !challenger && league?.leagueCode ? null : null}
+          isLive={isLive}
+          challengeDate={challengeDateLabel}
+          userTeamId={userTeam?.id}
+          selectedTeamId={selectedTeamId}
+          onFighterChange={() => refetchLeague()}
+          onTeamClick={(teamId) => setSelectedTeamId(teamId)}
+          scoringPlay={currentScoringPlay}
+        />
+
+        {/* Battle Field View - Soccer jersey lineup visualization (not clickable) */}
         <BattleFieldView
           leftTeam={leader ? {
             teamId: leader.teamId,
@@ -898,8 +926,6 @@ export default function DailyChallenge() {
           isLive={isLive}
           challengeDate={challengeDateLabel}
           userTeamId={userTeam?.id}
-          selectedTeamId={selectedTeamId}
-          onTeamClick={(teamId) => setSelectedTeamId(teamId)}
         />
 
         {/* Invite Block (when waiting for opponent) */}
