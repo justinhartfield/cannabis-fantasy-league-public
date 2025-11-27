@@ -52,7 +52,7 @@ export function BattleFieldView({
   onTeamClick,
   className,
 }: BattleFieldViewProps) {
-  const isUserTeam = (teamId: number | undefined) => teamId && teamId === userTeamId;
+  const isUserTeam = (teamId: number | undefined) => !!(teamId && teamId === userTeamId);
 
   return (
     <div className={cn(
@@ -455,15 +455,20 @@ function BattleTeamField({ team, side, isUserTeam, isSelected }: BattleTeamField
  */
 export function lineupToFieldPlayersWithScores(
   lineup: Array<{ 
-    assetType: AssetType; 
-    assetId: number; 
-    name: string; 
+    assetType: AssetType | string | null | undefined; 
+    assetId: number | null | undefined; 
+    name: string | null | undefined; 
     imageUrl?: string | null;
     points?: number | null;
     totalPoints?: number | null;
-  }>
+  }> | null | undefined
 ): Partial<Record<DraftPosition, PlayerWithScore | null>> {
   const result: Partial<Record<DraftPosition, PlayerWithScore | null>> = {};
+
+  // Guard against null/undefined input
+  if (!lineup || !Array.isArray(lineup)) {
+    return result;
+  }
 
   // Track how many of each type we've placed
   const counts: Record<AssetType, number> = {
@@ -483,23 +488,37 @@ export function lineupToFieldPlayersWithScores(
     brand: ["GK"],
   };
 
+  // Valid asset types
+  const validAssetTypes = new Set<string>(['manufacturer', 'pharmacy', 'product', 'cannabis_strain', 'brand']);
+
   // Overflow players go to FLEX
   const overflowPlayers: Array<typeof lineup[0]> = [];
 
   lineup.forEach((player) => {
-    const positions = positionMap[player.assetType];
-    const count = counts[player.assetType];
+    // Skip invalid players (null assetType, assetId, or name)
+    if (!player || !player.assetType || !player.assetId || !player.name) {
+      return;
+    }
     
-    if (count < positions.length) {
+    // Ensure assetType is valid
+    const assetType = player.assetType as AssetType;
+    if (!validAssetTypes.has(assetType)) {
+      return;
+    }
+
+    const positions = positionMap[assetType];
+    const count = counts[assetType];
+    
+    if (positions && count < positions.length) {
       const position = positions[count];
       result[position] = {
         id: player.assetId,
         name: player.name,
         imageUrl: player.imageUrl,
-        assetType: player.assetType,
+        assetType: assetType,
         score: player.points ?? player.totalPoints ?? null,
       };
-      counts[player.assetType]++;
+      counts[assetType]++;
     } else {
       // This player overflows their position, add to flex candidates
       overflowPlayers.push(player);
@@ -509,13 +528,15 @@ export function lineupToFieldPlayersWithScores(
   // Place the first overflow player in FLEX if not already filled
   if (!result["FLEX"] && overflowPlayers.length > 0) {
     const flexPlayer = overflowPlayers[0];
-    result["FLEX"] = {
-      id: flexPlayer.assetId,
-      name: flexPlayer.name,
-      imageUrl: flexPlayer.imageUrl,
-      assetType: flexPlayer.assetType,
-      score: flexPlayer.points ?? flexPlayer.totalPoints ?? null,
-    };
+    if (flexPlayer.assetId && flexPlayer.name && flexPlayer.assetType && validAssetTypes.has(flexPlayer.assetType as string)) {
+      result["FLEX"] = {
+        id: flexPlayer.assetId,
+        name: flexPlayer.name,
+        imageUrl: flexPlayer.imageUrl,
+        assetType: flexPlayer.assetType as AssetType,
+        score: flexPlayer.points ?? flexPlayer.totalPoints ?? null,
+      };
+    }
   }
 
   return result;

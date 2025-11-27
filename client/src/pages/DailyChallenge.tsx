@@ -5,11 +5,9 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import { LiveIndicator } from "@/components/LiveIndicator";
 import ScoringBreakdownV2 from "@/components/ScoringBreakdownV2";
 import { CoinFlip } from "@/components/CoinFlip";
-import { BattleArena } from "@/components/BattleArena";
 import { BattleFieldView, lineupToFieldPlayersWithScores } from "@/components/BattleFieldView";
 import { LeagueChat } from "@/components/LeagueChat";
 import { ChallengeInviteLanding } from "@/components/ChallengeInviteLanding";
@@ -26,8 +24,6 @@ import {
   UserPlus,
   Copy,
   Zap,
-  Gamepad2,
-  LayoutGrid,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -68,9 +64,6 @@ export default function DailyChallenge() {
   const [timeUntilUpdate, setTimeUntilUpdate] = useState<string>("");
   const [showCoinFlip, setShowCoinFlip] = useState(false);
   const [coinFlipWinner, setCoinFlipWinner] = useState<{ teamId: number; teamName: string } | null>(null);
-  
-  // View mode: 'battle' for GIF battle mode, 'field' for soccer field view
-  const [viewMode, setViewMode] = useState<'battle' | 'field'>('battle');
   
   // Scoring play state for battle animations
   const [currentScoringPlay, setCurrentScoringPlay] = useState<ScoringPlayData | null>(null);
@@ -199,7 +192,7 @@ export default function DailyChallenge() {
       week: currentWeek,
     },
     {
-      enabled: fieldViewTeamIds.team1Id > 0 && viewMode === 'field',
+      enabled: fieldViewTeamIds.team1Id > 0,
     }
   );
 
@@ -212,7 +205,7 @@ export default function DailyChallenge() {
       week: currentWeek,
     },
     {
-      enabled: fieldViewTeamIds.team2Id > 0 && viewMode === 'field',
+      enabled: fieldViewTeamIds.team2Id > 0,
     }
   );
 
@@ -884,58 +877,30 @@ export default function DailyChallenge() {
           onComplete={handleScoringPlayComplete}
         />
 
-        {/* Battle View - Toggle between GIF Battle and Field View */}
-        {viewMode === 'battle' ? (
-          <BattleArena
-            leftTeam={leader ? {
-              teamId: leader.teamId,
-              teamName: leader.teamName,
-              userName: leader.userName,
-              userAvatarUrl: leader.userAvatarUrl,
-              fighterIllustration: leader.fighterIllustration,
-              points: leader.points,
-            } : null}
-            rightTeam={challenger ? {
-              teamId: challenger.teamId,
-              teamName: challenger.teamName,
-              userName: challenger.userName,
-              userAvatarUrl: challenger.userAvatarUrl,
-              fighterIllustration: challenger.fighterIllustration,
-              points: challenger.points,
-            } : !challenger && league?.leagueCode ? null : null}
-            isLive={isLive}
-            challengeDate={challengeDateLabel}
-            userTeamId={userTeam?.id}
-            selectedTeamId={selectedTeamId}
-            onFighterChange={() => refetchLeague()}
-            onTeamClick={(teamId) => setSelectedTeamId(teamId)}
-            scoringPlay={currentScoringPlay}
-          />
-        ) : (
-          <BattleFieldView
-            leftTeam={leader ? {
-              teamId: leader.teamId,
-              teamName: leader.teamName,
-              userName: leader.userName,
-              userAvatarUrl: leader.userAvatarUrl,
-              points: leader.points,
-              players: leaderFieldPlayers,
-            } : null}
-            rightTeam={challenger ? {
-              teamId: challenger.teamId,
-              teamName: challenger.teamName,
-              userName: challenger.userName,
-              userAvatarUrl: challenger.userAvatarUrl,
-              points: challenger.points,
-              players: challengerFieldPlayers,
-            } : null}
-            isLive={isLive}
-            challengeDate={challengeDateLabel}
-            userTeamId={userTeam?.id}
-            selectedTeamId={selectedTeamId}
-            onTeamClick={(teamId) => setSelectedTeamId(teamId)}
-          />
-        )}
+        {/* Battle Field View - Soccer jersey draft visualization */}
+        <BattleFieldView
+          leftTeam={leader ? {
+            teamId: leader.teamId,
+            teamName: leader.teamName,
+            userName: leader.userName,
+            userAvatarUrl: leader.userAvatarUrl,
+            points: leader.points,
+            players: leaderFieldPlayers,
+          } : null}
+          rightTeam={challenger ? {
+            teamId: challenger.teamId,
+            teamName: challenger.teamName,
+            userName: challenger.userName,
+            userAvatarUrl: challenger.userAvatarUrl,
+            points: challenger.points,
+            players: challengerFieldPlayers,
+          } : null}
+          isLive={isLive}
+          challengeDate={challengeDateLabel}
+          userTeamId={userTeam?.id}
+          selectedTeamId={selectedTeamId}
+          onTeamClick={(teamId) => setSelectedTeamId(teamId)}
+        />
 
         {/* Invite Block (when waiting for opponent) */}
         {!challenger && league?.leagueCode && (
@@ -963,26 +928,6 @@ export default function DailyChallenge() {
                 </span>
               </>
             )}
-            {/* View Mode Toggle */}
-            <span className="text-white/30">•</span>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
-              <Gamepad2 className={cn(
-                "w-4 h-4 transition-colors",
-                viewMode === 'battle' ? "text-[#cfff4d]" : "text-white/40"
-              )} />
-              <Switch
-                checked={viewMode === 'field'}
-                onCheckedChange={(checked) => setViewMode(checked ? 'field' : 'battle')}
-                className="data-[state=checked]:bg-[#cfff4d] scale-75"
-              />
-              <LayoutGrid className={cn(
-                "w-4 h-4 transition-colors",
-                viewMode === 'field' ? "text-[#cfff4d]" : "text-white/40"
-              )} />
-              <span className="text-[10px] text-white/50 uppercase tracking-wider">
-                {viewMode === 'battle' ? 'Battle' : 'Field'}
-              </span>
-            </div>
           </div>
           <div className="flex flex-wrap gap-2">
             {/* Demo Button for testing animations */}
