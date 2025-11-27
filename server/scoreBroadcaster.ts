@@ -120,9 +120,12 @@ class ScoreBroadcaster {
     if (!db) return null;
 
     try {
-      // Get all team scores for this challenge
-      const teamScores = await db
+      console.log(`[ScoreBroadcaster] Fetching scores for challenge ${challengeId}, date ${statDate}`);
+      
+      // Get all team scores for this challenge with daily score IDs
+      const teamScoresRaw = await db
         .select({
+          dailyScoreId: dailyTeamScores.id,
           teamId: dailyTeamScores.teamId,
           totalPoints: dailyTeamScores.totalPoints,
           teamName: teams.name,
@@ -136,7 +139,10 @@ class ScoreBroadcaster {
           )
         );
 
-      if (teamScores.length < 2) {
+      console.log(`[ScoreBroadcaster] Found ${teamScoresRaw.length} team scores`);
+
+      if (teamScoresRaw.length < 2) {
+        console.log(`[ScoreBroadcaster] Not enough teams (need 2, got ${teamScoresRaw.length})`);
         return null;
       }
 
@@ -146,40 +152,43 @@ class ScoreBroadcaster {
       };
 
       // For each team, get their asset breakdowns
-      for (const teamScore of teamScores) {
-        // Find the daily team score record ID (not teamId) for this team
-        const [dailyScore] = await db
-          .select()
-          .from(dailyTeamScores)
-          .where(
-            and(
-              eq(dailyTeamScores.challengeId, challengeId),
-              eq(dailyTeamScores.teamId, teamScore.teamId),
-              eq(dailyTeamScores.statDate, statDate)
-            )
-          );
-
+      for (const teamScore of teamScoresRaw) {
         let assetBreakdowns: any[] = [];
-        if (dailyScore) {
-          // Use the dailyTeamScores.id (not teamId) to fetch breakdowns
-          assetBreakdowns = await db
-            .select()
-            .from(dailyScoringBreakdowns)
-            .where(eq(dailyScoringBreakdowns.dailyTeamScoreId, dailyScore.id));
+        
+        // Only fetch breakdowns if we have a valid daily score ID
+        if (teamScore.dailyScoreId) {
+          try {
+            assetBreakdowns = await db
+              .select({
+                id: dailyScoringBreakdowns.id,
+                assetType: dailyScoringBreakdowns.assetType,
+                assetId: dailyScoringBreakdowns.assetId,
+                position: dailyScoringBreakdowns.position,
+                totalPoints: dailyScoringBreakdowns.totalPoints,
+                breakdown: dailyScoringBreakdowns.breakdown,
+              })
+              .from(dailyScoringBreakdowns)
+              .where(eq(dailyScoringBreakdowns.dailyTeamScoreId, teamScore.dailyScoreId));
+          } catch (breakdownError) {
+            console.error(`[ScoreBroadcaster] Error fetching breakdowns for team ${teamScore.teamId}:`, breakdownError);
+            assetBreakdowns = [];
+          }
         }
         
-        console.log(`[ScoreBroadcaster] Team ${teamScore.teamId} has ${assetBreakdowns.length} asset breakdowns`);
+        console.log(`[ScoreBroadcaster] Team ${teamScore.teamId} (dailyScoreId: ${teamScore.dailyScoreId}) has ${assetBreakdowns.length} asset breakdowns`);
 
         const assets = new Map<string, AssetScore>();
         for (const breakdown of assetBreakdowns) {
+          if (!breakdown.assetType || !breakdown.assetId) continue;
+          
           const key = `${breakdown.assetType}:${breakdown.assetId}`;
           const breakdownData = breakdown.breakdown as any;
           assets.set(key, {
             assetType: breakdown.assetType as AssetType,
             assetId: breakdown.assetId,
             assetName: breakdownData?.assetName || `Asset ${breakdown.assetId}`,
-            position: breakdown.position,
-            points: breakdown.totalPoints,
+            position: breakdown.position || 'unknown',
+            points: breakdown.totalPoints || 0,
             imageUrl: breakdownData?.imageUrl || null,
           });
         }
@@ -192,6 +201,7 @@ class ScoreBroadcaster {
         });
       }
 
+      console.log(`[ScoreBroadcaster] Snapshot created with ${snapshot.teams.size} teams`);
       return snapshot;
     } catch (error) {
       console.error('[ScoreBroadcaster] Error fetching scores:', error);
