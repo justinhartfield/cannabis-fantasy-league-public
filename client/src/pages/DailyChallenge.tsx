@@ -73,20 +73,28 @@ export default function DailyChallenge() {
   const [liveScores, setLiveScores] = useState<Map<number, number>>(new Map());
   const lastScoreSyncRef = useRef<number>(0);
 
-  // Scroll to top on page load/reload - aggressive version
+  // Scroll to top on page load/reload - using anchor element
   useEffect(() => {
     // Disable browser's automatic scroll restoration
     if ('scrollRestoration' in history) {
       history.scrollRestoration = 'manual';
     }
     
-    // Immediate scroll
-    window.scrollTo(0, 0);
+    // Use anchor-based scrolling
+    const anchor = document.getElementById('page-top');
+    if (anchor) {
+      anchor.scrollIntoView({ behavior: 'instant', block: 'start' });
+    }
     
-    // Also scroll after a brief delay to handle any content shifts
+    // Fallback with delay
     const timeoutId = setTimeout(() => {
-      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-    }, 100);
+      const anchor = document.getElementById('page-top');
+      if (anchor) {
+        anchor.scrollIntoView({ behavior: 'instant', block: 'start' });
+      }
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    }, 50);
     
     return () => clearTimeout(timeoutId);
   }, []);
@@ -631,6 +639,9 @@ export default function DailyChallenge() {
 
   return (
     <div className="min-h-screen gradient-dark">
+      {/* Anchor for scroll-to-top */}
+      <div id="page-top" />
+      
       {/* Coin Flip Overlay */}
       {showCoinFlip && league?.teams && league.teams.length >= 2 && (
         <CoinFlip

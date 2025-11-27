@@ -389,29 +389,28 @@ export function BattleArena({
             />
           </div>
 
-          {/* Score Bar - Using predicted scores for smooth live updates */}
-          <div className="mt-4 relative h-2 bg-white/10 rounded-full overflow-hidden">
-            {leftTeam && rightTeam && (predictedLeftScore > 0 || predictedRightScore > 0) && (
-              <>
-                <div
-                  className="absolute top-0 left-0 h-full bg-gradient-to-r from-primary to-primary/70 transition-all duration-300"
-                  style={{
-                    width: `${
-                      (predictedLeftScore / (predictedLeftScore + predictedRightScore)) * 100
-                    }%`,
-                  }}
-                />
-                <div
-                  className="absolute top-0 right-0 h-full bg-gradient-to-l from-secondary to-secondary/70 transition-all duration-300"
-                  style={{
-                    width: `${
-                      (predictedRightScore / (predictedLeftScore + predictedRightScore)) * 100
-                    }%`,
-                  }}
-                />
-              </>
-            )}
-          </div>
+          {/* Video Game Style Score Bars */}
+          {leftTeam && rightTeam && (
+            <div className="mt-6 flex justify-between gap-8">
+              {/* Left Team Health Bar */}
+              <ScoreHealthBar
+                teamName={leftTeam.teamName}
+                score={predictedLeftScore}
+                opponentScore={predictedRightScore}
+                side="left"
+                isHit={leftFighterHit}
+              />
+              
+              {/* Right Team Health Bar */}
+              <ScoreHealthBar
+                teamName={rightTeam.teamName}
+                score={predictedRightScore}
+                opponentScore={predictedLeftScore}
+                side="right"
+                isHit={rightFighterHit}
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -664,6 +663,122 @@ function FighterCard({
             {fighter.name}
           </Badge>
         )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * ScoreHealthBar - Video game style health bar based on score ratio
+ */
+interface ScoreHealthBarProps {
+  teamName: string;
+  score: number;
+  opponentScore: number;
+  side: "left" | "right";
+  isHit?: boolean;
+}
+
+function ScoreHealthBar({ teamName, score, opponentScore, side, isHit = false }: ScoreHealthBarProps) {
+  const totalScore = score + opponentScore;
+  // Health is based on your share of total points (50% = even, 100% = dominating, 0% = losing badly)
+  const healthPercent = totalScore > 0 
+    ? Math.max(5, Math.min(100, (score / totalScore) * 100))
+    : 50;
+  
+  const isCritical = healthPercent <= 20;
+  const isLow = healthPercent <= 35;
+  const isDominating = healthPercent >= 65;
+
+  return (
+    <div
+      className={cn(
+        "flex-1 flex flex-col",
+        side === "right" && "items-end"
+      )}
+    >
+      {/* Critical warning - positioned above */}
+      {isCritical && (
+        <div className={cn(
+          "text-red-500 text-sm font-black uppercase tracking-wider animate-pulse mb-1",
+          side === "right" && "text-right"
+        )}>
+          DANGER!
+        </div>
+      )}
+
+      {/* Team name */}
+      <div
+        className={cn(
+          "text-sm font-bold uppercase tracking-wider mb-2",
+          isCritical ? "text-red-400" : isLow ? "text-yellow-400" : "text-white/80"
+        )}
+      >
+        {teamName}
+      </div>
+
+      {/* Health bar container */}
+      <div
+        className={cn(
+          "relative h-5 w-full rounded-full overflow-hidden",
+          "bg-black/60 border-2",
+          isCritical 
+            ? "border-red-500/60" 
+            : isLow 
+              ? "border-yellow-500/40" 
+              : isDominating
+                ? side === "left" ? "border-primary/50" : "border-secondary/50"
+                : "border-white/20",
+          isHit && "animate-health-shake",
+          isCritical && "animate-health-critical"
+        )}
+      >
+        {/* Background gradient */}
+        <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent" />
+
+        {/* Health fill */}
+        <div
+          className={cn(
+            "absolute top-0 h-full transition-all duration-500 ease-out",
+            side === "left" ? "left-0 rounded-r-full" : "right-0 rounded-l-full",
+            isCritical
+              ? "bg-gradient-to-r from-red-600 via-red-500 to-red-400"
+              : isLow
+                ? "bg-gradient-to-r from-yellow-600 via-yellow-500 to-yellow-400"
+                : side === "left"
+                  ? "bg-gradient-to-r from-primary/90 via-primary to-[#d4ff60]"
+                  : "bg-gradient-to-r from-[#ff8066] via-secondary to-secondary/90"
+          )}
+          style={{
+            width: `${healthPercent}%`,
+            boxShadow: isCritical
+              ? "0 0 20px rgba(239, 68, 68, 0.6), inset 0 2px 4px rgba(255,255,255,0.2)"
+              : isLow
+                ? "0 0 15px rgba(234, 179, 8, 0.5), inset 0 2px 4px rgba(255,255,255,0.2)"
+                : side === "left"
+                  ? "0 0 20px rgba(163, 255, 18, 0.4), inset 0 2px 4px rgba(255,255,255,0.2)"
+                  : "0 0 20px rgba(255, 92, 71, 0.4), inset 0 2px 4px rgba(255,255,255,0.2)",
+          }}
+        >
+          {/* Inner highlight/shine */}
+          <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/40 to-transparent rounded-t-full" />
+        </div>
+
+        {/* Hit flash overlay */}
+        {isHit && (
+          <div className="absolute inset-0 bg-white animate-impact-flash" />
+        )}
+      </div>
+
+      {/* Health percentage */}
+      <div
+        className={cn(
+          "text-xs font-bold mt-1 tabular-nums",
+          isCritical ? "text-red-400" : isLow ? "text-yellow-400" : "text-white/60",
+          side === "right" && "text-right"
+        )}
+      >
+        {Math.round(healthPercent)}%
       </div>
     </div>
   );
