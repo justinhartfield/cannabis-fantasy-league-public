@@ -20,7 +20,6 @@ import {
   Trophy,
   UserPlus,
   Copy,
-  Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -514,66 +513,6 @@ export default function DailyChallenge() {
     [sortedScores, selectedTeamId]
   );
 
-  // Demo function to test battle animations (must be after leader/challenger are defined)
-  const triggerDemoPlays = useCallback(() => {
-    if (!leader || !challenger) {
-      toast.error("Need both teams to demo battle animations");
-      return;
-    }
-
-    const demoPlays: ScoringPlayData[] = [
-      {
-        attackingTeamId: leader.teamId,
-        attackingTeamName: leader.teamName,
-        defendingTeamId: challenger.teamId,
-        defendingTeamName: challenger.teamName,
-        playerName: "Blue Dream",
-        playerType: "cannabis_strain",
-        pointsScored: 8.5,
-        attackerNewTotal: leader.points + 8.5,
-        defenderTotal: challenger.points,
-        imageUrl: "https://images.leafly.com/flower-images/blue-dream.png",
-      },
-      {
-        attackingTeamId: challenger.teamId,
-        attackingTeamName: challenger.teamName,
-        defendingTeamId: leader.teamId,
-        defendingTeamName: leader.teamName,
-        playerName: "STIIIZY",
-        playerType: "manufacturer",
-        pointsScored: 12.3,
-        attackerNewTotal: challenger.points + 12.3,
-        defenderTotal: leader.points + 8.5,
-        imageUrl: null,
-      },
-      {
-        attackingTeamId: leader.teamId,
-        attackingTeamName: leader.teamName,
-        defendingTeamId: challenger.teamId,
-        defendingTeamName: challenger.teamName,
-        playerName: "OG Kush Pre-Roll",
-        playerType: "product",
-        pointsScored: 5.2,
-        attackerNewTotal: leader.points + 8.5 + 5.2,
-        defenderTotal: challenger.points + 12.3,
-        imageUrl: null,
-      },
-    ];
-
-    // Queue up demo plays
-    scoringPlayQueueRef.current = [...demoPlays];
-    
-    // Also populate the recent plays feed with timestamps for demo
-    const now = new Date();
-    setRecentPlays(demoPlays.slice(0, 3).map((play, i) => ({
-      ...play,
-      timestamp: new Date(now.getTime() - i * 30000), // Stagger by 30 seconds each
-    })));
-    
-    toast.success(`Queued ${demoPlays.length} demo scoring plays!`);
-    playNextScoringPlay();
-  }, [leader, challenger, playNextScoringPlay]);
-
   const topPerformers = useMemo<
     { name: string; type: string; total: number; breakdown: any; imageUrl?: string | null }[]
   >(() => {
@@ -724,26 +663,16 @@ export default function DailyChallenge() {
                 {isLive ? <LiveIndicator size="sm" /> : <Badge variant="outline">Final</Badge>}
                 {(league?.status === 'active' || league?.status === 'draft') && (
                   <span className="text-xs text-white/60">
-                    {isConnected ? "" : "Connecting..."}
-                    {lastUpdateTime && lastUpdateTime.toLocaleTimeString()}
+                    {!isConnected && "Connecting..."}
+                    {isConnected && lastUpdateTime && (
+                      <>Game Stats Last Updated: {lastUpdateTime.toLocaleTimeString()}</>
+                    )}
+                    {isConnected && !lastUpdateTime && "Waiting for updates..."}
                     {syncScoresMutation.isPending && " • Syncing..."}
                   </span>
                 )}
               </div>
 
-              {/* Demo Button (dev only) */}
-              {leader && challenger && !recentPlays.length && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-2xl border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10"
-                  onClick={triggerDemoPlays}
-                  disabled={!!currentScoringPlay}
-                >
-                  <Zap className="w-4 h-4 mr-2" />
-                  Demo
-                </Button>
-              )}
             </div>
 
             {/* Recent Plays Feed - Left aligned with full width */}

@@ -123,7 +123,7 @@ export function ChallengeInviteLanding({ challengeId, isAuthenticated = false, l
     : FIGHTER_ILLUSTRATIONS[0];
 
   // Get top performers for leaderboard preview
-  const topBrands = leaderboard?.brands?.slice(0, 3) || [];
+  const topManufacturers = leaderboard?.manufacturers?.slice(0, 3) || [];
   const topStrains = leaderboard?.strains?.slice(0, 3) || [];
 
   return (
@@ -138,9 +138,9 @@ export function ChallengeInviteLanding({ challengeId, isAuthenticated = false, l
                 <h2 className="headline-primary text-2xl md:text-3xl tracking-tight">
                   <span className="text-weed-green drop-shadow-[0_0_20px_rgba(207,255,77,0.5)]">Cannabis</span>
                   <span className="text-white mx-2">Fantasy</span>
-                  <span className="text-weed-coral drop-shadow-[0_0_20px_rgba(255,111,97,0.5)]">League</span>
+                  <span className="text-black/80 drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">League</span>
                 </h2>
-                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-24 h-1 bg-gradient-to-r from-weed-green via-white to-weed-coral rounded-full opacity-60" />
+                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-24 h-1 bg-gradient-to-r from-weed-green via-white to-black/60 rounded-full opacity-60" />
               </div>
             </div>
 
@@ -377,7 +377,7 @@ export function ChallengeInviteLanding({ challengeId, isAuthenticated = false, l
       </section>
 
       {/* Leaderboard Preview */}
-      {(topBrands.length > 0 || topStrains.length > 0) && (
+      {(topManufacturers.length > 0 || topStrains.length > 0) && (
         <section className="py-16 bg-weed-purple/30">
           <div className="container mx-auto px-4">
             <div className="max-w-4xl mx-auto">
@@ -391,19 +391,19 @@ export function ChallengeInviteLanding({ challengeId, isAuthenticated = false, l
               </div>
 
               <div className="grid md:grid-cols-2 gap-6">
-                {/* Top Brands */}
-                {topBrands.length > 0 && (
+                {/* Top Manufacturers */}
+                {topManufacturers.length > 0 && (
                   <Card className="bg-white/5 border-white/10">
                     <CardHeader className="pb-2">
                       <CardTitle className="flex items-center gap-2 text-lg">
                         <Target className="w-5 h-5 text-weed-green" />
-                        <span className="text-white">Top Brands</span>
+                        <span className="text-white">Top Manufacturers</span>
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      {topBrands.map((brand: any, index: number) => (
+                      {topManufacturers.map((manufacturer: any, index: number) => (
                         <div 
-                          key={brand.id}
+                          key={manufacturer.id}
                           className="flex items-center justify-between p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
                         >
                           <div className="flex items-center gap-3">
@@ -415,10 +415,10 @@ export function ChallengeInviteLanding({ challengeId, isAuthenticated = false, l
                             `}>
                               {index + 1}
                             </span>
-                            <span className="text-white font-medium">{brand.name}</span>
+                            <span className="text-white font-medium">{manufacturer.name}</span>
                           </div>
                           <span className="text-weed-green font-mono text-sm">
-                            {brand.score?.toLocaleString() || 0} pts
+                            {manufacturer.score?.toLocaleString() || 0} pts
                           </span>
                         </div>
                       ))}

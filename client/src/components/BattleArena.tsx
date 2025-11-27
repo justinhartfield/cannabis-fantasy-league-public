@@ -6,7 +6,6 @@ import { FighterPicker, FIGHTER_ILLUSTRATIONS, getFighterByFile } from "@/compon
 import { AnimatedScoreCounter } from "@/components/AnimatedScoreCounter";
 import { DamageFlash } from "@/components/DamageFlash";
 import { ScoringPlayOverlay, ScoringPlayData } from "@/components/ScoringPlayOverlay";
-import { BattleHealthBar } from "@/components/BattleHealthBar";
 import { ComboCounter } from "@/components/ComboCounter";
 import { useScorePrediction } from "@/hooks/useScorePrediction";
 import { Swords, Sparkles, Edit3, Star } from "lucide-react";
@@ -291,26 +290,6 @@ export function BattleArena({
               <span className="text-xs text-white/50">{challengeDate}</span>
             )}
           </div>
-
-          {/* Health Bars */}
-          {leftTeam && rightTeam && (
-            <div className="flex justify-between mb-4 px-2">
-              <BattleHealthBar
-                teamName={leftTeam.teamName}
-                score={leftTeam.points}
-                opponentScore={rightTeam.points}
-                side="left"
-                isHit={leftFighterHit}
-              />
-              <BattleHealthBar
-                teamName={rightTeam.teamName}
-                score={rightTeam.points}
-                opponentScore={leftTeam.points}
-                side="right"
-                isHit={rightFighterHit}
-              />
-            </div>
-          )}
 
           {/* Battle Layout */}
           <div className="flex items-center justify-between gap-4">
