@@ -348,24 +348,57 @@ export default function ScoringBreakdownV2({
     return dates.map(formatStatDateLabel);
   }, [weekContext?.year, weekContext?.week]);
 
-  // For season-long league views (identified by weekContext) we want brand
-  // breakdowns to hide trend-only components that no longer contribute points,
-  // so the UI doesn't suggest they are still active scoring factors.
+  // For season-long league views (identified by weekContext) we want to hide
+  // components that don't contribute meaningful information:
+  // - Brand trend-only components (New Ratings Momentum, Rating Trend) with 0 points
+  // - "No Data" placeholder components that appear when daily stats were missing
+  // - Any component with 0 points and a "Weekly aggregate" value (empty day aggregates)
   const visibleComponents = useMemo(() => {
     const base = data.components || [];
 
-    if (!weekContext || data.assetType !== "brand") {
+    if (!weekContext) {
       return base;
     }
 
     return base.filter((component) => {
-      const isBrandTrendComponent =
-        component.category === "New Ratings Momentum" ||
-        component.category === "Rating Trend";
+      // Filter out brand momentum/trend components with 0 points
+      if (data.assetType === "brand") {
+        const isBrandTrendComponent =
+          component.category === "New Ratings Momentum" ||
+          component.category === "Rating Trend";
 
-      // Keep the row for daily challenges or historical views where it
-      // still has points; hide it only when it contributes nothing.
-      if (isBrandTrendComponent && (!component.points || component.points === 0)) {
+        if (isBrandTrendComponent && (!component.points || component.points === 0)) {
+          return false;
+        }
+      }
+
+      // Filter out "No Data" placeholder components with 0 points
+      const isNoDataComponent = 
+        component.category === "No Data" ||
+        component.category.toLowerCase().includes("no data") ||
+        (typeof component.value === "string" && component.value.toLowerCase().includes("no stats"));
+
+      if (isNoDataComponent && (!component.points || component.points === 0)) {
+        return false;
+      }
+
+      // Filter out empty weekly aggregate components with 0 points
+      // These appear when a day had no stats for an asset
+      const isEmptyAggregate =
+        typeof component.value === "string" &&
+        component.value === "Weekly aggregate" &&
+        (!component.points || component.points === 0);
+
+      if (isEmptyAggregate) {
+        return false;
+      }
+
+      // Also filter out components with "No stats available" in the formula
+      const hasNoStatsFormula =
+        typeof component.formula === "string" &&
+        component.formula.toLowerCase().includes("no stats available");
+
+      if (hasNoStatsFormula && (!component.points || component.points === 0)) {
         return false;
       }
 

@@ -492,44 +492,66 @@ export default function DailyChallenge() {
 
   // Redirect non-challenges back to league detail
   const baseTeamScores: TeamScore[] = useMemo(() => {
-    // Prefer real scores from API
+    // Always start with all teams from the league to ensure both teams show
+    const allTeams: TeamScore[] = (league?.teams || []).map((team: any, index: number) => ({
+      teamId: team.id,
+      teamName: team.name || `Team ${index + 1}`,
+      points: 0,
+      userAvatarUrl: team.userAvatarUrl,
+      userName: team.userName,
+      fighterIllustration: team.fighterIllustration || null,
+    }));
+
+    // If we have day scores, merge them with all teams
     if (dayScores && dayScores.length > 0) {
-      return dayScores.map((score) => ({
-        teamId: score.teamId,
-        teamName: score.teamName,
-        points: score.points || 0,
-        userAvatarUrl: score.userAvatarUrl,
-        userName: score.userName,
-        fighterIllustration: getFighterForTeam(score.teamId),
-      }));
+      const scoreMap = new Map(dayScores.map((score) => [score.teamId, score]));
+      return allTeams.map((team) => {
+        const score = scoreMap.get(team.teamId);
+        if (score) {
+          return {
+            teamId: score.teamId,
+            teamName: score.teamName || team.teamName,
+            points: score.points || 0,
+            userAvatarUrl: score.userAvatarUrl || team.userAvatarUrl,
+            userName: score.userName || team.userName,
+            fighterIllustration: getFighterForTeam(score.teamId),
+          };
+        }
+        return {
+          ...team,
+          fighterIllustration: getFighterForTeam(team.teamId),
+        };
+      });
     }
 
-    // Fall back to cached scores for instant display
+    // Fall back to cached scores merged with all teams
     if (cachedScores && cachedScores.length > 0) {
       console.log('[ScoreCache] Using cached scores for display');
-      return cachedScores.map((score) => ({
-        teamId: score.teamId,
-        teamName: score.teamName,
-        points: score.points || 0,
-        userAvatarUrl: score.userAvatarUrl,
-        userName: score.userName,
-        fighterIllustration: getFighterForTeam(score.teamId),
-      }));
+      const scoreMap = new Map(cachedScores.map((score: any) => [score.teamId, score]));
+      return allTeams.map((team) => {
+        const score = scoreMap.get(team.teamId);
+        if (score) {
+          return {
+            teamId: score.teamId,
+            teamName: score.teamName || team.teamName,
+            points: score.points || 0,
+            userAvatarUrl: score.userAvatarUrl || team.userAvatarUrl,
+            userName: score.userName || team.userName,
+            fighterIllustration: getFighterForTeam(score.teamId),
+          };
+        }
+        return {
+          ...team,
+          fighterIllustration: getFighterForTeam(team.teamId),
+        };
+      });
     }
 
-    // Finally fall back to empty teams from league data
-    if (league?.teams && league.teams.length > 0) {
-      return league.teams.map((team: any, index: number) => ({
-        teamId: team.id,
-        teamName: team.name || `Team ${index + 1}`,
-        points: 0,
-        userAvatarUrl: team.userAvatarUrl,
-        userName: team.userName,
-        fighterIllustration: team.fighterIllustration || null,
-      }));
-    }
-
-    return [];
+    // Return all teams with 0 points if no scores available
+    return allTeams.map((team) => ({
+      ...team,
+      fighterIllustration: getFighterForTeam(team.teamId),
+    }));
   }, [dayScores, cachedScores, league, getFighterForTeam]);
 
   const sortedScores: TeamScore[] = useMemo(() => {

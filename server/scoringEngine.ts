@@ -1596,6 +1596,16 @@ function getOrCreateBreakdownAccumulator(
 
 function accumulateBreakdownDetail(target: BreakdownAccumulator, detail: BreakdownDetail) {
   detail.components.forEach((component) => {
+    // Skip "No Data" placeholder components - they don't contribute meaningful info
+    const isNoDataComponent =
+      component.category === 'No Data' ||
+      component.category.toLowerCase().includes('no data') ||
+      (typeof component.formula === 'string' && component.formula.toLowerCase().includes('no stats available'));
+
+    if (isNoDataComponent && (!component.points || component.points === 0)) {
+      return; // Skip this component
+    }
+
     const key = `${component.category}|${component.formula ?? ''}`;
     const existing =
       target.components.get(key) ??
@@ -1637,9 +1647,43 @@ function accumulateBreakdownDetail(target: BreakdownAccumulator, detail: Breakdo
 }
 
 function finalizeBreakdownAccumulator(acc: BreakdownAccumulator) {
-  const components = Array.from(acc.components.values());
-  const bonuses = Array.from(acc.bonuses.values());
-  const penalties = Array.from(acc.penalties.values());
+  // Filter out components with 0 points that are just "Weekly aggregate" placeholders
+  const components = Array.from(acc.components.values()).filter((component) => {
+    // Keep components that have points
+    if (component.points && component.points > 0) {
+      return true;
+    }
+
+    // Filter out "Weekly aggregate" placeholders with 0 points
+    const isEmptyAggregate =
+      typeof component.value === 'string' &&
+      component.value === 'Weekly aggregate' &&
+      (!component.points || component.points === 0);
+
+    if (isEmptyAggregate) {
+      return false;
+    }
+
+    // Filter out "No Data" or similar placeholders
+    const isNoDataPlaceholder =
+      component.category === 'No Data' ||
+      component.category.toLowerCase().includes('no data') ||
+      (typeof component.formula === 'string' &&
+        component.formula.toLowerCase().includes('no stats available'));
+
+    if (isNoDataPlaceholder && (!component.points || component.points === 0)) {
+      return false;
+    }
+
+    return true;
+  });
+
+  const bonuses = Array.from(acc.bonuses.values()).filter(
+    (bonus) => bonus.points && bonus.points > 0
+  );
+  const penalties = Array.from(acc.penalties.values()).filter(
+    (penalty) => penalty.points && penalty.points !== 0
+  );
   const subtotal = components.reduce((sum, component) => sum + (component.points || 0), 0);
   const bonusTotal = bonuses.reduce((sum, bonus) => sum + (bonus.points || 0), 0);
   const penaltyTotal = penalties.reduce((sum, penalty) => sum + (penalty.points || 0), 0);
