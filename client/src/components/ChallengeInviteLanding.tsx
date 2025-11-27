@@ -17,7 +17,7 @@ import {
   Crown,
   Users
 } from "lucide-react";
-import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
+import { APP_TITLE, getLoginUrl } from "@/const";
 import { FIGHTER_ILLUSTRATIONS, getFighterByFile } from "@/components/FighterPicker";
 import { toast } from "sonner";
 
@@ -132,13 +132,16 @@ export function ChallengeInviteLanding({ challengeId, isAuthenticated = false, l
       <section className="relative overflow-hidden bg-weed-coral pattern-dots">
         <div className="container mx-auto px-4 py-16 md:py-24">
           <div className="max-w-4xl mx-auto text-center space-y-6">
-            {/* Logo */}
+            {/* Stylized Title */}
             <div className="flex justify-center">
-              <img
-                src={APP_LOGO}
-                alt={APP_TITLE}
-                className="h-20 w-20 rounded-2xl object-cover shadow-xl ring-4 ring-white/30"
-              />
+              <div className="relative">
+                <h2 className="headline-primary text-2xl md:text-3xl tracking-tight">
+                  <span className="text-weed-green drop-shadow-[0_0_20px_rgba(207,255,77,0.5)]">Cannabis</span>
+                  <span className="text-white mx-2">Fantasy</span>
+                  <span className="text-weed-coral drop-shadow-[0_0_20px_rgba(255,111,97,0.5)]">League</span>
+                </h2>
+                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-24 h-1 bg-gradient-to-r from-weed-green via-white to-weed-coral rounded-full opacity-60" />
+              </div>
             </div>
 
             {/* Challenge Badge */}
