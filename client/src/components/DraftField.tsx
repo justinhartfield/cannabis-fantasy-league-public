@@ -409,9 +409,14 @@ export function DraftField({
  * Handles overflow players by placing them in FLEX position
  */
 export function rosterToFieldPlayers(
-  roster: Array<{ assetType: AssetType; assetId: number; name: string; imageUrl?: string | null }>
+  roster: Array<{ assetType: AssetType | string | null | undefined; assetId: number; name: string; imageUrl?: string | null }> | null | undefined
 ): Partial<Record<DraftPosition, DraftedPlayer | null>> {
   const result: Partial<Record<DraftPosition, DraftedPlayer | null>> = {};
+
+  // Guard against null/undefined input
+  if (!roster || !Array.isArray(roster)) {
+    return result;
+  }
 
   // Track how many of each type we've placed
   const counts: Record<AssetType, number> = {
@@ -431,25 +436,34 @@ export function rosterToFieldPlayers(
     brand: ["GK"],
   };
 
+  // Valid asset types
+  const validAssetTypes = new Set<string>(['manufacturer', 'pharmacy', 'product', 'cannabis_strain', 'brand']);
+
   // Overflow players go to FLEX
   const overflowPlayers: Array<{ assetType: AssetType; assetId: number; name: string; imageUrl?: string | null }> = [];
 
   roster.forEach((player) => {
-    const positions = positionMap[player.assetType];
-    const count = counts[player.assetType];
+    // Skip invalid players (null assetType or invalid type)
+    if (!player || !player.assetType || !validAssetTypes.has(player.assetType as string)) {
+      return;
+    }
+
+    const assetType = player.assetType as AssetType;
+    const positions = positionMap[assetType];
+    const count = counts[assetType];
     
-    if (count < positions.length) {
+    if (positions && count < positions.length) {
       const position = positions[count];
       result[position] = {
         id: player.assetId,
         name: player.name,
         imageUrl: player.imageUrl,
-        assetType: player.assetType,
+        assetType: assetType,
       };
-      counts[player.assetType]++;
+      counts[assetType]++;
     } else {
       // This player overflows their position, add to flex candidates
-      overflowPlayers.push(player);
+      overflowPlayers.push({ ...player, assetType });
     }
   });
 

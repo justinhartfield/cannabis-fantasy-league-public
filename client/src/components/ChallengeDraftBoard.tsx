@@ -233,8 +233,16 @@ export function ChallengeDraftBoard({
 
   // Filter and sort players
   const filteredPlayers = useMemo(() => {
+    // Guard against undefined arrays
+    const safeManufacturers = manufacturers || [];
+    const safePharmacies = pharmacies || [];
+    const safeProducts = products || [];
+    const safeCannabisStrains = cannabisStrains || [];
+    const safeBrands = brands || [];
+
     // Sort by points (descending) helper
     const sortByPoints = <T extends AvailablePlayer>(arr: T[]): T[] => {
+      if (!arr || !Array.isArray(arr)) return [];
       return [...arr].sort((a, b) => {
         const pointsA = a.yesterdayPoints ?? a.todayPoints ?? 0;
         const pointsB = b.yesterdayPoints ?? b.todayPoints ?? 0;
@@ -243,8 +251,9 @@ export function ChallengeDraftBoard({
     };
 
     const filterAndMap = (players: AvailablePlayer[], assetType: AssetType) => {
+      if (!players || !Array.isArray(players)) return [];
       return players
-        .filter((p) => !isAssetDrafted(assetType, p.id))
+        .filter((p) => p && !isAssetDrafted(assetType, p.id))
         .map((p) => ({ ...p, assetType, imageUrl: p.imageUrl || p.logoUrl }));
     };
 
@@ -253,19 +262,19 @@ export function ChallengeDraftBoard({
     if (selectedPosition === "all") {
       // Sort each category by points BEFORE slicing to get top performers
       result = [
-        ...filterAndMap(sortByPoints(manufacturers).slice(0, 10), "manufacturer"),
-        ...filterAndMap(sortByPoints(pharmacies).slice(0, 10), "pharmacy"),
-        ...filterAndMap(sortByPoints(products).slice(0, 10), "product"),
-        ...filterAndMap(sortByPoints(cannabisStrains).slice(0, 10), "cannabis_strain"),
-        ...filterAndMap(sortByPoints(brands).slice(0, 5), "brand"),
+        ...filterAndMap(sortByPoints(safeManufacturers).slice(0, 10), "manufacturer"),
+        ...filterAndMap(sortByPoints(safePharmacies).slice(0, 10), "pharmacy"),
+        ...filterAndMap(sortByPoints(safeProducts).slice(0, 10), "product"),
+        ...filterAndMap(sortByPoints(safeCannabisStrains).slice(0, 10), "cannabis_strain"),
+        ...filterAndMap(sortByPoints(safeBrands).slice(0, 5), "brand"),
       ];
     } else {
       switch (selectedPosition) {
-        case "manufacturer": result = filterAndMap(manufacturers, "manufacturer"); break;
-        case "pharmacy": result = filterAndMap(pharmacies, "pharmacy"); break;
-        case "product": result = filterAndMap(products, "product"); break;
-        case "cannabis_strain": result = filterAndMap(cannabisStrains, "cannabis_strain"); break;
-        case "brand": result = filterAndMap(brands, "brand"); break;
+        case "manufacturer": result = filterAndMap(safeManufacturers, "manufacturer"); break;
+        case "pharmacy": result = filterAndMap(safePharmacies, "pharmacy"); break;
+        case "product": result = filterAndMap(safeProducts, "product"); break;
+        case "cannabis_strain": result = filterAndMap(safeCannabisStrains, "cannabis_strain"); break;
+        case "brand": result = filterAndMap(safeBrands, "brand"); break;
       }
     }
 
