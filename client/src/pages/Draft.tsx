@@ -108,6 +108,12 @@ export default function Draft() {
     createDraftedAssetState()
   );
 
+  // Track assets that are currently being picked (pending mutations)
+  // This prevents race conditions when both teams have auto-draft enabled
+  const [pendingPicks, setPendingPicks] = useState<DraftedAssetMap>(() =>
+    createDraftedAssetState()
+  );
+
   const markAssetDrafted = useCallback((assetType: AssetType, assetId: number) => {
     setDraftedAssets((prev) => {
       const next: DraftedAssetMap = {
@@ -120,12 +126,55 @@ export default function Draft() {
       next[assetType].add(assetId);
       return next;
     });
+    // Also clear from pending when confirmed
+    setPendingPicks((prev) => {
+      const next: DraftedAssetMap = {
+        manufacturer: new Set(prev.manufacturer),
+        cannabis_strain: new Set(prev.cannabis_strain),
+        product: new Set(prev.product),
+        pharmacy: new Set(prev.pharmacy),
+        brand: new Set(prev.brand),
+      };
+      next[assetType].delete(assetId);
+      return next;
+    });
+  }, []);
+
+  // Mark asset as pending (optimistic lock to prevent race conditions)
+  const markAssetPending = useCallback((assetType: AssetType, assetId: number) => {
+    setPendingPicks((prev) => {
+      const next: DraftedAssetMap = {
+        manufacturer: new Set(prev.manufacturer),
+        cannabis_strain: new Set(prev.cannabis_strain),
+        product: new Set(prev.product),
+        pharmacy: new Set(prev.pharmacy),
+        brand: new Set(prev.brand),
+      };
+      next[assetType].add(assetId);
+      return next;
+    });
+  }, []);
+
+  // Clear pending status (on failure or when WebSocket confirms another team picked)
+  const clearAssetPending = useCallback((assetType: AssetType, assetId: number) => {
+    setPendingPicks((prev) => {
+      const next: DraftedAssetMap = {
+        manufacturer: new Set(prev.manufacturer),
+        cannabis_strain: new Set(prev.cannabis_strain),
+        product: new Set(prev.product),
+        pharmacy: new Set(prev.pharmacy),
+        brand: new Set(prev.brand),
+      };
+      next[assetType].delete(assetId);
+      return next;
+    });
   }, []);
 
   const leagueId = parseInt(id!);
 
   useEffect(() => {
     setDraftedAssets(createDraftedAssetState());
+    setPendingPicks(createDraftedAssetState()); // Reset pending picks on league change
     setMyDraftedAssets([]); // Reset local state on league change
   }, [leagueId]);
 
@@ -529,11 +578,15 @@ export default function Draft() {
       return;
     }
 
-    // Helper to filter out already drafted assets
+    // Helper to filter out already drafted assets AND pending picks (to prevent race conditions)
     const filterUndrafted = <T extends { id: number }>(assets: T[], assetType: AssetType): T[] => {
       const draftedSet = draftedAssets[assetType];
-      if (!draftedSet || draftedSet.size === 0) return assets;
-      return assets.filter((asset) => !draftedSet.has(asset.id));
+      const pendingSet = pendingPicks[assetType];
+      return assets.filter((asset) => {
+        const isDrafted = draftedSet?.has(asset.id);
+        const isPending = pendingSet?.has(asset.id);
+        return !isDrafted && !isPending;
+      });
     };
 
     // Check if position is available for a given asset type
@@ -542,113 +595,168 @@ export default function Draft() {
     };
 
     type PlayerCandidate = { assetType: AssetType; id: number; name: string; points: number };
-    let bestPick: PlayerCandidate | null = null;
 
-    // PRIORITY 1: If autoPickFromQueue is enabled, try to pick from queue first
-    if (autoPickFromQueue && draftQueue.length > 0) {
-      // Find first available player in queue that hasn't been drafted and has an open position
-      for (const queuedPlayer of draftQueue) {
-        const isDrafted = draftedAssets[queuedPlayer.assetType]?.has(queuedPlayer.assetId);
-        const hasOpenPosition = isPositionAvailable(queuedPlayer.assetType);
-        
-        if (!isDrafted && hasOpenPosition) {
-          bestPick = {
-            assetType: queuedPlayer.assetType,
-            id: queuedPlayer.assetId,
-            name: queuedPlayer.name,
-            points: queuedPlayer.points,
-          };
-          console.log('[AutoDraft] Picking from queue:', bestPick);
-          // Remove from queue after picking
-          setDraftQueue(prev => prev.filter(p => 
-            !(p.assetType === queuedPlayer.assetType && p.assetId === queuedPlayer.assetId)
-          ));
-          break;
-        }
-      }
-    }
+    // Helper to find the best available pick, optionally excluding certain assets
+    const findBestPick = (excludeAssets: Set<string> = new Set()): PlayerCandidate | null => {
+      let bestPick: PlayerCandidate | null = null;
 
-    // PRIORITY 2: If no queue pick available and autoDraftEnabled, use best available algorithm
-    if (!bestPick && autoDraftEnabled) {
-      const candidates: PlayerCandidate[] = [];
-
-      for (const position of neededPositions) {
-        let bestPlayer: PlayerCandidate | null = null;
-
-        if (position === "manufacturer") {
-          const undrafted = filterUndrafted(availableManufacturers, "manufacturer");
-          const sorted = [...undrafted].sort((a, b) => (b.yesterdayPoints ?? 0) - (a.yesterdayPoints ?? 0));
-          if (sorted.length > 0) {
-            bestPlayer = { assetType: "manufacturer", id: sorted[0].id, name: sorted[0].name, points: sorted[0].yesterdayPoints ?? 0 };
+      // PRIORITY 1: If autoPickFromQueue is enabled, try to pick from queue first
+      if (autoPickFromQueue && draftQueue.length > 0) {
+        for (const queuedPlayer of draftQueue) {
+          const isDrafted = draftedAssets[queuedPlayer.assetType]?.has(queuedPlayer.assetId);
+          const isPending = pendingPicks[queuedPlayer.assetType]?.has(queuedPlayer.assetId);
+          const isExcluded = excludeAssets.has(`${queuedPlayer.assetType}-${queuedPlayer.assetId}`);
+          const hasOpenPosition = isPositionAvailable(queuedPlayer.assetType);
+          
+          if (!isDrafted && !isPending && !isExcluded && hasOpenPosition) {
+            return {
+              assetType: queuedPlayer.assetType,
+              id: queuedPlayer.assetId,
+              name: queuedPlayer.name,
+              points: queuedPlayer.points,
+            };
           }
-        } else if (position === "cannabis_strain") {
-          const undrafted = filterUndrafted(availableCannabisStrains, "cannabis_strain");
-          const sorted = [...undrafted].sort((a, b) => (b.yesterdayPoints ?? 0) - (a.yesterdayPoints ?? 0));
-          if (sorted.length > 0) {
-            bestPlayer = { assetType: "cannabis_strain", id: sorted[0].id, name: sorted[0].name, points: sorted[0].yesterdayPoints ?? 0 };
-          }
-        } else if (position === "product") {
-          const undrafted = filterUndrafted(availableProducts, "product");
-          const sorted = [...undrafted].sort((a, b) => (b.yesterdayPoints ?? 0) - (a.yesterdayPoints ?? 0));
-          if (sorted.length > 0) {
-            bestPlayer = { assetType: "product", id: sorted[0].id, name: sorted[0].name, points: sorted[0].yesterdayPoints ?? 0 };
-          }
-        } else if (position === "pharmacy") {
-          const undrafted = filterUndrafted(availablePharmacies, "pharmacy");
-          const sorted = [...undrafted].sort((a, b) => (b.yesterdayPoints ?? 0) - (a.yesterdayPoints ?? 0));
-          if (sorted.length > 0) {
-            bestPlayer = { assetType: "pharmacy", id: sorted[0].id, name: sorted[0].name, points: sorted[0].yesterdayPoints ?? 0 };
-          }
-        } else if (position === "brand") {
-          const undrafted = filterUndrafted(availableBrands, "brand");
-          const sorted = [...undrafted].sort((a, b) => (b.yesterdayPoints ?? 0) - (a.yesterdayPoints ?? 0));
-          if (sorted.length > 0) {
-            bestPlayer = { assetType: "brand", id: sorted[0].id, name: sorted[0].name, points: sorted[0].yesterdayPoints ?? 0 };
-          }
-        }
-
-        if (bestPlayer) {
-          candidates.push(bestPlayer);
         }
       }
 
-      if (candidates.length > 0) {
-        // Sort candidates by points (highest first) and pick the best one
-        candidates.sort((a, b) => b.points - a.points);
-        bestPick = candidates[0];
-        console.log('[AutoDraft] Best available pick:', bestPick);
+      // PRIORITY 2: If no queue pick available and autoDraftEnabled, use best available algorithm
+      if (autoDraftEnabled) {
+        const candidates: PlayerCandidate[] = [];
+
+        for (const position of neededPositions) {
+          let bestPlayer: PlayerCandidate | null = null;
+
+          if (position === "manufacturer") {
+            const undrafted = filterUndrafted(availableManufacturers, "manufacturer")
+              .filter(a => !excludeAssets.has(`manufacturer-${a.id}`));
+            const sorted = [...undrafted].sort((a, b) => (b.yesterdayPoints ?? 0) - (a.yesterdayPoints ?? 0));
+            if (sorted.length > 0) {
+              bestPlayer = { assetType: "manufacturer", id: sorted[0].id, name: sorted[0].name, points: sorted[0].yesterdayPoints ?? 0 };
+            }
+          } else if (position === "cannabis_strain") {
+            const undrafted = filterUndrafted(availableCannabisStrains, "cannabis_strain")
+              .filter(a => !excludeAssets.has(`cannabis_strain-${a.id}`));
+            const sorted = [...undrafted].sort((a, b) => (b.yesterdayPoints ?? 0) - (a.yesterdayPoints ?? 0));
+            if (sorted.length > 0) {
+              bestPlayer = { assetType: "cannabis_strain", id: sorted[0].id, name: sorted[0].name, points: sorted[0].yesterdayPoints ?? 0 };
+            }
+          } else if (position === "product") {
+            const undrafted = filterUndrafted(availableProducts, "product")
+              .filter(a => !excludeAssets.has(`product-${a.id}`));
+            const sorted = [...undrafted].sort((a, b) => (b.yesterdayPoints ?? 0) - (a.yesterdayPoints ?? 0));
+            if (sorted.length > 0) {
+              bestPlayer = { assetType: "product", id: sorted[0].id, name: sorted[0].name, points: sorted[0].yesterdayPoints ?? 0 };
+            }
+          } else if (position === "pharmacy") {
+            const undrafted = filterUndrafted(availablePharmacies, "pharmacy")
+              .filter(a => !excludeAssets.has(`pharmacy-${a.id}`));
+            const sorted = [...undrafted].sort((a, b) => (b.yesterdayPoints ?? 0) - (a.yesterdayPoints ?? 0));
+            if (sorted.length > 0) {
+              bestPlayer = { assetType: "pharmacy", id: sorted[0].id, name: sorted[0].name, points: sorted[0].yesterdayPoints ?? 0 };
+            }
+          } else if (position === "brand") {
+            const undrafted = filterUndrafted(availableBrands, "brand")
+              .filter(a => !excludeAssets.has(`brand-${a.id}`));
+            const sorted = [...undrafted].sort((a, b) => (b.yesterdayPoints ?? 0) - (a.yesterdayPoints ?? 0));
+            if (sorted.length > 0) {
+              bestPlayer = { assetType: "brand", id: sorted[0].id, name: sorted[0].name, points: sorted[0].yesterdayPoints ?? 0 };
+            }
+          }
+
+          if (bestPlayer) {
+            candidates.push(bestPlayer);
+          }
+        }
+
+        if (candidates.length > 0) {
+          candidates.sort((a, b) => b.points - a.points);
+          bestPick = candidates[0];
+        }
       }
-    }
+
+      return bestPick;
+    };
+
+    const bestPick = findBestPick();
 
     if (!bestPick) {
       console.log('[AutoDraft] No available players found');
       return;
     }
 
+    console.log('[AutoDraft] Best available pick:', bestPick);
     console.log('[AutoDraft] Auto-picking:', bestPick);
     
     // Prevent multiple picks
     autoDraftInProgressRef.current = true;
 
-    // Small delay to ensure UI updates and prevent race conditions
+    // Mark asset as pending IMMEDIATELY to prevent race conditions
+    markAssetPending(bestPick.assetType, bestPick.id);
+
+    // Remove from queue if it was queued
+    if (autoPickFromQueue) {
+      setDraftQueue(prev => prev.filter(p => 
+        !(p.assetType === bestPick.assetType && p.assetId === bestPick.id)
+      ));
+    }
+
+    // Small delay to ensure UI updates
     const timerId = setTimeout(async () => {
-      try {
-        toast.info(`⚡ Auto-Draft: ${bestPick.name} wird gedraftet...`);
-        await makeDraftPickMutation.mutateAsync({
-          leagueId,
-          teamId: myTeam.id,
-          assetType: bestPick.assetType,
-          assetId: bestPick.id,
-        });
-        markAssetDrafted(bestPick.assetType, bestPick.id);
-        toast.success(`⚡ Auto-Draft: ${bestPick.name} erfolgreich gedraftet!`);
-      } catch (error) {
-        console.error('[AutoDraft] Error:', error);
-        toast.error('Auto-Draft fehlgeschlagen');
-      } finally {
-        autoDraftInProgressRef.current = false;
+      const MAX_RETRIES = 3;
+      let attempt = 0;
+      let currentPick = bestPick;
+      const failedAssets = new Set<string>();
+
+      while (attempt < MAX_RETRIES) {
+        try {
+          toast.info(`⚡ Auto-Draft: ${currentPick.name} wird gedraftet...`);
+          await makeDraftPickMutation.mutateAsync({
+            leagueId,
+            teamId: myTeam.id,
+            assetType: currentPick.assetType,
+            assetId: currentPick.id,
+          });
+          markAssetDrafted(currentPick.assetType, currentPick.id);
+          toast.success(`⚡ Auto-Draft: ${currentPick.name} erfolgreich gedraftet!`);
+          break; // Success, exit retry loop
+        } catch (error: any) {
+          console.error('[AutoDraft] Error:', error);
+          
+          // Clear the failed pick from pending
+          clearAssetPending(currentPick.assetType, currentPick.id);
+          
+          // Add to failed list
+          failedAssets.add(`${currentPick.assetType}-${currentPick.id}`);
+          
+          // Check if it's a "player already drafted" error - this means race condition
+          const errorMessage = error?.message || '';
+          const isRaceConditionError = 
+            errorMessage.includes('already been drafted') ||
+            errorMessage.includes('Failed query') ||
+            errorMessage.includes('duplicate') ||
+            errorMessage.includes('unique constraint');
+          
+          if (isRaceConditionError && attempt < MAX_RETRIES - 1) {
+            // Try to find another pick
+            const nextPick = findBestPick(failedAssets);
+            if (nextPick) {
+              console.log('[AutoDraft] Retrying with different pick:', nextPick);
+              toast.warning(`${currentPick.name} wurde bereits gedraftet, versuche ${nextPick.name}...`);
+              currentPick = nextPick;
+              markAssetPending(currentPick.assetType, currentPick.id);
+              attempt++;
+              continue;
+            }
+          }
+          
+          // Either not a race condition error, no more retries, or no alternative picks
+          toast.error('Auto-Draft fehlgeschlagen');
+          break;
+        }
       }
-    }, 500);
+      
+      autoDraftInProgressRef.current = false;
+    }, 300); // Reduced delay for faster auto-draft
 
     return () => {
       clearTimeout(timerId);
@@ -663,6 +771,7 @@ export default function Draft() {
     myTeam,
     mergedRoster,
     draftedAssets,
+    pendingPicks,
     availableManufacturers,
     availableCannabisStrains,
     availableProducts,
@@ -671,6 +780,8 @@ export default function Draft() {
     leagueId,
     makeDraftPickMutation,
     markAssetDrafted,
+    markAssetPending,
+    clearAssetPending,
   ]);
 
   // Calculate roster counts for player panel (must be before early returns to maintain hook order)

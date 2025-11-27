@@ -42,3 +42,4 @@ UPDATE "cannabisStrains" SET "imageUrl" = 'https://cfls.b-cdn.net/strains/weddin
 UPDATE "cannabisStrains" SET "imageUrl" = 'https://cfls.b-cdn.net/strains/white-widow_d2hpdGUtd2lkb3c=.png' WHERE LOWER(TRIM(name)) = 'white widow';
 UPDATE "cannabisStrains" SET "imageUrl" = 'https://cfls.b-cdn.net/strains/zkittlez_emtpdHRsZXo=.png' WHERE LOWER(TRIM(name)) = 'zkittlez';
 
+
