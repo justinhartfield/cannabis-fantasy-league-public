@@ -91,6 +91,9 @@ function Router() {
       <Route path={"/sign-up/sso-callback"} component={SignUpPage} />
       <Route path={"/invitations/:token"} component={AcceptInvitation} />
       <Route path={"/admin"} component={AdminRoute} />
+      {/* Public challenge routes - these need to work without auth for landing page */}
+      <Route path={"/league/:id"} component={LeagueDetail} />
+      <Route path={"/challenge/:id"} component={LeagueDetail} />
       {/* Authenticated app shell */}
       <Route component={AuthedRoutes} />
     </Switch>

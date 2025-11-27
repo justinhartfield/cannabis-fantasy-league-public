@@ -161,6 +161,18 @@ export function ChallengeInviteLanding({ challengeId, isAuthenticated = false, l
                 {challenge.name}
               </p>
             </div>
+
+            {/* Top CTA Button */}
+            <div className="pt-4">
+              <Button
+                size="lg"
+                onClick={handleSignUpAndDraft}
+                className="text-lg px-10 py-5 h-auto bg-weed-green hover:bg-weed-green/90 text-black font-bold rounded-2xl shadow-[0_0_40px_rgba(207,255,77,0.3)] hover:shadow-[0_0_60px_rgba(207,255,77,0.5)] transition-all"
+              >
+                Sign Up & Start Draft
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </div>
           </div>
         </div>
       </section>

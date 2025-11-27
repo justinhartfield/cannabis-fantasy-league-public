@@ -14,6 +14,7 @@ import { ChallengeInviteLanding } from "@/components/ChallengeInviteLanding";
 import { LeagueChat } from "@/components/LeagueChat";
 import { AchievementsSection } from "@/components/AchievementsSection";
 import { WeeklyRecapCard } from "@/components/WeeklyRecapCard";
+import { AppLayout } from "@/components/AppLayout";
 import {
   Dialog,
   DialogContent,
@@ -136,9 +137,13 @@ export default function LeagueDetail() {
     );
   }
 
-  // If this is a challenge and user is a member, render DailyChallenge
+  // If this is a challenge and user is authenticated, render DailyChallenge with AppLayout
   if (league?.leagueType === "challenge") {
-    return <DailyChallenge />;
+    return (
+      <AppLayout>
+        <DailyChallenge />
+      </AppLayout>
+    );
   }
 
   const basePath = league.leagueType === "challenge" ? `/challenge/${league.id}` : `/league/${league.id}`;
@@ -154,7 +159,9 @@ export default function LeagueDetail() {
     startDraftMutation.mutate({ leagueId: parseInt(id) });
   };
 
+  // Wrap regular league content with AppLayout
   return (
+    <AppLayout>
     <div className="space-y-6 pb-12">
       {/* Live Draft redirect dialog for season-long leagues */}
       <Dialog open={showDraftRedirectDialog} onOpenChange={setShowDraftRedirectDialog}>
@@ -495,5 +502,6 @@ export default function LeagueDetail() {
         </div>
       </main>
     </div>
+    </AppLayout>
   );
 }
