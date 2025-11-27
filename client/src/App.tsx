@@ -91,6 +91,8 @@ function Router() {
       <Route path={"/sign-up/sso-callback"} component={SignUpPage} />
       <Route path={"/invitations/:token"} component={AcceptInvitation} />
       <Route path={"/admin"} component={AdminRoute} />
+      {/* League/Challenge creation must come before :id routes to avoid "create" being matched as an ID */}
+      <Route path={"/league/create"} component={CreateLeague} />
       {/* Public challenge routes - these need to work without auth for landing page */}
       <Route path={"/league/:id"} component={LeagueDetail} />
       <Route path={"/challenge/:id"} component={LeagueDetail} />
