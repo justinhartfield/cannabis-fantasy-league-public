@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { getLoginUrl } from "@/const";
 import { LeagueNav } from "@/components/LeagueNav";
 import DailyChallenge from "./DailyChallenge";
+import { ChallengeInviteLanding } from "@/components/ChallengeInviteLanding";
 import { LeagueChat } from "@/components/LeagueChat";
 import { AchievementsSection } from "@/components/AchievementsSection";
 import { WeeklyRecapCard } from "@/components/WeeklyRecapCard";
@@ -29,10 +30,17 @@ export default function LeagueDetail() {
   const { user, loading: authLoading, isAuthenticated } = useAuth();
   const [copied, setCopied] = useState(false);
   const [showDraftRedirectDialog, setShowDraftRedirectDialog] = useState(false);
+  const leagueId = parseInt(id || "0", 10);
+
+  // Fetch public challenge info first (no auth required) to determine if this is a challenge
+  const { data: publicChallengeInfo, isLoading: publicInfoLoading } = trpc.league.getPublicChallengeInfo.useQuery(
+    { challengeId: leagueId },
+    { enabled: !!leagueId, retry: false }
+  );
 
   const { data: league, isLoading, refetch: refetchLeague } = trpc.league.getById.useQuery(
-    { leagueId: parseInt(id!) },
-    { enabled: !!id && isAuthenticated }
+    { leagueId: leagueId },
+    { enabled: !!leagueId && isAuthenticated }
   );
 
   const startDraftMutation = trpc.draft.startDraft.useMutation({
@@ -83,13 +91,46 @@ export default function LeagueDetail() {
     }
   }, [league, userTeam]);
 
-  // Redirect to login if not authenticated
-  if (!authLoading && !isAuthenticated) {
-    const loginUrl = getLoginUrl(); if (loginUrl) window.location.href = loginUrl; else window.location.href = "/login";
+  // Show loading while checking public info
+  if (publicInfoLoading || authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // If this is a challenge and user is not authenticated, show the landing page
+  if (publicChallengeInfo && !isAuthenticated) {
+    return <ChallengeInviteLanding challengeId={leagueId} />;
+  }
+
+  // If this is a challenge and user is authenticated but not a member, show landing page
+  if (publicChallengeInfo && isAuthenticated && league) {
+    const userHasTeam = league.teams?.some((team: any) => team.userId === user?.id);
+    const isWaitingForOpponent = (league.teams?.length || 0) < (league.teamCount || 2);
+    
+    if (!userHasTeam && isWaitingForOpponent) {
+      return (
+        <ChallengeInviteLanding 
+          challengeId={leagueId} 
+          isAuthenticated={true}
+          leagueCode={league.leagueCode}
+        />
+      );
+    }
+  }
+
+  // For regular leagues (non-challenges), redirect to login if not authenticated
+  if (!isAuthenticated && !publicChallengeInfo) {
+    const loginUrl = getLoginUrl(); 
+    if (loginUrl) window.location.href = loginUrl; 
+    else window.location.href = "/login";
     return null;
   }
 
-  if (authLoading || isLoading) {
+  // If authenticated but still loading league data
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -111,6 +152,7 @@ export default function LeagueDetail() {
     );
   }
 
+  // If this is a challenge and user is a member, render DailyChallenge
   if (league?.leagueType === "challenge") {
     return <DailyChallenge />;
   }
