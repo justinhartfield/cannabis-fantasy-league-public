@@ -324,11 +324,13 @@ class ScoreBroadcaster {
     const isFirstRun = !previous;
     console.log(`[ScoreBroadcaster] Detecting plays (first run: ${isFirstRun}, current teams: ${teamIds.join(', ')})`);
 
-    // On first run, store the baseline snapshot but don't broadcast
-    // This ensures we only show REAL deltas (incremental changes), not total scores
-    // The frontend auto-sync will ensure scores are displayed from the server query
+    // On first run, we need to establish a baseline for future delta calculations
+    // However, if scores already exist (user returning to game), we should still
+    // send a score update notification (not individual plays, but a refresh trigger)
     if (isFirstRun) {
-      console.log(`[ScoreBroadcaster] First run - storing baseline snapshot, no plays to broadcast`);
+      console.log(`[ScoreBroadcaster] First run - storing baseline snapshot`);
+      // Don't generate individual scoring plays on first run (would show total as delta)
+      // but the scores will display from the server query
       return plays;
     }
     

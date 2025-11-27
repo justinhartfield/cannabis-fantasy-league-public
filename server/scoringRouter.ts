@@ -155,10 +155,6 @@ export const scoringRouter = router({
   /**
    * Calculate scores for a daily challenge date
    * Accessible to all authenticated users
-   * 
-   * NOTE: This does NOT trigger scoring play broadcasts - that's handled by the
-   * scheduler which properly tracks deltas over time. This endpoint is only for
-   * ensuring scores are calculated and available for display.
    */
   calculateChallengeDay: protectedProcedure
     .input(z.object({
@@ -175,14 +171,25 @@ export const scoringRouter = router({
         // Invalidate cache after recalculation to ensure fresh data
         invalidateCachedScores(input.challengeId, input.statDate);
 
-        // Don't broadcast scoring plays from this endpoint - the scheduler
-        // handles that with proper delta tracking. This endpoint is just
-        // for ensuring scores exist in the database for UI display.
+        // Broadcast scoring plays via WebSocket for real-time updates
+        // The broadcaster has sanity checks to prevent wrong delta values
+        // and will skip broadcasting on first run (establishing baseline)
+        let playCount = 0;
+        try {
+          playCount = await scoreBroadcaster.detectAndQueuePlays(
+            input.challengeId,
+            input.statDate,
+            5 // spread over 5 minutes
+          );
+        } catch (broadcastError) {
+          console.error('[Scoring API] Broadcaster error (non-fatal):', broadcastError);
+          // Continue - scores were calculated, just no real-time updates
+        }
 
         return {
           success: true,
           message: `Scores calculated for challenge ${input.challengeId} (${input.statDate})`,
-          playsQueued: 0,
+          playsQueued: playCount,
         };
       } catch (error) {
         console.error('[Scoring API] Error calculating challenge day scores:', error);

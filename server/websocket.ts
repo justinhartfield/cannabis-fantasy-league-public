@@ -284,13 +284,19 @@ class WebSocketManager {
 
   broadcastToLeague(leagueId: number, message: any, exclude?: Client) {
     const channel = this.leagueChannels.get(leagueId);
-    if (!channel) return;
+    if (!channel) {
+      console.log(`[WebSocket] No clients in league channel ${leagueId} for message type: ${message.type}`);
+      return;
+    }
 
+    let sentCount = 0;
     channel.forEach((client) => {
       if (client !== exclude && client.ws.readyState === WebSocket.OPEN) {
         client.ws.send(JSON.stringify(message));
+        sentCount++;
       }
     });
+    console.log(`[WebSocket] Sent ${message.type} to ${sentCount}/${channel.size} clients in league ${leagueId}`);
   }
 
   sendToClient(client: Client, message: any) {
@@ -477,6 +483,8 @@ class WebSocketManager {
     scores: Array<{ teamId: number; teamName: string; points: number }>;
     updateTime: string;
   }) {
+    console.log(`[WebSocket] Broadcasting challenge_score_update to league ${challengeId}, scores:`, 
+      data.scores.map(s => `${s.teamName}: ${s.points}`).join(', '));
     this.broadcastToLeague(challengeId, {
       type: 'challenge_score_update',
       ...data,
