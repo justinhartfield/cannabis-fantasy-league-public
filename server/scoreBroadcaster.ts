@@ -10,8 +10,8 @@
 
 import { getDb } from './db';
 import { wsManager } from './websocket';
-import { dailyTeamScores, dailyScoringBreakdowns, teams } from '../drizzle/schema';
-import { eq, and } from 'drizzle-orm';
+import { dailyTeamScores, dailyScoringBreakdowns, teams, manufacturers, cannabisStrains, pharmacies, brands } from '../drizzle/schema';
+import { eq, and, inArray } from 'drizzle-orm';
 
 type AssetType = 'manufacturer' | 'cannabis_strain' | 'product' | 'pharmacy' | 'brand';
 
@@ -59,6 +59,80 @@ class ScoreBroadcaster {
   
   // Pending plays queue per challenge
   private pendingPlays: Map<number, ScoringPlayData[]> = new Map();
+
+  /**
+   * Fetch asset names from their respective tables
+   */
+  private async fetchAssetNames(
+    db: NonNullable<Awaited<ReturnType<typeof getDb>>>,
+    breakdowns: Array<{ assetType: string; assetId: number }>
+  ): Promise<Map<string, { name: string; imageUrl?: string | null }>> {
+    const result = new Map<string, { name: string; imageUrl?: string | null }>();
+    
+    // Group by asset type
+    const manufacturerIds: number[] = [];
+    const strainIds: number[] = [];
+    const pharmacyIds: number[] = [];
+    const brandIds: number[] = [];
+
+    for (const b of breakdowns) {
+      if (b.assetType === 'manufacturer') manufacturerIds.push(b.assetId);
+      else if (b.assetType === 'cannabis_strain' || b.assetType === 'product') strainIds.push(b.assetId);
+      else if (b.assetType === 'pharmacy') pharmacyIds.push(b.assetId);
+      else if (b.assetType === 'brand') brandIds.push(b.assetId);
+    }
+
+    try {
+      // Fetch manufacturers
+      if (manufacturerIds.length > 0) {
+        const mfgData = await db
+          .select({ id: manufacturers.id, name: manufacturers.name, imageUrl: manufacturers.logoUrl })
+          .from(manufacturers)
+          .where(inArray(manufacturers.id, manufacturerIds));
+        for (const m of mfgData) {
+          result.set(`manufacturer:${m.id}`, { name: m.name, imageUrl: m.imageUrl });
+        }
+      }
+
+      // Fetch strains (for both cannabis_strain and product types)
+      if (strainIds.length > 0) {
+        const strainData = await db
+          .select({ id: cannabisStrains.id, name: cannabisStrains.name, imageUrl: cannabisStrains.imageUrl })
+          .from(cannabisStrains)
+          .where(inArray(cannabisStrains.id, strainIds));
+        for (const s of strainData) {
+          result.set(`cannabis_strain:${s.id}`, { name: s.name, imageUrl: s.imageUrl });
+          result.set(`product:${s.id}`, { name: s.name, imageUrl: s.imageUrl });
+        }
+      }
+
+      // Fetch pharmacies
+      if (pharmacyIds.length > 0) {
+        const pharmData = await db
+          .select({ id: pharmacies.id, name: pharmacies.name, imageUrl: pharmacies.logoUrl })
+          .from(pharmacies)
+          .where(inArray(pharmacies.id, pharmacyIds));
+        for (const p of pharmData) {
+          result.set(`pharmacy:${p.id}`, { name: p.name, imageUrl: p.imageUrl });
+        }
+      }
+
+      // Fetch brands
+      if (brandIds.length > 0) {
+        const brandData = await db
+          .select({ id: brands.id, name: brands.name, imageUrl: brands.logoUrl })
+          .from(brands)
+          .where(inArray(brands.id, brandIds));
+        for (const b of brandData) {
+          result.set(`brand:${b.id}`, { name: b.name, imageUrl: b.imageUrl });
+        }
+      }
+    } catch (error) {
+      console.error('[ScoreBroadcaster] Error fetching asset names:', error);
+    }
+
+    return result;
+  }
 
   /**
    * Detect score changes and queue scoring plays for broadcast
@@ -154,6 +228,10 @@ class ScoreBroadcaster {
         lastUpdated: new Date(),
       };
 
+      // Collect all breakdowns first, then fetch asset names in bulk
+      const allBreakdowns: Map<number, any[]> = new Map(); // teamId -> breakdowns
+      const allAssetRefs: Array<{ assetType: string; assetId: number }> = [];
+
       // For each team, get their asset breakdowns
       for (const teamScore of teamScoresRaw) {
         let assetBreakdowns: any[] = [];
@@ -179,20 +257,39 @@ class ScoreBroadcaster {
         }
         
         console.log(`[ScoreBroadcaster] Team ${teamScore.teamId} (dailyScoreId: ${teamScore.dailyScoreId}) has ${assetBreakdowns.length} asset breakdowns`);
+        
+        allBreakdowns.set(teamScore.teamId, assetBreakdowns);
+        
+        // Collect asset references for bulk name lookup
+        for (const b of assetBreakdowns) {
+          if (b.assetType && b.assetId) {
+            allAssetRefs.push({ assetType: b.assetType, assetId: b.assetId });
+          }
+        }
+      }
 
+      // Fetch all asset names in bulk
+      const assetNames = await this.fetchAssetNames(db, allAssetRefs);
+      console.log(`[ScoreBroadcaster] Fetched ${assetNames.size} asset names`);
+
+      // Build team snapshots with real asset names
+      for (const teamScore of teamScoresRaw) {
+        const assetBreakdowns = allBreakdowns.get(teamScore.teamId) || [];
         const assets = new Map<string, AssetScore>();
+        
         for (const breakdown of assetBreakdowns) {
           if (!breakdown.assetType || !breakdown.assetId) continue;
           
           const key = `${breakdown.assetType}:${breakdown.assetId}`;
-          const breakdownData = breakdown.breakdown as any;
+          const assetInfo = assetNames.get(key);
+          
           assets.set(key, {
             assetType: breakdown.assetType as AssetType,
             assetId: breakdown.assetId,
-            assetName: breakdownData?.assetName || `Asset ${breakdown.assetId}`,
+            assetName: assetInfo?.name || `Asset ${breakdown.assetId}`,
             position: breakdown.position || 'unknown',
             points: breakdown.totalPoints || 0,
-            imageUrl: breakdownData?.imageUrl || null,
+            imageUrl: assetInfo?.imageUrl || null,
           });
         }
 
