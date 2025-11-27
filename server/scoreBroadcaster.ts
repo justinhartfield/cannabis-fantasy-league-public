@@ -324,6 +324,14 @@ class ScoreBroadcaster {
     const isFirstRun = !previous;
     console.log(`[ScoreBroadcaster] Detecting plays (first run: ${isFirstRun})`);
 
+    // On first run, store the baseline snapshot but don't broadcast
+    // This ensures we only show REAL deltas (incremental changes), not total scores
+    // The frontend auto-sync will ensure scores are displayed from the server query
+    if (isFirstRun) {
+      console.log(`[ScoreBroadcaster] First run - storing baseline snapshot, no plays to broadcast`);
+      return plays;
+    }
+
     // Check each team's assets for changes since last snapshot
     for (const [teamId, teamSnapshot] of current.teams) {
       const opponentId = teamIds.find(id => id !== teamId)!;
@@ -336,13 +344,10 @@ class ScoreBroadcaster {
       for (const [assetKey, asset] of teamSnapshot.assets) {
         const previousAsset = previousTeam?.assets.get(assetKey);
         const previousPoints = previousAsset?.points || 0;
-        
-        // On first run, broadcast all assets with points > 0
-        // On subsequent runs, only broadcast deltas > 0.5
-        const delta = isFirstRun ? asset.points : (asset.points - previousPoints);
-        const threshold = isFirstRun ? 0.1 : 0.5;
+        const delta = asset.points - previousPoints;
 
-        if (delta > threshold) {
+        // Only broadcast real changes (deltas > 0.5 points)
+        if (delta > 0.5) {
           plays.push({
             attackingTeamId: teamId,
             attackingTeamName: teamSnapshot.teamName,
@@ -350,7 +355,7 @@ class ScoreBroadcaster {
             defendingTeamName: opponent.teamName,
             playerName: asset.assetName,
             playerType: asset.assetType,
-            pointsScored: Math.round(delta * 10) / 10, // Round to 1 decimal
+            pointsScored: Math.round(delta * 10) / 10, // Round to 1 decimal - this is the CHANGE
             attackerNewTotal: teamSnapshot.totalPoints,
             defenderTotal: opponent.totalPoints,
             imageUrl: asset.imageUrl,
