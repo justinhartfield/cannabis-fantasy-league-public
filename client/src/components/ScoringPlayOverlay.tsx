@@ -34,35 +34,6 @@ const PLAYER_TYPE_COLORS: Record<string, string> = {
   brand: "#ec4899", // pink
 };
 
-// Attack phrases that get randomly selected
-const ATTACK_PHRASES = [
-  "STRIKES!",
-  "ATTACKS!",
-  "SCORES!",
-  "HITS!",
-  "CONNECTS!",
-  "LANDS A HIT!",
-  "DELIVERS!",
-];
-
-const BIG_HIT_PHRASES = [
-  "DEVASTATING BLOW!",
-  "CRUSHING HIT!",
-  "MASSIVE STRIKE!",
-  "POWERFUL ATTACK!",
-  "HEAVY DAMAGE!",
-  "BRUTAL FORCE!",
-];
-
-const CRITICAL_PHRASES = [
-  "CRITICAL HIT!!!",
-  "SUPER EFFECTIVE!!!",
-  "KNOCKOUT BLOW!!!",
-  "ULTRA COMBO!!!",
-  "MAXIMUM DAMAGE!!!",
-  "OBLITERATION!!!",
-];
-
 // Animation style variants for variety
 type AnimationStyle = "slashes" | "explosion" | "lightning" | "shockwave" | "burst";
 
@@ -84,7 +55,7 @@ export function ScoringPlayOverlay({
   const [slashMarks, setSlashMarks] = useState<Array<{ id: number; angle: number; delay: number; length: number }>>([]);
   const [showMegaFlash, setShowMegaFlash] = useState(false);
 
-  // Randomize animation style and phrases on each play
+  // Randomize animation style on each play
   const animationConfig = useMemo(() => {
     if (!play) return null;
     
@@ -94,16 +65,7 @@ export function ScoringPlayOverlay({
     const isBigHit = play.pointsScored >= 10;
     const isCriticalHit = play.pointsScored >= 20;
     
-    let phrase: string;
-    if (isCriticalHit) {
-      phrase = CRITICAL_PHRASES[Math.floor(Math.random() * CRITICAL_PHRASES.length)];
-    } else if (isBigHit) {
-      phrase = BIG_HIT_PHRASES[Math.floor(Math.random() * BIG_HIT_PHRASES.length)];
-    } else {
-      phrase = ATTACK_PHRASES[Math.floor(Math.random() * ATTACK_PHRASES.length)];
-    }
-    
-    return { style, phrase, isBigHit, isCriticalHit };
+    return { style, isBigHit, isCriticalHit };
   }, [play]);
 
   // Determine attack direction
@@ -169,7 +131,7 @@ export function ScoringPlayOverlay({
 
   if (phase === "idle" || !play || !animationConfig) return null;
 
-  const { isBigHit, isCriticalHit, phrase, style } = animationConfig;
+  const { isBigHit, isCriticalHit, style } = animationConfig;
 
   return (
     <div className="absolute inset-0 pointer-events-none z-40 overflow-hidden">
@@ -308,67 +270,7 @@ export function ScoringPlayOverlay({
           </div>
         )}
 
-        {/* ========== FULL-SCREEN CENTERED ATTACK ALERT - MOBILE OPTIMIZED ========== */}
-        {(phase === "slash" || phase === "sustain") && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center z-50">
-            {/* Attack phrase banner */}
-            <div
-              className={cn(
-                "font-black uppercase tracking-wider text-center animate-critical-hit-text px-4",
-                isCriticalHit 
-                  ? "text-3xl sm:text-4xl md:text-5xl" 
-                  : isBigHit 
-                    ? "text-2xl sm:text-3xl md:text-4xl"
-                    : "text-xl sm:text-2xl md:text-3xl"
-              )}
-              style={{
-                color: isCriticalHit ? "#ff4444" : color,
-                textShadow: `0 0 20px ${color}, 0 0 40px ${color}, 0 0 60px ${color}, 0 0 80px white`,
-                WebkitTextStroke: isCriticalHit ? "2px white" : "1px rgba(255,255,255,0.5)",
-              }}
-            >
-              {phrase}
-            </div>
-
-            {/* Player name + team - VERBOSE ALERT */}
-            <div className="mt-4 flex flex-col items-center gap-2 animate-combo-pop">
-              {/* Points badge - large and centered */}
-              <div
-                className={cn(
-                  "px-8 py-3 rounded-full text-white font-black",
-                  isCriticalHit ? "text-5xl sm:text-6xl" : isBigHit ? "text-4xl sm:text-5xl" : "text-3xl sm:text-4xl"
-                )}
-                style={{
-                  backgroundColor: color,
-                  boxShadow: `0 0 40px ${color}, 0 0 80px ${color}80`,
-                }}
-              >
-                +{play.pointsScored.toFixed(1)}
-              </div>
-              
-              {/* Player name - full width visible */}
-              <div 
-                className={cn(
-                  "font-bold text-white bg-black/80 px-6 py-2 rounded-full text-center",
-                  isBigHit ? "text-lg sm:text-xl" : "text-base sm:text-lg"
-                )}
-                style={{
-                  boxShadow: `0 0 20px ${color}60`,
-                  maxWidth: "90vw",
-                }}
-              >
-                {play.playerName}
-              </div>
-
-              {/* Team attribution - new verbose info */}
-              <div 
-                className="text-sm sm:text-base font-medium text-white/80 bg-black/60 px-4 py-1 rounded-full"
-              >
-                {attackerIsLeft ? play.attackingTeamName : play.attackingTeamName} scores!
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Attack alert text removed - DamageFlash component handles score display */}
 
         {/* Speed lines effect during attack - adjusted for center */}
         {phase === "lunge" && (

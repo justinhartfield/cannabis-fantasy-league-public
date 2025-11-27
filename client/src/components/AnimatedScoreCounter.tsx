@@ -219,12 +219,13 @@ export function AnimatedScoreCounter({
           {formattedValue}
         </div>
 
-        {/* Delta Badge */}
+        {/* Delta Badge - hidden on mobile */}
         {showDeltaBadge && delta !== null && delta !== 0 && (
           <div
             className={cn(
               "absolute -top-2 -right-4 px-2 py-0.5 rounded-full text-xs font-bold",
               "score-delta-badge score-delta-fadeout",
+              "hidden sm:block", // Hide on mobile, show on sm+ screens
               delta > 0
                 ? "bg-[#cfff4d] text-black"
                 : "bg-red-500 text-white"
