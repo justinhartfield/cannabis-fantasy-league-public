@@ -5,14 +5,17 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { LiveIndicator } from "@/components/LiveIndicator";
 import ScoringBreakdownV2 from "@/components/ScoringBreakdownV2";
 import { CoinFlip } from "@/components/CoinFlip";
 import { BattleArena } from "@/components/BattleArena";
+import { BattleFieldView, lineupToFieldPlayersWithScores } from "@/components/BattleFieldView";
 import { LeagueChat } from "@/components/LeagueChat";
 import { ChallengeInviteLanding } from "@/components/ChallengeInviteLanding";
 import type { ScoringPlayData } from "@/components/ScoringPlayOverlay";
 import { ScoringPlayAnnouncement } from "@/components/ScoringPlayAnnouncement";
+import type { DraftPosition } from "@/components/DraftFieldPlayer";
 
 import {
   Loader2,
@@ -23,6 +26,8 @@ import {
   UserPlus,
   Copy,
   Zap,
+  Gamepad2,
+  LayoutGrid,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -63,6 +68,9 @@ export default function DailyChallenge() {
   const [timeUntilUpdate, setTimeUntilUpdate] = useState<string>("");
   const [showCoinFlip, setShowCoinFlip] = useState(false);
   const [coinFlipWinner, setCoinFlipWinner] = useState<{ teamId: number; teamName: string } | null>(null);
+  
+  // View mode: 'battle' for GIF battle mode, 'field' for soccer field view
+  const [viewMode, setViewMode] = useState<'battle' | 'field'>('battle');
   
   // Scoring play state for battle animations
   const [currentScoringPlay, setCurrentScoringPlay] = useState<ScoringPlayData | null>(null);
@@ -170,6 +178,41 @@ export default function DailyChallenge() {
     },
     {
       enabled: !!selectedTeamId,
+    }
+  );
+
+  // Get team IDs for field view mode from league teams
+  const fieldViewTeamIds = useMemo(() => {
+    if (!league?.teams || league.teams.length < 2) return { team1Id: 0, team2Id: 0 };
+    return {
+      team1Id: league.teams[0]?.id ?? 0,
+      team2Id: league.teams[1]?.id ?? 0,
+    };
+  }, [league?.teams]);
+
+  const {
+    data: team1Lineup,
+  } = trpc.lineup.getWeeklyLineup.useQuery(
+    {
+      teamId: fieldViewTeamIds.team1Id,
+      year: currentYear,
+      week: currentWeek,
+    },
+    {
+      enabled: fieldViewTeamIds.team1Id > 0 && viewMode === 'field',
+    }
+  );
+
+  const {
+    data: team2Lineup,
+  } = trpc.lineup.getWeeklyLineup.useQuery(
+    {
+      teamId: fieldViewTeamIds.team2Id,
+      year: currentYear,
+      week: currentWeek,
+    },
+    {
+      enabled: fieldViewTeamIds.team2Id > 0 && viewMode === 'field',
     }
   );
 
@@ -703,6 +746,51 @@ export default function DailyChallenge() {
     [teamLineup]
   );
 
+  // Convert lineups to field players with scores for field view mode
+  const leaderFieldPlayers = useMemo(() => {
+    if (!leader) return {};
+    // Determine which lineup data corresponds to the leader
+    const leaderLineup = leader.teamId === fieldViewTeamIds.team1Id ? team1Lineup : team2Lineup;
+    if (!leaderLineup) return {};
+    
+    const lineupArray = normalizeLineup(leaderLineup);
+    // Get scores from breakdown data if available
+    const leaderBreakdowns = leader.teamId === selectedTeamId ? breakdown?.breakdowns : null;
+    
+    return lineupToFieldPlayersWithScores(
+      lineupArray.map((slot: any) => ({
+        assetType: slot.assetType || 'cannabis_strain',
+        assetId: slot.assetId || 0,
+        name: slot.assetName || 'Unknown',
+        imageUrl: slot.imageUrl || null,
+        points: leaderBreakdowns?.find((b: any) => b.assetId === slot.assetId)?.breakdown?.total ?? slot.points ?? null,
+        totalPoints: slot.totalPoints,
+      }))
+    );
+  }, [leader, team1Lineup, team2Lineup, fieldViewTeamIds, breakdown, selectedTeamId]);
+
+  const challengerFieldPlayers = useMemo(() => {
+    if (!challenger) return {};
+    // Determine which lineup data corresponds to the challenger
+    const challengerLineup = challenger.teamId === fieldViewTeamIds.team1Id ? team1Lineup : team2Lineup;
+    if (!challengerLineup) return {};
+    
+    const lineupArray = normalizeLineup(challengerLineup);
+    // Get scores from breakdown data if available
+    const challengerBreakdowns = challenger.teamId === selectedTeamId ? breakdown?.breakdowns : null;
+    
+    return lineupToFieldPlayersWithScores(
+      lineupArray.map((slot: any) => ({
+        assetType: slot.assetType || 'cannabis_strain',
+        assetId: slot.assetId || 0,
+        name: slot.assetName || 'Unknown',
+        imageUrl: slot.imageUrl || null,
+        points: challengerBreakdowns?.find((b: any) => b.assetId === slot.assetId)?.breakdown?.total ?? slot.points ?? null,
+        totalPoints: slot.totalPoints,
+      }))
+    );
+  }, [challenger, team1Lineup, team2Lineup, fieldViewTeamIds, breakdown, selectedTeamId]);
+
   if (
     !challengeId ||
     authLoading ||
@@ -774,32 +862,58 @@ export default function DailyChallenge() {
           onComplete={handleScoringPlayComplete}
         />
 
-        {/* Battle Arena Hero Section */}
-        <BattleArena
-          leftTeam={leader ? {
-            teamId: leader.teamId,
-            teamName: leader.teamName,
-            userName: leader.userName,
-            userAvatarUrl: leader.userAvatarUrl,
-            fighterIllustration: leader.fighterIllustration,
-            points: leader.points,
-          } : null}
-          rightTeam={challenger ? {
-            teamId: challenger.teamId,
-            teamName: challenger.teamName,
-            userName: challenger.userName,
-            userAvatarUrl: challenger.userAvatarUrl,
-            fighterIllustration: challenger.fighterIllustration,
-            points: challenger.points,
-          } : !challenger && league?.leagueCode ? null : null}
-          isLive={isLive}
-          challengeDate={challengeDateLabel}
-          userTeamId={userTeam?.id}
-          selectedTeamId={selectedTeamId}
-          onFighterChange={() => refetchLeague()}
-          onTeamClick={(teamId) => setSelectedTeamId(teamId)}
-          scoringPlay={currentScoringPlay}
-        />
+        {/* Battle View - Toggle between GIF Battle and Field View */}
+        {viewMode === 'battle' ? (
+          <BattleArena
+            leftTeam={leader ? {
+              teamId: leader.teamId,
+              teamName: leader.teamName,
+              userName: leader.userName,
+              userAvatarUrl: leader.userAvatarUrl,
+              fighterIllustration: leader.fighterIllustration,
+              points: leader.points,
+            } : null}
+            rightTeam={challenger ? {
+              teamId: challenger.teamId,
+              teamName: challenger.teamName,
+              userName: challenger.userName,
+              userAvatarUrl: challenger.userAvatarUrl,
+              fighterIllustration: challenger.fighterIllustration,
+              points: challenger.points,
+            } : !challenger && league?.leagueCode ? null : null}
+            isLive={isLive}
+            challengeDate={challengeDateLabel}
+            userTeamId={userTeam?.id}
+            selectedTeamId={selectedTeamId}
+            onFighterChange={() => refetchLeague()}
+            onTeamClick={(teamId) => setSelectedTeamId(teamId)}
+            scoringPlay={currentScoringPlay}
+          />
+        ) : (
+          <BattleFieldView
+            leftTeam={leader ? {
+              teamId: leader.teamId,
+              teamName: leader.teamName,
+              userName: leader.userName,
+              userAvatarUrl: leader.userAvatarUrl,
+              points: leader.points,
+              players: leaderFieldPlayers,
+            } : null}
+            rightTeam={challenger ? {
+              teamId: challenger.teamId,
+              teamName: challenger.teamName,
+              userName: challenger.userName,
+              userAvatarUrl: challenger.userAvatarUrl,
+              points: challenger.points,
+              players: challengerFieldPlayers,
+            } : null}
+            isLive={isLive}
+            challengeDate={challengeDateLabel}
+            userTeamId={userTeam?.id}
+            selectedTeamId={selectedTeamId}
+            onTeamClick={(teamId) => setSelectedTeamId(teamId)}
+          />
+        )}
 
         {/* Invite Block (when waiting for opponent) */}
         {!challenger && league?.leagueCode && (
@@ -827,6 +941,26 @@ export default function DailyChallenge() {
                 </span>
               </>
             )}
+            {/* View Mode Toggle */}
+            <span className="text-white/30">•</span>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
+              <Gamepad2 className={cn(
+                "w-4 h-4 transition-colors",
+                viewMode === 'battle' ? "text-[#cfff4d]" : "text-white/40"
+              )} />
+              <Switch
+                checked={viewMode === 'field'}
+                onCheckedChange={(checked) => setViewMode(checked ? 'field' : 'battle')}
+                className="data-[state=checked]:bg-[#cfff4d] scale-75"
+              />
+              <LayoutGrid className={cn(
+                "w-4 h-4 transition-colors",
+                viewMode === 'field' ? "text-[#cfff4d]" : "text-white/40"
+              )} />
+              <span className="text-[10px] text-white/50 uppercase tracking-wider">
+                {viewMode === 'battle' ? 'Battle' : 'Field'}
+              </span>
+            </div>
           </div>
           <div className="flex flex-wrap gap-2">
             {/* Demo Button for testing animations */}

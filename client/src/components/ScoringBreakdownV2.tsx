@@ -171,6 +171,62 @@ const calculateStreakMultiplier = (streakDays: number): number => {
   return 1.1;                         // 🔥 Hot Streak: 1.1x multiplier (2-3 days)
 };
 
+type SubtotalTooltipDetails = {
+  title: string;
+  explanation: string;
+  formula: string;
+};
+
+const getSubtotalTooltipContent = (
+  type: 'components' | 'bonuses' | 'penalties' | 'total',
+  data: ScoringBreakdownData,
+  visibleComponentsCount: number
+): SubtotalTooltipDetails => {
+  const componentsSum = data.components?.reduce((sum, c) => sum + (c.points || 0), 0) || 0;
+  const bonusesSum = data.bonuses?.reduce((sum, b) => sum + (b.points || 0), 0) || 0;
+  const penaltiesSum = data.penalties?.reduce((sum, p) => sum + (p.points || 0), 0) || 0;
+  
+  switch (type) {
+    case 'components':
+      return {
+        title: 'Components Subtotal',
+        explanation: 'Sum of all scoring components (Order Activity + Momentum Score). Each component represents a different way this asset earned points.',
+        formula: `${visibleComponentsCount} components summed = ${componentsSum.toFixed(0)} pts`,
+      };
+    case 'bonuses':
+      return {
+        title: 'Bonuses Total',
+        explanation: 'Extra points awarded for exceptional performance like hot streaks, high velocity, or market dominance.',
+        formula: `${data.bonuses?.length || 0} bonus(es) = +${bonusesSum.toFixed(0)} pts`,
+      };
+    case 'penalties':
+      return {
+        title: 'Penalties Total',
+        explanation: 'Point deductions for negative performance indicators.',
+        formula: `${data.penalties?.length || 0} penalty(ies) = -${Math.abs(penaltiesSum).toFixed(0)} pts`,
+      };
+    case 'total':
+      const parts: string[] = [];
+      if (componentsSum > 0) parts.push(`Components: ${componentsSum.toFixed(0)}`);
+      if (bonusesSum > 0) parts.push(`Bonuses: +${bonusesSum.toFixed(0)}`);
+      if (penaltiesSum !== 0) parts.push(`Penalties: ${penaltiesSum.toFixed(0)}`);
+      
+      return {
+        title: 'Total Score',
+        explanation: 'Final score combining all components, bonuses, and penalties for this asset.',
+        formula: parts.length > 0 
+          ? `${parts.join(' + ')} = ${data.total.toFixed(0)} pts`
+          : `Total: ${data.total.toFixed(0)} pts`,
+      };
+    default:
+      return {
+        title: 'Subtotal',
+        explanation: 'Sum of related scoring items.',
+        formula: '—',
+      };
+  }
+};
+
 const getComponentTooltipContent = (
   component: ScoringComponent,
   assetType: ScoringBreakdownData["assetType"]
@@ -192,7 +248,7 @@ const getComponentTooltipContent = (
     };
   }
 
-  if (component.category === "Trend Bonus") {
+  if (component.category === "Trend Bonus" || component.category === "Momentum Score") {
     const basePoints = TREND_BASE_POINTS[assetType] ?? 100;
     const multiplier = parseMultiplierValue(component.value);
 
@@ -391,9 +447,29 @@ export default function ScoringBreakdownV2({
         )}
 
         <div className="space-y-2">
-          <div className="text-xs uppercase tracking-[0.35em] text-white/45">
-            Scoring-Komponenten
-          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="text-xs uppercase tracking-[0.35em] text-white/45 cursor-help inline-flex items-center gap-1.5">
+                  Scoring-Komponenten
+                  <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-white/10 text-white/60 text-[10px]">?</span>
+                  <span className="text-white/30 ml-1">{data.components?.reduce((sum, c) => sum + (c.points || 0), 0) || 0} pts</span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs bg-[#1a1a2e] border-white/20">
+                {(() => {
+                  const tooltip = getSubtotalTooltipContent('components', data, visibleComponents.length);
+                  return (
+                    <div className="space-y-1.5">
+                      <p className="font-semibold text-white">{tooltip.title}</p>
+                      <p className="text-xs text-white/70">{tooltip.explanation}</p>
+                      <p className="text-xs text-white/50 font-mono">{tooltip.formula}</p>
+                    </div>
+                  );
+                })()}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           <div className="grid gap-2">
             {visibleComponents.map((component, idx) => {
               const orderActivityIndex =
@@ -410,6 +486,15 @@ export default function ScoringBreakdownV2({
                   ? orderActivityDateLabels[orderActivityIndex]
                   : null;
 
+              // Format display text based on component type
+              const displayCategory = component.category === "Trend Bonus" ? "Momentum Score" : component.category;
+              
+              // For Momentum Score (Trend Bonus), show cleaner format without redundancy
+              const isMomentumScore = component.category === "Trend Bonus" || component.category === "Momentum Score";
+              const displayValue = isMomentumScore 
+                ? `${parseMultiplierValue(component.value).toFixed(2)}× multiplier`
+                : `${component.value} · ${component.formula}`;
+              
               return (
                 <div
                   key={idx}
@@ -417,7 +502,7 @@ export default function ScoringBreakdownV2({
                 >
                   <div>
                     <div className="text-sm font-semibold">
-                      {component.category}
+                      {displayCategory}
                       {dateLabel && (
                         <span className="ml-2 text-xs font-normal text-white/60">
                           {dateLabel}
@@ -425,7 +510,7 @@ export default function ScoringBreakdownV2({
                       )}
                     </div>
                     <div className="text-xs text-white/70">
-                      {component.value} · {component.formula}
+                      {displayValue}
                     </div>
                   </div>
                   <div className="text-right">
@@ -442,7 +527,29 @@ export default function ScoringBreakdownV2({
 
         {data.bonuses.length > 0 && (
           <div className="space-y-2">
-            <div className="text-xs uppercase tracking-[0.35em] text-white/45">Boni</div>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="text-xs uppercase tracking-[0.35em] text-white/45 cursor-help inline-flex items-center gap-1.5">
+                    Boni
+                    <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-white/10 text-white/60 text-[10px]">?</span>
+                    <span className="text-white/30 ml-1">+{data.bonuses.reduce((sum, b) => sum + b.points, 0)} pts</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs bg-[#1a1a2e] border-white/20">
+                  {(() => {
+                    const tooltip = getSubtotalTooltipContent('bonuses', data, visibleComponents.length);
+                    return (
+                      <div className="space-y-1.5">
+                        <p className="font-semibold text-white">{tooltip.title}</p>
+                        <p className="text-xs text-white/70">{tooltip.explanation}</p>
+                        <p className="text-xs text-white/50 font-mono">{tooltip.formula}</p>
+                      </div>
+                    );
+                  })()}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <div className="space-y-2">
               {data.bonuses.map((bonus, idx) => (
                 <div key={idx} className="rounded-2xl border border-white/10 bg-white/3 px-4 py-3 flex items-center justify-between">
@@ -470,15 +577,34 @@ export default function ScoringBreakdownV2({
         )}
 
         <div className="flex items-center justify-between pt-2 border-t border-white/10">
-          <div>
-            <div className="text-xs uppercase tracking-[0.35em] text-white/45">
-              Gesamtpunktzahl
-            </div>
-            <div className="text-sm text-white/60">
-              {visibleComponents.length} Komponenten
-              {data.bonuses.length > 0 && ` + ${data.bonuses.length} Boni`}
-            </div>
-          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="cursor-help">
+                  <div className="text-xs uppercase tracking-[0.35em] text-white/45 flex items-center gap-1.5">
+                    Gesamtpunktzahl
+                    <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-white/10 text-white/60 text-[10px]">?</span>
+                  </div>
+                  <div className="text-sm text-white/60">
+                    {visibleComponents.length} Komponenten
+                    {data.bonuses.length > 0 && ` + ${data.bonuses.length} Boni`}
+                  </div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs bg-[#1a1a2e] border-white/20">
+                {(() => {
+                  const tooltip = getSubtotalTooltipContent('total', data, visibleComponents.length);
+                  return (
+                    <div className="space-y-1.5">
+                      <p className="font-semibold text-white">{tooltip.title}</p>
+                      <p className="text-xs text-white/70">{tooltip.explanation}</p>
+                      <p className="text-xs text-white/50 font-mono">{tooltip.formula}</p>
+                    </div>
+                  );
+                })()}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           <div className="text-3xl font-black">{Number(data.total).toFixed(0)}</div>
         </div>
       </div>
@@ -589,7 +715,31 @@ export default function ScoringBreakdownV2({
 
         {/* Components */}
         <div className="space-y-1.5">
-          <h4 className="text-xs font-semibold text-foreground uppercase tracking-wide">Scoring-Komponenten</h4>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <h4 className="text-xs font-semibold text-foreground uppercase tracking-wide cursor-help inline-flex items-center gap-1.5">
+                  Scoring-Komponenten
+                  <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-muted text-muted-foreground text-[10px]">?</span>
+                  <span className="text-muted-foreground font-normal ml-1">
+                    ({data.components?.reduce((sum, c) => sum + (c.points || 0), 0) || 0} pts)
+                  </span>
+                </h4>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs">
+                {(() => {
+                  const tooltip = getSubtotalTooltipContent('components', data, visibleComponents.length);
+                  return (
+                    <div className="space-y-1.5">
+                      <p className="font-semibold">{tooltip.title}</p>
+                      <p className="text-xs text-muted-foreground">{tooltip.explanation}</p>
+                      <p className="text-xs font-mono">{tooltip.formula}</p>
+                    </div>
+                  );
+                })()}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           <div className="space-y-1">
             {visibleComponents.map((component, idx) => {
               const tooltipContent = getComponentTooltipContent(
@@ -611,6 +761,15 @@ export default function ScoringBreakdownV2({
                   ? orderActivityDateLabels[orderActivityIndex]
                   : null;
 
+              // Format display text based on component type
+              const displayCategory = component.category === "Trend Bonus" ? "Momentum Score" : component.category;
+              
+              // For Momentum Score (Trend Bonus), show cleaner format without redundancy
+              const isMomentumScore = component.category === "Trend Bonus" || component.category === "Momentum Score";
+              const displayFormula = isMomentumScore 
+                ? `${parseMultiplierValue(component.value).toFixed(2)}× multiplier → ${component.points} pts`
+                : `${component.value} → ${component.formula}`;
+
               return (
                 <div
                   key={idx}
@@ -618,7 +777,7 @@ export default function ScoringBreakdownV2({
                 >
                   <div className="flex-1 w-full sm:w-auto">
                     <div className="text-sm font-medium text-foreground mb-1 flex items-center gap-2">
-                      {component.category}
+                      {displayCategory}
                       {dateLabel && (
                         <span className="ml-2 text-[11px] font-normal text-muted-foreground">
                           {dateLabel}
@@ -632,7 +791,7 @@ export default function ScoringBreakdownV2({
                             </button>
                           </TooltipTrigger>
                           <TooltipContent side="right" className="max-w-xs space-y-1.5">
-                            <p className="font-semibold">{component.category}</p>
+                            <p className="font-semibold">{displayCategory}</p>
                             <p className="text-xs">{tooltipContent.context}</p>
                             <p className="text-xs text-muted-foreground">
                               Calculation: {tooltipContent.calculation}
@@ -650,7 +809,7 @@ export default function ScoringBreakdownV2({
                       </TooltipProvider>
                     </div>
                     <div className="text-xs text-muted-foreground font-mono">
-                      {component.value} → {component.formula}
+                      {displayFormula}
                     </div>
                   </div>
                   <div className="text-left sm:text-right w-full sm:w-auto">
@@ -668,10 +827,32 @@ export default function ScoringBreakdownV2({
         {/* Bonuses */}
         {data.bonuses.length > 0 && (
           <div className="space-y-1.5">
-            <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5 uppercase tracking-wide">
-              <TrendingUp className="w-4 h-4 text-green-600" />
-              Boni
-            </h4>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5 uppercase tracking-wide cursor-help">
+                    <TrendingUp className="w-4 h-4 text-green-600" />
+                    Boni
+                    <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-green-500/10 text-green-600 text-[10px]">?</span>
+                    <span className="text-green-600/70 font-normal ml-1">
+                      (+{data.bonuses.reduce((sum, b) => sum + b.points, 0)} pts)
+                    </span>
+                  </h4>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs">
+                  {(() => {
+                    const tooltip = getSubtotalTooltipContent('bonuses', data, visibleComponents.length);
+                    return (
+                      <div className="space-y-1.5">
+                        <p className="font-semibold">{tooltip.title}</p>
+                        <p className="text-xs text-muted-foreground">{tooltip.explanation}</p>
+                        <p className="text-xs font-mono">{tooltip.formula}</p>
+                      </div>
+                    );
+                  })()}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <div className="space-y-1">
               {data.bonuses.map((bonus, idx) => (
                 <div
@@ -721,12 +902,33 @@ export default function ScoringBreakdownV2({
 
         <div className="border-t border-border pt-2 mt-2">
           <div className="flex items-center justify-between p-2 rounded-md bg-muted/70">
-            <div>
-              <div className="text-sm font-semibold text-foreground leading-tight">Gesamtpunktzahl</div>
-              <div className="text-[11px] text-muted-foreground mt-0.5">
-                {visibleComponents.length} Komponenten + {data.bonuses.length} Boni
-              </div>
-            </div>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="cursor-help">
+                    <div className="text-sm font-semibold text-foreground leading-tight flex items-center gap-1.5">
+                      Gesamtpunktzahl
+                      <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-muted text-muted-foreground text-[10px]">?</span>
+                    </div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">
+                      {visibleComponents.length} Komponenten + {data.bonuses.length} Boni
+                    </div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs">
+                  {(() => {
+                    const tooltip = getSubtotalTooltipContent('total', data, visibleComponents.length);
+                    return (
+                      <div className="space-y-1.5">
+                        <p className="font-semibold">{tooltip.title}</p>
+                        <p className="text-xs text-muted-foreground">{tooltip.explanation}</p>
+                        <p className="text-xs font-mono">{tooltip.formula}</p>
+                      </div>
+                    );
+                  })()}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <div className="text-xl font-bold text-foreground">{data.total}</div>
           </div>
         </div>

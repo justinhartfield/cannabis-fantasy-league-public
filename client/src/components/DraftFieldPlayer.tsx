@@ -131,6 +131,10 @@ interface DraftFieldPlayerProps {
   isMyTurn?: boolean;
   onClick?: () => void;
   size?: "sm" | "md" | "lg";
+  /** Optional score to display above the jersey */
+  score?: number | null;
+  /** Whether to show the score badge */
+  showScore?: boolean;
 }
 
 /**
@@ -149,6 +153,8 @@ export function DraftFieldPlayer({
   isMyTurn = false,
   onClick,
   size = "md",
+  score,
+  showScore = false,
 }: DraftFieldPlayerProps) {
   // Track if the image loaded successfully
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -232,6 +238,24 @@ export function DraftFieldPlayer({
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
     >
+      {/* Score Badge - Above Jersey */}
+      {showScore && player && score !== undefined && score !== null && (
+        <div
+          className={cn(
+            "px-2.5 py-1 rounded-full text-xs font-bold shadow-lg transition-all duration-300",
+            "bg-gradient-to-r from-[#cfff4d] to-[#a8e600] text-black",
+            "border border-[#cfff4d]/50",
+            "animate-fade-in",
+            size === "sm" ? "text-[10px] px-2 py-0.5" : size === "lg" ? "text-sm px-3 py-1.5" : ""
+          )}
+          style={{
+            boxShadow: `0 0 12px rgba(207, 255, 77, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3)`
+          }}
+        >
+          {score.toFixed(1)}
+        </div>
+      )}
+
       {/* Jersey Container */}
       <div
         className={cn(
