@@ -1,7 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { DraftField, rosterToFieldPlayers } from "./DraftField";
-import { MolecularField } from "./MolecularField";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -138,7 +137,6 @@ export function ChallengeDraftBoard({
 }: ChallengeDraftBoardProps) {
   const [selectedPosition, setSelectedPosition] = useState<AssetType | "all">("all");
   const [sortBy, setSortBy] = useState<"points" | "name">("points");
-  const [isMolecularMode, setIsMolecularMode] = useState(true);
   // Mobile: track if player panel is expanded (expanded by default to show available players)
   const [isMobileExpanded, setIsMobileExpanded] = useState(true);
 
@@ -314,19 +312,6 @@ export function ChallengeDraftBoard({
             </div>
           )}
 
-          {/* View Toggle */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
-            <span className="text-xs font-medium text-white/50">View</span>
-            <Switch
-              checked={isMolecularMode}
-              onCheckedChange={setIsMolecularMode}
-              className="data-[state=checked]:bg-[#cfff4d] scale-75"
-            />
-            <span className={cn("text-xs font-medium", isMolecularMode ? "text-[#cfff4d]" : "text-white/50")}>
-              Molecule
-            </span>
-          </div>
-          
           {/* Turn indicator */}
           {isMyTurn ? (
             <span className="px-3 py-1.5 rounded-lg bg-[#cfff4d] text-black text-xs font-bold uppercase animate-pulse">
@@ -379,30 +364,17 @@ export function ChallengeDraftBoard({
       {/* Fields Container - Single expanded field for user's team */}
       <div className="p-4 pb-2">
         <div className="max-w-2xl mx-auto">
-          {/* My Field - Expanded to show off thumbnails and text */}
-          {isMolecularMode ? (
-            <MolecularField
-              teamName={myTeam.name}
-              userName={myTeam.userName}
-              players={myFieldPlayers}
-              currentDraftIndex={myActiveDraftIndex}
-              isUserTeam={true}
-              isOnTheClock={isMyTurn}
-              size="lg"
-              className="shadow-[0_10px_40px_rgba(207,255,77,0.08)]"
-            />
-          ) : (
-            <DraftField
-              teamName={myTeam.name}
-              userName={myTeam.userName}
-              players={myFieldPlayers}
-              currentDraftIndex={myActiveDraftIndex}
-              isUserTeam={true}
-              isOnTheClock={isMyTurn}
-              size="lg"
-              className="shadow-[0_10px_40px_rgba(207,255,77,0.08)]"
-            />
-          )}
+          {/* My Field - Soccer jersey draft visualization */}
+          <DraftField
+            teamName={myTeam.name}
+            userName={myTeam.userName}
+            players={myFieldPlayers}
+            currentDraftIndex={myActiveDraftIndex}
+            isUserTeam={true}
+            isOnTheClock={isMyTurn}
+            size="lg"
+            className="shadow-[0_10px_40px_rgba(207,255,77,0.08)]"
+          />
         </div>
       </div>
 
