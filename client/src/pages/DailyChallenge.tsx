@@ -383,34 +383,34 @@ export default function DailyChallenge() {
     }
   }, [dayScores, SCORE_CACHE_KEY, liveScores]);
 
-  // Auto-sync scores when visiting an active challenge
-  // Triggers once when WebSocket connects to ensure real-time updates flow
+  // Auto-sync scores when WebSocket connects to ensure real-time updates flow
+  // This triggers a score calculation while the client is in the broadcast channel
   useEffect(() => {
     // Only auto-sync once per mount
     if (hasAutoSyncedRef.current) return;
     
-    // Wait for data to load and WebSocket to connect
+    // Wait for WebSocket to connect first (most important for receiving broadcasts)
+    if (!isConnected) return;
+    
+    // Wait for data to load
     if (!league || !statDate || scoresLoading) return;
     
     // Only sync for active challenges
     if (league.status !== 'active') return;
     
-    // Check if we should sync:
-    // 1. No scores exist (new game) - sync immediately
-    // 2. OR WebSocket connected - sync to get fresh data and establish broadcast channel
+    // Don't sync if mutation is already running
+    if (syncScoresMutation.isPending) return;
+    
+    // Check if scores are missing (new game)
     const hasRealScores = dayScores && dayScores.length > 0 && 
       dayScores.some(score => (score.points || 0) > 0);
     
-    // Throttle syncs to once per 30 seconds to avoid spamming
-    const timeSinceLastSync = Date.now() - lastSyncTimeRef.current;
-    const shouldSync = !hasRealScores || (isConnected && timeSinceLastSync > 30000);
-    
-    if (shouldSync && !syncScoresMutation.isPending) {
-      console.log(`[ScoreSync] Auto-syncing (hasScores: ${hasRealScores}, wsConnected: ${isConnected})`);
-      hasAutoSyncedRef.current = true;
-      lastSyncTimeRef.current = Date.now();
-      syncScoresMutation.mutate({ challengeId, statDate });
-    }
+    // Always sync once when WS connects - this ensures we're in the broadcast channel
+    // and will receive the challenge_score_update event
+    console.log(`[ScoreSync] Auto-syncing on WS connect (hasScores: ${hasRealScores})`);
+    hasAutoSyncedRef.current = true;
+    lastSyncTimeRef.current = Date.now();
+    syncScoresMutation.mutate({ challengeId, statDate });
   }, [league, statDate, dayScores, scoresLoading, syncScoresMutation, challengeId, isConnected]);
 
   // Show invite landing page for unauthenticated users
