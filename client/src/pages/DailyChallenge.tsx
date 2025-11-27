@@ -223,29 +223,9 @@ export default function DailyChallenge() {
     syncScoresMutation.mutate({ challengeId, statDate });
   }, [challengeId, statDate, syncScoresMutation]);
   
-  // Auto-sync scores when visiting an active challenge with no scores
+  // Auto-sync refs (effect is defined after useWebSocket to access isConnected)
   const hasAutoSyncedRef = useRef(false);
-  
-  useEffect(() => {
-    // Only auto-sync once per mount
-    if (hasAutoSyncedRef.current) return;
-    
-    // Wait for data to load
-    if (!league || !statDate || scoresLoading) return;
-    
-    // Only sync for active challenges
-    if (league.status !== 'active') return;
-    
-    // Check if scores are missing or all zeros
-    const hasRealScores = dayScores && dayScores.length > 0 && 
-      dayScores.some(score => (score.points || 0) > 0);
-    
-    if (!hasRealScores && !syncScoresMutation.isPending) {
-      console.log('[ScoreSync] No scores found, auto-triggering score calculation...');
-      hasAutoSyncedRef.current = true;
-      syncScoresMutation.mutate({ challengeId, statDate });
-    }
-  }, [league, statDate, dayScores, scoresLoading, syncScoresMutation, challengeId]);
+  const lastSyncTimeRef = useRef(0);
 
   // Get user's team ID for WebSocket
   const userTeamId = useMemo(() => {
@@ -403,8 +383,35 @@ export default function DailyChallenge() {
     }
   }, [dayScores, SCORE_CACHE_KEY, liveScores]);
 
-  // Scores are now calculated automatically by the backend scheduler
-  // Real-time updates are pushed via WebSocket
+  // Auto-sync scores when visiting an active challenge
+  // Triggers once when WebSocket connects to ensure real-time updates flow
+  useEffect(() => {
+    // Only auto-sync once per mount
+    if (hasAutoSyncedRef.current) return;
+    
+    // Wait for data to load and WebSocket to connect
+    if (!league || !statDate || scoresLoading) return;
+    
+    // Only sync for active challenges
+    if (league.status !== 'active') return;
+    
+    // Check if we should sync:
+    // 1. No scores exist (new game) - sync immediately
+    // 2. OR WebSocket connected - sync to get fresh data and establish broadcast channel
+    const hasRealScores = dayScores && dayScores.length > 0 && 
+      dayScores.some(score => (score.points || 0) > 0);
+    
+    // Throttle syncs to once per 30 seconds to avoid spamming
+    const timeSinceLastSync = Date.now() - lastSyncTimeRef.current;
+    const shouldSync = !hasRealScores || (isConnected && timeSinceLastSync > 30000);
+    
+    if (shouldSync && !syncScoresMutation.isPending) {
+      console.log(`[ScoreSync] Auto-syncing (hasScores: ${hasRealScores}, wsConnected: ${isConnected})`);
+      hasAutoSyncedRef.current = true;
+      lastSyncTimeRef.current = Date.now();
+      syncScoresMutation.mutate({ challengeId, statDate });
+    }
+  }, [league, statDate, dayScores, scoresLoading, syncScoresMutation, challengeId, isConnected]);
 
   // Show invite landing page for unauthenticated users
   // (Logged-in users always see the normal challenge page)

@@ -283,20 +283,32 @@ class WebSocketManager {
   }
 
   broadcastToLeague(leagueId: number, message: any, exclude?: Client) {
-    const channel = this.leagueChannels.get(leagueId);
-    if (!channel) {
-      console.log(`[WebSocket] No clients in league channel ${leagueId} for message type: ${message.type}`);
-      return;
-    }
-
-    let sentCount = 0;
-    channel.forEach((client) => {
-      if (client !== exclude && client.ws.readyState === WebSocket.OPEN) {
-        client.ws.send(JSON.stringify(message));
-        sentCount++;
+    try {
+      const channel = this.leagueChannels.get(leagueId);
+      const channelSize = channel?.size || 0;
+      
+      if (!channel || channelSize === 0) {
+        console.log(`[WebSocket] No clients in league ${leagueId} for ${message.type} (channel exists: ${!!channel})`);
+        return;
       }
-    });
-    console.log(`[WebSocket] Sent ${message.type} to ${sentCount}/${channel.size} clients in league ${leagueId}`);
+
+      let sentCount = 0;
+      let errorCount = 0;
+      channel.forEach((client) => {
+        try {
+          if (client !== exclude && client.ws.readyState === WebSocket.OPEN) {
+            client.ws.send(JSON.stringify(message));
+            sentCount++;
+          }
+        } catch (sendError) {
+          errorCount++;
+          console.error(`[WebSocket] Error sending to client:`, sendError);
+        }
+      });
+      console.log(`[WebSocket] Sent ${message.type} to ${sentCount}/${channelSize} clients in league ${leagueId}${errorCount > 0 ? ` (${errorCount} errors)` : ''}`);
+    } catch (error) {
+      console.error(`[WebSocket] broadcastToLeague error for league ${leagueId}:`, error);
+    }
   }
 
   sendToClient(client: Client, message: any) {
