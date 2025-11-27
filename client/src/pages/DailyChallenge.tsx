@@ -284,7 +284,26 @@ export default function DailyChallenge() {
         setLastUpdateTime(new Date(message.updateTime));
         hasReceivedWsUpdateRef.current = false; // Allow server scores to update
         refetchScores();
-        toast.info("Scores updated!");
+        
+        // Update liveScores directly from WebSocket message for immediate feedback
+        if (message.scores && Array.isArray(message.scores)) {
+          const newLiveScores = new Map(liveScores);
+          let hasChanges = false;
+          message.scores.forEach((s: { teamId: number; points: number }) => {
+            const oldScore = newLiveScores.get(s.teamId);
+            if (oldScore !== s.points) {
+              newLiveScores.set(s.teamId, s.points);
+              hasChanges = true;
+              console.log(`[WS] Score update: Team ${s.teamId}: ${oldScore} -> ${s.points}`);
+            }
+          });
+          if (hasChanges) {
+            setLiveScores(newLiveScores);
+            toast.info("Scores updated!");
+          } else {
+            console.log('[WS] No score changes detected');
+          }
+        }
       } else if (message.type === 'challenge_finalized') {
         if (message.statDate && statDate && message.statDate !== statDate) {
           return;
