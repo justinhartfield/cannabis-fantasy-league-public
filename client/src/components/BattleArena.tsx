@@ -1,14 +1,15 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { LiveIndicator } from "@/components/LiveIndicator";
 import { FighterPicker, FIGHTER_ILLUSTRATIONS, getFighterByFile } from "@/components/FighterPicker";
+import { BackgroundPicker, BATTLEFIELD_BACKGROUNDS, getBackgroundByFile, getRandomBackground } from "@/components/BackgroundPicker";
 import { AnimatedScoreCounter } from "@/components/AnimatedScoreCounter";
 import { DamageFlash } from "@/components/DamageFlash";
 import { ScoringPlayOverlay, ScoringPlayData } from "@/components/ScoringPlayOverlay";
 import { ComboCounter } from "@/components/ComboCounter";
 import { useScorePrediction } from "@/hooks/useScorePrediction";
-import { Swords, Sparkles, Edit3, Star } from "lucide-react";
+import { Swords, Sparkles, Edit3, Star, Image } from "lucide-react";
 
 interface TeamData {
   teamId: number;
@@ -16,6 +17,7 @@ interface TeamData {
   userName?: string | null;
   userAvatarUrl?: string | null;
   fighterIllustration?: string | null;
+  battlefieldBackground?: string | null;
   points: number;
 }
 
@@ -27,6 +29,7 @@ interface BattleArenaProps {
   userTeamId?: number;
   selectedTeamId?: number | null;
   onFighterChange?: () => void;
+  onBackgroundChange?: () => void;
   onTeamClick?: (teamId: number) => void;
   /** Optional: External scoring play to trigger battle animation */
   scoringPlay?: ScoringPlayData | null;
@@ -43,11 +46,24 @@ export function BattleArena({
   userTeamId,
   selectedTeamId,
   onFighterChange,
+  onBackgroundChange,
   onTeamClick,
   scoringPlay,
 }: BattleArenaProps) {
   const [fighterPickerOpen, setFighterPickerOpen] = useState(false);
+  const [backgroundPickerOpen, setBackgroundPickerOpen] = useState(false);
   const [editingTeamId, setEditingTeamId] = useState<number | null>(null);
+  
+  // Determine the current background - use user's team background or random default
+  const currentBackground = useMemo(() => {
+    // Check if user has a team and if it has a background set
+    const userTeam = leftTeam?.teamId === userTeamId ? leftTeam : rightTeam?.teamId === userTeamId ? rightTeam : null;
+    if (userTeam?.battlefieldBackground) {
+      return getBackgroundByFile(userTeam.battlefieldBackground);
+    }
+    // Fall back to a random background seeded by the user's team ID for consistency
+    return getRandomBackground(userTeamId);
+  }, [leftTeam, rightTeam, userTeamId]);
   
   // Track previous scores for animation
   const prevLeftScoreRef = useRef<number>(leftTeam?.points ?? 0);
@@ -214,7 +230,7 @@ export function BattleArena({
     ? getFighterByFile(rightTeam.fighterIllustration)
     : FIGHTER_ILLUSTRATIONS[3]; // Default to a different fighter for variety
 
-  const isUserTeam = (teamId: number | undefined) => teamId && teamId === userTeamId;
+  const isUserTeam = (teamId: number | undefined): boolean => Boolean(teamId && teamId === userTeamId);
 
   const handleEditFighter = (teamId: number) => {
     setEditingTeamId(teamId);
@@ -227,12 +243,36 @@ export function BattleArena({
     onFighterChange?.();
   };
 
+  const handleEditBackground = (teamId: number) => {
+    setEditingTeamId(teamId);
+    setBackgroundPickerOpen(true);
+  };
+
+  const handleBackgroundSelected = () => {
+    setBackgroundPickerOpen(false);
+    setEditingTeamId(null);
+    onBackgroundChange?.();
+  };
+
   return (
     <>
       {/* Battle Arena Hero Section */}
       <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-b from-[#1a0a1f] via-[#0f0f16] to-[#050505] border border-white/10 shadow-[0_25px_60px_rgba(0,0,0,0.5)]">
-        {/* Background Effects */}
-        <div className="absolute inset-0 overflow-hidden">
+        {/* Custom Background Image */}
+        {currentBackground && (
+          <div className="absolute inset-0 overflow-hidden">
+            <img
+              src={`/assets/illustrations/backgrounds/${currentBackground.file}`}
+              alt={currentBackground.name}
+              className="absolute inset-0 w-full h-full object-cover opacity-60"
+            />
+            {/* Dark overlay for better contrast */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/60" />
+          </div>
+        )}
+        
+        {/* Background Effects (overlay on top of custom background) */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
           {/* Arena lights */}
           <div className="absolute top-0 left-1/4 w-64 h-64 bg-primary/20 rounded-full blur-[100px] animate-pulse" />
           <div className="absolute top-0 right-1/4 w-64 h-64 bg-secondary/20 rounded-full blur-[100px] animate-pulse delay-500" />
@@ -286,9 +326,22 @@ export function BattleArena({
               </Badge>
               {isLive && <LiveIndicator size="sm" />}
             </div>
-            {challengeDate && (
-              <span className="text-xs text-white/50">{challengeDate}</span>
-            )}
+            <div className="flex items-center gap-3">
+              {/* Background Edit Button (only for user's team) */}
+              {userTeamId && (
+                <button
+                  onClick={() => handleEditBackground(userTeamId)}
+                  className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/10 border border-white/20 text-xs text-white/70 hover:bg-white/20 hover:text-white transition-colors"
+                  title="Change battlefield background"
+                >
+                  <Image className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Background</span>
+                </button>
+              )}
+              {challengeDate && (
+                <span className="text-xs text-white/50">{challengeDate}</span>
+              )}
+            </div>
           </div>
 
           {/* Battle Layout */}
@@ -394,7 +447,7 @@ export function BattleArena({
       </div>
 
       {/* Fighter Picker Modal */}
-      {editingTeamId && (
+      {editingTeamId && fighterPickerOpen && (
         <FighterPicker
           open={fighterPickerOpen}
           onOpenChange={setFighterPickerOpen}
@@ -405,6 +458,21 @@ export function BattleArena({
               : rightTeam?.fighterIllustration
           }
           onSelect={handleFighterSelected}
+        />
+      )}
+
+      {/* Background Picker Modal */}
+      {editingTeamId && backgroundPickerOpen && (
+        <BackgroundPicker
+          open={backgroundPickerOpen}
+          onOpenChange={setBackgroundPickerOpen}
+          teamId={editingTeamId}
+          currentBackground={
+            editingTeamId === leftTeam?.teamId
+              ? leftTeam.battlefieldBackground
+              : rightTeam?.battlefieldBackground
+          }
+          onSelect={handleBackgroundSelected}
         />
       )}
     </>

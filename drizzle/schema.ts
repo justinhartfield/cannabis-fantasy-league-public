@@ -527,6 +527,7 @@ export const teams = pgTable("teams", {
 	pointsFor: integer().default(0).notNull(),
 	pointsAgainst: integer().default(0).notNull(),
 	fighterIllustration: varchar({ length: 100 }),
+	battlefieldBackground: varchar({ length: 100 }),
 	autoPickEnabled: integer().default(0).notNull(), // 0 = disabled, 1 = enabled (auto-enabled when timer expires)
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),

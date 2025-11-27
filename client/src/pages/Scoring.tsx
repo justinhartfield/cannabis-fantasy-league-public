@@ -28,6 +28,7 @@ interface TeamScore {
   rank?: number;
   userAvatarUrl?: string | null;
   fighterIllustration?: string | null;
+  battlefieldBackground?: string | null;
 }
 
 const getRankBadgeClass = (rank?: number) => {
@@ -351,6 +352,7 @@ export default function Scoring() {
         ...score,
         userAvatarUrl: teamData?.userAvatarUrl || null,
         fighterIllustration: teamData?.fighterIllustration || null,
+        battlefieldBackground: teamData?.battlefieldBackground || null,
         userName: teamData?.userName || null,
       };
     });
@@ -541,6 +543,7 @@ export default function Scoring() {
             userName: (primaryTeam as any).userName,
             userAvatarUrl: primaryTeam.userAvatarUrl,
             fighterIllustration: primaryTeam.fighterIllustration,
+            battlefieldBackground: primaryTeam.battlefieldBackground,
             points: primaryTeam.points || 0,
           } : null}
           rightTeam={secondaryTeam ? {
@@ -549,12 +552,14 @@ export default function Scoring() {
             userName: (secondaryTeam as any).userName,
             userAvatarUrl: secondaryTeam.userAvatarUrl,
             fighterIllustration: secondaryTeam.fighterIllustration,
+            battlefieldBackground: secondaryTeam.battlefieldBackground,
             points: secondaryTeam.points || 0,
           } : null}
           isLive={isConnected}
           challengeDate={`${selectedYear} • Week ${selectedWeek}`}
           userTeamId={userTeam?.id}
           onFighterChange={handleFighterChange}
+          onBackgroundChange={handleFighterChange}
         />
 
         {/* Main Content Grid */}

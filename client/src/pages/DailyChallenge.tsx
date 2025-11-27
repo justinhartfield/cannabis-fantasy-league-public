@@ -34,6 +34,7 @@ interface TeamScore {
   userAvatarUrl?: string | null;
   userName?: string | null;
   fighterIllustration?: string | null;
+  battlefieldBackground?: string | null;
 }
 
 interface ChallengeSummary {
@@ -463,6 +464,12 @@ export default function DailyChallenge() {
     return team?.fighterIllustration || null;
   }, [league?.teams]);
 
+  // Helper to get battlefield background from league teams
+  const getBackgroundForTeam = useCallback((teamId: number) => {
+    const team = league?.teams?.find((t: any) => t.id === teamId);
+    return team?.battlefieldBackground || null;
+  }, [league?.teams]);
+
   // Redirect non-challenges back to league detail
   const baseTeamScores: TeamScore[] = useMemo(() => {
     // Always start with all teams from the league to ensure both teams show
@@ -473,6 +480,7 @@ export default function DailyChallenge() {
       userAvatarUrl: team.userAvatarUrl,
       userName: team.userName,
       fighterIllustration: team.fighterIllustration || null,
+      battlefieldBackground: team.battlefieldBackground || null,
     }));
 
     // If we have day scores, merge them with all teams
@@ -492,12 +500,14 @@ export default function DailyChallenge() {
             userAvatarUrl: score.userAvatarUrl || team.userAvatarUrl,
             userName: score.userName || team.userName,
             fighterIllustration: getFighterForTeam(score.teamId),
+            battlefieldBackground: getBackgroundForTeam(score.teamId),
           };
         }
         return {
           ...team,
           points: liveScore !== undefined ? liveScore : team.points,
           fighterIllustration: getFighterForTeam(team.teamId),
+          battlefieldBackground: getBackgroundForTeam(team.teamId),
         };
       });
     }
@@ -517,12 +527,14 @@ export default function DailyChallenge() {
             userAvatarUrl: score.userAvatarUrl || team.userAvatarUrl,
             userName: score.userName || team.userName,
             fighterIllustration: getFighterForTeam(score.teamId),
+            battlefieldBackground: getBackgroundForTeam(score.teamId),
           };
         }
         return {
           ...team,
           points: liveScore !== undefined ? liveScore : team.points,
           fighterIllustration: getFighterForTeam(team.teamId),
+          battlefieldBackground: getBackgroundForTeam(team.teamId),
         };
       });
     }
@@ -534,9 +546,10 @@ export default function DailyChallenge() {
         ...team,
         points: liveScore !== undefined ? liveScore : team.points,
         fighterIllustration: getFighterForTeam(team.teamId),
+        battlefieldBackground: getBackgroundForTeam(team.teamId),
       };
     });
-  }, [dayScores, cachedScores, league, getFighterForTeam, liveScores]);
+  }, [dayScores, cachedScores, league, getFighterForTeam, getBackgroundForTeam, liveScores]);
 
   const sortedScores: TeamScore[] = useMemo(() => {
     if (baseTeamScores.length === 0) return [];
@@ -703,6 +716,7 @@ export default function DailyChallenge() {
             userName: leader.userName,
             userAvatarUrl: leader.userAvatarUrl,
             fighterIllustration: leader.fighterIllustration,
+            battlefieldBackground: leader.battlefieldBackground,
             points: leader.points,
           } : null}
           rightTeam={challenger ? {
@@ -711,6 +725,7 @@ export default function DailyChallenge() {
             userName: challenger.userName,
             userAvatarUrl: challenger.userAvatarUrl,
             fighterIllustration: challenger.fighterIllustration,
+            battlefieldBackground: challenger.battlefieldBackground,
             points: challenger.points,
           } : !challenger && league?.leagueCode ? null : null}
           isLive={isLive}
@@ -718,6 +733,7 @@ export default function DailyChallenge() {
           userTeamId={userTeam?.id}
           selectedTeamId={selectedTeamId}
           onFighterChange={() => refetchLeague()}
+          onBackgroundChange={() => refetchLeague()}
           onTeamClick={(teamId) => setSelectedTeamId(teamId)}
           scoringPlay={currentScoringPlay}
         />
