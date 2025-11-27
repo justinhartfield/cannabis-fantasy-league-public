@@ -191,7 +191,9 @@ export async function advanceDraftPick(leagueId: number): Promise<boolean> {
     .where(eq(teams.leagueId, leagueId));
 
   const teamCount = allTeams.length;
-  const totalPicks = teamCount * 10; // 10 rounds total (10 roster slots)
+  // Challenge leagues have 9 roster slots, season leagues have 10
+  const rosterSlots = league.leagueType === "challenge" ? 9 : 10;
+  const totalPicks = teamCount * rosterSlots;
   const nextPickNumber = league.currentDraftPick + 1;
 
   let draftCompleted = false;
@@ -204,7 +206,7 @@ export async function advanceDraftPick(leagueId: number): Promise<boolean> {
         draftCompleted: 1,
         status: "active",
         currentDraftPick: totalPicks,
-        currentDraftRound: 10,
+        currentDraftRound: rosterSlots,
       })
       .where(eq(leagues.id, leagueId));
 
@@ -283,9 +285,11 @@ export async function checkAndCompleteDraft(leagueId: number): Promise<boolean> 
     .where(eq(teams.leagueId, leagueId));
 
   const teamCount = allTeams.length;
-  const totalExpectedPicks = teamCount * 10;
+  // Challenge leagues have 9 roster slots, season leagues have 10
+  const rosterSlots = league.leagueType === "challenge" ? 9 : 10;
+  const totalExpectedPicks = teamCount * rosterSlots;
 
-  // Check if all teams have 10 players
+  // Check if all teams have the expected roster size
   let allTeamsComplete = true;
   for (const team of allTeams) {
     const teamRoster = await db
@@ -293,13 +297,13 @@ export async function checkAndCompleteDraft(leagueId: number): Promise<boolean> 
       .from(rosters)
       .where(eq(rosters.teamId, team.id));
     
-    if (teamRoster.length < 10) {
+    if (teamRoster.length < rosterSlots) {
       allTeamsComplete = false;
       break;
     }
   }
 
-  // If all teams have 10 players OR we've exceeded the expected picks, mark as complete
+  // If all teams have the required roster size OR we've exceeded the expected picks, mark as complete
   if (allTeamsComplete || league.currentDraftPick >= totalExpectedPicks) {
     await db
       .update(leagues)
