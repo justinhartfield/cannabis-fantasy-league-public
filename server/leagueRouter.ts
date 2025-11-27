@@ -491,12 +491,23 @@ export const leagueRouter = router({
             .set({ draftPosition: 2 })
             .where(eq(teams.id, secondTeam.id));
 
-          // Broadcast to both players
+          // Broadcast to both players (for those on the challenge page)
           wsManager.broadcastToLeague(league.id, {
             type: 'second_player_joined',
             leagueId: league.id,
             team1: { id: allTeams[0].id, name: allTeams[0].name },
             team2: { id: allTeams[1].id, name: allTeams[1].name },
+          });
+
+          // ALSO notify the challenge creator directly via user channel
+          // This ensures they get notified even if they're on a different page
+          wsManager.notifyUser(league.commissionerUserId, {
+            type: 'opponent_joined_your_challenge',
+            challengeId: league.id,
+            challengeName: league.name,
+            opponentTeamName: teamName,
+            opponentUserId: ctx.user.id,
+            opponentUserName: ctx.user.name,
           });
 
           // Delay coin flip result for animation timing
@@ -508,6 +519,15 @@ export const leagueRouter = router({
               winnerTeamName: firstTeam.name,
               loserTeamId: secondTeam.id,
               loserTeamName: secondTeam.name,
+            });
+
+            // Also notify creator via user channel about coin flip
+            wsManager.notifyUser(league.commissionerUserId, {
+              type: 'challenge_coin_flip_result',
+              challengeId: league.id,
+              challengeName: league.name,
+              winnerTeamId: firstTeam.id,
+              winnerTeamName: firstTeam.name,
             });
           }, 500);
         } else {

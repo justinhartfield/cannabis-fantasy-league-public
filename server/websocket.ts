@@ -41,6 +41,8 @@ class WebSocketManager {
   private clients: Map<WebSocket, Client> = new Map();
   private draftRooms: Map<number, DraftRoom> = new Map();
   private leagueChannels: Map<number, Set<Client>> = new Map();
+  // User-level channels for global notifications (e.g., opponent joined your challenge)
+  private userChannels: Map<number, Set<Client>> = new Map();
 
   initialize(server: any) {
     this.wss = new WebSocketServer({ noServer: true });
@@ -75,6 +77,9 @@ class WebSocketManager {
 
       const client: Client = { ws, userId, leagueId, teamId };
       this.clients.set(ws, client);
+
+      // Always join user's personal channel for global notifications
+      this.joinUserChannel(client);
 
       // Join league channel if leagueId is provided
       if (leagueId) {
@@ -135,7 +140,51 @@ class WebSocketManager {
   private handleDisconnect(client: Client) {
     this.leaveDraftRoom(client);
     this.leaveLeagueChannel(client);
+    this.leaveUserChannel(client);
     this.clients.delete(client.ws);
+  }
+
+  // User Channel Management (for global notifications)
+  private joinUserChannel(client: Client) {
+    if (!this.userChannels.has(client.userId)) {
+      this.userChannels.set(client.userId, new Set());
+    }
+
+    const channel = this.userChannels.get(client.userId)!;
+    channel.add(client);
+
+    console.log(`[WebSocket] Client joined user channel for userId ${client.userId}`);
+  }
+
+  private leaveUserChannel(client: Client) {
+    const channel = this.userChannels.get(client.userId);
+    if (channel) {
+      channel.delete(client);
+
+      // Clean up empty channels
+      if (channel.size === 0) {
+        this.userChannels.delete(client.userId);
+      }
+    }
+  }
+
+  /**
+   * Send a message to a specific user across all their connected devices/tabs
+   * Used for global notifications like "opponent joined your challenge"
+   */
+  notifyUser(userId: number, message: any) {
+    const channel = this.userChannels.get(userId);
+    if (!channel) {
+      console.log(`[WebSocket] No active connections for user ${userId}`);
+      return;
+    }
+
+    console.log(`[WebSocket] Notifying user ${userId} with message type: ${message.type}`);
+    channel.forEach((client) => {
+      if (client.ws.readyState === WebSocket.OPEN) {
+        client.ws.send(JSON.stringify(message));
+      }
+    });
   }
 
   // Draft Room Management
