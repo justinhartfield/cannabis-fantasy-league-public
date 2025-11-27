@@ -1840,10 +1840,8 @@ export async function calculateDailyChallengeScores(challengeId: number, statDat
     updateTime: new Date().toISOString(),
   });
 
-  // Generate and emit individual scoring plays for battle animations
-  if (challengeTeams.length === 2) {
-    await emitScoringPlaysForChallenge(db, challengeId, challengeTeams, statDateString, scores);
-  }
+  // Note: Individual scoring plays are now handled by ScoreBroadcaster service
+  // which detects score changes and drip-feeds them over time for a sports broadcast feel
 }
 
 /**
