@@ -79,6 +79,8 @@ interface ChallengeDraftBoardProps {
   onAutoDraftChange?: (enabled: boolean) => void;
   // Timer display
   timerSeconds?: number | null;
+  // Prevent double-draft race condition
+  draftPending?: boolean;
 }
 
 // Position filter pills configuration
@@ -134,6 +136,7 @@ export function ChallengeDraftBoard({
   autoDraftEnabled = false,
   onAutoDraftChange,
   timerSeconds,
+  draftPending = false,
 }: ChallengeDraftBoardProps) {
   const [selectedPosition, setSelectedPosition] = useState<AssetType | "all">("all");
   const [sortBy, setSortBy] = useState<"points" | "name">("points");
@@ -294,8 +297,8 @@ export function ChallengeDraftBoard({
 
   // Handle draft pick
   const handleDraft = (player: AvailablePlayer & { assetType: AssetType }) => {
-    if (!isMyTurn) {
-      toast.error("Not your turn!");
+    if (!isMyTurn || draftPending) {
+      if (!isMyTurn) toast.error("Not your turn!");
       return;
     }
     if (isPositionFull(player.assetType)) {
@@ -526,15 +529,15 @@ export function ChallengeDraftBoard({
                         {/* Draft Button */}
                         <button
                           onClick={() => handleDraft(player)}
-                          disabled={!isMyTurn || isFull}
+                          disabled={!isMyTurn || isFull || draftPending}
                           className={cn(
                             "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all shrink-0",
-                            !isMyTurn || isFull
+                            !isMyTurn || isFull || draftPending
                               ? "bg-white/5 text-white/20 cursor-not-allowed"
                               : "bg-[#cfff4d] text-black hover:bg-[#dfff6d] hover:scale-105"
                           )}
                         >
-                          Draft
+                          {draftPending ? "..." : "Draft"}
                         </button>
                         
                         {/* Player Thumbnail */}

@@ -543,7 +543,9 @@ export default function Draft() {
     // Check if we should auto-draft (either via autoDraftEnabled or autoPickFromQueue)
     const shouldAutoDraft = autoDraftEnabled || autoPickFromQueue;
     
-    if (!shouldAutoDraft || !isMyTurn || !myTeam || autoDraftInProgressRef.current) {
+    // Guard against multiple simultaneous auto-draft attempts
+    // Check: enabled, is my turn, have team info, not already in progress, mutation not pending
+    if (!shouldAutoDraft || !isMyTurn || !myTeam || autoDraftInProgressRef.current || makeDraftPickMutation.isPending) {
       return;
     }
 
@@ -755,13 +757,16 @@ export default function Draft() {
         }
       }
       
+      // Only reset after operation completes (success or failure)
       autoDraftInProgressRef.current = false;
-    }, 300); // Reduced delay for faster auto-draft
+    }, 500); // Slightly longer delay to prevent rapid re-triggers
 
+    // Don't clear the timeout or reset the flag on cleanup - let the operation complete
+    // This prevents the infinite loop where cleanup resets the flag allowing new picks
     return () => {
+      // Only clear the timeout if it hasn't fired yet
+      // Don't reset autoDraftInProgressRef - let it complete naturally
       clearTimeout(timerId);
-      // Reset the flag when effect cleans up, so next auto-draft can proceed
-      autoDraftInProgressRef.current = false;
     };
   }, [
     autoDraftEnabled,
@@ -779,6 +784,7 @@ export default function Draft() {
     availableBrands,
     leagueId,
     makeDraftPickMutation,
+    makeDraftPickMutation.isPending,
     markAssetDrafted,
     markAssetPending,
     clearAssetPending,
