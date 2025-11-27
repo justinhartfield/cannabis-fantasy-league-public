@@ -322,13 +322,21 @@ class ScoreBroadcaster {
     if (teamIds.length < 2) return plays;
 
     const isFirstRun = !previous;
-    console.log(`[ScoreBroadcaster] Detecting plays (first run: ${isFirstRun})`);
+    console.log(`[ScoreBroadcaster] Detecting plays (first run: ${isFirstRun}, current teams: ${teamIds.join(', ')})`);
 
     // On first run, store the baseline snapshot but don't broadcast
     // This ensures we only show REAL deltas (incremental changes), not total scores
     // The frontend auto-sync will ensure scores are displayed from the server query
     if (isFirstRun) {
       console.log(`[ScoreBroadcaster] First run - storing baseline snapshot, no plays to broadcast`);
+      return plays;
+    }
+    
+    // Verify previous snapshot has matching team IDs (detect corrupted state)
+    const previousTeamIds = Array.from(previous.teams.keys());
+    const teamsMatch = teamIds.every(id => previousTeamIds.includes(id));
+    if (!teamsMatch) {
+      console.warn(`[ScoreBroadcaster] Team mismatch - previous: ${previousTeamIds.join(', ')}, current: ${teamIds.join(', ')}. Treating as first run.`);
       return plays;
     }
 
@@ -344,10 +352,18 @@ class ScoreBroadcaster {
       for (const [assetKey, asset] of teamSnapshot.assets) {
         const previousAsset = previousTeam?.assets.get(assetKey);
         const previousPoints = previousAsset?.points || 0;
-        const delta = asset.points - previousPoints;
+        let delta = asset.points - previousPoints;
+
+        // Sanity check: delta should never exceed the asset's total points
+        // This catches edge cases where previous state was corrupted
+        if (delta > asset.points) {
+          console.warn(`[ScoreBroadcaster] Capping delta for ${asset.assetName}: calculated ${delta}, max ${asset.points}`);
+          delta = asset.points;
+        }
 
         // Only broadcast real changes (deltas > 0.5 points)
         if (delta > 0.5) {
+          console.log(`[ScoreBroadcaster] Play: ${asset.assetName} +${delta.toFixed(1)} (was ${previousPoints}, now ${asset.points})`);
           plays.push({
             attackingTeamId: teamId,
             attackingTeamName: teamSnapshot.teamName,

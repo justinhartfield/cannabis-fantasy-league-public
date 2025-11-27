@@ -109,7 +109,7 @@ export function ScoringPlayAnnouncement({
   if (!isVisible || !play || !config) return null;
 
   return (
-    <div className="fixed top-4 sm:top-20 left-1/2 -translate-x-1/2 z-[100] w-full max-w-lg px-2 sm:px-4 animate-slide-in-top">
+    <div className="fixed top-4 sm:top-20 left-1/2 -translate-x-1/2 z-[100] w-full max-w-lg px-2 sm:px-4 animate-slide-in-top hidden sm:block">
       <div 
         className={cn(
           "relative overflow-hidden rounded-xl sm:rounded-2xl border shadow-2xl",
