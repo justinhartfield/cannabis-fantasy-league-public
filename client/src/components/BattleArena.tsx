@@ -8,6 +8,7 @@ import { DamageFlash } from "@/components/DamageFlash";
 import { ScoringPlayOverlay, ScoringPlayData } from "@/components/ScoringPlayOverlay";
 import { BattleHealthBar } from "@/components/BattleHealthBar";
 import { ComboCounter } from "@/components/ComboCounter";
+import { useScorePrediction } from "@/hooks/useScorePrediction";
 import { Swords, Sparkles, Edit3, Star } from "lucide-react";
 
 interface TeamData {
@@ -77,6 +78,10 @@ export function BattleArena({
   const [isNewComboHit, setIsNewComboHit] = useState(false);
   const comboTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastAttackerRef = useRef<number | null>(null);
+
+  // Smooth score interpolation for live games
+  const predictedLeftScore = useScorePrediction(leftTeam?.points ?? 0, isLive);
+  const predictedRightScore = useScorePrediction(rightTeam?.points ?? 0, isLive);
 
   // Update previous scores when current scores change
   useEffect(() => {
@@ -357,10 +362,10 @@ export function BattleArena({
             </div>
           </div>
 
-          {/* Score Display with Animated Counters */}
+          {/* Score Display with Animated Counters - Using predicted scores for smooth live updates */}
           <div className="mt-6 flex items-center justify-center gap-4 sm:gap-8">
             <AnimatedScoreCounter
-              value={leftTeam?.points ?? 0}
+              value={predictedLeftScore}
               previousValue={leftPrevScore}
               size="lg"
               label="Points"
@@ -373,7 +378,7 @@ export function BattleArena({
             <div className="text-2xl text-white/30">—</div>
             
             <AnimatedScoreCounter
-              value={rightTeam?.points ?? 0}
+              value={predictedRightScore}
               previousValue={rightPrevScore}
               size="lg"
               label="Points"
@@ -384,23 +389,23 @@ export function BattleArena({
             />
           </div>
 
-          {/* Score Bar */}
+          {/* Score Bar - Using predicted scores for smooth live updates */}
           <div className="mt-4 relative h-2 bg-white/10 rounded-full overflow-hidden">
-            {leftTeam && rightTeam && (leftTeam.points > 0 || rightTeam.points > 0) && (
+            {leftTeam && rightTeam && (predictedLeftScore > 0 || predictedRightScore > 0) && (
               <>
                 <div
-                  className="absolute top-0 left-0 h-full bg-gradient-to-r from-primary to-primary/70 transition-all duration-500"
+                  className="absolute top-0 left-0 h-full bg-gradient-to-r from-primary to-primary/70 transition-all duration-300"
                   style={{
                     width: `${
-                      (leftTeam.points / (leftTeam.points + rightTeam.points)) * 100
+                      (predictedLeftScore / (predictedLeftScore + predictedRightScore)) * 100
                     }%`,
                   }}
                 />
                 <div
-                  className="absolute top-0 right-0 h-full bg-gradient-to-l from-secondary to-secondary/70 transition-all duration-500"
+                  className="absolute top-0 right-0 h-full bg-gradient-to-l from-secondary to-secondary/70 transition-all duration-300"
                   style={{
                     width: `${
-                      (rightTeam.points / (leftTeam.points + rightTeam.points)) * 100
+                      (predictedRightScore / (predictedLeftScore + predictedRightScore)) * 100
                     }%`,
                   }}
                 />

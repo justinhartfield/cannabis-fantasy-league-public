@@ -3,6 +3,7 @@ import { leagues, teams, dailyTeamScores } from '../drizzle/schema';
 import { eq, and } from 'drizzle-orm';
 import { calculateDailyChallengeScores } from './scoringEngine';
 import { wsManager } from './websocket';
+import { scoreBroadcaster } from './scoreBroadcaster';
 
 /**
  * Challenge Score Scheduler
@@ -108,20 +109,18 @@ class ChallengeScoreScheduler {
         try {
           console.log(`[ChallengeScoreScheduler] Updating scores for challenge ${challenge.id}`);
           const statDateString = new Date(challenge.createdAt).toISOString().split('T')[0];
-          const statDateObj = new Date(statDateString);
-          const statYear = statDateObj.getFullYear();
-          const statWeek = this.getWeekNumber(statDateObj);
           
           await calculateDailyChallengeScores(challenge.id, statDateString);
 
-          // Broadcast WebSocket update
-          wsManager.notifyChallengeScoreUpdate(challenge.id, {
-            challengeId: challenge.id,
-            statDate: statDateString,
-            updateTime: new Date().toISOString(),
-          });
+          // Detect score changes and queue scoring plays for drip-feed broadcast
+          // Plays will be spread over 10 minutes for a sports broadcast feel
+          const playCount = await scoreBroadcaster.detectAndQueuePlays(
+            challenge.id,
+            statDateString,
+            10 // spread over 10 minutes
+          );
 
-          console.log(`[ChallengeScoreScheduler] Updated challenge ${challenge.id}`);
+          console.log(`[ChallengeScoreScheduler] Updated challenge ${challenge.id} - queued ${playCount} scoring plays`);
         } catch (error) {
           console.error(`[ChallengeScoreScheduler] Error updating challenge ${challenge.id}:`, error);
         }
@@ -230,6 +229,9 @@ class ChallengeScoreScheduler {
             },
             finalizedAt: now.toISOString(),
           });
+
+          // Clear broadcaster state for this challenge
+          scoreBroadcaster.clearChallenge(challenge.id);
 
           console.log(`[ChallengeScoreScheduler] Finalized challenge ${challenge.id} - Winner: ${winner.teamName} (${winner.points} points)`);
         } catch (error) {

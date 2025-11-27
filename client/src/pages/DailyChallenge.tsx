@@ -70,10 +70,6 @@ export default function DailyChallenge() {
   const isPlayingRef = useRef(false);
   const lastPlayedRef = useRef<ScoringPlayData | null>(null); // Track last played for repeat
   const playRepeatCountRef = useRef(0); // Track how many times current play has shown (1 or 2)
-  const dripFeedTimerRef = useRef<NodeJS.Timeout | null>(null); // Timer for spacing out plays
-  
-  // Track previous scores for polling comparison
-  const prevScoresRef = useRef<Map<number, number>>(new Map());
 
   // Cache scores in localStorage for instant display on page load
   const SCORE_CACHE_KEY = `challenge-${challengeId}-scores`;
@@ -231,58 +227,6 @@ export default function DailyChallenge() {
     setCurrentScoringPlay(nextPlay);
   }, []);
 
-  // Queue plays with drip-feed timing (spaces them out over time)
-  const queueScoringPlaysWithDripFeed = useCallback((plays: ScoringPlayData[], spreadOverMinutes: number = 25) => {
-    if (plays.length === 0) return;
-    
-    // Clear any existing drip-feed timer
-    if (dripFeedTimerRef.current) {
-      clearInterval(dripFeedTimerRef.current);
-      dripFeedTimerRef.current = null;
-    }
-    
-    // Calculate interval between plays (in ms)
-    // Each play shows for ~10 sec (5 sec × 2 repeats), so account for that
-    const playDuration = 12000; // 12 seconds per play (5s × 2 + buffer)
-    const totalTimeMs = spreadOverMinutes * 60 * 1000;
-    const intervalBetweenPlays = Math.max(
-      playDuration + 5000, // Minimum: play duration + 5 sec gap
-      Math.floor(totalTimeMs / plays.length)
-    );
-    
-    console.log(`[DripFeed] Spacing ${plays.length} plays over ${spreadOverMinutes} min (${Math.round(intervalBetweenPlays / 1000)}s between each)`);
-    
-    // Add first play immediately
-    scoringPlayQueueRef.current.push(plays[0]);
-    if (!isPlayingRef.current) {
-      playNextScoringPlay();
-    }
-    
-    // Schedule remaining plays
-    if (plays.length > 1) {
-      let playIndex = 1;
-      dripFeedTimerRef.current = setInterval(() => {
-        if (playIndex < plays.length) {
-          console.log(`[DripFeed] Queuing play ${playIndex + 1}/${plays.length}`);
-          scoringPlayQueueRef.current.push(plays[playIndex]);
-          
-          // Start playing if not already
-          if (!isPlayingRef.current) {
-            playNextScoringPlay();
-          }
-          
-          playIndex++;
-        } else {
-          // All plays queued, clear timer
-          if (dripFeedTimerRef.current) {
-            clearInterval(dripFeedTimerRef.current);
-            dripFeedTimerRef.current = null;
-          }
-        }
-      }, intervalBetweenPlays);
-    }
-  }, [playNextScoringPlay]);
-
   // Handle scoring play completion (called when announcement finishes)
   const handleScoringPlayComplete = useCallback(() => {
     // Small delay before next play (or repeat) for visual clarity
@@ -346,6 +290,10 @@ export default function DailyChallenge() {
         if (!isPlayingRef.current) {
           playNextScoringPlay();
         }
+        
+        // Update last update time and refetch scores to sync UI
+        setLastUpdateTime(new Date());
+        refetchScores();
       }
     },
     autoConnect: !!challengeId && !!user?.id,
@@ -553,85 +501,8 @@ export default function DailyChallenge() {
     }
   }, [league, sortedScores, winner]);
 
-  // Poll for score changes every 30 seconds when challenge is active
-  useEffect(() => {
-    // Only poll for active challenges
-    if (league?.status !== 'active' || !challengeId) return;
-
-    // Initialize previous scores from current data
-    if (sortedScores.length > 0 && prevScoresRef.current.size === 0) {
-      sortedScores.forEach(team => {
-        prevScoresRef.current.set(team.teamId, team.points);
-      });
-    }
-
-    const pollInterval = setInterval(async () => {
-      console.log('[ScorePoll] Polling for score changes...');
-      
-      try {
-        // Refetch scores from DB
-        const result = await refetchScores();
-        
-        if (result.data && result.data.length > 0) {
-          // Compare with previous scores
-          const newScores = result.data;
-          const scoringPlays: ScoringPlayData[] = [];
-          
-          newScores.forEach((newScore: any) => {
-            const prevPoints = prevScoresRef.current.get(newScore.teamId) ?? 0;
-            const newPoints = newScore.totalPoints ?? 0;
-            const delta = newPoints - prevPoints;
-            
-            if (delta > 0.1) { // Only if meaningful change (> 0.1 points)
-              console.log(`[ScorePoll] Score change detected: Team ${newScore.teamId} +${delta.toFixed(1)} points`);
-              
-              // Find opponent team
-              const opponentScore = newScores.find((s: any) => s.teamId !== newScore.teamId);
-              
-              if (opponentScore) {
-                // Create a scoring play from the delta
-                scoringPlays.push({
-                  attackingTeamId: newScore.teamId,
-                  attackingTeamName: newScore.teamName || 'Team',
-                  defendingTeamId: opponentScore.teamId,
-                  defendingTeamName: opponentScore.teamName || 'Opponent',
-                  playerName: 'Score Update',
-                  playerType: 'cannabis_strain', // Default type
-                  pointsScored: delta,
-                  attackerNewTotal: newPoints,
-                  defenderTotal: opponentScore.totalPoints ?? 0,
-                  imageUrl: null,
-                });
-              }
-              
-              // Update tracked score
-              prevScoresRef.current.set(newScore.teamId, newPoints);
-            }
-          });
-          
-          // Queue up detected scoring plays with drip-feed timing (spread over 25 min)
-          if (scoringPlays.length > 0) {
-            queueScoringPlaysWithDripFeed(scoringPlays, 25);
-          }
-        }
-      } catch (error) {
-        console.error('[ScorePoll] Error polling scores:', error);
-      }
-    }, 30000); // Poll every 30 seconds
-
-    return () => {
-      clearInterval(pollInterval);
-    };
-  }, [league?.status, challengeId, refetchScores, sortedScores, queueScoringPlaysWithDripFeed]);
-
-  // Cleanup drip-feed timer on unmount
-  useEffect(() => {
-    return () => {
-      if (dripFeedTimerRef.current) {
-        clearInterval(dripFeedTimerRef.current);
-      }
-    };
-  }, []);
+  // Real-time updates now come via WebSocket from the server's scoreBroadcaster
+  // No client-side polling needed - the server drip-feeds scoring plays automatically
 
   const leader = sortedScores[0];
   const challenger = sortedScores[1];
