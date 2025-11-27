@@ -1187,6 +1187,7 @@ interface LineupSlot {
   assetType?: string | null;
   assetId?: number | null;
   assetName?: string | null;
+  imageUrl?: string | null;
   points?: number | null;
   locked?: boolean;
 }
@@ -1200,6 +1201,7 @@ function normalizeLineup(lineup: any): LineupSlot[] {
       assetType: slot.assetType ?? null,
       assetId: slot.assetId ?? null,
       assetName: slot.assetName ?? null,
+      imageUrl: slot.imageUrl ?? slot.logoUrl ?? null,
       points:
         typeof slot.points === "number"
           ? slot.points
