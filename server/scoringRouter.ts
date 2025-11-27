@@ -172,11 +172,18 @@ export const scoringRouter = router({
         invalidateCachedScores(input.challengeId, input.statDate);
 
         // Broadcast scoring plays via WebSocket for real-time updates
-        const playCount = await scoreBroadcaster.detectAndQueuePlays(
-          input.challengeId,
-          input.statDate,
-          5 // spread over 5 minutes
-        );
+        // Wrapped in separate try/catch so broadcaster errors don't fail the API
+        let playCount = 0;
+        try {
+          playCount = await scoreBroadcaster.detectAndQueuePlays(
+            input.challengeId,
+            input.statDate,
+            5 // spread over 5 minutes
+          );
+        } catch (broadcastError) {
+          console.error('[Scoring API] Broadcaster error (non-fatal):', broadcastError);
+          // Continue - scores were calculated, just no real-time updates
+        }
 
         return {
           success: true,

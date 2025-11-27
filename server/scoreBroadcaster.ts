@@ -69,13 +69,15 @@ class ScoreBroadcaster {
     statDate: string,
     spreadOverMinutes: number = 10
   ): Promise<number> {
-    const db = await getDb();
-    if (!db) {
-      console.error('[ScoreBroadcaster] Database not available');
-      return 0;
-    }
-
+    console.log(`[ScoreBroadcaster] detectAndQueuePlays called for challenge ${challengeId}, date ${statDate}`);
+    
     try {
+      const db = await getDb();
+      if (!db) {
+        console.error('[ScoreBroadcaster] Database not available');
+        return 0;
+      }
+
       // Get current scores from database
       const currentSnapshot = await this.fetchCurrentScores(challengeId, statDate);
       if (!currentSnapshot || currentSnapshot.teams.size < 2) {
@@ -105,6 +107,7 @@ class ScoreBroadcaster {
       return scoringPlays.length;
     } catch (error) {
       console.error(`[ScoreBroadcaster] Error detecting plays for challenge ${challengeId}:`, error);
+      // Return 0 instead of throwing - don't let broadcaster errors break score calculation
       return 0;
     }
   }
