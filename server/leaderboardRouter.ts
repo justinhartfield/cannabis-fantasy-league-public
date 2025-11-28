@@ -449,7 +449,7 @@ export const leaderboardRouter = router({
     .query(async ({ input }) => {
       const { entityType, entityId, days } = input;
       const db = await getDb();
-      if (!db) return [];
+      if (!db) return { history: [], dayOfWeekAverages: [] };
 
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);

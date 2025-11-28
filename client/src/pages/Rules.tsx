@@ -214,9 +214,8 @@ export default function Rules() {
                             Points are awarded based on real-world performance metrics normalized to a 0-100 scale.
                         </p>
                         <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground ml-4">
-                            <li><span className="text-white font-medium">Sales Volume:</span> 1 point per 100g sold</li>
-                            <li><span className="text-white font-medium">Revenue:</span> 1 point per €1,000 revenue</li>
-                            <li><span className="text-white font-medium">Ratings:</span> 10 points per 5-star review</li>
+                            <li><span className="text-white font-medium">Sales Performance:</span> Points based on daily sales volume and revenue milestones.</li>
+                            <li><span className="text-white font-medium">Customer Ratings:</span> Points awarded for high customer ratings and positive reviews.</li>
                         </ul>
                     </div>
 

@@ -47,8 +47,13 @@ export function EntityHistoryModal({
 
     if (!isOpen) return null;
 
-    const history = data?.history || [];
-    const dayOfWeekAverages = data?.dayOfWeekAverages || [];
+    // Handle both new (object) and old (array) response formats for robustness
+    const rawHistory = data?.history;
+    // If data is an array, it's the old format. If data.history is an array, it's the new format.
+    const history = Array.isArray(rawHistory) ? rawHistory : (Array.isArray(data) ? data : []);
+
+    const rawAverages = data?.dayOfWeekAverages;
+    const dayOfWeekAverages = Array.isArray(rawAverages) ? rawAverages : [];
 
     const CustomTooltip = ({ active, payload, label }: any) => {
         if (active && payload && payload.length) {
@@ -66,14 +71,14 @@ export function EntityHistoryModal({
         return null;
     };
 
-    const bestRank = history?.reduce((min, item) =>
+    const bestRank = history?.reduce((min: number, item: any) =>
         (item.rank && item.rank > 0 && item.rank < min) ? item.rank : min,
         9999
     );
 
     const currentScore = history && history.length > 0 ? history[history.length - 1].score : 0;
     const avgScore = history && history.length > 0
-        ? Math.round(history.reduce((sum, item) => sum + item.score, 0) / history.length)
+        ? Math.round(history.reduce((sum: number, item: any) => sum + item.score, 0) / history.length)
         : 0;
 
     return (
