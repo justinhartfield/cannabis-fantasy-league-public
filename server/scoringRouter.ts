@@ -91,6 +91,7 @@ import {
   weeklyLineups,
   productDailyChallengeStats,
   leagues,
+  userPredictions,
 } from '../drizzle/schema';
 import {
   manufacturerDailyChallengeStats,
@@ -98,7 +99,7 @@ import {
   pharmacyDailyChallengeStats,
   brandDailyChallengeStats,
 } from '../drizzle/dailyChallengeSchema';
-import { eq, and, inArray, sql, gte, lte } from 'drizzle-orm';
+import { eq, and, inArray, sql, gte, lte, desc } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import {
   mergeLineupWithBreakdowns,
@@ -678,6 +679,94 @@ export const scoringRouter = router({
       }
 
       return teamScores.sort((a, b) => b.points - a.points).map((s, i) => ({ ...s, rank: i + 1 }));
+    }),
+
+  /**
+   * Get live activity feed for the dashboard
+   * Combines recent user predictions and top daily stats
+   */
+  getLiveActivityFeed: protectedProcedure
+    .query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error('Database not available');
+
+      const today = new Date().toISOString().split('T')[0];
+
+      // 1. Fetch recent predictions
+      const recentPredictions = await db
+        .select({
+          id: userPredictions.id,
+          userName: users.name,
+          userAvatar: users.avatarUrl,
+          matchupId: userPredictions.matchupId,
+          timestamp: userPredictions.submittedAt,
+        })
+        .from(userPredictions)
+        .leftJoin(users, eq(userPredictions.userId, users.id))
+        .where(sql`DATE(${userPredictions.submittedAt}) = ${today}`)
+        .orderBy(desc(userPredictions.submittedAt))
+        .limit(5);
+
+      // 2. Fetch top manufacturer of the day
+      const topManufacturer = await db
+        .select({
+          name: manufacturers.name,
+          points: manufacturerDailyChallengeStats.totalPoints,
+        })
+        .from(manufacturerDailyChallengeStats)
+        .leftJoin(manufacturers, eq(manufacturerDailyChallengeStats.manufacturerId, manufacturers.id))
+        .where(eq(manufacturerDailyChallengeStats.statDate, today))
+        .orderBy(desc(manufacturerDailyChallengeStats.totalPoints))
+        .limit(1);
+
+      // 3. Fetch top strain of the day
+      const topStrain = await db
+        .select({
+          name: cannabisStrains.name,
+          points: strainDailyChallengeStats.totalPoints,
+        })
+        .from(strainDailyChallengeStats)
+        .leftJoin(cannabisStrains, eq(strainDailyChallengeStats.strainId, cannabisStrains.id))
+        .where(eq(strainDailyChallengeStats.statDate, today))
+        .orderBy(desc(strainDailyChallengeStats.totalPoints))
+        .limit(1);
+
+      const feedItems = [];
+
+      // Add predictions
+      for (const pred of recentPredictions) {
+        feedItems.push({
+          id: `pred-${pred.id}`,
+          type: 'prediction',
+          message: `${pred.userName || 'Someone'} just locked in a prediction!`,
+          timestamp: pred.timestamp,
+          icon: pred.userAvatar,
+        });
+      }
+
+      // Add stats if available
+      if (topManufacturer.length > 0) {
+        feedItems.push({
+          id: `stat-mfg-${today}`,
+          type: 'stat_manufacturer',
+          message: `${topManufacturer[0].name} is leading Manufacturers with ${topManufacturer[0].points} pts`,
+          timestamp: new Date().toISOString(), // approximate
+          icon: null,
+        });
+      }
+
+      if (topStrain.length > 0) {
+        feedItems.push({
+          id: `stat-str-${today}`,
+          type: 'stat_strain',
+          message: `${topStrain[0].name} is the top Flower today with ${topStrain[0].points} pts`,
+          timestamp: new Date().toISOString(), // approximate
+          icon: null,
+        });
+      }
+
+      // Sort by timestamp descending
+      return feedItems.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     }),
 
   /**

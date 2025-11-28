@@ -17,6 +17,7 @@ import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 import { getLoginUrl } from "@/const";
 import { cn } from "@/lib/utils";
+import { LiveActivityTicker } from "@/components/LiveActivityTicker";
 
 type LeaderboardPlayer = {
   rank?: number;
@@ -154,6 +155,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8 pb-12">
+      <LiveActivityTicker />
       <section className="rounded-[32px] bg-gradient-to-br from-[#0d0d0f] to-[#1c1b22] p-6 shadow-[0_25px_75px_rgba(0,0,0,0.45)] sm:p-8">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="space-y-2">
