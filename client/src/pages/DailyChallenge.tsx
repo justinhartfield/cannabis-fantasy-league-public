@@ -347,8 +347,8 @@ export default function DailyChallenge() {
 
         scoringPlayQueueRef.current.push(scoringPlay);
 
-        // Add to recent plays feed with timestamp (keep last 3)
-        setRecentPlays(prev => [{ ...scoringPlay, timestamp: new Date() }, ...prev].slice(0, 3));
+        // Add to recent plays feed with timestamp (keep last 10)
+        setRecentPlays(prev => [{ ...scoringPlay, timestamp: new Date() }, ...prev].slice(0, 10));
 
         // Update live display scores incrementally (this is the key for realistic feel!)
         // Don't show final total immediately - let it build up with each play
@@ -790,7 +790,7 @@ export default function DailyChallenge() {
                     key={`${play.playerName}-${play.pointsScored}-${i}`}
                     className={cn(
                       "flex items-center gap-3 text-sm transition-opacity",
-                      i === 0 ? "opacity-100" : i === 1 ? "opacity-70" : "opacity-50"
+                      i === 0 ? "opacity-100" : i < 5 ? "opacity-80" : "opacity-60"
                     )}
                   >
                     <span className="text-white/40 text-xs tabular-nums min-w-[60px]">
