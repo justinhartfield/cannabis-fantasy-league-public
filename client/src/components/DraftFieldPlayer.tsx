@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 
-export type DraftPosition = 
+export type DraftPosition =
   | "ST1" | "ST2"           // Strikers (Manufacturers)
   | "LW" | "RW"             // Wings (Pharmacies)
   | "CM1" | "CM2"           // Midfield (Products)
@@ -65,44 +65,44 @@ export const POSITION_CODES: Record<DraftPosition, string> = {
 
 // Position colors matching the asset types
 export const POSITION_COLORS: Record<AssetType | "flex", { bg: string; border: string; text: string; jersey: string; glow: string }> = {
-  manufacturer: { 
-    bg: "bg-blue-500/20", 
-    border: "border-blue-400", 
+  manufacturer: {
+    bg: "bg-blue-500/20",
+    border: "border-blue-400",
     text: "text-blue-300",
     jersey: "#3b82f6",
     glow: "rgba(59, 130, 246, 0.5)"
   },
-  pharmacy: { 
-    bg: "bg-emerald-500/20", 
-    border: "border-emerald-400", 
+  pharmacy: {
+    bg: "bg-emerald-500/20",
+    border: "border-emerald-400",
     text: "text-emerald-300",
     jersey: "#10b981",
     glow: "rgba(16, 185, 129, 0.5)"
   },
-  product: { 
-    bg: "bg-pink-500/20", 
-    border: "border-pink-400", 
+  product: {
+    bg: "bg-pink-500/20",
+    border: "border-pink-400",
     text: "text-pink-300",
     jersey: "#ec4899",
     glow: "rgba(236, 72, 153, 0.5)"
   },
-  cannabis_strain: { 
-    bg: "bg-purple-500/20", 
-    border: "border-purple-400", 
+  cannabis_strain: {
+    bg: "bg-purple-500/20",
+    border: "border-purple-400",
     text: "text-purple-300",
     jersey: "#a855f7",
     glow: "rgba(168, 85, 247, 0.5)"
   },
-  brand: { 
-    bg: "bg-yellow-500/20", 
-    border: "border-yellow-400", 
+  brand: {
+    bg: "bg-yellow-500/20",
+    border: "border-yellow-400",
     text: "text-yellow-300",
     jersey: "#eab308",
     glow: "rgba(234, 179, 8, 0.5)"
   },
-  flex: { 
-    bg: "bg-orange-500/20", 
-    border: "border-orange-400", 
+  flex: {
+    bg: "bg-orange-500/20",
+    border: "border-orange-400",
     text: "text-orange-300",
     jersey: "#f97316",
     glow: "rgba(249, 115, 22, 0.5)"
@@ -135,6 +135,8 @@ interface DraftFieldPlayerProps {
   score?: number | null;
   /** Whether to show the score badge */
   showScore?: boolean;
+  /** Optional className for the container */
+  className?: string;
 }
 
 /**
@@ -155,6 +157,7 @@ export function DraftFieldPlayer({
   size = "md",
   score,
   showScore = false,
+  className,
 }: DraftFieldPlayerProps) {
   // Track if the image loaded successfully
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -190,20 +193,21 @@ export function DraftFieldPlayer({
 
   // For FLEX position, use the actual asset type if player is drafted, otherwise use "flex"
   const positionAssetType = POSITION_ASSET_MAP[position];
-  const assetType = position === "FLEX" && player?.assetType 
-    ? player.assetType 
+  const assetType = position === "FLEX" && player?.assetType
+    ? player.assetType
     : positionAssetType;
   const colors = POSITION_COLORS[assetType as AssetType | "flex"];
   const positionLabel = POSITION_LABELS[position];
   const positionCode = POSITION_CODES[position];
-  const roleLabel = position === "FLEX" && player?.assetType 
-    ? ASSET_TYPE_LABELS[player.assetType] 
+  const roleLabel = position === "FLEX" && player?.assetType
+    ? ASSET_TYPE_LABELS[player.assetType]
     : ASSET_TYPE_LABELS[assetType as AssetType | "flex"];
 
   // Determine if we should show the image (only if loaded successfully)
   const showImage = player?.imageUrl && imageLoaded && !imageError;
 
   // Sizes increased by 10%
+  // We now use these as defaults if no className is provided, but we prefer external sizing
   const sizeClasses = {
     sm: "w-[70px] h-[88px]",
     md: "w-[88px] h-[106px]",
@@ -211,6 +215,7 @@ export function DraftFieldPlayer({
   };
 
   // Outer dimensions scale with size, but SVG viewBox coordinates stay fixed
+  // We don't strictly need these for SVG width/height anymore if we use w-full h-full
   const jerseySizes = {
     sm: { width: 53, height: 62 },
     md: { width: 66, height: 77 },
@@ -232,7 +237,8 @@ export function DraftFieldPlayer({
       className={cn(
         "flex flex-col items-center gap-1 transition-all duration-300",
         onClick && "cursor-pointer hover:scale-105",
-        isActive && isMyTurn && "animate-pulse"
+        isActive && isMyTurn && "animate-pulse",
+        className
       )}
       onClick={onClick}
       role={onClick ? "button" : undefined}
@@ -260,7 +266,8 @@ export function DraftFieldPlayer({
       <div
         className={cn(
           "relative flex items-center justify-center transition-all duration-300",
-          sizeClasses[size],
+          !className && sizeClasses[size], // Only use default size classes if no className provided
+          className && "w-full h-full", // If className provided, fill it
           isActive && "scale-110"
         )}
       >
@@ -274,11 +281,9 @@ export function DraftFieldPlayer({
 
         {/* Jersey SVG with embedded avatar */}
         <svg
-          width={jerseySize.width}
-          height={jerseySize.height}
           viewBox="0 0 60 70"
           className={cn(
-            "relative z-10 transition-all duration-300",
+            "relative z-10 transition-all duration-300 w-full h-full",
             isActive && "drop-shadow-[0_0_20px_rgba(207,255,77,0.6)]",
             player && "drop-shadow-[0_4px_12px_rgba(0,0,0,0.4)]"
           )}
@@ -391,13 +396,14 @@ export function DraftFieldPlayer({
           <>
             <div className={cn(
               "font-semibold text-white truncate leading-tight drop-shadow-sm",
-              size === "lg" ? "text-sm" : "text-[11px]"
+              // Responsive text sizing
+              "text-[9px] sm:text-[10px] lg:text-sm"
             )}>
               {player.name}
             </div>
             <div className={cn(
               "uppercase tracking-wide",
-              size === "lg" ? "text-[11px]" : "text-[9px]",
+              "text-[8px] sm:text-[9px] lg:text-[11px]",
               colors.text
             )}>
               {roleLabel}
@@ -406,7 +412,7 @@ export function DraftFieldPlayer({
         ) : (
           <div className={cn(
             "uppercase tracking-wide opacity-70",
-            size === "lg" ? "text-[11px]" : "text-[10px]",
+            "text-[8px] sm:text-[9px] lg:text-[10px]",
             colors.text
           )}>
             {roleLabel}

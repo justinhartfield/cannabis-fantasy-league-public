@@ -88,8 +88,13 @@ export function DraftField({
   };
 
   // Increased field height to accommodate larger player slots with more spacing
-  const fieldHeight = size === "lg" ? "h-[650px]" : size === "md" ? "h-[500px]" : "h-[420px]";
-  const playerSize = size === "lg" ? "lg" : size === "md" ? "md" : "sm";
+  // Responsive field height - smaller on mobile
+  const fieldHeight = "h-[320px] sm:h-[500px] lg:h-[650px]";
+  // Responsive player size classes
+  // Mobile: ~50px width (smaller than sm)
+  // Tablet (sm): ~70px width (original sm)
+  // Desktop (lg): ~106px width (original lg)
+  const playerSizeClass = "w-[50px] h-[60px] sm:w-[70px] sm:h-[88px] lg:w-[106px] lg:h-[123px]";
 
   return (
     <div className={cn("flex flex-col", className)}>
@@ -278,13 +283,13 @@ export function DraftField({
         {/* Position slots - Arranged in formation with FLEX in center */}
         {/* Increased padding and gap values to prevent text overlap */}
         <div className={cn(
-          "absolute inset-0 flex flex-col items-center justify-between px-4",
-          size === "lg" ? "py-6" : "py-4"
+          "absolute inset-0 flex flex-col items-center justify-between px-2 sm:px-4",
+          "py-2 sm:py-4 lg:py-6"
         )}>
           {/* Strikers Row (Manufacturers) */}
           <div className={cn(
             "flex items-center justify-center",
-            size === "lg" ? "gap-24" : "gap-16"
+            "gap-8 sm:gap-16 lg:gap-24"
           )}>
             <DraftFieldPlayer
               position="ST1"
@@ -292,7 +297,7 @@ export function DraftField({
               isActive={isPositionActive("ST1")}
               isMyTurn={isOnTheClock}
               onClick={onPositionClick ? () => handlePositionClick("ST1") : undefined}
-              size={playerSize}
+              className={playerSizeClass}
             />
             <DraftFieldPlayer
               position="ST2"
@@ -300,14 +305,14 @@ export function DraftField({
               isActive={isPositionActive("ST2")}
               isMyTurn={isOnTheClock}
               onClick={onPositionClick ? () => handlePositionClick("ST2") : undefined}
-              size={playerSize}
+              className={playerSizeClass}
             />
           </div>
 
           {/* Wings Row (Pharmacies) - wider spread */}
           <div className={cn(
             "flex items-center justify-between w-full",
-            size === "lg" ? "max-w-[480px]" : "max-w-[320px]"
+            "max-w-[280px] sm:max-w-[320px] lg:max-w-[480px]"
           )}>
             <DraftFieldPlayer
               position="LW"
@@ -315,7 +320,7 @@ export function DraftField({
               isActive={isPositionActive("LW")}
               isMyTurn={isOnTheClock}
               onClick={onPositionClick ? () => handlePositionClick("LW") : undefined}
-              size={playerSize}
+              className={playerSizeClass}
             />
             <DraftFieldPlayer
               position="RW"
@@ -323,14 +328,14 @@ export function DraftField({
               isActive={isPositionActive("RW")}
               isMyTurn={isOnTheClock}
               onClick={onPositionClick ? () => handlePositionClick("RW") : undefined}
-              size={playerSize}
+              className={playerSizeClass}
             />
           </div>
 
           {/* Midfield Row (Products) with FLEX in center */}
           <div className={cn(
             "flex items-center justify-center",
-            size === "lg" ? "gap-12" : "gap-8"
+            "gap-2 sm:gap-8 lg:gap-12"
           )}>
             <DraftFieldPlayer
               position="CM1"
@@ -338,7 +343,7 @@ export function DraftField({
               isActive={isPositionActive("CM1")}
               isMyTurn={isOnTheClock}
               onClick={onPositionClick ? () => handlePositionClick("CM1") : undefined}
-              size={playerSize}
+              className={playerSizeClass}
             />
             <DraftFieldPlayer
               position="FLEX"
@@ -346,7 +351,7 @@ export function DraftField({
               isActive={isPositionActive("FLEX")}
               isMyTurn={isOnTheClock}
               onClick={onPositionClick ? () => handlePositionClick("FLEX") : undefined}
-              size={playerSize}
+              className={playerSizeClass}
             />
             <DraftFieldPlayer
               position="CM2"
@@ -354,14 +359,14 @@ export function DraftField({
               isActive={isPositionActive("CM2")}
               isMyTurn={isOnTheClock}
               onClick={onPositionClick ? () => handlePositionClick("CM2") : undefined}
-              size={playerSize}
+              className={playerSizeClass}
             />
           </div>
 
           {/* Defense Row (Strains) */}
           <div className={cn(
             "flex items-center justify-center",
-            size === "lg" ? "gap-28" : "gap-20"
+            "gap-10 sm:gap-20 lg:gap-28"
           )}>
             <DraftFieldPlayer
               position="CB1"
@@ -369,7 +374,7 @@ export function DraftField({
               isActive={isPositionActive("CB1")}
               isMyTurn={isOnTheClock}
               onClick={onPositionClick ? () => handlePositionClick("CB1") : undefined}
-              size={playerSize}
+              className={playerSizeClass}
             />
             <DraftFieldPlayer
               position="CB2"
@@ -377,7 +382,7 @@ export function DraftField({
               isActive={isPositionActive("CB2")}
               isMyTurn={isOnTheClock}
               onClick={onPositionClick ? () => handlePositionClick("CB2") : undefined}
-              size={playerSize}
+              className={playerSizeClass}
             />
           </div>
 
@@ -389,7 +394,7 @@ export function DraftField({
               isActive={isPositionActive("GK")}
               isMyTurn={isOnTheClock}
               onClick={onPositionClick ? () => handlePositionClick("GK") : undefined}
-              size={playerSize}
+              className={playerSizeClass}
             />
           </div>
         </div>
@@ -451,7 +456,7 @@ export function rosterToFieldPlayers(
     const assetType = player.assetType as AssetType;
     const positions = positionMap[assetType];
     const count = counts[assetType];
-    
+
     if (positions && count < positions.length) {
       const position = positions[count];
       result[position] = {
