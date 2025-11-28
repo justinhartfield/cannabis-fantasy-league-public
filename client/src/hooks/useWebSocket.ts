@@ -20,12 +20,12 @@ export function useWebSocket(options: UseWebSocketOptions) {
     onDisconnect,
     autoConnect = true,
   } = options;
-  
+
   // Use refs to avoid stale closures in WebSocket callbacks
   const onMessageRef = useRef(onMessage);
   const onConnectRef = useRef(onConnect);
   const onDisconnectRef = useRef(onDisconnect);
-  
+
   // Keep refs up to date
   useEffect(() => {
     onMessageRef.current = onMessage;
@@ -42,7 +42,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
-  const maxReconnectAttempts = 5;
+  const maxReconnectAttempts = Infinity;
 
   const isDev = import.meta.env.DEV;
 
@@ -54,8 +54,8 @@ export function useWebSocket(options: UseWebSocketOptions) {
     }
 
     // Prevent multiple simultaneous connection attempts
-    if (wsRef.current?.readyState === WebSocket.OPEN || 
-        wsRef.current?.readyState === WebSocket.CONNECTING) {
+    if (wsRef.current?.readyState === WebSocket.OPEN ||
+      wsRef.current?.readyState === WebSocket.CONNECTING) {
       if (isDev) console.log('[WebSocket] Already connected or connecting');
       return;
     }
@@ -65,12 +65,12 @@ export function useWebSocket(options: UseWebSocketOptions) {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const host = window.location.host;
       let url = `${protocol}//${host}/ws?userId=${userId}`;
-      
+
       if (leagueId) url += `&leagueId=${leagueId}`;
       if (teamId) url += `&teamId=${teamId}`;
 
       if (isDev) console.log('[WebSocket] Connecting to:', url);
-      
+
       const ws = new WebSocket(url);
       wsRef.current = ws;
 
@@ -111,7 +111,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
               `[WebSocket] Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`
             );
           }
-          
+
           reconnectTimeoutRef.current = setTimeout(() => {
             connect();
           }, delay);

@@ -58,16 +58,16 @@ export default function DailyChallenge() {
   const [winner, setWinner] = useState<{ teamId: number; teamName: string; points: number } | null>(null);
   const [showCoinFlip, setShowCoinFlip] = useState(false);
   const [coinFlipWinner, setCoinFlipWinner] = useState<{ teamId: number; teamName: string } | null>(null);
-  
+
   // Scoring play state for battle animations
   const [currentScoringPlay, setCurrentScoringPlay] = useState<ScoringPlayData | null>(null);
   const scoringPlayQueueRef = useRef<ScoringPlayData[]>([]);
   const isPlayingRef = useRef(false);
   const lastPlayedRef = useRef<ScoringPlayData | null>(null);
-  
+
   // Recent plays feed (last 3 scoring plays with timestamps)
   const [recentPlays, setRecentPlays] = useState<(ScoringPlayData & { timestamp: Date })[]>([]);
-  
+
   // Live display scores - updated incrementally with each scoring play for realistic effect
   // Map of teamId -> current display score
   const [liveScores, setLiveScores] = useState<Map<number, number>>(new Map());
@@ -141,10 +141,11 @@ export default function DailyChallenge() {
       challengeId,
       statDate: statDate || '',
     },
-    { 
+    {
       enabled: !!league && !!statDate,
       retry: 3,
       retryDelay: 1000,
+      refetchInterval: 30000, // Poll every 30s as fallback if WS fails
     }
   );
 
@@ -183,17 +184,17 @@ export default function DailyChallenge() {
 
   // Scroll to top when content finishes loading (not during loading state)
   const isStillLoading = !challengeId || authLoading || leagueLoading || scoresLoading;
-  
+
   useEffect(() => {
     // Only scroll once when loading completes
     if (!isStillLoading && !hasScrolledRef.current) {
       hasScrolledRef.current = true;
-      
+
       // Immediate scroll
       window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
       document.documentElement.scrollTop = 0;
       document.body.scrollTop = 0;
-      
+
       // Backup scroll after a tiny delay (for any async rendering)
       requestAnimationFrame(() => {
         window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
@@ -228,7 +229,7 @@ export default function DailyChallenge() {
     if (!statDate || syncScoresMutation.isPending) return;
     syncScoresMutation.mutate({ challengeId, statDate });
   }, [challengeId, statDate, syncScoresMutation]);
-  
+
   // Auto-sync refs (effect is defined after useWebSocket to access isConnected)
   const hasAutoSyncedRef = useRef(false);
   const lastSyncTimeRef = useRef(0);
@@ -249,7 +250,7 @@ export default function DailyChallenge() {
       setCurrentScoringPlay(null);
       return;
     }
-    
+
     // Get next play from queue
     isPlayingRef.current = true;
     const nextPlay = scoringPlayQueueRef.current.shift()!;
@@ -285,7 +286,7 @@ export default function DailyChallenge() {
         setLastUpdateTime(new Date(message.updateTime));
         hasReceivedWsUpdateRef.current = false; // Allow server scores to update
         refetchScores();
-        
+
         // Update liveScores directly from WebSocket message for immediate feedback
         if (message.scores && Array.isArray(message.scores)) {
           const newLiveScores = new Map(liveScores);
@@ -317,9 +318,9 @@ export default function DailyChallenge() {
         toast.success("Dein Gegner ist beigetreten! Der Münzwurf beginnt...");
         setShowCoinFlip(true);
       } else if (message.type === 'coin_flip_result') {
-        setCoinFlipWinner({ 
-          teamId: message.winnerTeamId, 
-          teamName: message.winnerTeamName 
+        setCoinFlipWinner({
+          teamId: message.winnerTeamId,
+          teamName: message.winnerTeamName
         });
         // After showing result, redirect to draft
         setTimeout(() => {
@@ -328,7 +329,7 @@ export default function DailyChallenge() {
       } else if (message.type === 'scoring_play') {
         // Mark that we've received WS updates (don't overwrite with server data)
         hasReceivedWsUpdateRef.current = true;
-        
+
         // Queue the scoring play for battle animation
         const scoringPlay: ScoringPlayData = {
           attackingTeamId: message.attackingTeamId,
@@ -343,12 +344,12 @@ export default function DailyChallenge() {
           imageUrl: message.imageUrl,
           position: message.position,
         };
-        
+
         scoringPlayQueueRef.current.push(scoringPlay);
-        
+
         // Add to recent plays feed with timestamp (keep last 3)
         setRecentPlays(prev => [{ ...scoringPlay, timestamp: new Date() }, ...prev].slice(0, 3));
-        
+
         // Update live display scores incrementally (this is the key for realistic feel!)
         // Don't show final total immediately - let it build up with each play
         setLiveScores(prev => {
@@ -357,15 +358,15 @@ export default function DailyChallenge() {
           updated.set(message.defendingTeamId, message.defenderTotal);
           return updated;
         });
-        
+
         // Start playing if not already
         if (!isPlayingRef.current) {
           playNextScoringPlay();
         }
-        
+
         // Update last update time (but don't refetch - we're using live scores!)
         setLastUpdateTime(new Date());
-        
+
         // Only sync with server every 30 seconds to avoid overwriting live scores
         const now = Date.now();
         if (now - lastScoreSyncRef.current > 30000) {
@@ -379,7 +380,14 @@ export default function DailyChallenge() {
 
   // Track whether we've received any WebSocket score updates (to avoid overwriting live data)
   const hasReceivedWsUpdateRef = useRef(false);
-  
+
+  // Reset WS update flag when connection drops so polling can take over
+  useEffect(() => {
+    if (!isConnected) {
+      hasReceivedWsUpdateRef.current = false;
+    }
+  }, [isConnected]);
+
   // Update cache and live scores when new scores arrive from server
   useEffect(() => {
     if (dayScores && dayScores.length > 0) {
@@ -395,7 +403,7 @@ export default function DailyChallenge() {
           console.error('[ScoreCache] Failed to cache scores', e);
         }
       }
-      
+
       // Initialize or update live scores from server scores
       // - Initialize when empty
       // - Update when server has higher scores and we haven't received WS updates
@@ -405,18 +413,18 @@ export default function DailyChallenge() {
         const liveScore = liveScores.get(score.teamId);
         return (score.points || 0) !== (liveScore || 0);
       });
-      
+
       // Update liveScores from server when:
       // 1. We don't have any live scores yet (initial load)
-      // 2. Server scores are different AND we haven't just received a WS update
-      //    (WS updates are incremental, so we trust them over server for a brief period)
-      if (liveScores.size === 0 || (serverScoresDiffer && !hasReceivedWsUpdateRef.current)) {
+      // 2. Server scores are different AND (we haven't just received a WS update OR we are disconnected)
+      //    (WS updates are incremental, so we trust them over server for a brief period, unless WS is down)
+      if (liveScores.size === 0 || (serverScoresDiffer && (!hasReceivedWsUpdateRef.current || !isConnected))) {
         const initialScores = new Map<number, number>();
         dayScores.forEach(score => {
           initialScores.set(score.teamId, score.points || 0);
         });
         setLiveScores(initialScores);
-        console.log('[LiveScores] Updated from server scores:', 
+        console.log('[LiveScores] Updated from server scores:',
           dayScores.map(s => `${s.teamId}:${s.points}`).join(', '));
       }
     }
@@ -427,23 +435,23 @@ export default function DailyChallenge() {
   useEffect(() => {
     // Only auto-sync once per mount
     if (hasAutoSyncedRef.current) return;
-    
+
     // Wait for WebSocket to connect first (most important for receiving broadcasts)
     if (!isConnected) return;
-    
+
     // Wait for data to load
     if (!league || !statDate || scoresLoading) return;
-    
+
     // Only sync for active challenges
     if (league.status !== 'active') return;
-    
+
     // Don't sync if mutation is already running
     if (syncScoresMutation.isPending) return;
-    
+
     // Check if scores are missing (new game)
-    const hasRealScores = dayScores && dayScores.length > 0 && 
+    const hasRealScores = dayScores && dayScores.length > 0 &&
       dayScores.some(score => (score.points || 0) > 0);
-    
+
     // Always sync once when WS connects - this ensures we're in the broadcast channel
     // and will receive the challenge_score_update event
     console.log(`[ScoreSync] Auto-syncing on WS connect (hasScores: ${hasRealScores})`);
@@ -617,16 +625,16 @@ export default function DailyChallenge() {
     if (!breakdown || !breakdown.breakdowns) {
       return [];
     }
-      return breakdown.breakdowns
-        .map((item: any) => ({
-          name: item.assetName || `Unknown ${item.assetType}`,
-          type: item.assetType,
-          total: item.breakdown?.total ?? item.totalPoints ?? 0,
-          breakdown: item.breakdown,
-          imageUrl: item.imageUrl || null,
-        }))
-        .sort((a: { total: number }, b: { total: number }) => b.total - a.total)
-        .slice(0, 3);
+    return breakdown.breakdowns
+      .map((item: any) => ({
+        name: item.assetName || `Unknown ${item.assetType}`,
+        type: item.assetType,
+        total: item.breakdown?.total ?? item.totalPoints ?? 0,
+        breakdown: item.breakdown,
+        imageUrl: item.imageUrl || null,
+      }))
+      .sort((a: { total: number }, b: { total: number }) => b.total - a.total)
+      .slice(0, 3);
   }, [breakdown]);
 
 
@@ -749,7 +757,7 @@ export default function DailyChallenge() {
         )}
 
         {/* Status Bar with Live Feed - Double-click to manually sync */}
-        <div 
+        <div
           className="rounded-2xl bg-white/5 border border-white/10 p-4 cursor-pointer select-none"
           onDoubleClick={handleManualSync}
           title="Double-click to sync scores"
@@ -778,8 +786,8 @@ export default function DailyChallenge() {
               <div className="flex flex-col gap-2 border-t border-white/10 pt-3">
                 <span className="text-[10px] uppercase tracking-wider text-white/40">Recent Scoring Plays</span>
                 {recentPlays.map((play, i) => (
-                  <div 
-                    key={`${play.playerName}-${play.pointsScored}-${i}`} 
+                  <div
+                    key={`${play.playerName}-${play.pointsScored}-${i}`}
                     className={cn(
                       "flex items-center gap-3 text-sm transition-opacity",
                       i === 0 ? "opacity-100" : i === 1 ? "opacity-70" : "opacity-50"
@@ -792,11 +800,11 @@ export default function DailyChallenge() {
                     <span className="text-white/50 text-xs hidden sm:inline">
                       for {play.attackingTeamName}
                     </span>
-                    <Badge 
+                    <Badge
                       className={cn(
                         "text-xs font-bold px-2 py-0.5",
-                        play.pointsScored >= 10 
-                          ? "bg-primary/30 text-primary border border-primary/50" 
+                        play.pointsScored >= 10
+                          ? "bg-primary/30 text-primary border border-primary/50"
                           : "bg-white/10 text-white/70 border border-white/20"
                       )}
                     >
@@ -828,7 +836,7 @@ export default function DailyChallenge() {
                   </p>
                 </div>
                 <Button
-                    onClick={() => setLocation(`/challenge/${challengeId}/draft`)}
+                  onClick={() => setLocation(`/challenge/${challengeId}/draft`)}
                   className="gradient-primary"
                   size="lg"
                 >
@@ -951,7 +959,7 @@ export default function DailyChallenge() {
                 // Render each group in a 2-column grid
                 return Object.entries(groupedByType).map(([assetType, items]) => {
                   if (items.length === 0) return null;
-                  
+
                   return (
                     <div key={assetType} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {items.map((item: any, index: number) => (
@@ -1024,8 +1032,8 @@ function normalizeLineup(lineup: any): LineupSlot[] {
         typeof slot.points === "number"
           ? slot.points
           : typeof slot.totalPoints === "number"
-          ? slot.totalPoints
-          : null,
+            ? slot.totalPoints
+            : null,
       locked: slot.locked ?? false,
     }));
 
@@ -1078,7 +1086,7 @@ function InviteBlock({
             {leagueCode}
           </div>
         </div>
-        <Button 
+        <Button
           onClick={handleCopyCode}
           className="gradient-primary w-full"
           size="lg"

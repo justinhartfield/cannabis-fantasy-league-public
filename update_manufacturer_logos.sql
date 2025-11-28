@@ -64,3 +64,5 @@ UPDATE manufacturers SET "logoUrl" = 'https://cfls.b-cdn.net/manufacturers/plant
 UPDATE manufacturers SET "logoUrl" = 'https://cfls.b-cdn.net/manufacturers/marigold_TWFyaUdvbGQ.png' WHERE id = 67;
 
 
+
+
