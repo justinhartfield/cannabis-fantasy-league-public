@@ -27,6 +27,7 @@ import Profile from "./pages/Profile";
 import InviteFriends from "./pages/InviteFriends";
 import Join from "./pages/Join";
 import Players from "./pages/Players";
+import Rules from "./pages/Rules";
 import { useEffect } from "react";
 import { AppLayout } from "./components/AppLayout";
 import DashboardLayout from "./components/DashboardLayout";
@@ -65,6 +66,7 @@ function AuthedRoutes() {
         <Route path={"/leaderboard"} component={Leaderboard} />
         <Route path={"/invite"} component={InviteFriends} />
         <Route path={"/profile"} component={Profile} />
+        <Route path={"/rules"} component={Rules} />
         <Route path={"/404"} component={NotFound} />
         <Route component={NotFound} />
       </Switch>

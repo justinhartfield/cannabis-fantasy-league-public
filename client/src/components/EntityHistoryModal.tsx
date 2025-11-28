@@ -137,10 +137,10 @@ export function EntityHistoryModal({
                                             type="monotone"
                                             dataKey="score"
                                             name="Daily Score"
-                                            stroke="hsl(var(--primary))"
+                                            stroke="#a3ff12"
                                             strokeWidth={2}
-                                            dot={false}
-                                            activeDot={{ r: 6 }}
+                                            dot={{ r: 4, fill: "#a3ff12" }}
+                                            activeDot={{ r: 6, fill: "#a3ff12" }}
                                         />
                                     </LineChart>
                                 </ResponsiveContainer>

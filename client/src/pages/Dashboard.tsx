@@ -313,46 +313,47 @@ export default function Dashboard() {
                   .slice(0, 2)
                   .toUpperCase() || "?";
                 return (
-                <li
-                  key={`${player.name}-${index}`}
-                  className="flex items-center justify-between rounded-2xl bg-black/30 px-4 py-3 text-white"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      {player.avatarUrl ? (
-                        <img
-                          src={player.avatarUrl}
-                          alt={player.name}
-                          className="h-10 w-10 rounded-2xl object-cover ring-2 ring-weed-green/30"
-                        />
-                      ) : (
-                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-weed-green/30 to-weed-purple/30 text-sm font-bold text-white/80">
-                          {initials}
-                        </div>
-                      )}
-                      <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-weed-green text-[10px] font-bold text-black">
-                        {rankDisplay}
-                      </span>
+                  <li
+                    key={`${player.name}-${index}`}
+                    className="flex items-center justify-between rounded-2xl bg-black/30 px-4 py-3 text-white"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        {player.avatarUrl ? (
+                          <img
+                            src={player.avatarUrl}
+                            alt={player.name}
+                            className="h-10 w-10 rounded-2xl object-cover ring-2 ring-weed-green/30"
+                          />
+                        ) : (
+                          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-weed-green/30 to-weed-purple/30 text-sm font-bold text-white/80">
+                            {initials}
+                          </div>
+                        )}
+                        <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-weed-green text-[10px] font-bold text-black">
+                          {rankDisplay}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-base font-semibold">
+                          {player.name}
+                        </p>
+                        <p className="text-xs text-white/50">
+                          Current streak: {current} • Best {best}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-base font-semibold">
-                        {player.name}
+                    <div className="text-right text-sm text-white/60">
+                      <p className="font-semibold text-white">
+                        {current} 🔥
                       </p>
                       <p className="text-xs text-white/50">
-                        Current streak: {current} • Best {best}
+                        Best {best}
                       </p>
                     </div>
-                  </div>
-                  <div className="text-right text-sm text-white/60">
-                    <p className="font-semibold text-white">
-                      {current} 🔥
-                    </p>
-                    <p className="text-xs text-white/50">
-                      Best {best}
-                    </p>
-                  </div>
-                </li>
-              )})}
+                  </li>
+                )
+              })}
             </ul>
           )}
         </div>
@@ -477,6 +478,24 @@ export default function Dashboard() {
           </div>
         )}
       </section>
+
+      <footer className="mt-12 border-t border-white/10 pt-8 text-center">
+        <div className="flex flex-col items-center gap-4">
+          <Link
+            href="/rules"
+            className="group flex items-center gap-2 rounded-full bg-white/5 px-6 py-3 text-sm font-medium text-white transition hover:bg-white/10"
+          >
+            <span className="rounded-full bg-weed-green/20 p-1">
+              <Trophy className="h-4 w-4 text-weed-green" />
+            </span>
+            Rules & How to Play
+            <ArrowRight className="h-4 w-4 text-white/50 transition-transform group-hover:translate-x-1" />
+          </Link>
+          <p className="text-xs text-white/30">
+            Cannabis Fantasy League © {new Date().getFullYear()}
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }
