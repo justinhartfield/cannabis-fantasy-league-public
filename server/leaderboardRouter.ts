@@ -538,8 +538,40 @@ export const leaderboardRouter = router({
           .orderBy(desc(strainDailyChallengeStats.statDate));
       }
 
+      // Calculate average score by day of week
+      const dayStats = {
+        0: { sum: 0, count: 0, name: 'Sun' },
+        1: { sum: 0, count: 0, name: 'Mon' },
+        2: { sum: 0, count: 0, name: 'Tue' },
+        3: { sum: 0, count: 0, name: 'Wed' },
+        4: { sum: 0, count: 0, name: 'Thu' },
+        5: { sum: 0, count: 0, name: 'Fri' },
+        6: { sum: 0, count: 0, name: 'Sat' },
+      };
+
+      history.forEach(item => {
+        const date = new Date(item.date);
+        const day = date.getDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6;
+        dayStats[day].sum += item.score;
+        dayStats[day].count += 1;
+      });
+
+      // Format for chart: Mon -> Sun
+      const dayOrder = [1, 2, 3, 4, 5, 6, 0];
+      const dayOfWeekAverages = dayOrder.map(day => {
+        const stats = dayStats[day as 0 | 1 | 2 | 3 | 4 | 5 | 6];
+        return {
+          day: stats.name,
+          avgScore: stats.count > 0 ? Math.round(stats.sum / stats.count) : 0,
+          count: stats.count
+        };
+      });
+
       // Reverse to chronological order for charts
-      return history.reverse();
+      return {
+        history: history.reverse(),
+        dayOfWeekAverages
+      };
     }),
 });
 

@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
-import { Loader2, TrendingUp, Trophy } from "lucide-react";
+import { Loader2, TrendingUp, Trophy, BarChart3 } from "lucide-react";
 import {
     LineChart,
     Line,
@@ -9,7 +9,9 @@ import {
     CartesianGrid,
     Tooltip,
     ResponsiveContainer,
-    ReferenceLine
+    ReferenceLine,
+    BarChart,
+    Bar
 } from "recharts";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
@@ -32,7 +34,7 @@ export function EntityHistoryModal({
     entityName,
     entityImage
 }: EntityHistoryModalProps) {
-    const { data: history, isLoading } = trpc.leaderboard.getEntityHistory.useQuery(
+    const { data, isLoading } = trpc.leaderboard.getEntityHistory.useQuery(
         {
             entityType,
             entityId,
@@ -44,6 +46,9 @@ export function EntityHistoryModal({
     );
 
     if (!isOpen) return null;
+
+    const history = data?.history || [];
+    const dayOfWeekAverages = data?.dayOfWeekAverages || [];
 
     const CustomTooltip = ({ active, payload, label }: any) => {
         if (active && payload && payload.length) {
@@ -143,6 +148,54 @@ export function EntityHistoryModal({
                                             activeDot={{ r: 6, fill: "#a3ff12" }}
                                         />
                                     </LineChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+
+                        {/* Average Score by Day Chart */}
+                        <div className="bg-card/50 p-4 rounded-xl border border-border">
+                            <div className="flex items-center gap-2 mb-4">
+                                <BarChart3 className="w-5 h-5 text-blue-400" />
+                                <h3 className="font-semibold">Average Score by Day</h3>
+                            </div>
+                            <div className="h-[200px] w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={dayOfWeekAverages} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
+                                        <XAxis
+                                            dataKey="day"
+                                            tick={{ fontSize: 12 }}
+                                            axisLine={false}
+                                            tickLine={false}
+                                        />
+                                        <YAxis
+                                            tick={{ fontSize: 12 }}
+                                            axisLine={false}
+                                            tickLine={false}
+                                        />
+                                        <Tooltip
+                                            cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                                            content={({ active, payload, label }) => {
+                                                if (active && payload && payload.length) {
+                                                    return (
+                                                        <div className="bg-background border border-border p-3 rounded-lg shadow-lg">
+                                                            <p className="font-semibold mb-1">{label}</p>
+                                                            <p className="text-sm text-primary">
+                                                                Avg: {payload[0].value?.toLocaleString()} pts
+                                                            </p>
+                                                        </div>
+                                                    );
+                                                }
+                                                return null;
+                                            }}
+                                        />
+                                        <Bar
+                                            dataKey="avgScore"
+                                            fill="hsl(var(--primary))"
+                                            radius={[4, 4, 0, 0]}
+                                            maxBarSize={50}
+                                        />
+                                    </BarChart>
                                 </ResponsiveContainer>
                             </div>
                         </div>
