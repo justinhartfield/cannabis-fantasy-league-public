@@ -19,7 +19,7 @@ import {
   productDailyChallengeStats,
   strainDailyChallengeStats,
 } from "../drizzle/dailyChallengeSchema";
-import { desc, eq, and, sql, gt } from "drizzle-orm";
+import { desc, eq, and, sql, gt, gte } from "drizzle-orm";
 
 function prioritizeByLogo<
   T extends { logoUrl?: string | null; score?: number | null }
@@ -434,6 +434,112 @@ export const leaderboardRouter = router({
         seasonLeaders,
         weeklyHighScores,
       };
+    }),
+
+  /**
+   * Get Entity History
+   * Fetches historical performance data for a specific entity
+   */
+  getEntityHistory: publicProcedure
+    .input(z.object({
+      entityType: z.enum(['manufacturer', 'pharmacy', 'brand', 'product', 'strain']),
+      entityId: z.number(),
+      days: z.number().default(30),
+    }))
+    .query(async ({ input }) => {
+      const { entityType, entityId, days } = input;
+      const db = await getDb();
+      if (!db) return [];
+
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+      const startDateStr = startDate.toISOString().split('T')[0];
+
+      let history: any[] = [];
+
+      if (entityType === 'manufacturer') {
+        history = await db
+          .select({
+            date: manufacturerDailyChallengeStats.statDate,
+            score: manufacturerDailyChallengeStats.totalPoints,
+            rank: manufacturerDailyChallengeStats.rank,
+            marketShare: manufacturerDailyChallengeStats.marketSharePercent,
+            streak: manufacturerDailyChallengeStats.streakDays,
+            trend: manufacturerDailyChallengeStats.trendMultiplier,
+          })
+          .from(manufacturerDailyChallengeStats)
+          .where(and(
+            eq(manufacturerDailyChallengeStats.manufacturerId, entityId),
+            gte(manufacturerDailyChallengeStats.statDate, startDateStr)
+          ))
+          .orderBy(desc(manufacturerDailyChallengeStats.statDate));
+      } else if (entityType === 'pharmacy') {
+        history = await db
+          .select({
+            date: pharmacyDailyChallengeStats.statDate,
+            score: pharmacyDailyChallengeStats.totalPoints,
+            rank: pharmacyDailyChallengeStats.rank,
+            marketShare: pharmacyDailyChallengeStats.marketSharePercent,
+            streak: pharmacyDailyChallengeStats.streakDays,
+            trend: pharmacyDailyChallengeStats.trendMultiplier,
+          })
+          .from(pharmacyDailyChallengeStats)
+          .where(and(
+            eq(pharmacyDailyChallengeStats.pharmacyId, entityId),
+            gte(pharmacyDailyChallengeStats.statDate, startDateStr)
+          ))
+          .orderBy(desc(pharmacyDailyChallengeStats.statDate));
+      } else if (entityType === 'brand') {
+        history = await db
+          .select({
+            date: brandDailyChallengeStats.statDate,
+            score: brandDailyChallengeStats.totalPoints,
+            rank: brandDailyChallengeStats.rank,
+            rating: brandDailyChallengeStats.averageRating,
+            ratingCount: brandDailyChallengeStats.totalRatings,
+          })
+          .from(brandDailyChallengeStats)
+          .where(and(
+            eq(brandDailyChallengeStats.brandId, entityId),
+            gte(brandDailyChallengeStats.statDate, startDateStr)
+          ))
+          .orderBy(desc(brandDailyChallengeStats.statDate));
+      } else if (entityType === 'product') {
+        history = await db
+          .select({
+            date: productDailyChallengeStats.statDate,
+            score: productDailyChallengeStats.totalPoints,
+            rank: productDailyChallengeStats.rank,
+            marketShare: productDailyChallengeStats.marketSharePercent,
+            streak: productDailyChallengeStats.streakDays,
+            trend: productDailyChallengeStats.trendMultiplier,
+          })
+          .from(productDailyChallengeStats)
+          .where(and(
+            eq(productDailyChallengeStats.productId, entityId),
+            gte(productDailyChallengeStats.statDate, startDateStr)
+          ))
+          .orderBy(desc(productDailyChallengeStats.statDate));
+      } else if (entityType === 'strain') {
+        history = await db
+          .select({
+            date: strainDailyChallengeStats.statDate,
+            score: strainDailyChallengeStats.totalPoints,
+            rank: strainDailyChallengeStats.rank,
+            marketShare: strainDailyChallengeStats.marketSharePercent,
+            streak: strainDailyChallengeStats.streakDays,
+            trend: strainDailyChallengeStats.trendMultiplier,
+          })
+          .from(strainDailyChallengeStats)
+          .where(and(
+            eq(strainDailyChallengeStats.strainId, entityId),
+            gte(strainDailyChallengeStats.statDate, startDateStr)
+          ))
+          .orderBy(desc(strainDailyChallengeStats.statDate));
+      }
+
+      // Reverse to chronological order for charts
+      return history.reverse();
     }),
 });
 

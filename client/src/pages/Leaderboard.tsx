@@ -6,23 +6,31 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Trophy, TrendingUp, Users, Medal, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { EntityHistoryModal } from "@/components/EntityHistoryModal";
 
 // Entity Types
 type EntityType = 'all' | 'manufacturer' | 'pharmacy' | 'brand' | 'product' | 'strain';
 
 type LeaderboardPlayer = {
-  id?: string;
+  id?: string | number;
   name: string;
   avatarUrl?: string | null;
   currentStreak?: number;
   longestStreak?: number;
   rank?: number;
+  isCurrentUser?: boolean;
 };
 
 const Leaderboard = () => {
   const [activeTab, setActiveTab] = useState("daily");
   const [entityFilter, setEntityFilter] = useState<EntityType>('all');
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [selectedEntity, setSelectedEntity] = useState<{
+    type: Exclude<EntityType, 'all'>;
+    id: number;
+    name: string;
+    image?: string | null;
+  } | null>(null);
 
   // Fetch Data
   const dailyQuery = trpc.leaderboard.getDailyEntityLeaderboard.useQuery({
@@ -56,11 +64,15 @@ const Leaderboard = () => {
     data,
     icon: Icon,
     emptyMessage,
+    onSelect,
+    type,
   }: {
     title: string;
     data: any[];
     icon: any;
     emptyMessage?: string;
+    onSelect?: (item: any) => void;
+    type?: EntityType;
   }) => (
     <div className="space-y-4">
       <div className="flex items-center gap-2 mb-4">
@@ -70,9 +82,13 @@ const Leaderboard = () => {
       {data && data.length > 0 ? (
         <div className="grid gap-3">
           {data.map((item, index) => (
-            <div 
+            <div
               key={item.id}
-              className="flex items-center justify-between p-3 rounded-lg bg-card border border-border hover:bg-accent/50 transition-colors"
+              className={cn(
+                "flex items-center justify-between p-3 rounded-lg bg-card border border-border transition-colors",
+                onSelect ? "cursor-pointer hover:bg-accent/50 hover:border-primary/50" : "hover:bg-accent/50"
+              )}
+              onClick={() => onSelect?.(item)}
             >
               <div className="flex items-center gap-3">
                 <div className="flex items-center justify-center w-8 h-8 font-bold text-muted-foreground">
@@ -111,7 +127,7 @@ const Leaderboard = () => {
   const TeamList = ({ data, type }: { data: any[], type: 'season' | 'weekly' }) => (
     <div className="grid gap-3">
       {data.map((item, index) => (
-        <div 
+        <div
           key={type === 'season' ? item.teamId : item.scoreId}
           className="flex items-center justify-between p-4 rounded-lg bg-card border border-border hover:bg-accent/50 transition-colors"
         >
@@ -277,7 +293,7 @@ const Leaderboard = () => {
         {/* DAILY TAB */}
         <TabsContent value="daily" className="space-y-6">
           <EntityFilters />
-          
+
           {dailyQuery.isLoading ? (
             <div className="flex justify-center py-12">Loading...</div>
           ) : (
@@ -288,7 +304,13 @@ const Leaderboard = () => {
                     <CardTitle className="text-base">Top Manufacturers</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <EntityList title="" data={dailyQuery.data?.manufacturers || []} icon={TrendingUp} />
+                    <EntityList
+                      title=""
+                      data={dailyQuery.data?.manufacturers || []}
+                      icon={TrendingUp}
+                      type="manufacturer"
+                      onSelect={(item) => setSelectedEntity({ type: 'manufacturer', id: item.id, name: item.name, image: item.logoUrl })}
+                    />
                   </CardContent>
                 </Card>
               )}
@@ -299,7 +321,13 @@ const Leaderboard = () => {
                     <CardTitle className="text-base">Top Pharmacies</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <EntityList title="" data={dailyQuery.data?.pharmacies || []} icon={Users} />
+                    <EntityList
+                      title=""
+                      data={dailyQuery.data?.pharmacies || []}
+                      icon={Users}
+                      type="pharmacy"
+                      onSelect={(item) => setSelectedEntity({ type: 'pharmacy', id: item.id, name: item.name, image: item.logoUrl })}
+                    />
                   </CardContent>
                 </Card>
               )}
@@ -310,7 +338,13 @@ const Leaderboard = () => {
                     <CardTitle className="text-base">Top Brands</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <EntityList title="" data={dailyQuery.data?.brands || []} icon={Medal} />
+                    <EntityList
+                      title=""
+                      data={dailyQuery.data?.brands || []}
+                      icon={Medal}
+                      type="brand"
+                      onSelect={(item) => setSelectedEntity({ type: 'brand', id: item.id, name: item.name, image: item.logoUrl })}
+                    />
                   </CardContent>
                 </Card>
               )}
@@ -326,6 +360,8 @@ const Leaderboard = () => {
                       data={dailyQuery.data?.products || []}
                       icon={Trophy}
                       emptyMessage="No product scores yet for this date. Data is still syncing."
+                      type="product"
+                      onSelect={(item) => setSelectedEntity({ type: 'product', id: item.id, name: item.name, image: item.imageUrl })}
                     />
                   </CardContent>
                 </Card>
@@ -337,7 +373,13 @@ const Leaderboard = () => {
                     <CardTitle className="text-base">Top Flower</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <EntityList title="" data={dailyQuery.data?.strains || []} icon={Trophy} />
+                    <EntityList
+                      title=""
+                      data={dailyQuery.data?.strains || []}
+                      icon={Trophy}
+                      type="strain"
+                      onSelect={(item) => setSelectedEntity({ type: 'strain', id: item.id, name: item.name, image: item.imageUrl })}
+                    />
                   </CardContent>
                 </Card>
               )}
@@ -362,7 +404,13 @@ const Leaderboard = () => {
                     <CardTitle className="text-base">Top Manufacturers</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <EntityList title="" data={weeklyQuery.data?.manufacturers || []} icon={TrendingUp} />
+                    <EntityList
+                      title=""
+                      data={weeklyQuery.data?.manufacturers || []}
+                      icon={TrendingUp}
+                      type="manufacturer"
+                      onSelect={(item) => setSelectedEntity({ type: 'manufacturer', id: item.id, name: item.name, image: item.logoUrl })}
+                    />
                   </CardContent>
                 </Card>
 
@@ -371,7 +419,13 @@ const Leaderboard = () => {
                     <CardTitle className="text-base">Top Pharmacies</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <EntityList title="" data={weeklyQuery.data?.pharmacies || []} icon={Users} />
+                    <EntityList
+                      title=""
+                      data={weeklyQuery.data?.pharmacies || []}
+                      icon={Users}
+                      type="pharmacy"
+                      onSelect={(item) => setSelectedEntity({ type: 'pharmacy', id: item.id, name: item.name, image: item.logoUrl })}
+                    />
                   </CardContent>
                 </Card>
 
@@ -380,7 +434,13 @@ const Leaderboard = () => {
                     <CardTitle className="text-base">Top Brands</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <EntityList title="" data={weeklyQuery.data?.brands || []} icon={Medal} />
+                    <EntityList
+                      title=""
+                      data={weeklyQuery.data?.brands || []}
+                      icon={Medal}
+                      type="brand"
+                      onSelect={(item) => setSelectedEntity({ type: 'brand', id: item.id, name: item.name, image: item.logoUrl })}
+                    />
                   </CardContent>
                 </Card>
 
@@ -394,6 +454,8 @@ const Leaderboard = () => {
                       data={weeklyQuery.data?.products || []}
                       icon={Trophy}
                       emptyMessage="No product scores yet for this week."
+                      type="product"
+                      onSelect={(item) => setSelectedEntity({ type: 'product', id: item.id, name: item.name, image: item.imageUrl })}
                     />
                   </CardContent>
                 </Card>
@@ -403,7 +465,13 @@ const Leaderboard = () => {
                     <CardTitle className="text-base">Top Flower</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <EntityList title="" data={weeklyQuery.data?.strains || []} icon={Trophy} />
+                    <EntityList
+                      title=""
+                      data={weeklyQuery.data?.strains || []}
+                      icon={Trophy}
+                      type="strain"
+                      onSelect={(item) => setSelectedEntity({ type: 'strain', id: item.id, name: item.name, image: item.imageUrl })}
+                    />
                   </CardContent>
                 </Card>
               </div>
@@ -468,6 +536,16 @@ const Leaderboard = () => {
           )}
         </TabsContent>
       </Tabs>
+      {selectedEntity && (
+        <EntityHistoryModal
+          isOpen={!!selectedEntity}
+          onClose={() => setSelectedEntity(null)}
+          entityType={selectedEntity.type}
+          entityId={selectedEntity.id}
+          entityName={selectedEntity.name}
+          entityImage={selectedEntity.image}
+        />
+      )}
     </div>
   );
 };
