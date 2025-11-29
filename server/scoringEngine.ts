@@ -2203,42 +2203,41 @@ async function computeTeamScore(options: TeamScoreComputationOptions): Promise<T
   const teamBonuses: any[] = [];
 
   // Only apply for Daily Challenge
-  if (scope.type === 'daily' && teamLineup.captainId && teamLineup.captainType) {
+  if (scope.type === 'daily') {
     // 1. Apply Captain Multiplier (1.5x)
-    const captainMultiplier = 1.5;
-    const captainType = teamLineup.captainType;
-    const captainId = teamLineup.captainId;
+    if (teamLineup.captainId && teamLineup.captainType) {
+      const captainMultiplier = 1.5;
+      const captainType = teamLineup.captainType;
+      const captainId = teamLineup.captainId;
 
-    // Find the breakdown item for the captain
-    const captainItem = breakdowns.find(b => b.assetType === captainType && b.assetId === captainId);
+      // Find the breakdown item for the captain
+      const captainItem = breakdowns.find(b => b.assetType === captainType && b.assetId === captainId);
 
-    if (captainItem) {
-      const originalPoints = captainItem.points || 0;
-      const boostedPoints = originalPoints * captainMultiplier;
-      const bonusPoints = boostedPoints - originalPoints;
+      if (captainItem) {
+        const originalPoints = captainItem.points || 0;
+        const boostedPoints = originalPoints * captainMultiplier;
+        const bonusPoints = boostedPoints - originalPoints;
 
-      // Update the item's points
-      captainItem.points = boostedPoints;
-      captainItem.isCaptain = true;
-      captainItem.captainBonus = bonusPoints;
+        // Update the item's points
+        captainItem.points = boostedPoints;
+        captainItem.isCaptain = true;
+        captainItem.captainBonus = bonusPoints;
 
-      // Update position points map
-      // We need to find which position key corresponds to this item
-      // This is a bit tricky since multiple slots can have same type
-      // But we can map back from the breakdown's position field (e.g. 'MFG1')
-      const posKey = captainItem.position.toLowerCase(); // 'mfg1', 'cstr1', etc.
-      if (positionPoints[posKey] !== undefined) {
-        positionPoints[posKey] = boostedPoints;
+        // Update position points map
+        const posKey = captainItem.position.toLowerCase();
+        if (positionPoints[posKey] !== undefined) {
+          positionPoints[posKey] = boostedPoints;
+        }
+
+        // Add to team bonuses for tracking
+        teamBonuses.push({
+          type: 'captain_boost',
+          description: `Captain Boost (1.5x) for ${captainItem.assetName || 'Captain'}`,
+          points: bonusPoints,
+        });
+
+        totalBonus += bonusPoints;
       }
-
-      // Add to team bonuses for tracking
-      teamBonuses.push({
-        type: 'captain_boost',
-        description: `Captain Boost (1.5x) for ${captainItem.assetName || 'Captain'}`,
-        points: bonusPoints,
-      });
-
-      totalBonus += bonusPoints;
     }
 
     // 2. Apply Fan Buff (+5 for any Favorite)

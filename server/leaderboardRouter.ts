@@ -466,8 +466,10 @@ export const leaderboardRouter = router({
             marketShare: manufacturerDailyChallengeStats.marketSharePercent,
             streak: manufacturerDailyChallengeStats.streakDays,
             trend: manufacturerDailyChallengeStats.trendMultiplier,
+            description: manufacturers.description,
           })
           .from(manufacturerDailyChallengeStats)
+          .innerJoin(manufacturers, eq(manufacturerDailyChallengeStats.manufacturerId, manufacturers.id))
           .where(and(
             eq(manufacturerDailyChallengeStats.manufacturerId, entityId),
             gte(manufacturerDailyChallengeStats.statDate, startDateStr)
@@ -482,8 +484,10 @@ export const leaderboardRouter = router({
             marketShare: pharmacyDailyChallengeStats.marketSharePercent,
             streak: pharmacyDailyChallengeStats.streakDays,
             trend: pharmacyDailyChallengeStats.trendMultiplier,
+            description: pharmacies.description,
           })
           .from(pharmacyDailyChallengeStats)
+          .innerJoin(pharmacies, eq(pharmacyDailyChallengeStats.pharmacyId, pharmacies.id))
           .where(and(
             eq(pharmacyDailyChallengeStats.pharmacyId, entityId),
             gte(pharmacyDailyChallengeStats.statDate, startDateStr)
@@ -497,8 +501,10 @@ export const leaderboardRouter = router({
             rank: brandDailyChallengeStats.rank,
             rating: brandDailyChallengeStats.averageRating,
             ratingCount: brandDailyChallengeStats.totalRatings,
+            description: brands.description,
           })
           .from(brandDailyChallengeStats)
+          .innerJoin(brands, eq(brandDailyChallengeStats.brandId, brands.id))
           .where(and(
             eq(brandDailyChallengeStats.brandId, entityId),
             gte(brandDailyChallengeStats.statDate, startDateStr)
@@ -513,8 +519,10 @@ export const leaderboardRouter = router({
             marketShare: productDailyChallengeStats.marketSharePercent,
             streak: productDailyChallengeStats.streakDays,
             trend: productDailyChallengeStats.trendMultiplier,
+            description: strains.description,
           })
           .from(productDailyChallengeStats)
+          .innerJoin(strains, eq(productDailyChallengeStats.productId, strains.id))
           .where(and(
             eq(productDailyChallengeStats.productId, entityId),
             gte(productDailyChallengeStats.statDate, startDateStr)
@@ -529,8 +537,10 @@ export const leaderboardRouter = router({
             marketShare: strainDailyChallengeStats.marketSharePercent,
             streak: strainDailyChallengeStats.streakDays,
             trend: strainDailyChallengeStats.trendMultiplier,
+            description: cannabisStrains.description,
           })
           .from(strainDailyChallengeStats)
+          .innerJoin(cannabisStrains, eq(strainDailyChallengeStats.strainId, cannabisStrains.id))
           .where(and(
             eq(strainDailyChallengeStats.strainId, entityId),
             gte(strainDailyChallengeStats.statDate, startDateStr)
