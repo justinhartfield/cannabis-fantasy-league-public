@@ -13,6 +13,7 @@ import { LeagueChat } from "@/components/LeagueChat";
 import { ChallengeInviteLanding } from "@/components/ChallengeInviteLanding";
 import type { ScoringPlayData } from "@/components/ScoringPlayOverlay";
 import { ScoringPlayAnnouncement } from "@/components/ScoringPlayAnnouncement";
+import { DraftFieldPlayer } from "@/components/DraftFieldPlayer";
 
 import {
   Loader2,
@@ -903,11 +904,24 @@ export default function DailyChallenge() {
                       #{index + 1}
                     </span>
                     {performer.imageUrl && (
-                      <img
-                        src={performer.imageUrl}
-                        alt={performer.name}
-                        className="w-12 h-12 rounded-xl object-cover border border-white/10"
-                      />
+                      <div className="w-12 h-12">
+                        <DraftFieldPlayer
+                          player={{
+                            id: 0, // Not needed for display
+                            name: performer.name,
+                            imageUrl: performer.imageUrl,
+                            position: "FLEX", // Generic position for display
+                            assetType: performer.type,
+                            points: performer.total,
+                          }}
+                          isCaptain={false}
+                          isSelected={false}
+                          onClick={() => { }}
+                          showName={false}
+                          showPoints={false}
+                          variant="compact"
+                        />
+                      </div>
                     )}
                     <div>
                       <div className="text-lg font-semibold">{performer.name}</div>
