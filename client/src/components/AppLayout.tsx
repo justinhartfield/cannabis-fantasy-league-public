@@ -1,6 +1,7 @@
 import { ReactNode, useState, useEffect, useRef } from "react";
 import { AppHeader } from "./AppHeader";
 import { BottomNav } from "./BottomNav";
+import { GlobalFooter } from "./GlobalFooter";
 import { ProfileSetupDialog } from "./ProfileSetupDialog";
 import { GlobalNotifications } from "./GlobalNotifications";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -124,6 +125,10 @@ export function AppLayout({ children }: AppLayoutProps) {
       <main className="app-shell-main px-4 sm:px-6">
         <div className="mx-auto w-full max-w-5xl space-y-6">{children}</div>
       </main>
+      
+      {/* Global Footer */}
+      <GlobalFooter />
+      
       <BottomNav />
       
       {/* Global notifications for challenge events (opponent joined, etc.) */}

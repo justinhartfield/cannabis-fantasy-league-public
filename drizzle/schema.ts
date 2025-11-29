@@ -24,6 +24,8 @@ export const brands = pgTable("brands", {
 	totalViews: integer().default(0).notNull(),
 	totalComments: integer().default(0).notNull(),
 	affiliateClicks: integer().default(0).notNull(),
+	promoOptOut: boolean("promoOptOut").default(false).notNull(), // Opt-out from promotional highlights
+	promoOptOutAt: timestamp({ mode: 'string', withTimezone: true }), // When opt-out was requested
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
@@ -323,6 +325,8 @@ export const pharmacies = pgTable("pharmacies", {
 	avgOrderSizeGrams: integer().default(0).notNull(),
 	customerRetentionRate: integer().default(0).notNull(),
 	appUsageRate: integer().default(0).notNull(),
+	promoOptOut: boolean("promoOptOut").default(false).notNull(), // Opt-out from promotional highlights
+	promoOptOutAt: timestamp({ mode: 'string', withTimezone: true }), // When opt-out was requested
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },

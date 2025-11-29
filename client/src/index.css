@@ -86,6 +86,7 @@
   --sidebar-ring: #A3FF12;
   --app-header-height: 84px;
   --app-bottom-nav-height: 88px;
+  --app-footer-height: 100px;
 }
 
 .dark {
@@ -124,6 +125,7 @@
   --sidebar-ring: #A3FF12;
   --app-header-height: 84px;
   --app-bottom-nav-height: 88px;
+  --app-footer-height: 100px;
 }
 
 @layer base {
@@ -155,7 +157,11 @@
 
   .app-shell-main {
     padding-top: calc(var(--app-header-height) + 0.5rem);
-    padding-bottom: calc(var(--app-bottom-nav-height) + env(safe-area-inset-bottom));
+    padding-bottom: calc(var(--app-bottom-nav-height) + var(--app-footer-height) + env(safe-area-inset-bottom));
+  }
+
+  .app-footer {
+    margin-bottom: calc(var(--app-bottom-nav-height) + env(safe-area-inset-bottom));
   }
 
   .app-bottom-nav {
