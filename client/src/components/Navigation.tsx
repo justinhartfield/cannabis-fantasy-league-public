@@ -38,9 +38,9 @@ export function Navigation() {
 
             <div className="hidden md:flex items-center gap-6">
               <Link
-                href="/leaderboard"
+                href="/rankings"
                 className={`text-sm font-medium transition-colors hover:text-primary ${
-                  location === "/leaderboard"
+                  location === "/rankings" || location.startsWith("/rankings/")
                     ? "text-primary"
                     : "text-muted-foreground"
                 }`}

@@ -4,13 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { 
-  Building2, 
-  Leaf, 
-  Package, 
-  Building, 
-  UserCircle, 
-  Lock, 
+import {
+  Building2,
+  Leaf,
+  Package,
+  Building,
+  UserCircle,
+  Lock,
   Unlock,
   TrendingUp,
   Info,
@@ -72,10 +72,11 @@ export default function LineupEditor({
   isLocked,
   onUpdateLineup,
   onLockLineup,
-}: LineupEditorProps) {
+  enableBoosts = false,
+}: LineupEditorProps & { enableBoosts?: boolean }) {
   const [editMode, setEditMode] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
-  
+
   // Use roster prop directly (already fetched by parent)
   console.log('[LineupEditor] Received roster:', roster);
 
@@ -135,7 +136,7 @@ export default function LineupEditor({
       { position: 'FLEX', assetType: 'manufacturer' as AssetType, assetId: null, assetName: null, points: 0, locked: false },
     ];
   };
-  
+
   const [currentLineup, setCurrentLineup] = useState<LineupSlot[]>(() => {
     const initialized = initializeLineup();
     console.log('[LineupEditor] Initialized lineup:', initialized);
@@ -221,7 +222,7 @@ export default function LineupEditor({
   const handleSlotClick = (slot: LineupSlot) => {
     console.log('[handleSlotClick] Clicked slot:', slot);
     console.log('[handleSlotClick] Current lineup before click:', currentLineup);
-    
+
     if (isLocked) {
       toast.error("Lineup ist gesperrt!");
       return;
@@ -238,7 +239,7 @@ export default function LineupEditor({
   const handlePlayerSelect = (player: any) => {
     console.log('[handlePlayerSelect] Called with player:', player);
     console.log('[handlePlayerSelect] selectedSlot:', selectedSlot);
-    
+
     if (!selectedSlot) {
       console.log('[handlePlayerSelect] No slot selected, returning');
       return;
@@ -257,7 +258,7 @@ export default function LineupEditor({
 
     // Update lineup
     console.log('[handlePlayerSelect] Updating lineup...');
-    const updatedLineup = currentLineup.map(slot => 
+    const updatedLineup = currentLineup.map(slot =>
       slot.position === selectedSlot
         ? { ...slot, assetId: player.assetId, assetName: player.name || 'Unknown', assetType: player.assetType, points: 0 }
         : slot
@@ -276,7 +277,7 @@ export default function LineupEditor({
       return;
     }
 
-    const updatedLineup = currentLineup.map(s => 
+    const updatedLineup = currentLineup.map(s =>
       s.position === slot.position
         ? { ...s, assetId: null, assetName: null, points: 0 }
         : s
@@ -324,7 +325,7 @@ export default function LineupEditor({
         <Alert className="bg-blue-500/10 border-blue-500/20">
           <InfoIcon className="h-4 w-4 text-blue-500" />
           <AlertDescription className="text-sm text-foreground">
-            {allSlotsFilled 
+            {allSlotsFilled
               ? "Your starting lineup has been auto-populated with your first 10 draft picks. You can change players before locking."
               : "Your lineup has been partially auto-populated. Add more players from your roster below."}
           </AlertDescription>
@@ -592,19 +593,18 @@ export default function LineupEditor({
                 {roster.map((player: any) => {
                   const isInLineup = currentLineup.some(slot => slot.assetId === player.assetId && slot.assetType === player.assetType);
                   const canSelect = !selectedSlot || selectedSlot === "FLEX" || getRequiredAssetType(selectedSlot) === player.assetType;
-                  
+
                   return (
                     <button
                       key={`${player.assetType}-${player.assetId}`}
                       onClick={() => selectedSlot && canSelect ? handlePlayerSelect(player) : null}
                       disabled={!selectedSlot || !canSelect}
-                      className={`w-full p-3 rounded-lg border-2 transition-all text-left ${
-                        isInLineup
-                          ? "border-green-500/50 bg-green-500/10 opacity-60"
-                          : selectedSlot && canSelect
+                      className={`w-full p-3 rounded-lg border-2 transition-all text-left ${isInLineup
+                        ? "border-green-500/50 bg-green-500/10 opacity-60"
+                        : selectedSlot && canSelect
                           ? "border-primary/50 hover:border-primary hover:bg-primary/5 cursor-pointer"
                           : "border-border bg-muted/30 cursor-not-allowed opacity-50"
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -653,6 +653,9 @@ function LineupSlotCard({
   getPositionColor,
   getPositionIcon,
   getAssetTypeLabel,
+  isCaptain,
+  onSetCaptain,
+  enableBoosts = false,
 }: {
   slot: LineupSlot;
   onClick: () => void;
@@ -661,45 +664,118 @@ function LineupSlotCard({
   getPositionColor: (position: string) => string;
   getPositionIcon: (position: string) => React.ReactNode;
   getAssetTypeLabel: (assetType: AssetType) => string;
+  isCaptain?: boolean;
+  onSetCaptain?: () => void;
+  enableBoosts?: boolean;
 }) {
+  const utils = trpc.useContext();
+  const isBrand = slot.assetType === 'brand' || (slot.position === 'FLEX' && slot.assetType === 'brand');
+
+  // Only fetch favorite status if it's a brand and we have an asset ID AND boosts are enabled
+  const { data: favoriteStatus } = trpc.favorite.checkFavoriteStatus.useQuery(
+    { entityType: 'brand', entityId: slot.assetId! },
+    { enabled: !!slot.assetId && isBrand && enableBoosts }
+  );
+
+  const toggleFavoriteMutation = trpc.favorite.toggleFavorite.useMutation({
+    onSuccess: () => {
+      utils.favorite.checkFavoriteStatus.invalidate({ entityType: 'brand', entityId: slot.assetId! });
+      toast.success("Favoriten-Status aktualisiert!");
+    },
+    onError: (error) => {
+      toast.error("Fehler: " + error.message);
+    },
+  });
+
+  const handleToggleFavorite = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (slot.assetId) {
+      toggleFavoriteMutation.mutate({ entityType: 'brand', entityId: slot.assetId });
+    }
+  };
+
   return (
-    <button
-      onClick={onClick}
-      disabled={isLocked}
-      className={`w-full p-4 rounded-lg border-2 transition-all ${
-        isLocked ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:border-primary"
-      } ${getPositionColor(slot.position)} ${
-        !slot.assetId ? "border-dashed" : ""
-      }`}
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-background/50">
-            {getPositionIcon(slot.position)}
+    <div className="flex gap-2">
+      <button
+        onClick={onClick}
+        disabled={isLocked}
+        className={`flex-1 p-4 rounded-lg border-2 transition-all text-left ${isLocked ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:border-primary"
+          } ${getPositionColor(slot.position)} ${!slot.assetId ? "border-dashed" : ""
+          } ${isCaptain && enableBoosts ? "ring-2 ring-yellow-500 border-yellow-500" : ""}`}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-background/50 relative">
+              {getPositionIcon(slot.position)}
+              {isCaptain && enableBoosts && (
+                <div className="absolute -top-2 -right-2 bg-yellow-500 text-black text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm">
+                  C
+                </div>
+              )}
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-medium text-muted-foreground">
+                {getPositionLabel(slot.position)}
+              </p>
+              {slot.assetId ? (
+                <>
+                  <div className="flex items-center gap-2">
+                    <p className="text-base font-bold text-foreground">{slot.assetName}</p>
+                    {isBrand && favoriteStatus?.isFavorited && enableBoosts && (
+                      <span className="text-red-500 text-xs">❤️</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {getAssetTypeLabel(slot.assetType)}
+                  </p>
+                </>
+              ) : (
+                <p className="text-base text-muted-foreground italic">Leer</p>
+              )}
+            </div>
           </div>
-          <div className="text-left">
-            <p className="text-sm font-medium text-muted-foreground">
-              {getPositionLabel(slot.position)}
-            </p>
-            {slot.assetId ? (
-              <>
-                <p className="text-base font-bold text-foreground">{slot.assetName}</p>
-                <p className="text-xs text-muted-foreground">
-                  {getAssetTypeLabel(slot.assetType)}
-                </p>
-              </>
-            ) : (
-              <p className="text-base text-muted-foreground italic">Leer</p>
-            )}
-          </div>
+          {slot.points !== undefined && (
+            <div className="text-right">
+              <p className="text-xs text-muted-foreground">Punkte</p>
+              <p className="text-xl font-bold text-foreground">
+                {slot.points}
+                {isCaptain && enableBoosts && <span className="text-yellow-500 text-xs ml-1">(x1.5)</span>}
+              </p>
+            </div>
+          )}
         </div>
-        {slot.points !== undefined && (
-          <div className="text-right">
-            <p className="text-xs text-muted-foreground">Punkte</p>
-            <p className="text-xl font-bold text-foreground">{slot.points}</p>
-          </div>
-        )}
-      </div>
-    </button>
+      </button>
+
+      {enableBoosts && (
+        <div className="flex flex-col gap-1">
+          {slot.assetId && !isLocked && (
+            <Button
+              variant={isCaptain ? "default" : "outline"}
+              size="icon"
+              className={`h-8 w-8 ${isCaptain ? "bg-yellow-500 hover:bg-yellow-600 text-black" : "text-muted-foreground"}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSetCaptain?.();
+              }}
+              title="Als Captain setzen (1.5x Punkte)"
+            >
+              <span className="font-bold text-xs">C</span>
+            </Button>
+          )}
+
+          {slot.assetId && isBrand && !isLocked && (
+            <Button
+              variant="outline"
+              size="icon"
+              className={`h-8 w-8 ${favoriteStatus?.isFavorited ? "text-red-500 border-red-500/50 bg-red-500/10" : "text-muted-foreground"}`}
+              onClick={handleToggleFavorite}
+              title={favoriteStatus?.isFavorited ? "Favorit entfernen" : "Als Favorit markieren (+10 Fan Buff)"}
+            >
+              <span className="text-xs">{favoriteStatus?.isFavorited ? "❤️" : "🤍"}</span>
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

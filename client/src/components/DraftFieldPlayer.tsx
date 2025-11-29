@@ -135,6 +135,8 @@ interface DraftFieldPlayerProps {
   score?: number | null;
   /** Whether to show the score badge */
   showScore?: boolean;
+  /** Whether this player is the Captain */
+  isCaptain?: boolean;
   /** Optional className for the container */
   className?: string;
 }
@@ -157,6 +159,7 @@ export function DraftFieldPlayer({
   size = "md",
   score,
   showScore = false,
+  isCaptain = false,
   className,
 }: DraftFieldPlayerProps) {
   // Track if the image loaded successfully
@@ -259,6 +262,18 @@ export function DraftFieldPlayer({
           }}
         >
           {score.toFixed(1)}
+        </div>
+      )}
+
+      {/* Captain Badge - Top Right of Jersey */}
+      {isCaptain && player && (
+        <div
+          className={cn(
+            "absolute -top-1 -right-1 z-20 flex items-center justify-center rounded-full bg-yellow-500 text-black font-bold shadow-lg border-2 border-white",
+            size === "sm" ? "w-5 h-5 text-[10px]" : size === "lg" ? "w-7 h-7 text-sm" : "w-6 h-6 text-xs"
+          )}
+        >
+          C
         </div>
       )}
 

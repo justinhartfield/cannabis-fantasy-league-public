@@ -33,6 +33,10 @@ interface DraftFieldProps {
   size?: "sm" | "md" | "lg";
   /** Optional className */
   className?: string;
+  /** Captain ID */
+  captainId?: number | null;
+  /** Captain Asset Type */
+  captainType?: AssetType | null;
 }
 
 /**
@@ -59,6 +63,8 @@ export function DraftField({
   onPositionClick,
   size = "md",
   className,
+  captainId,
+  captainType,
 }: DraftFieldProps) {
   // Get the current position being drafted
   const currentPosition = currentDraftIndex >= 0 && currentDraftIndex < CHALLENGE_DRAFT_ORDER.length
@@ -298,6 +304,7 @@ export function DraftField({
               isMyTurn={isOnTheClock}
               onClick={onPositionClick ? () => handlePositionClick("ST1") : undefined}
               className={playerSizeClass}
+              isCaptain={captainId === getPlayer("ST1")?.id && captainType === getPlayer("ST1")?.assetType}
             />
             <DraftFieldPlayer
               position="ST2"
@@ -306,6 +313,7 @@ export function DraftField({
               isMyTurn={isOnTheClock}
               onClick={onPositionClick ? () => handlePositionClick("ST2") : undefined}
               className={playerSizeClass}
+              isCaptain={captainId === getPlayer("ST2")?.id && captainType === getPlayer("ST2")?.assetType}
             />
           </div>
 
@@ -321,6 +329,7 @@ export function DraftField({
               isMyTurn={isOnTheClock}
               onClick={onPositionClick ? () => handlePositionClick("LW") : undefined}
               className={playerSizeClass}
+              isCaptain={captainId === getPlayer("LW")?.id && captainType === getPlayer("LW")?.assetType}
             />
             <DraftFieldPlayer
               position="RW"
@@ -329,6 +338,7 @@ export function DraftField({
               isMyTurn={isOnTheClock}
               onClick={onPositionClick ? () => handlePositionClick("RW") : undefined}
               className={playerSizeClass}
+              isCaptain={captainId === getPlayer("RW")?.id && captainType === getPlayer("RW")?.assetType}
             />
           </div>
 
@@ -344,6 +354,7 @@ export function DraftField({
               isMyTurn={isOnTheClock}
               onClick={onPositionClick ? () => handlePositionClick("CM1") : undefined}
               className={playerSizeClass}
+              isCaptain={captainId === getPlayer("CM1")?.id && captainType === getPlayer("CM1")?.assetType}
             />
             <DraftFieldPlayer
               position="FLEX"
@@ -352,6 +363,7 @@ export function DraftField({
               isMyTurn={isOnTheClock}
               onClick={onPositionClick ? () => handlePositionClick("FLEX") : undefined}
               className={playerSizeClass}
+              isCaptain={captainId === getPlayer("FLEX")?.id && captainType === getPlayer("FLEX")?.assetType}
             />
             <DraftFieldPlayer
               position="CM2"
@@ -360,6 +372,7 @@ export function DraftField({
               isMyTurn={isOnTheClock}
               onClick={onPositionClick ? () => handlePositionClick("CM2") : undefined}
               className={playerSizeClass}
+              isCaptain={captainId === getPlayer("CM2")?.id && captainType === getPlayer("CM2")?.assetType}
             />
           </div>
 
@@ -375,6 +388,7 @@ export function DraftField({
               isMyTurn={isOnTheClock}
               onClick={onPositionClick ? () => handlePositionClick("CB1") : undefined}
               className={playerSizeClass}
+              isCaptain={captainId === getPlayer("CB1")?.id && captainType === getPlayer("CB1")?.assetType}
             />
             <DraftFieldPlayer
               position="CB2"
@@ -383,6 +397,7 @@ export function DraftField({
               isMyTurn={isOnTheClock}
               onClick={onPositionClick ? () => handlePositionClick("CB2") : undefined}
               className={playerSizeClass}
+              isCaptain={captainId === getPlayer("CB2")?.id && captainType === getPlayer("CB2")?.assetType}
             />
           </div>
 
@@ -395,6 +410,7 @@ export function DraftField({
               isMyTurn={isOnTheClock}
               onClick={onPositionClick ? () => handlePositionClick("GK") : undefined}
               className={playerSizeClass}
+              isCaptain={captainId === getPlayer("GK")?.id && captainType === getPlayer("GK")?.assetType}
             />
           </div>
         </div>

@@ -294,7 +294,7 @@ export default function Dashboard() {
               <p className="text-xs uppercase tracking-[0.4em] text-white/40">Leaderboard</p>
               <h2 className="text-xl font-semibold text-white">Top Squads</h2>
             </div>
-            <Link href="/leaderboard" className="text-sm font-semibold text-weed-green">
+            <Link href="/rankings" className="text-sm font-semibold text-weed-green">
               See all
             </Link>
           </div>

@@ -35,7 +35,7 @@ const MENU_LINKS: MenuLink[] = [
   { label: "Home", href: "/", icon: Home },
   { label: "My Leagues", href: "/leagues", icon: Users },
   { label: "Create League", href: "/league/create", icon: PlusCircle },
-  { label: "Leaderboard", href: "/leaderboard", icon: Award },
+  { label: "Leaderboard", href: "/rankings", icon: Award },
   { label: "Prediction Streak", href: "/prediction-streak", icon: Zap },
   { label: "Invite Friends", href: "/invite", icon: Users },
   { label: "Profile", href: "/profile", icon: UserCircle },

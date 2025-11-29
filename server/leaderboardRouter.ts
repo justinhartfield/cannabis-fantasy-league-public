@@ -573,5 +573,56 @@ export const leaderboardRouter = router({
         dayOfWeekAverages
       };
     }),
+
+  getEntityRank: publicProcedure
+    .input(z.object({ entityType: z.enum(['manufacturer', 'pharmacy', 'brand', 'product', 'strain']), entityId: z.number() }))
+    .query(async ({ input }) => {
+      const { entityType, entityId } = input;
+      const db = await getDb();
+      if (!db) return null;
+      const today = new Date().toISOString().split('T')[0];
+      let allEntities: any[] = [];
+      try {
+        if (entityType === 'manufacturer') { allEntities = await db.select({ id: manufacturers.id, name: manufacturers.name, logoUrl: manufacturers.logoUrl, score: manufacturerDailyChallengeStats.totalPoints }).from(manufacturerDailyChallengeStats).innerJoin(manufacturers, eq(manufacturerDailyChallengeStats.manufacturerId, manufacturers.id)).where(eq(manufacturerDailyChallengeStats.statDate, today)).orderBy(desc(manufacturerDailyChallengeStats.totalPoints)); }
+        else if (entityType === 'pharmacy') { allEntities = await db.select({ id: pharmacies.id, name: pharmacies.name, logoUrl: pharmacies.logoUrl, score: pharmacyDailyChallengeStats.totalPoints }).from(pharmacyDailyChallengeStats).innerJoin(pharmacies, eq(pharmacyDailyChallengeStats.pharmacyId, pharmacies.id)).where(eq(pharmacyDailyChallengeStats.statDate, today)).orderBy(desc(pharmacyDailyChallengeStats.totalPoints)); }
+        else if (entityType === 'brand') { allEntities = await db.select({ id: brands.id, name: brands.name, logoUrl: brands.logoUrl, score: brandDailyChallengeStats.totalPoints }).from(brandDailyChallengeStats).innerJoin(brands, eq(brandDailyChallengeStats.brandId, brands.id)).where(eq(brandDailyChallengeStats.statDate, today)).orderBy(desc(brandDailyChallengeStats.totalPoints)); }
+        else if (entityType === 'strain') { allEntities = await db.select({ id: cannabisStrains.id, name: cannabisStrains.name, imageUrl: cannabisStrains.imageUrl, score: strainDailyChallengeStats.totalPoints }).from(strainDailyChallengeStats).innerJoin(cannabisStrains, eq(strainDailyChallengeStats.strainId, cannabisStrains.id)).where(eq(strainDailyChallengeStats.statDate, today)).orderBy(desc(strainDailyChallengeStats.totalPoints)); }
+        else if (entityType === 'product') { allEntities = await db.select({ id: strains.id, name: strains.name, imageUrl: cannabisStrains.imageUrl, score: productDailyChallengeStats.totalPoints }).from(productDailyChallengeStats).innerJoin(strains, eq(productDailyChallengeStats.productId, strains.id)).leftJoin(cannabisStrains, eq(strains.strainId, cannabisStrains.id)).where(eq(productDailyChallengeStats.statDate, today)).orderBy(desc(productDailyChallengeStats.totalPoints)); }
+        const rank = allEntities.findIndex(e => e.id === entityId) + 1;
+        const entity = allEntities.find(e => e.id === entityId);
+        if (!entity) return null;
+        return { id: entity.id, name: entity.name, imageUrl: entity.logoUrl || entity.imageUrl, score: entity.score, rank: rank > 0 ? rank : null, totalEntities: allEntities.length, date: today, entityType };
+      } catch (error) { console.error('[Leaderboard] Error fetching entity rank:', error); return null; }
+    }),
+
+  getMiniLeaderboard: publicProcedure
+    .input(z.object({ entityType: z.enum(['manufacturer', 'pharmacy', 'brand', 'product', 'strain']), limit: z.number().min(1).max(10).default(5), theme: z.enum(['light', 'dark', 'auto']).default('auto') }))
+    .query(async ({ input }) => {
+      const { entityType, limit } = input;
+      const db = await getDb();
+      if (!db) return { items: [], date: null, entityType, theme: input.theme };
+      const today = new Date().toISOString().split('T')[0];
+      let items: any[] = [];
+      try {
+        if (entityType === 'manufacturer') { items = await db.select({ id: manufacturers.id, name: manufacturers.name, imageUrl: manufacturers.logoUrl, score: manufacturerDailyChallengeStats.totalPoints }).from(manufacturerDailyChallengeStats).innerJoin(manufacturers, eq(manufacturerDailyChallengeStats.manufacturerId, manufacturers.id)).where(eq(manufacturerDailyChallengeStats.statDate, today)).orderBy(desc(manufacturerDailyChallengeStats.totalPoints)).limit(limit); }
+        else if (entityType === 'pharmacy') { items = await db.select({ id: pharmacies.id, name: pharmacies.name, imageUrl: pharmacies.logoUrl, score: pharmacyDailyChallengeStats.totalPoints }).from(pharmacyDailyChallengeStats).innerJoin(pharmacies, eq(pharmacyDailyChallengeStats.pharmacyId, pharmacies.id)).where(eq(pharmacyDailyChallengeStats.statDate, today)).orderBy(desc(pharmacyDailyChallengeStats.totalPoints)).limit(limit); }
+        else if (entityType === 'brand') { items = await db.select({ id: brands.id, name: brands.name, imageUrl: brands.logoUrl, score: brandDailyChallengeStats.totalPoints }).from(brandDailyChallengeStats).innerJoin(brands, eq(brandDailyChallengeStats.brandId, brands.id)).where(eq(brandDailyChallengeStats.statDate, today)).orderBy(desc(brandDailyChallengeStats.totalPoints)).limit(limit); }
+        else if (entityType === 'strain') { items = await db.select({ id: cannabisStrains.id, name: cannabisStrains.name, imageUrl: cannabisStrains.imageUrl, score: strainDailyChallengeStats.totalPoints }).from(strainDailyChallengeStats).innerJoin(cannabisStrains, eq(strainDailyChallengeStats.strainId, cannabisStrains.id)).where(eq(strainDailyChallengeStats.statDate, today)).orderBy(desc(strainDailyChallengeStats.totalPoints)).limit(limit); }
+        else if (entityType === 'product') { items = await db.select({ id: strains.id, name: strains.name, imageUrl: cannabisStrains.imageUrl, score: productDailyChallengeStats.totalPoints }).from(productDailyChallengeStats).innerJoin(strains, eq(productDailyChallengeStats.productId, strains.id)).leftJoin(cannabisStrains, eq(strains.strainId, cannabisStrains.id)).where(eq(productDailyChallengeStats.statDate, today)).orderBy(desc(productDailyChallengeStats.totalPoints)).limit(limit); }
+        return { items: items.map((item, index) => ({ ...item, rank: index + 1 })), date: today, entityType, theme: input.theme };
+      } catch (error) { console.error('[Leaderboard] Error fetching mini leaderboard:', error); return { items: [], date: null, entityType, theme: input.theme }; }
+    }),
+
+  getEmbedConfig: publicProcedure
+    .input(z.object({ widgetType: z.enum(['leaderboard', 'entity-badge', 'mini-rank']) }))
+    .query(async ({ input }) => {
+      const baseUrl = process.env.APP_URL || 'https://cfl.weed.de';
+      const configs: Record<string, any> = {
+        'leaderboard': { defaultWidth: 320, defaultHeight: 400, minWidth: 280, maxWidth: 600, embedUrl: `${baseUrl}/embed/leaderboard`, supportedThemes: ['light', 'dark', 'auto'], supportedEntities: ['manufacturer', 'pharmacy', 'brand', 'product', 'strain'] },
+        'entity-badge': { defaultWidth: 250, defaultHeight: 80, minWidth: 200, maxWidth: 400, embedUrl: `${baseUrl}/embed/entity`, supportedThemes: ['light', 'dark', 'auto'] },
+        'mini-rank': { defaultWidth: 120, defaultHeight: 40, minWidth: 100, maxWidth: 200, embedUrl: `${baseUrl}/embed/rank`, supportedThemes: ['light', 'dark', 'auto'] },
+      };
+      return { ...configs[input.widgetType], widgetType: input.widgetType, brandColors: { primary: '#10b981', secondary: '#a3ff12', background: '#111827', card: '#1f2937', text: '#f9fafb', muted: '#9ca3af' }, attribution: { text: 'Powered by CFL', url: baseUrl, logo: `${baseUrl}/logo.svg` } };
+    }),
 });
 

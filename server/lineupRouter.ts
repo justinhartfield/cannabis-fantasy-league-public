@@ -58,6 +58,8 @@ export const lineupRouter = router({
           year: input.year,
           week: input.week,
           isLocked: false,
+          captainId: lineup.captainId,
+          captainType: lineup.captainType as "manufacturer" | "cannabis_strain" | "product" | "pharmacy" | "brand" | null,
           lineup: [
             { position: "MFG1", assetType: "manufacturer" as const, assetId: null, assetName: null, points: 0, locked: false },
             { position: "MFG2", assetType: "manufacturer" as const, assetId: null, assetName: null, points: 0, locked: false },
@@ -139,6 +141,8 @@ export const lineupRouter = router({
         year: input.year,
         week: input.week,
         isLocked: lineup.isLocked || false,
+        captainId: lineup.captainId,
+        captainType: lineup.captainType as "manufacturer" | "cannabis_strain" | "product" | "pharmacy" | "brand" | null,
         lineup: lineupData,
       };
       console.log('[getWeeklyLineup] Returning lineup:', JSON.stringify(result, null, 2));
@@ -167,6 +171,8 @@ export const lineupRouter = router({
           flexType: z
             .enum(["manufacturer", "cannabis_strain", "product", "pharmacy", "brand"])
             .nullable(),
+          captainId: z.number().optional().nullable(),
+          captainType: z.enum(["manufacturer", "cannabis_strain", "product", "pharmacy", "brand"]).optional().nullable(),
         }),
       })
     )
@@ -208,6 +214,8 @@ export const lineupRouter = router({
             phm2Id: input.lineup.phm2Id,
             flexId: input.lineup.flexId,
             flexType: input.lineup.flexType,
+            captainId: input.lineup.captainId,
+            captainType: input.lineup.captainType,
           })
           .where(eq(weeklyLineups.id, existing.id));
         console.log('[updateLineup] Updated existing lineup:', existing.id);
@@ -227,6 +235,8 @@ export const lineupRouter = router({
           phm2Id: input.lineup.phm2Id,
           flexId: input.lineup.flexId,
           flexType: input.lineup.flexType,
+          captainId: input.lineup.captainId,
+          captainType: input.lineup.captainType,
           isLocked: false,
         });
         console.log('[updateLineup] Created new lineup');
@@ -275,5 +285,62 @@ export const lineupRouter = router({
         .where(eq(weeklyLineups.id, lineup.id));
 
       return { success: true, isLocked: newLockState };
+    }),
+
+  /**
+   * Set captain for a lineup
+   */
+  setCaptain: protectedProcedure
+    .input(
+      z.object({
+        teamId: z.number(),
+        year: z.number(),
+        week: z.number(),
+        captainId: z.number(),
+        captainType: z.enum(["manufacturer", "cannabis_strain", "product", "pharmacy", "brand"]),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      // Check if lineup exists
+      const [existing] = await db
+        .select()
+        .from(weeklyLineups)
+        .where(
+          and(
+            eq(weeklyLineups.teamId, input.teamId),
+            eq(weeklyLineups.year, input.year),
+            eq(weeklyLineups.week, input.week)
+          )
+        )
+        .limit(1);
+
+      if (!existing) {
+        // Create new lineup if it doesn't exist
+        await db.insert(weeklyLineups).values({
+          teamId: input.teamId,
+          year: input.year,
+          week: input.week,
+          captainId: input.captainId,
+          captainType: input.captainType,
+          isLocked: 0,
+        });
+      } else {
+        if (existing.isLocked) {
+          throw new Error("Lineup is locked");
+        }
+        // Update captain
+        await db
+          .update(weeklyLineups)
+          .set({
+            captainId: input.captainId,
+            captainType: input.captainType,
+          })
+          .where(eq(weeklyLineups.id, existing.id));
+      }
+
+      return { success: true };
     }),
 });

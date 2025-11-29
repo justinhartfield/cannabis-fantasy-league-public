@@ -28,6 +28,13 @@ import InviteFriends from "./pages/InviteFriends";
 import Join from "./pages/Join";
 import Players from "./pages/Players";
 import Rules from "./pages/Rules";
+import Privacy from "./pages/Privacy";
+import Contact from "./pages/Contact";
+import PublicRankings from "./pages/PublicRankings";
+import EntityProfile from "./pages/EntityProfile";
+import EmbedLeaderboard from "./pages/EmbedLeaderboard";
+import EmbedEntityBadge from "./pages/EmbedEntityBadge";
+import DisplayMode from "./pages/DisplayMode";
 import { useEffect } from "react";
 import { AppLayout } from "./components/AppLayout";
 import DashboardLayout from "./components/DashboardLayout";
@@ -67,6 +74,8 @@ function AuthedRoutes() {
         <Route path={"/invite"} component={InviteFriends} />
         <Route path={"/profile"} component={Profile} />
         <Route path={"/rules"} component={Rules} />
+        <Route path={"/privacy"} component={Privacy} />
+        <Route path={"/contact"} component={Contact} />
         <Route path={"/404"} component={NotFound} />
         <Route component={NotFound} />
       </Switch>
@@ -93,6 +102,15 @@ function Router() {
       <Route path={"/sign-up/sso-callback"} component={SignUpPage} />
       <Route path={"/invitations/:token"} component={AcceptInvitation} />
       <Route path={"/admin"} component={AdminRoute} />
+      {/* Public Rankings Routes - no auth required */}
+      <Route path={"/rankings"} component={PublicRankings} />
+      <Route path={"/rankings/:category"} component={PublicRankings} />
+      <Route path={"/entity/:type/:id"} component={EntityProfile} />
+      {/* Embed Routes - for iframe embedding on partner sites */}
+      <Route path={"/embed/leaderboard/:type"} component={EmbedLeaderboard} />
+      <Route path={"/embed/entity/:type/:id"} component={EmbedEntityBadge} />
+      {/* Display Mode - full-screen for events */}
+      <Route path={"/display/leaderboard"} component={DisplayMode} />
       {/* League/Challenge creation must come before :id routes to avoid "create" being matched as an ID */}
       <Route path={"/league/create"} component={CreateLeague} />
       {/* Public challenge routes - these need to work without auth for landing page */}
