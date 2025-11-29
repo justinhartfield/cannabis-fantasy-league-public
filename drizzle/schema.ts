@@ -13,6 +13,21 @@ export const achievements = pgTable("achievements", {
 	(table) => [
 	]);
 
+export const autoDraftBoards = pgTable("autoDraftBoards", {
+	id: serial().primaryKey(),
+	teamId: integer().notNull(),
+	assetType: varchar({ length: 50 }).notNull(),
+	assetId: integer().notNull(),
+	priority: integer().notNull(),
+	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
+	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
+},
+	(table) => [
+		index("auto_draft_team_idx").on(table.teamId),
+		index("auto_draft_priority_idx").on(table.teamId, table.priority),
+		unique("auto_draft_team_asset_unique").on(table.teamId, table.assetType, table.assetId),
+	]);
+
 export const brands = pgTable("brands", {
 	id: serial().primaryKey(),
 	name: varchar({ length: 255 }).notNull(),
@@ -530,9 +545,11 @@ export const teams = pgTable("teams", {
 	ties: integer().default(0).notNull(),
 	pointsFor: integer().default(0).notNull(),
 	pointsAgainst: integer().default(0).notNull(),
-	fighterIllustration: varchar({ length: 100 }),
+	illustration: varchar({ length: 100 }),
+	fighterIllustration: varchar("fighter_illustration", { length: 100 }),
 	battlefieldBackground: varchar({ length: 100 }),
 	autoPickEnabled: integer().default(0).notNull(), // 0 = disabled, 1 = enabled (auto-enabled when timer expires)
+	autoDraftEnabled: integer("autoDraftEnabled").default(0).notNull(),
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
@@ -756,6 +773,15 @@ export const syncLogs = pgTable("syncLogs", {
 		index("sync_logs_job_id_idx").on(table.jobId),
 		index("sync_logs_timestamp_idx").on(table.timestamp),
 	]);
+
+export const customMigrations = pgTable("_migrations", {
+	id: serial().primaryKey(),
+	filename: varchar({ length: 255 }).notNull().unique(),
+	executedAt: timestamp("executed_at", { mode: 'string', withTimezone: true }).defaultNow().notNull(),
+	checksum: varchar({ length: 64 }),
+	success: boolean().default(true),
+	errorMessage: text("error_message"),
+});
 
 // Daily Challenge Stats Tables
 export * from './dailyChallengeSchema';
