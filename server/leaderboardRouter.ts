@@ -456,8 +456,12 @@ export const leaderboardRouter = router({
       const startDateStr = startDate.toISOString().split('T')[0];
 
       let history: any[] = [];
+      let entityDetails: any = null;
 
       if (entityType === 'manufacturer') {
+        const details = await db.select().from(manufacturers).where(eq(manufacturers.id, entityId)).limit(1);
+        if (details.length > 0) entityDetails = details[0];
+
         history = await db
           .select({
             date: manufacturerDailyChallengeStats.statDate,
@@ -476,6 +480,9 @@ export const leaderboardRouter = router({
           ))
           .orderBy(desc(manufacturerDailyChallengeStats.statDate));
       } else if (entityType === 'pharmacy') {
+        const details = await db.select().from(pharmacies).where(eq(pharmacies.id, entityId)).limit(1);
+        if (details.length > 0) entityDetails = details[0];
+
         history = await db
           .select({
             date: pharmacyDailyChallengeStats.statDate,
@@ -494,6 +501,9 @@ export const leaderboardRouter = router({
           ))
           .orderBy(desc(pharmacyDailyChallengeStats.statDate));
       } else if (entityType === 'brand') {
+        const details = await db.select().from(brands).where(eq(brands.id, entityId)).limit(1);
+        if (details.length > 0) entityDetails = details[0];
+
         history = await db
           .select({
             date: brandDailyChallengeStats.statDate,
@@ -511,6 +521,9 @@ export const leaderboardRouter = router({
           ))
           .orderBy(desc(brandDailyChallengeStats.statDate));
       } else if (entityType === 'product') {
+        const details = await db.select().from(strains).where(eq(strains.id, entityId)).limit(1);
+        if (details.length > 0) entityDetails = details[0];
+
         history = await db
           .select({
             date: productDailyChallengeStats.statDate,
@@ -529,6 +542,9 @@ export const leaderboardRouter = router({
           ))
           .orderBy(desc(productDailyChallengeStats.statDate));
       } else if (entityType === 'strain') {
+        const details = await db.select().from(cannabisStrains).where(eq(cannabisStrains.id, entityId)).limit(1);
+        if (details.length > 0) entityDetails = details[0];
+
         history = await db
           .select({
             date: strainDailyChallengeStats.statDate,
@@ -580,7 +596,8 @@ export const leaderboardRouter = router({
       // Reverse to chronological order for charts
       return {
         history: history.reverse(),
-        dayOfWeekAverages
+        dayOfWeekAverages,
+        entityDetails
       };
     }),
 

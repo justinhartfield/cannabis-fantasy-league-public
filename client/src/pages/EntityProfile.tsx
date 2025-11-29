@@ -25,8 +25,26 @@ export default function EntityProfile() {
     const dataMap: Record<EntityType, any[]> = { manufacturer: dailyQuery.data.manufacturers || [], pharmacy: dailyQuery.data.pharmacies || [], brand: dailyQuery.data.brands || [], product: dailyQuery.data.products || [], strain: dailyQuery.data.strains || [] };
     const items = dataMap[entityType] || [];
     const index = items.findIndex((item) => item.id === entityId);
-    if (index === -1) return null;
-    return { ...items[index], rank: index + 1 };
+
+    if (index !== -1) {
+      return { ...items[index], rank: index + 1 };
+    }
+
+    // Fallback to history query details if not in top 100
+    if (historyQuery.data?.entityDetails) {
+      const details = historyQuery.data.entityDetails;
+      return {
+        id: details.id,
+        name: details.name,
+        logoUrl: details.logoUrl || details.imageUrl, // Handle different field names
+        imageUrl: details.imageUrl || details.logoUrl,
+        description: details.description,
+        score: 0, // Default if not in leaderboard
+        rank: 0, // Default if not in leaderboard
+      };
+    }
+
+    return null;
   };
 
   const entity = findEntity();
