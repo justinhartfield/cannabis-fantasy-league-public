@@ -8,6 +8,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { DraftFieldPlayer } from "./DraftFieldPlayer";
 
 interface ScoringComponent {
   category: string;
@@ -185,7 +186,7 @@ const getSubtotalTooltipContent = (
   const componentsSum = data.components?.reduce((sum, c) => sum + (c.points || 0), 0) || 0;
   const bonusesSum = data.bonuses?.reduce((sum, b) => sum + (b.points || 0), 0) || 0;
   const penaltiesSum = data.penalties?.reduce((sum, p) => sum + (p.points || 0), 0) || 0;
-  
+
   switch (type) {
     case 'components':
       return {
@@ -210,11 +211,11 @@ const getSubtotalTooltipContent = (
       if (componentsSum > 0) parts.push(`Components: ${componentsSum.toFixed(0)}`);
       if (bonusesSum > 0) parts.push(`Bonuses: +${bonusesSum.toFixed(0)}`);
       if (penaltiesSum !== 0) parts.push(`Penalties: ${penaltiesSum.toFixed(0)}`);
-      
+
       return {
         title: 'Total Score',
         explanation: 'Final score combining all components, bonuses, and penalties for this asset.',
-        formula: parts.length > 0 
+        formula: parts.length > 0
           ? `${parts.join(' + ')} = ${data.total.toFixed(0)} pts`
           : `Total: ${data.total.toFixed(0)} pts`,
       };
@@ -373,7 +374,7 @@ export default function ScoringBreakdownV2({
       }
 
       // Filter out "No Data" placeholder components with 0 points
-      const isNoDataComponent = 
+      const isNoDataComponent =
         component.category === "No Data" ||
         component.category.toLowerCase().includes("no data") ||
         (typeof component.value === "string" && component.value.toLowerCase().includes("no stats"));
@@ -411,19 +412,40 @@ export default function ScoringBreakdownV2({
       <div className="rounded-[28px] bg-[#2b0d3f] text-white p-5 space-y-4 border border-white/10 shadow-[0_20px_40px_rgba(0,0,0,0.35)]">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            {data.imageUrl ? (
-              <img
-                src={data.imageUrl}
-                alt={data.assetName}
-                className="w-14 h-14 rounded-2xl object-cover border border-white/20"
-                onError={(e) => (e.currentTarget.style.display = "none")}
-              />
-            ) : (
-              <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center">
-                <BarChart3 className="w-6 h-6 text-white/80" />
-              </div>
-            )
-            }
+            <div className="relative">
+              {(() => {
+                // Map asset type to a representative position for jersey color
+                const getPositionForType = (type: string): "ST1" | "LW" | "CM1" | "CB1" | "GK" => {
+                  switch (type) {
+                    case "manufacturer": return "ST1";
+                    case "pharmacy": return "LW";
+                    case "product": return "CM1";
+                    case "cannabis_strain": return "CB1";
+                    case "brand": return "GK";
+                    default: return "ST1";
+                  }
+                };
+
+                const position = getPositionForType(data.assetType);
+                const isCaptain = data.bonuses?.some(b => b.type === 'captain_boost');
+
+                return (
+                  <DraftFieldPlayer
+                    position={position}
+                    player={{
+                      id: 0, // Dummy ID
+                      name: data.assetName,
+                      imageUrl: data.imageUrl,
+                      assetType: data.assetType
+                    }}
+                    isCaptain={isCaptain}
+                    size="sm"
+                    className="w-[70px] h-[88px] transform scale-90 origin-left"
+                    showScore={false}
+                  />
+                );
+              })()}
+            </div>
             <div>
               <div className="text-[11px] uppercase tracking-[0.35em] text-white/50">
                 {getAssetTypeLabel(data.assetType)}
@@ -521,13 +543,13 @@ export default function ScoringBreakdownV2({
 
               // Format display text based on component type
               const displayCategory = component.category === "Trend Bonus" ? "Momentum Score" : component.category;
-              
+
               // For Momentum Score (Trend Bonus), show cleaner format without redundancy
               const isMomentumScore = component.category === "Trend Bonus" || component.category === "Momentum Score";
-              const displayValue = isMomentumScore 
+              const displayValue = isMomentumScore
                 ? `${parseMultiplierValue(component.value).toFixed(2)}× multiplier`
                 : `${component.value} · ${component.formula}`;
-              
+
               return (
                 <div
                   key={idx}
@@ -796,10 +818,10 @@ export default function ScoringBreakdownV2({
 
               // Format display text based on component type
               const displayCategory = component.category === "Trend Bonus" ? "Momentum Score" : component.category;
-              
+
               // For Momentum Score (Trend Bonus), show cleaner format without redundancy
               const isMomentumScore = component.category === "Trend Bonus" || component.category === "Momentum Score";
-              const displayFormula = isMomentumScore 
+              const displayFormula = isMomentumScore
                 ? `${parseMultiplierValue(component.value).toFixed(2)}× multiplier → ${component.points} pts`
                 : `${component.value} → ${component.formula}`;
 

@@ -104,6 +104,7 @@ export const leaderboardRouter = router({
             id: manufacturers.id,
             name: manufacturers.name,
             logoUrl: manufacturers.logoUrl,
+            description: manufacturers.description,
             score: manufacturerDailyChallengeStats.totalPoints,
           })
           .from(manufacturerDailyChallengeStats)
@@ -121,6 +122,7 @@ export const leaderboardRouter = router({
             id: pharmacies.id,
             name: pharmacies.name,
             logoUrl: pharmacies.logoUrl,
+            description: pharmacies.description,
             score: pharmacyDailyChallengeStats.totalPoints,
           })
           .from(pharmacyDailyChallengeStats)
@@ -138,6 +140,7 @@ export const leaderboardRouter = router({
             id: brands.id,
             name: brands.name,
             logoUrl: brands.logoUrl,
+            description: brands.description,
             score: brandDailyChallengeStats.totalPoints,
           })
           .from(brandDailyChallengeStats)
@@ -155,6 +158,7 @@ export const leaderboardRouter = router({
             id: cannabisStrains.id,
             name: cannabisStrains.name,
             imageUrl: cannabisStrains.imageUrl,
+            description: cannabisStrains.description,
             score: strainDailyChallengeStats.totalPoints,
           })
           .from(strainDailyChallengeStats)
@@ -179,6 +183,7 @@ export const leaderboardRouter = router({
             name: strains.name,
             score: productDailyChallengeStats.totalPoints,
             imageUrl: cannabisStrains.imageUrl,
+            description: strains.description,
           })
           .from(productDailyChallengeStats)
           .innerJoin(

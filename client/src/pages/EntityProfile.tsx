@@ -27,7 +27,11 @@ export default function EntityProfile() {
     const index = items.findIndex((item) => item.id === entityId);
 
     if (index !== -1) {
-      return { ...items[index], rank: index + 1 };
+      return {
+        ...items[index],
+        rank: index + 1,
+        description: items[index].description // Ensure description is passed through
+      };
     }
 
     // Fallback to history query details if not in top 100
