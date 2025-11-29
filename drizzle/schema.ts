@@ -547,6 +547,7 @@ export const teams = pgTable("teams", {
 	pointsAgainst: integer().default(0).notNull(),
 	illustration: varchar({ length: 100 }),
 	fighterIllustration: varchar("fighter_illustration", { length: 100 }),
+	fighterIllustrationLegacy: varchar("fighterIllustration", { length: 100 }),
 	battlefieldBackground: varchar({ length: 100 }),
 	autoPickEnabled: integer().default(0).notNull(), // 0 = disabled, 1 = enabled (auto-enabled when timer expires)
 	autoDraftEnabled: integer("autoDraftEnabled").default(0).notNull(),
