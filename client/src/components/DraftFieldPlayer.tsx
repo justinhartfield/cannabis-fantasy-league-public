@@ -238,7 +238,7 @@ export function DraftFieldPlayer({
   return (
     <div
       className={cn(
-        "flex flex-col items-center gap-1 transition-all duration-300",
+        "group relative flex flex-col items-center gap-1 transition-all duration-300",
         onClick && "cursor-pointer hover:scale-105",
         isActive && isMyTurn && "animate-pulse",
         className
@@ -274,6 +274,17 @@ export function DraftFieldPlayer({
           )}
         >
           C
+        </div>
+      )}
+
+      {/* Make Captain Overlay - Shows on hover for drafted players */}
+      {player && !isCaptain && onClick && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none group-hover:pointer-events-auto">
+          <div className="bg-black/80 backdrop-blur-sm rounded-full px-3 py-1.5 border border-[#cfff4d]/50 shadow-lg transform translate-y-[-50%]">
+            <span className="text-[10px] font-bold text-[#cfff4d] whitespace-nowrap">
+              Make Captain
+            </span>
+          </div>
         </div>
       )}
 
