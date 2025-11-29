@@ -570,6 +570,25 @@ export default function Draft() {
     },
   });
 
+  const { data: weeklyLineup } = trpc.lineup.getWeeklyLineup.useQuery(
+    {
+      teamId: myTeam?.id ?? 0,
+      year: league?.seasonYear ?? 0,
+      week: league?.currentWeek ?? 0,
+    },
+    { enabled: !!myTeam?.id && !!league && isChallengeLeague }
+  );
+
+  const { data: favorites, refetch: refetchFavorites } = trpc.favorite.getFavorites.useQuery(
+    undefined,
+    { enabled: isAuthenticated && isChallengeLeague }
+  );
+
+  const favoritedBrandIds = useMemo(() => {
+    if (!favorites) return new Set<number>();
+    return new Set(favorites.filter(f => f.entityType === 'brand').map(f => f.entityId));
+  }, [favorites]);
+
   const handleToggleFavorite = (brandId: number) => {
     toggleFavoriteMutation.mutate({
       entityType: "brand",
