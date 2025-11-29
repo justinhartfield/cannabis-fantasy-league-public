@@ -107,6 +107,15 @@ export function EntityHistoryModal({
                     </div>
                 ) : (
                     <div className="space-y-8 py-4">
+                        {/* Description */}
+                        {history.length > 0 && history[0].description && (
+                            <div className="bg-card/50 p-4 rounded-xl border border-border">
+                                <div className="prose prose-invert max-w-none text-sm text-muted-foreground">
+                                    <div dangerouslySetInnerHTML={{ __html: history[0].description }} />
+                                </div>
+                            </div>
+                        )}
+
                         {/* Key Metrics */}
                         <div className="grid grid-cols-3 gap-4">
                             <div className="bg-card p-4 rounded-xl border border-border text-center">

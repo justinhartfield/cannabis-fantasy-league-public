@@ -104,6 +104,7 @@ export const leaderboardRouter = router({
             id: manufacturers.id,
             name: manufacturers.name,
             logoUrl: manufacturers.logoUrl,
+            description: manufacturers.description,
             score: manufacturerDailyChallengeStats.totalPoints,
           })
           .from(manufacturerDailyChallengeStats)
@@ -121,6 +122,7 @@ export const leaderboardRouter = router({
             id: pharmacies.id,
             name: pharmacies.name,
             logoUrl: pharmacies.logoUrl,
+            description: pharmacies.description,
             score: pharmacyDailyChallengeStats.totalPoints,
           })
           .from(pharmacyDailyChallengeStats)
@@ -138,6 +140,7 @@ export const leaderboardRouter = router({
             id: brands.id,
             name: brands.name,
             logoUrl: brands.logoUrl,
+            description: brands.description,
             score: brandDailyChallengeStats.totalPoints,
           })
           .from(brandDailyChallengeStats)
@@ -155,6 +158,7 @@ export const leaderboardRouter = router({
             id: cannabisStrains.id,
             name: cannabisStrains.name,
             imageUrl: cannabisStrains.imageUrl,
+            description: cannabisStrains.description,
             score: strainDailyChallengeStats.totalPoints,
           })
           .from(strainDailyChallengeStats)
@@ -179,6 +183,7 @@ export const leaderboardRouter = router({
             name: strains.name,
             score: productDailyChallengeStats.totalPoints,
             imageUrl: cannabisStrains.imageUrl,
+            description: strains.description,
           })
           .from(productDailyChallengeStats)
           .innerJoin(
@@ -456,8 +461,12 @@ export const leaderboardRouter = router({
       const startDateStr = startDate.toISOString().split('T')[0];
 
       let history: any[] = [];
+      let entityDetails: any = null;
 
       if (entityType === 'manufacturer') {
+        const details = await db.select().from(manufacturers).where(eq(manufacturers.id, entityId)).limit(1);
+        if (details.length > 0) entityDetails = details[0];
+
         history = await db
           .select({
             date: manufacturerDailyChallengeStats.statDate,
@@ -466,14 +475,19 @@ export const leaderboardRouter = router({
             marketShare: manufacturerDailyChallengeStats.marketSharePercent,
             streak: manufacturerDailyChallengeStats.streakDays,
             trend: manufacturerDailyChallengeStats.trendMultiplier,
+            description: manufacturers.description,
           })
           .from(manufacturerDailyChallengeStats)
+          .innerJoin(manufacturers, eq(manufacturerDailyChallengeStats.manufacturerId, manufacturers.id))
           .where(and(
             eq(manufacturerDailyChallengeStats.manufacturerId, entityId),
             gte(manufacturerDailyChallengeStats.statDate, startDateStr)
           ))
           .orderBy(desc(manufacturerDailyChallengeStats.statDate));
       } else if (entityType === 'pharmacy') {
+        const details = await db.select().from(pharmacies).where(eq(pharmacies.id, entityId)).limit(1);
+        if (details.length > 0) entityDetails = details[0];
+
         history = await db
           .select({
             date: pharmacyDailyChallengeStats.statDate,
@@ -482,14 +496,19 @@ export const leaderboardRouter = router({
             marketShare: pharmacyDailyChallengeStats.marketSharePercent,
             streak: pharmacyDailyChallengeStats.streakDays,
             trend: pharmacyDailyChallengeStats.trendMultiplier,
+            description: pharmacies.description,
           })
           .from(pharmacyDailyChallengeStats)
+          .innerJoin(pharmacies, eq(pharmacyDailyChallengeStats.pharmacyId, pharmacies.id))
           .where(and(
             eq(pharmacyDailyChallengeStats.pharmacyId, entityId),
             gte(pharmacyDailyChallengeStats.statDate, startDateStr)
           ))
           .orderBy(desc(pharmacyDailyChallengeStats.statDate));
       } else if (entityType === 'brand') {
+        const details = await db.select().from(brands).where(eq(brands.id, entityId)).limit(1);
+        if (details.length > 0) entityDetails = details[0];
+
         history = await db
           .select({
             date: brandDailyChallengeStats.statDate,
@@ -497,14 +516,19 @@ export const leaderboardRouter = router({
             rank: brandDailyChallengeStats.rank,
             rating: brandDailyChallengeStats.averageRating,
             ratingCount: brandDailyChallengeStats.totalRatings,
+            description: brands.description,
           })
           .from(brandDailyChallengeStats)
+          .innerJoin(brands, eq(brandDailyChallengeStats.brandId, brands.id))
           .where(and(
             eq(brandDailyChallengeStats.brandId, entityId),
             gte(brandDailyChallengeStats.statDate, startDateStr)
           ))
           .orderBy(desc(brandDailyChallengeStats.statDate));
       } else if (entityType === 'product') {
+        const details = await db.select().from(strains).where(eq(strains.id, entityId)).limit(1);
+        if (details.length > 0) entityDetails = details[0];
+
         history = await db
           .select({
             date: productDailyChallengeStats.statDate,
@@ -513,14 +537,19 @@ export const leaderboardRouter = router({
             marketShare: productDailyChallengeStats.marketSharePercent,
             streak: productDailyChallengeStats.streakDays,
             trend: productDailyChallengeStats.trendMultiplier,
+            description: strains.description,
           })
           .from(productDailyChallengeStats)
+          .innerJoin(strains, eq(productDailyChallengeStats.productId, strains.id))
           .where(and(
             eq(productDailyChallengeStats.productId, entityId),
             gte(productDailyChallengeStats.statDate, startDateStr)
           ))
           .orderBy(desc(productDailyChallengeStats.statDate));
       } else if (entityType === 'strain') {
+        const details = await db.select().from(cannabisStrains).where(eq(cannabisStrains.id, entityId)).limit(1);
+        if (details.length > 0) entityDetails = details[0];
+
         history = await db
           .select({
             date: strainDailyChallengeStats.statDate,
@@ -529,8 +558,10 @@ export const leaderboardRouter = router({
             marketShare: strainDailyChallengeStats.marketSharePercent,
             streak: strainDailyChallengeStats.streakDays,
             trend: strainDailyChallengeStats.trendMultiplier,
+            description: cannabisStrains.description,
           })
           .from(strainDailyChallengeStats)
+          .innerJoin(cannabisStrains, eq(strainDailyChallengeStats.strainId, cannabisStrains.id))
           .where(and(
             eq(strainDailyChallengeStats.strainId, entityId),
             gte(strainDailyChallengeStats.statDate, startDateStr)
@@ -570,7 +601,8 @@ export const leaderboardRouter = router({
       // Reverse to chronological order for charts
       return {
         history: history.reverse(),
-        dayOfWeekAverages
+        dayOfWeekAverages,
+        entityDetails
       };
     }),
 

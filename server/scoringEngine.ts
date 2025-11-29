@@ -21,7 +21,6 @@ import {
   weeklyLineups,
   weeklyTeamScores,
   scoringBreakdowns,
-  teams,
   leagues,
   manufacturerDailyStats,
   strainDailyStats,
@@ -42,6 +41,18 @@ import {
 import { eq, and, count, sql, sum, max, desc, gte, lte } from 'drizzle-orm';
 import { wsManager } from './websocket';
 import { getOrCreateLineup } from './utils/autoLineup';
+import {
+  calculateManufacturerTrendScore,
+  calculateStrainTrendScore,
+  calculateProductTrendScore,
+  calculatePharmacyTrendScore,
+  calculateRankBonus,
+} from './trendScoringEngine';
+import {
+  buildManufacturerTrendBreakdown,
+  buildStrainTrendBreakdown,
+  buildProductTrendBreakdown
+} from './trendScoringBreakdowns';
 
 import {
   calculateManufacturerScore as calculateDailyManufacturerScore,
@@ -49,13 +60,8 @@ import {
   calculatePharmacyScore as calculateDailyPharmacyScore,
   calculateBrandScore as calculateDailyBrandScore,
 } from './dailyChallengeScoringEngine';
-import {
-  calculateManufacturerTrendScore,
-  calculateStrainTrendScore,
-  calculatePharmacyTrendScore,
-  calculateRankBonus,
-} from './trendScoringEngine';
 import { getWeekDateRange } from './utils/isoWeek';
+import { checkAchievements } from './achievementService';
 
 export type BreakdownComponent = {
   category: string;
@@ -440,14 +446,14 @@ export function buildManufacturerDailyBreakdown(statRecord: ManufacturerDailySou
   });
 
   // Use trend-based scoring exclusively
-  const { calculateManufacturerTrendScore } = require('./trendScoringEngine');
-  const { buildManufacturerTrendBreakdown } = require('./trendScoringBreakdowns');
+  // Use trend-based scoring exclusively
+  // Imports moved to top level
 
   // Calculate the trend score breakdown
   const scoring = calculateManufacturerTrendScore({
     orderCount,
     trendMultiplier,
-    rank,
+    currentRank: rank,
     previousRank: statRecord.previousRank ?? rank,
     consistencyScore: Number(statRecord.consistencyScore ?? 0),
     velocityScore: Number(statRecord.velocityScore ?? 0),
@@ -476,14 +482,13 @@ export function buildStrainDailyBreakdown(statRecord: StrainDailySource): Breakd
   });
 
   // Use trend-based scoring exclusively
-  const { calculateStrainTrendScore } = require('./trendScoringEngine');
-  const { buildStrainTrendBreakdown } = require('./trendScoringBreakdowns');
+  // Imports moved to top level
 
   // Calculate the trend score breakdown
   const scoring = calculateStrainTrendScore({
     orderCount,
     trendMultiplier,
-    rank,
+    currentRank: rank,
     previousRank: statRecord.previousRank ?? rank,
     consistencyScore: Number(statRecord.consistencyScore ?? 0),
     velocityScore: Number(statRecord.velocityScore ?? 0),
@@ -511,13 +516,13 @@ export function buildProductDailyBreakdown(statRecord: ProductDailySource): Brea
     statDate: statRecord.statDate ?? null,
   });
 
-  const { calculateProductTrendScore } = require('./trendScoringEngine');
-  const { buildProductTrendBreakdown } = require('./trendScoringBreakdowns');
+  // Use trend-based scoring exclusively
+  // Imports moved to top level
 
   const scoring = calculateProductTrendScore({
     orderCount,
     trendMultiplier,
-    rank,
+    currentRank: rank,
     previousRank: statRecord.previousRank ?? rank,
     consistencyScore: Number(statRecord.consistencyScore ?? 0),
     velocityScore: Number(statRecord.velocityScore ?? 0),
@@ -691,6 +696,7 @@ export function buildPharmacyDailyBreakdown(statRecord: PharmacyDailySource): Br
   });
 
   // Use trend-based scoring exclusively
+  // Imports moved to top level
   const scoring = calculatePharmacyTrendScore({
     orderCount,
     trendMultiplier,
@@ -2192,81 +2198,97 @@ async function computeTeamScore(options: TeamScoreComputationOptions): Promise<T
   const teamBonuses: any[] = [];
 
   // Only apply for Daily Challenge
-  if (scope.type === 'daily' && teamLineup.captainId && teamLineup.captainType) {
-    // 1. Apply Captain Multiplier (1.5x)
-    const captainMultiplier = 1.5;
-    const captainType = teamLineup.captainType;
-    const captainId = teamLineup.captainId;
+  if (scope.type === 'daily') {
+    // 1. Apply Captain Multiplier (1.25x)
+    if (teamLineup.captainId && teamLineup.captainType) {
+      const captainMultiplier = 1.25;
+      const captainType = teamLineup.captainType;
+      const captainId = teamLineup.captainId;
 
-    // Find the breakdown item for the captain
-    const captainItem = breakdowns.find(b => b.assetType === captainType && b.assetId === captainId);
+      // Find the breakdown item for the captain
+      const captainItem = breakdowns.find(b => b.assetType === captainType && b.assetId === captainId);
 
-    if (captainItem) {
-      const originalPoints = captainItem.points || 0;
-      const boostedPoints = originalPoints * captainMultiplier;
-      const bonusPoints = boostedPoints - originalPoints;
+      if (captainItem) {
+        const originalPoints = captainItem.points || 0;
+        const boostedPoints = Math.round(originalPoints * captainMultiplier); // Ensure integer
+        const bonusPoints = boostedPoints - originalPoints;
 
-      // Update the item's points
-      captainItem.points = boostedPoints;
-      captainItem.isCaptain = true;
-      captainItem.captainBonus = bonusPoints;
+        // Update the item's points
+        captainItem.points = boostedPoints;
+        captainItem.isCaptain = true;
+        captainItem.captainBonus = bonusPoints;
 
-      // Update position points map
-      // We need to find which position key corresponds to this item
-      // This is a bit tricky since multiple slots can have same type
-      // But we can map back from the breakdown's position field (e.g. 'MFG1')
-      const posKey = captainItem.position.toLowerCase(); // 'mfg1', 'cstr1', etc.
-      if (positionPoints[posKey] !== undefined) {
-        positionPoints[posKey] = boostedPoints;
+        // CRITICAL: Update the breakdown JSON so the UI sees the bonus
+        if (captainItem.breakdown) {
+          captainItem.breakdown.bonuses = captainItem.breakdown.bonuses || [];
+          captainItem.breakdown.bonuses.push({
+            type: 'Captain Boost',
+            condition: `${captainMultiplier}x Multiplier`,
+            points: bonusPoints
+          });
+          captainItem.breakdown.total = boostedPoints;
+        }
+
+        // Update position points map
+        const posKey = captainItem.position.toLowerCase() as keyof PositionPointsMap;
+        if (positionPoints[posKey] !== undefined) {
+          positionPoints[posKey] = boostedPoints;
+        }
+
+        // Add to team bonuses for tracking
+        teamBonuses.push({
+          type: 'captain_boost',
+          description: `Captain Boost (${captainMultiplier}x) for ${captainItem.assetName || 'Captain'}`,
+          points: bonusPoints,
+        });
+
+        totalBonus += bonusPoints;
       }
-
-      // Add to team bonuses for tracking
-      teamBonuses.push({
-        type: 'captain_boost',
-        description: `Captain Boost (1.5x) for ${captainItem.assetName || 'Captain'}`,
-        points: bonusPoints,
-      });
-
-      totalBonus += bonusPoints;
     }
 
-    // 2. Apply Fan Buff (+10)
+    // 2. Apply Fan Buff (+5 for any Favorite)
     // We need to fetch user favorites. Since we don't have userId easily here (teamLineup has teamId),
     // we need to fetch the team to get the userId, then fetch favorites.
-    // This adds a DB call.
     const [team] = await db.select().from(teams).where(eq(teams.id, options.teamId)).limit(1);
     if (team) {
       const favorites = await db
         .select()
         .from(userFavorites)
-        .where(
-          and(
-            eq(userFavorites.userId, team.userId),
-            eq(userFavorites.entityType, 'brand')
-          )
-        );
+        .where(eq(userFavorites.userId, team.userId));
 
-      const favoriteBrandIds = new Set(favorites.map(f => f.entityId));
+      // Create a map of favorite entities for quick lookup
+      // Key: `${entityType}-${entityId}`
+      const favoriteSet = new Set(favorites.map(f => `${f.entityType}-${f.entityId}`));
 
-      // Check if any brand in the lineup is a favorite
-      // Brands can be in BRD1 or FLEX
-      const brandItems = breakdowns.filter(b => b.assetType === 'brand');
+      // Check if any asset in the lineup is a favorite
+      for (const item of breakdowns) {
+        const key = `${item.assetType}-${item.assetId}`;
 
-      for (const item of brandItems) {
-        if (favoriteBrandIds.has(item.assetId)) {
-          const fanBuff = 10;
+        if (favoriteSet.has(key)) {
+          const fanBuff = 5; // +5 Bonus Points
           item.points = (item.points || 0) + fanBuff;
           item.isFavorite = true;
           item.fanBuff = fanBuff;
 
-          const posKey = item.position.toLowerCase();
+          // CRITICAL: Update the breakdown JSON so the UI sees the bonus
+          if (item.breakdown) {
+            item.breakdown.bonuses = item.breakdown.bonuses || [];
+            item.breakdown.bonuses.push({
+              type: 'Fan Buff',
+              condition: 'User Favorite',
+              points: fanBuff
+            });
+            item.breakdown.total = item.points;
+          }
+
+          const posKey = item.position.toLowerCase() as keyof PositionPointsMap;
           if (positionPoints[posKey] !== undefined) {
             positionPoints[posKey] = item.points;
           }
 
           teamBonuses.push({
             type: 'fan_buff',
-            description: `Fan Buff (+10) for ${item.assetName || 'Favorite Brand'}`,
+            description: `Fan Buff (+5) for Favorite ${item.assetType}: ${item.assetName || 'Asset'}`,
             points: fanBuff,
           });
 
@@ -2309,6 +2331,16 @@ async function computeTeamScore(options: TeamScoreComputationOptions): Promise<T
       totalBonus,
       breakdowns,
     });
+
+    // Check achievements
+    try {
+      const [team] = await db.select({ userId: teams.userId, leagueId: teams.leagueId }).from(teams).where(eq(teams.id, options.teamId)).limit(1);
+      if (team) {
+        await checkAchievements(team.userId, team.leagueId);
+      }
+    } catch (err) {
+      console.error("[Scoring] Failed to check achievements:", err);
+    }
   }
 
   console.log(`[Scoring] Team ${options.teamId} scored ${totalPoints} points (${options.persistence.mode})`);

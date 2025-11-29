@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { bunnyStoragePut } from "./bunnyStorage";
 import { applyReferralCodeForUser, getOrCreateReferralCode, getReferralStats } from "./referralService";
+import { awardAchievement, ACHIEVEMENT_DEFINITIONS } from "./achievementService";
 
 /**
  * Profile Router
@@ -54,7 +55,7 @@ export const profileRouter = router({
       };
 
       // Check if current name looks like a random fallback
-      const isRandomName = 
+      const isRandomName =
         !currentUser.name ||
         currentUser.name.startsWith('user_') ||
         currentUser.name.includes('@') ||
@@ -256,7 +257,7 @@ export const profileRouter = router({
           // or any team name that contains the old username
           for (const team of userTeams) {
             let newTeamName = team.name;
-            
+
             // If team name follows the pattern "X's Team", update it
             if (oldName && team.name === `${oldName}'s Team`) {
               newTeamName = `${input.name}'s Team`;
@@ -265,21 +266,24 @@ export const profileRouter = router({
             else if (oldName && team.name === oldName) {
               newTeamName = input.name;
             }
-            
+
             // Only update if the name actually changed
             if (newTeamName !== team.name) {
               await db
                 .update(teams)
-                .set({ 
+                .set({
                   name: newTeamName,
                   updatedAt: new Date().toISOString(),
                 })
                 .where(eq(teams.id, team.id));
-              
+
               console.log(`[ProfileRouter] Updated team ${team.id} name from "${team.name}" to "${newTeamName}"`);
             }
           }
         }
+
+        // Award achievement for updating profile
+        await awardAchievement(ctx.user.id, ACHIEVEMENT_DEFINITIONS.PROFILE_UPDATED);
 
         return { success: true };
       } catch (error) {

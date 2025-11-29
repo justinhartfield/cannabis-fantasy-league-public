@@ -1107,4 +1107,3 @@ function InviteBlock({
     </Card>
   );
 }
-

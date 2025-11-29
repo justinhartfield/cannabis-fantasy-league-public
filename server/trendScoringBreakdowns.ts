@@ -5,7 +5,7 @@
  * Replaces explicit sales metrics with relative performance indicators.
  */
 
-import { TrendScoringBreakdown } from './trendScoringEngine';
+import { TrendScoringBreakdown, getStreakTierName, calculateStreakMultiplier } from './trendScoringEngine';
 
 export type BreakdownComponent = {
   category: string;
@@ -117,7 +117,7 @@ export function buildManufacturerTrendBreakdown(
 
   // Streak bonus with progressive tier display
   if (scoring.streakBonusPoints > 0) {
-    const { getStreakTierName, calculateStreakMultiplier } = require('./trendScoringEngine');
+    // Imports moved to top level
     const tierName = getStreakTierName(streakDays);
     const multiplier = calculateStreakMultiplier(streakDays);
     bonuses.push({
@@ -251,7 +251,7 @@ export function buildStrainTrendBreakdown(
   const subtotal = components.reduce((sum, c) => sum + c.points, 0);
   let bonusesTotal = bonuses.reduce((sum, c) => sum + c.points, 0);
   const penaltiesTotal = penalties.reduce((sum, c) => sum + c.points, 0);
-  
+
   // Check for consistency bonus mismatch
   if (scoring.consistencyBonusPoints > 0 && !bonuses.find(b => b.type === 'Consistency Bonus')) {
     bonuses.push({
@@ -268,21 +268,21 @@ export function buildStrainTrendBreakdown(
   if (Math.abs(total - computedSum) > 0.5) {
     const diff = total - computedSum;
     if (diff > 0) {
-       bonuses.push({
-         type: 'Adjustment',
-         condition: 'Score reconciliation',
-         points: Math.round(diff)
-       });
+      bonuses.push({
+        type: 'Adjustment',
+        condition: 'Score reconciliation',
+        points: Math.round(diff)
+      });
     } else {
-       // For negative adjustment, we add to penalties
-       // But penalties points should be negative to subtract from sum?
-       // In this file's logic: subtotal + bonuses + penalties.
-       // If we want to reduce sum, we need negative points.
-       penalties.push({
-         type: 'Adjustment',
-         condition: 'Score reconciliation',
-         points: Math.round(diff) 
-       });
+      // For negative adjustment, we add to penalties
+      // But penalties points should be negative to subtract from sum?
+      // In this file's logic: subtotal + bonuses + penalties.
+      // If we want to reduce sum, we need negative points.
+      penalties.push({
+        type: 'Adjustment',
+        condition: 'Score reconciliation',
+        points: Math.round(diff)
+      });
     }
   }
 
@@ -377,7 +377,7 @@ export function buildProductTrendBreakdown(
   }
 
   if (scoring.streakBonusPoints > 0) {
-    const { getStreakTierName, calculateStreakMultiplier } = require('./trendScoringEngine');
+    // Imports moved to top level
     const tierName = getStreakTierName(streakDays);
     const multiplier = calculateStreakMultiplier(streakDays);
     bonuses.push({
@@ -489,7 +489,7 @@ export function buildPharmacyTrendBreakdown(
   }
 
   if (scoring.streakBonusPoints > 0) {
-    const { getStreakTierName, calculateStreakMultiplier } = require('./trendScoringEngine');
+    // Imports moved to top level
     const tierName = getStreakTierName(streakDays);
     const multiplier = calculateStreakMultiplier(streakDays);
     bonuses.push({
@@ -537,7 +537,7 @@ export function formatTrendMultiplier(multiplier: number): string {
  */
 export function formatRankChange(previousRank: number, currentRank: number): string {
   if (previousRank === 0) return `#${currentRank} (new)`;
-  
+
   const change = previousRank - currentRank;
   if (change > 0) return `#${currentRank} (↑${change})`;
   if (change < 0) return `#${currentRank} (↓${Math.abs(change)})`;

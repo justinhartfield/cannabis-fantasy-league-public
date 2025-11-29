@@ -34,6 +34,12 @@ export const ACHIEVEMENT_DEFINITIONS: Record<string, AchievementDefinition> = {
     description: "Started the season undefeated (min 3 wins).",
     iconUrl: "/badges/unstoppable.png",
   },
+  PROFILE_UPDATED: {
+    type: "PROFILE_UPDATED",
+    name: "Identity Crisis",
+    description: "Updated your profile information.",
+    iconUrl: "/badges/identity-crisis.png",
+  },
 };
 
 export async function checkAchievements(userId: number, leagueId: number) {
@@ -89,7 +95,7 @@ export async function checkAchievements(userId: number, leagueId: number) {
   }
 }
 
-async function awardAchievement(userId: number, def: AchievementDefinition) {
+export async function awardAchievement(userId: number, def: AchievementDefinition) {
   const db = await getDb();
   if (!db) return;
 
@@ -110,7 +116,7 @@ async function awardAchievement(userId: number, def: AchievementDefinition) {
     description: def.description,
     iconUrl: def.iconUrl,
   });
-  
+
   console.log(`[Achievements] Awarded ${def.name} to user ${userId}`);
 }
 

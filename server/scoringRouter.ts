@@ -1283,13 +1283,16 @@ type StatRecord = {
   veryBadCount?: number | null;
 };
 
-function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow, statRecord?: StatRecord): BreakdownDetail {
+export function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow, statRecord?: StatRecord): BreakdownDetail {
   const current = (bd.breakdown ?? null) as BreakdownDetail | Record<string, any> | null;
   const raw = (current ?? {}) as Record<string, any>;
   const totalPoints = bd.totalPoints ?? 0;
 
   // Use stat record if provided, otherwise fall back to old breakdown JSON
   const data = statRecord ?? raw;
+
+  // Calculate the base breakdown from stats
+  let result: BreakdownDetail;
 
   if (bd.assetType === 'manufacturer') {
     const orderCount = Number(data.orderCount ?? 0);
@@ -1310,16 +1313,14 @@ function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow, statRecord?: Stat
       trendMultiplier: Number(data.trendMultiplier ?? 0) || undefined,
     });
 
-    return buildManufacturerTrendBreakdown(
+    result = buildManufacturerTrendBreakdown(
       scoring,
       orderCount,
       rank,
       previousRank,
       streakDays
     ).breakdown;
-  }
-
-  if (bd.assetType === 'cannabis_strain' || bd.assetType === 'product') {
+  } else if (bd.assetType === 'cannabis_strain' || bd.assetType === 'product') {
     const orderCount = Number(data.orderCount ?? 0);
     const rank = data.rank ?? 0;
     const previousRank = data.previousRank ?? rank;
@@ -1340,16 +1341,14 @@ function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow, statRecord?: Stat
     } as TrendScoringStats);
 
     const builder = bd.assetType === 'product' ? buildProductTrendBreakdown : buildStrainTrendBreakdown;
-    return builder(
+    result = builder(
       scoring,
       orderCount,
       rank,
       previousRank,
       streakDays
     ).breakdown;
-  }
-
-  if (bd.assetType === 'pharmacy') {
+  } else if (bd.assetType === 'pharmacy') {
     const orderCount = Number(data.orderCount ?? 0);
     const rank = data.rank ?? 0;
     const previousRank = data.previousRank ?? rank;
@@ -1368,17 +1367,15 @@ function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow, statRecord?: Stat
       trendMultiplier: Number(data.trendMultiplier ?? 0) || undefined,
     } as TrendScoringStats);
 
-    return buildPharmacyTrendBreakdown(
+    result = buildPharmacyTrendBreakdown(
       scoring,
       orderCount,
       rank,
       previousRank,
       streakDays
     ).breakdown;
-  }
-
-  if (bd.assetType === 'brand') {
-    return buildBrandDailyBreakdown({
+  } else if (bd.assetType === 'brand') {
+    result = buildBrandDailyBreakdown({
       totalRatings: Number(data.totalRatings ?? 0),
       averageRating: data.averageRating?.toString() ?? '0',
       bayesianAverage: data.bayesianAverage?.toString() ?? '0',
@@ -1390,9 +1387,29 @@ function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow, statRecord?: Stat
       rank: data.rank ?? 0,
       totalPoints,
     }).breakdown;
+  } else {
+    result = createNoDataBreakdown(totalPoints);
   }
 
-  return createNoDataBreakdown(totalPoints);
+  // Preserve special bonuses (Captain Boost, Fan Buff) from the persisted breakdown
+  // These are applied at the team level, not the asset level, so they aren't recalculated by the builders above
+  if (current && Array.isArray(current.bonuses)) {
+    const specialBonuses = current.bonuses.filter((b: any) =>
+      b.type === 'captain_boost' ||
+      b.type === 'Captain Boost' ||
+      b.type === 'Fan Buff' ||
+      b.type === 'fan_buff'
+    );
+
+    if (specialBonuses.length > 0) {
+      result.bonuses.push(...specialBonuses);
+      // Add the bonus points to the total
+      const bonusPoints = specialBonuses.reduce((sum: number, b: any) => sum + (b.points || 0), 0);
+      result.total += bonusPoints;
+    }
+  }
+
+  return result;
 }
 
 function createNoDataBreakdown(totalPoints: number): BreakdownDetail {
