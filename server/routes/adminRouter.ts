@@ -6,7 +6,7 @@
 import { adminProcedure, router } from '../_core/trpc';
 import { getDataSyncServiceV2 } from '../services/dataSyncService';
 import { getDb } from '../db';
-import { syncJobs, syncLogs, cannabisStrains, brands, manufacturers, dailyTeamScores, teams, weeklyTeamScores, strains } from '../../drizzle/schema';
+import { syncJobs, syncLogs, cannabisStrains, brands, manufacturers, dailyTeamScores, teams, weeklyTeamScores, strains, pharmacies, products } from '../../drizzle/schema';
 import { eq, desc, sql, gte, and } from 'drizzle-orm';
 import { z } from 'zod';
 import { createSyncJob } from '../services/syncLogger';
@@ -648,4 +648,144 @@ export const adminRouter = router({
       };
     }
   }),
+  /**
+   * Search for entities (brands, manufacturers, etc.) to edit thumbnails
+   */
+  searchEntities: adminProcedure
+    .input(z.object({
+      type: z.enum(['brand', 'manufacturer', 'pharmacy', 'strain', 'product']),
+      query: z.string().min(2),
+    }))
+    .query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error('Database not available');
+
+      const { type, query } = input;
+      const searchPattern = `%${query}%`;
+
+      // Limit results to 20 to avoid huge payloads
+      const limit = 20;
+
+      if (type === 'brand') {
+        const results = await db
+          .select({
+            id: brands.id,
+            name: brands.name,
+            imageUrl: brands.logoUrl,
+          })
+          .from(brands)
+          .where(sql`${brands.name} ILIKE ${searchPattern}`)
+          .limit(limit);
+        return results;
+      } else if (type === 'manufacturer') {
+        const results = await db
+          .select({
+            id: manufacturers.id,
+            name: manufacturers.name,
+            imageUrl: manufacturers.logoUrl,
+          })
+          .from(manufacturers)
+          .where(sql`${manufacturers.name} ILIKE ${searchPattern}`)
+          .limit(limit);
+        return results;
+      } else if (type === 'pharmacy') {
+        const results = await db
+          .select({
+            id: pharmacies.id,
+            name: pharmacies.name,
+            imageUrl: pharmacies.logoUrl,
+          })
+          .from(pharmacies)
+          .where(sql`${pharmacies.name} ILIKE ${searchPattern}`)
+          .limit(limit);
+        return results;
+      } else if (type === 'strain') {
+        // Note: 'strain' in UI refers to 'cannabisStrains' table (the raw strains)
+        // or 'strains' table (the products)?
+        // Based on schema:
+        // cannabisStrains = "Raw Strains" (has imageUrl)
+        // strains = "Products" (has NO imageUrl in schema? Wait, let's check schema again)
+        // Checking schema.ts:
+        // cannabisStrains: imageUrl
+        // strains (products): NO imageUrl column visible in the snippet I saw?
+        // Wait, let me re-read schema.ts carefully.
+        // Line 509: export const strains = pgTable("strains", { ... })
+        // It has metabaseId, name, strainId, manufacturerId...
+        // It does NOT seem to have an imageUrl column in the snippet I saw?
+        // Let me check 'products' table.
+        // Line 353: export const products = pgTable("products", { ... })
+        // Line 363: imageUrl: varchar({ length: 500 }),
+        // Okay, so 'products' table has imageUrl.
+        // 'cannabisStrains' table has imageUrl.
+        // 'strains' table (which seems to be a different kind of product representation?)
+        // Let's assume 'strain' in the UI dropdown maps to 'cannabisStrains' table.
+        // And 'product' in the UI maps to 'products' table.
+
+        const results = await db
+          .select({
+            id: cannabisStrains.id,
+            name: cannabisStrains.name,
+            imageUrl: cannabisStrains.imageUrl,
+          })
+          .from(cannabisStrains)
+          .where(sql`${cannabisStrains.name} ILIKE ${searchPattern}`)
+          .limit(limit);
+        return results;
+      } else if (type === 'product') {
+        const results = await db
+          .select({
+            id: products.id,
+            name: products.name,
+            imageUrl: products.imageUrl,
+          })
+          .from(products)
+          .where(sql`${products.name} ILIKE ${searchPattern}`)
+          .limit(limit);
+        return results;
+      }
+
+      return [];
+    }),
+
+  /**
+   * Update thumbnail URL for an entity
+   */
+  updateEntityThumbnail: adminProcedure
+    .input(z.object({
+      type: z.enum(['brand', 'manufacturer', 'pharmacy', 'strain', 'product']),
+      id: z.number(),
+      imageUrl: z.string().nullable(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error('Database not available');
+
+      const { type, id, imageUrl } = input;
+      // Ensure empty string is treated as null
+      const urlToSave = imageUrl && imageUrl.trim().length > 0 ? imageUrl.trim() : null;
+
+      if (type === 'brand') {
+        await db.update(brands)
+          .set({ logoUrl: urlToSave })
+          .where(eq(brands.id, id));
+      } else if (type === 'manufacturer') {
+        await db.update(manufacturers)
+          .set({ logoUrl: urlToSave })
+          .where(eq(manufacturers.id, id));
+      } else if (type === 'pharmacy') {
+        await db.update(pharmacies)
+          .set({ logoUrl: urlToSave })
+          .where(eq(pharmacies.id, id));
+      } else if (type === 'strain') {
+        await db.update(cannabisStrains)
+          .set({ imageUrl: urlToSave })
+          .where(eq(cannabisStrains.id, id));
+      } else if (type === 'product') {
+        await db.update(products)
+          .set({ imageUrl: urlToSave })
+          .where(eq(products.id, id));
+      }
+
+      return { success: true };
+    }),
 });

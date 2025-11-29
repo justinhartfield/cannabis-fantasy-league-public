@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
 import { ADMIN_PASS_STORAGE_KEY, DEFAULT_ADMIN_BYPASS_PASSWORD } from "@shared/const";
-import { Database, RefreshCw, Loader2, XCircle, Eye, Calendar, BarChart3, KeyRound, Trophy } from "lucide-react";
+import { Database, RefreshCw, Loader2, XCircle, Eye, Calendar, BarChart3, KeyRound, Trophy, Image as ImageIcon, Search } from "lucide-react";
 import { toast } from "sonner";
 import { FormEvent, useEffect, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
@@ -19,6 +19,8 @@ export default function Admin() {
   const [positionWindow, setPositionWindow] = useState<7 | 30>(7);
   const [adminPassword, setAdminPassword] = useState("");
   const [hasAdminOverride, setHasAdminOverride] = useState(false);
+  const [thumbnailType, setThumbnailType] = useState<'brand' | 'manufacturer' | 'pharmacy' | 'strain' | 'product'>('brand');
+  const [thumbnailQuery, setThumbnailQuery] = useState("");
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -210,6 +212,21 @@ export default function Admin() {
     onError: (error) => {
       toast.error(`Failed to reset Hall of Fame scores: ${error.message}`);
     },
+  });
+
+  const { data: searchResults, refetch: refetchEntities } = trpc.admin.searchEntities.useQuery(
+    { type: thumbnailType, query: thumbnailQuery },
+    { enabled: thumbnailQuery.length >= 2 }
+  );
+
+  const updateThumbnail = trpc.admin.updateEntityThumbnail.useMutation({
+    onSuccess: () => {
+      toast.success("Thumbnail updated successfully");
+      refetchEntities();
+    },
+    onError: (err) => {
+      toast.error(`Failed to update thumbnail: ${err.message}`);
+    }
   });
 
   const handleResetHallOfFame = () => {
@@ -780,6 +797,122 @@ export default function Admin() {
                   )}
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Position Thumbnails */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ImageIcon className="w-5 h-5" />
+                Position Thumbnails
+              </CardTitle>
+              <CardDescription>
+                Edit thumbnails for Brands, Manufacturers, Pharmacies, Strains, and Products.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="w-full sm:w-48">
+                  <Label htmlFor="thumbnail-type">Type</Label>
+                  <select
+                    id="thumbnail-type"
+                    className="w-full mt-1.5 border border-border rounded-md bg-background px-3 py-2 text-sm"
+                    value={thumbnailType}
+                    onChange={(e) => {
+                      setThumbnailType(e.target.value as any);
+                      setThumbnailQuery("");
+                    }}
+                  >
+                    <option value="brand">Brand</option>
+                    <option value="manufacturer">Manufacturer</option>
+                    <option value="pharmacy">Pharmacy</option>
+                    <option value="strain">Cannabis Strain</option>
+                    <option value="product">Product</option>
+                  </select>
+                </div>
+                <div className="flex-1">
+                  <Label htmlFor="thumbnail-search">Search</Label>
+                  <div className="relative mt-1.5">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="thumbnail-search"
+                      placeholder="Search by name..."
+                      className="pl-9"
+                      value={thumbnailQuery}
+                      onChange={(e) => setThumbnailQuery(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {thumbnailQuery.length >= 2 && (
+                <div className="space-y-4">
+                  <div className="text-sm text-muted-foreground">
+                    Found {searchResults?.length || 0} results
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {searchResults?.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex flex-col gap-3 p-4 rounded-lg border border-border bg-card/50"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-md bg-background border border-border flex items-center justify-center overflow-hidden shrink-0">
+                            {item.imageUrl ? (
+                              <img
+                                src={item.imageUrl}
+                                alt={item.name}
+                                className="w-full h-full object-contain"
+                              />
+                            ) : (
+                              <ImageIcon className="w-6 h-6 text-muted-foreground/30" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-medium truncate" title={item.name}>
+                              {item.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground">ID: {item.id}</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Image URL"
+                            defaultValue={item.imageUrl || ""}
+                            className="text-xs h-8"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                updateThumbnail.mutate({
+                                  type: thumbnailType,
+                                  id: item.id,
+                                  imageUrl: e.currentTarget.value,
+                                });
+                              }
+                            }}
+                          />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 px-2"
+                            onClick={(e) => {
+                              const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                              updateThumbnail.mutate({
+                                type: thumbnailType,
+                                id: item.id,
+                                imageUrl: input.value,
+                              });
+                            }}
+                            disabled={updateThumbnail.isPending}
+                          >
+                            Save
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
