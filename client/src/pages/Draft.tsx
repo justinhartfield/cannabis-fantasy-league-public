@@ -570,7 +570,7 @@ export default function Draft() {
     },
   });
 
-  const { data: weeklyLineup } = trpc.lineup.getWeeklyLineup.useQuery(
+  const { data: weeklyLineup, refetch: refetchLineup } = trpc.lineup.getWeeklyLineup.useQuery(
     {
       teamId: myTeam?.id ?? 0,
       year: league?.seasonYear ?? 0,
@@ -580,13 +580,13 @@ export default function Draft() {
   );
 
   const { data: favorites, refetch: refetchFavorites } = trpc.favorite.getFavorites.useQuery(
-    undefined,
+    { entityType: 'brand' },
     { enabled: isAuthenticated && isChallengeLeague }
   );
 
   const favoritedBrandIds = useMemo(() => {
     if (!favorites) return new Set<number>();
-    return new Set(favorites.filter(f => f.entityType === 'brand').map(f => f.entityId));
+    return new Set(favorites);
   }, [favorites]);
 
   const handleToggleFavorite = (brandId: number) => {
