@@ -17,6 +17,8 @@ import {
   pharmacyDailyChallengeStats,
   brandDailyChallengeStats,
 } from '../../drizzle/dailyChallengeSchema';
+import { bunnyStoragePut } from '../bunnyStorage';
+import { TRPCError } from '@trpc/server';
 
 export const adminRouter = router({
   /**
@@ -787,5 +789,78 @@ export const adminRouter = router({
       }
 
       return { success: true };
+    }),
+
+  /**
+   * Upload Entity Thumbnail
+   * Uploads an image to Bunny.net and updates the entity's thumbnail URL
+   */
+  uploadEntityThumbnail: adminProcedure
+    .input(z.object({
+      type: z.enum(['brand', 'manufacturer', 'pharmacy', 'strain', 'product']),
+      id: z.number(),
+      fileName: z.string(),
+      fileData: z.string(), // Base64 encoded
+      contentType: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error('Database not available');
+
+      const { type, id, fileName, fileData, contentType } = input;
+
+      try {
+        // Validate file type
+        const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+        if (!allowedTypes.includes(contentType)) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.",
+          });
+        }
+
+        // Decode base64
+        const buffer = Buffer.from(fileData, "base64");
+
+        // Validate size (5MB)
+        const maxSize = 5 * 1024 * 1024;
+        if (buffer.length > maxSize) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "File size exceeds 5MB limit.",
+          });
+        }
+
+        // Generate path: thumbnails/{type}/{id}/{timestamp}-{filename}
+        const timestamp = Date.now();
+        // Sanitize filename
+        const safeFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, "_");
+        const storageKey = `thumbnails/${type}/${id}/${timestamp}-${safeFileName}`;
+
+        // Upload to Bunny
+        const url = await bunnyStoragePut(storageKey, buffer, contentType);
+
+        // Update DB
+        if (type === 'brand') {
+          await db.update(brands).set({ logoUrl: url }).where(eq(brands.id, id));
+        } else if (type === 'manufacturer') {
+          await db.update(manufacturers).set({ logoUrl: url }).where(eq(manufacturers.id, id));
+        } else if (type === 'pharmacy') {
+          await db.update(pharmacies).set({ logoUrl: url }).where(eq(pharmacies.id, id));
+        } else if (type === 'strain') {
+          await db.update(cannabisStrains).set({ imageUrl: url }).where(eq(cannabisStrains.id, id));
+        } else if (type === 'product') {
+          await db.update(products).set({ imageUrl: url }).where(eq(products.id, id));
+        }
+
+        return { success: true, imageUrl: url };
+      } catch (error) {
+        console.error('[Admin] Upload failed:', error);
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to upload thumbnail",
+        });
+      }
     }),
 });

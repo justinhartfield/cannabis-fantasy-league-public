@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { Helmet } from 'react-helmet-async';
 
 interface SEOProps {
   title?: string;
@@ -8,6 +8,7 @@ interface SEOProps {
   type?: "website" | "article" | "profile";
   siteName?: string;
   twitterCard?: "summary" | "summary_large_image";
+  structuredData?: object;
 }
 
 const DEFAULT_TITLE = "Cannabis Fantasy League - The Official Metagame";
@@ -15,36 +16,48 @@ const DEFAULT_DESCRIPTION = "Draft your team of manufacturers, strains, and phar
 const DEFAULT_IMAGE = "/og-image.png";
 const SITE_NAME = "Cannabis Fantasy League";
 
-export function SEO({ title, description = DEFAULT_DESCRIPTION, image = DEFAULT_IMAGE, url = typeof window !== "undefined" ? window.location.href : "", type = "website", siteName = SITE_NAME, twitterCard = "summary_large_image" }: SEOProps) {
+export function SEO({
+  title,
+  description = DEFAULT_DESCRIPTION,
+  image = DEFAULT_IMAGE,
+  url = typeof window !== "undefined" ? window.location.href : "",
+  type = "website",
+  siteName = SITE_NAME,
+  twitterCard = "summary_large_image",
+  structuredData
+}: SEOProps) {
   const fullTitle = title ? `${title} | ${SITE_NAME}` : DEFAULT_TITLE;
+  const fullImage = image.startsWith("http") ? image : `${typeof window !== "undefined" ? window.location.origin : ""}${image}`;
 
-  useEffect(() => {
-    document.title = fullTitle;
-    const setMetaTag = (property: string, content: string, isName = false) => {
-      const attribute = isName ? "name" : "property";
-      let element = document.querySelector(`meta[${attribute}="${property}"]`);
-      if (!element) {
-        element = document.createElement("meta");
-        element.setAttribute(attribute, property);
-        document.head.appendChild(element);
-      }
-      element.setAttribute("content", content);
-    };
-    setMetaTag("description", description, true);
-    setMetaTag("og:title", fullTitle);
-    setMetaTag("og:description", description);
-    setMetaTag("og:image", image.startsWith("http") ? image : `${window.location.origin}${image}`);
-    setMetaTag("og:url", url);
-    setMetaTag("og:type", type);
-    setMetaTag("og:site_name", siteName);
-    setMetaTag("twitter:card", twitterCard, true);
-    setMetaTag("twitter:title", fullTitle, true);
-    setMetaTag("twitter:description", description, true);
-    setMetaTag("twitter:image", image.startsWith("http") ? image : `${window.location.origin}${image}`, true);
-    return () => { document.title = DEFAULT_TITLE; };
-  }, [fullTitle, description, image, url, type, siteName, twitterCard]);
+  return (
+    <Helmet>
+      {/* Basic Meta Tags */}
+      <title>{fullTitle}</title>
+      <meta name="description" content={description} />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  return null;
+      {/* Open Graph / Facebook */}
+      <meta property="og:type" content={type} />
+      <meta property="og:title" content={fullTitle} />
+      <meta property="og:description" content={description} />
+      <meta property="og:image" content={fullImage} />
+      <meta property="og:url" content={url} />
+      <meta property="og:site_name" content={siteName} />
+
+      {/* Twitter */}
+      <meta name="twitter:card" content={twitterCard} />
+      <meta name="twitter:title" content={fullTitle} />
+      <meta name="twitter:description" content={description} />
+      <meta name="twitter:image" content={fullImage} />
+
+      {/* Structured Data */}
+      {structuredData && (
+        <script type="application/ld+json">
+          {JSON.stringify(structuredData)}
+        </script>
+      )}
+    </Helmet>
+  );
 }
 
 export function RankingsSEO({ category }: { category?: string }) {
@@ -63,4 +76,3 @@ export function EntitySEO({ name, type, rank, score, imageUrl }: { name: string;
 export function DisplayModeSEO() {
   return <SEO title="Live Leaderboard Display" description="Real-time cannabis market rankings display for events and venues." />;
 }
-

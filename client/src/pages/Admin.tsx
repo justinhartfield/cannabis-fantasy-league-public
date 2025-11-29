@@ -5,12 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
 import { ADMIN_PASS_STORAGE_KEY, DEFAULT_ADMIN_BYPASS_PASSWORD } from "@shared/const";
-import { Database, RefreshCw, Loader2, XCircle, Eye, Calendar, BarChart3, KeyRound, Trophy, Image as ImageIcon, Search } from "lucide-react";
+import { Database, RefreshCw, Loader2, XCircle, Eye, Calendar, BarChart3, KeyRound, Trophy, Image as ImageIcon, Search, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { FormEvent, useEffect, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 
 export default function Admin() {
+  const utils = trpc.useUtils();
   const { user, loading: authLoading, isAuthenticated } = useAuth();
   const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
   const [weekYear, setWeekYear] = useState<number>(2025);
@@ -219,7 +220,7 @@ export default function Admin() {
     { enabled: thumbnailQuery.length >= 2 }
   );
 
-  const updateThumbnail = trpc.admin.updateEntityThumbnail.useMutation({
+  const uploadThumbnailMutation = trpc.admin.uploadEntityThumbnail.useMutation({
     onSuccess: () => {
       toast.success("Thumbnail updated successfully");
       refetchEntities();
@@ -848,68 +849,98 @@ export default function Admin() {
 
               {thumbnailQuery.length >= 2 && (
                 <div className="space-y-4">
-                  <div className="text-sm text-muted-foreground">
-                    Found {searchResults?.length || 0} results
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {searchResults?.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex flex-col gap-3 p-4 rounded-lg border border-border bg-card/50"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-md bg-background border border-border flex items-center justify-center overflow-hidden shrink-0">
-                            {item.imageUrl ? (
-                              <img
-                                src={item.imageUrl}
-                                alt={item.name}
-                                className="w-full h-full object-contain"
-                              />
-                            ) : (
-                              <ImageIcon className="w-6 h-6 text-muted-foreground/30" />
-                            )}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-medium truncate" title={item.name}>
-                              {item.name}
-                            </p>
-                            <p className="text-xs text-muted-foreground">ID: {item.id}</p>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Input
-                            placeholder="Image URL"
-                            defaultValue={item.imageUrl || ""}
-                            className="text-xs h-8"
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                updateThumbnail.mutate({
-                                  type: thumbnailType,
-                                  id: item.id,
-                                  imageUrl: e.currentTarget.value,
-                                });
-                              }
-                            }}
-                          />
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-8 px-2"
-                            onClick={(e) => {
-                              const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-                              updateThumbnail.mutate({
-                                type: thumbnailType,
-                                id: item.id,
-                                imageUrl: input.value,
-                              });
-                            }}
-                            disabled={updateThumbnail.isPending}
-                          >
-                            Save
-                          </Button>
-                        </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {searchResults?.length === 0 ? (
+                      <div className="col-span-full text-center py-8 text-muted-foreground">
+                        No results found.
                       </div>
-                    ))}
+                    ) : (
+                      searchResults?.map((entity) => (
+                        <div key={entity.id} className="border border-border rounded-lg p-4 bg-card/50">
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="w-10 h-10 rounded-md bg-background border border-border flex items-center justify-center overflow-hidden shrink-0">
+                              {entity.imageUrl ? (
+                                <img src={entity.imageUrl} alt={entity.name} className="w-full h-full object-contain" />
+                              ) : (
+                                <ImageIcon className="w-5 h-5 text-muted-foreground/50" />
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-medium truncate" title={entity.name}>{entity.name}</div>
+                              <div className="text-xs text-muted-foreground">ID: {entity.id}</div>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="Image URL"
+                              className="flex-1 h-8 text-xs"
+                              defaultValue={entity.imageUrl || ""}
+                              id={`url-${entity.id}`}
+                              readOnly
+                            />
+                            <input
+                              type="file"
+                              id={`file-${entity.id}`}
+                              className="hidden"
+                              accept="image/jpeg,image/png,image/gif,image/webp"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+
+                                // Check size (5MB)
+                                if (file.size > 5 * 1024 * 1024) {
+                                  toast.error("File size must be less than 5MB");
+                                  return;
+                                }
+
+                                const reader = new FileReader();
+                                reader.onload = async (event) => {
+                                  const base64String = event.target?.result as string;
+                                  // Remove data URL prefix
+                                  const base64Data = base64String.split(',')[1];
+
+                                  try {
+                                    toast.loading("Uploading...");
+                                    const result = await uploadThumbnailMutation.mutateAsync({
+                                      type: thumbnailType,
+                                      id: entity.id,
+                                      fileName: file.name,
+                                      fileData: base64Data,
+                                      contentType: file.type,
+                                    });
+
+                                    // Update the input field
+                                    const inputEl = document.getElementById(`url-${entity.id}`) as HTMLInputElement;
+                                    if (inputEl) inputEl.value = result.imageUrl;
+
+                                    toast.dismiss();
+                                    toast.success("Thumbnail uploaded!");
+                                    refetchEntities();
+                                  } catch (error) {
+                                    toast.dismiss();
+                                    toast.error("Upload failed");
+                                    console.error(error);
+                                  }
+                                };
+                                reader.readAsDataURL(file);
+                                // Reset input
+                                e.target.value = '';
+                              }}
+                            />
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              className="h-8 w-8 shrink-0"
+                              title="Upload Image"
+                              onClick={() => document.getElementById(`file-${entity.id}`)?.click()}
+                              disabled={uploadThumbnailMutation.isPending}
+                            >
+                              <Upload className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               )}
@@ -917,7 +948,7 @@ export default function Admin() {
           </Card>
 
           {/* Recent Sync Jobs */}
-          <Card>
+          < Card >
             <CardHeader>
               <div className="flex justify-between items-center">
                 <div>
@@ -984,51 +1015,53 @@ export default function Admin() {
                 </table>
               </div>
             </CardContent>
-          </Card>
-        </div>
-      </main>
+          </Card >
+        </div >
+      </main >
 
       {/* Log Viewer Modal */}
-      {selectedJobId && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-4xl max-h-[80vh] overflow-hidden">
-            <CardHeader className="border-b">
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle>Job Logs</CardTitle>
-                  <CardDescription>Job ID: {selectedJobId}</CardDescription>
+      {
+        selectedJobId && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <Card className="w-full max-w-4xl max-h-[80vh] overflow-hidden">
+              <CardHeader className="border-b">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle>Job Logs</CardTitle>
+                    <CardDescription>Job ID: {selectedJobId}</CardDescription>
+                  </div>
+                  <Button
+                    onClick={() => setSelectedJobId(null)}
+                    variant="ghost"
+                    size="sm"
+                  >
+                    ✕
+                  </Button>
                 </div>
-                <Button
-                  onClick={() => setSelectedJobId(null)}
-                  variant="ghost"
-                  size="sm"
-                >
-                  ✕
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="p-6 overflow-y-auto max-h-[60vh]">
-              {logs && logs.length > 0 ? (
-                <div className="space-y-2 font-mono text-sm">
-                  {logs.map((log) => (
-                    <div key={log.id} className="flex gap-4 items-start">
-                      <span className="text-muted-foreground whitespace-nowrap text-xs">
-                        {new Date(log.timestamp).toLocaleTimeString()}
-                      </span>
-                      <span className={`font-semibold uppercase text-xs ${getLevelColor(log.level)}`}>
-                        [{log.level}]
-                      </span>
-                      <span className="flex-1 text-xs">{log.message}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-center text-muted-foreground py-8">No logs available</p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
-    </div>
+              </CardHeader>
+              <CardContent className="p-6 overflow-y-auto max-h-[60vh]">
+                {logs && logs.length > 0 ? (
+                  <div className="space-y-2 font-mono text-sm">
+                    {logs.map((log) => (
+                      <div key={log.id} className="flex gap-4 items-start">
+                        <span className="text-muted-foreground whitespace-nowrap text-xs">
+                          {new Date(log.timestamp).toLocaleTimeString()}
+                        </span>
+                        <span className={`font-semibold uppercase text-xs ${getLevelColor(log.level)}`}>
+                          [{log.level}]
+                        </span>
+                        <span className="flex-1 text-xs">{log.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">No logs available</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )
+      }
+    </div >
   );
 }

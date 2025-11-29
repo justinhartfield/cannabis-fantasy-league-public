@@ -38,6 +38,7 @@ import DisplayMode from "./pages/DisplayMode";
 import { useEffect } from "react";
 import { AppLayout } from "./components/AppLayout";
 import DashboardLayout from "./components/DashboardLayout";
+import { HelmetProvider } from 'react-helmet-async';
 
 
 function AuthedRoutes() {
@@ -128,10 +129,12 @@ export default function App() {
   }, []);
   return (
     <ErrorBoundary>
-      <TooltipProvider>
-        <Router />
-        <Toaster />
-      </TooltipProvider>
+      <HelmetProvider>
+        <TooltipProvider>
+          <Router />
+          <Toaster />
+        </TooltipProvider>
+      </HelmetProvider>
     </ErrorBoundary>
   );
 }

@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Trophy, TrendingUp, Users, Medal, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EntityHistoryModal } from "@/components/EntityHistoryModal";
+import { SEO } from "@/components/SEO";
 
 // Entity Types
 type EntityType = 'all' | 'manufacturer' | 'pharmacy' | 'brand' | 'product' | 'strain';
@@ -262,8 +263,25 @@ const Leaderboard = () => {
 
   const cardBase = "rounded-[28px] border border-white/10 bg-white/5 shadow-inner";
 
+  const getPageTitle = () => {
+    switch (activeTab) {
+      case "daily":
+        return `Daily Leaderboard - ${new Date(selectedDate).toLocaleDateString()}`;
+      case "weekly":
+        return "Weekly Leaderboard";
+      case "hof":
+        return "Hall of Fame";
+      default:
+        return "Leaderboard";
+    }
+  };
+
   return (
     <div className="space-y-8 pb-12">
+      <SEO
+        title={getPageTitle()}
+        description="Check out the top performing manufacturers, pharmacies, brands, and strains in the Cannabis Fantasy League."
+      />
       <section className={cn(cardBase, "p-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between")}>
         <div>
           <p className="text-xs uppercase tracking-[0.4em] text-white/50">Ranks</p>
