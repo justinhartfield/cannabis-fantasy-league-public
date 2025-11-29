@@ -429,7 +429,8 @@ export default function ScoringBreakdownV2({
                 };
 
                 const position = getPositionForType(data.assetType);
-                const isCaptain = data.bonuses?.some(b => b.type === 'captain_boost');
+                // Check for both legacy snake_case and new Title Case bonus types
+                const isCaptain = data.bonuses?.some(b => b.type === 'captain_boost' || b.type === 'Captain Boost');
 
                 return (
                   <DraftFieldPlayer
