@@ -10,8 +10,8 @@ export const achievements = pgTable("achievements", {
 	iconUrl: varchar({ length: 500 }),
 	earnedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-]);
+	(table) => [
+	]);
 
 export const brands = pgTable("brands", {
 	id: serial().primaryKey(),
@@ -27,10 +27,10 @@ export const brands = pgTable("brands", {
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-	index("brands_name_idx").on(table.name),
-	unique("brands_name_unique").on(table.name),
-]);
+	(table) => [
+		index("brands_name_idx").on(table.name),
+		unique("brands_name_unique").on(table.name),
+	]);
 
 export const brandWeeklyStats = pgTable("brandWeeklyStats", {
 	id: serial().primaryKey(),
@@ -50,10 +50,10 @@ export const brandWeeklyStats = pgTable("brandWeeklyStats", {
 	totalPoints: integer().default(0).notNull(),
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-	index("brand_week_idx").on(table.year, table.week),
-	unique("brand_week_unique").on(table.brandId, table.year, table.week),
-]);
+	(table) => [
+		index("brand_week_idx").on(table.year, table.week),
+		unique("brand_week_unique").on(table.brandId, table.year, table.week),
+	]);
 
 export const brandDailyStats = pgTable("brandDailyStats", {
 	id: serial().primaryKey(),
@@ -73,10 +73,10 @@ export const brandDailyStats = pgTable("brandDailyStats", {
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-	index("brand_daily_date_idx").on(table.statDate),
-	unique("brand_daily_unique").on(table.brandId, table.statDate),
-]);
+	(table) => [
+		index("brand_daily_date_idx").on(table.statDate),
+		unique("brand_daily_unique").on(table.brandId, table.statDate),
+	]);
 
 export const cannabisStrainWeeklyStats = pgTable("cannabisStrainWeeklyStats", {
 	id: serial().primaryKey(),
@@ -92,10 +92,10 @@ export const cannabisStrainWeeklyStats = pgTable("cannabisStrainWeeklyStats", {
 	totalPoints: integer().default(0).notNull(),
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-	index("cannabis_strain_week_idx").on(table.year, table.week),
-	unique("cannabis_strain_week_unique").on(table.cannabisStrainId, table.year, table.week),
-]);
+	(table) => [
+		index("cannabis_strain_week_idx").on(table.year, table.week),
+		unique("cannabis_strain_week_unique").on(table.cannabisStrainId, table.year, table.week),
+	]);
 
 export const cannabisStrainDailyStats = pgTable("cannabisStrainDailyStats", {
 	id: serial().primaryKey(),
@@ -111,10 +111,10 @@ export const cannabisStrainDailyStats = pgTable("cannabisStrainDailyStats", {
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-	index("cannabis_strain_daily_date_idx").on(table.statDate),
-	unique("cannabis_strain_daily_unique").on(table.cannabisStrainId, table.statDate),
-]);
+	(table) => [
+		index("cannabis_strain_daily_date_idx").on(table.statDate),
+		unique("cannabis_strain_daily_unique").on(table.cannabisStrainId, table.statDate),
+	]);
 
 export const cannabisStrains = pgTable("cannabisStrains", {
 	id: serial().primaryKey(),
@@ -135,12 +135,12 @@ export const cannabisStrains = pgTable("cannabisStrains", {
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-	index("cannabis_strains_name_idx").on(table.name),
-	index("cannabis_strains_slug_idx").on(table.slug),
-	unique("cannabisStrains_metabaseId_unique").on(table.metabaseId),
-	unique("cannabisStrains_slug_unique").on(table.slug),
-]);
+	(table) => [
+		index("cannabis_strains_name_idx").on(table.name),
+		index("cannabis_strains_slug_idx").on(table.slug),
+		unique("cannabisStrains_metabaseId_unique").on(table.metabaseId),
+		unique("cannabisStrains_slug_unique").on(table.slug),
+	]);
 
 export const challengeParticipants = pgTable("challengeParticipants", {
 	id: serial().primaryKey(),
@@ -151,9 +151,9 @@ export const challengeParticipants = pgTable("challengeParticipants", {
 	finalRank: integer(),
 	joinedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-	unique("challenge_user_idx").on(table.challengeId, table.userId),
-]);
+	(table) => [
+		unique("challenge_user_idx").on(table.challengeId, table.userId),
+	]);
 
 export const challengeRosters = pgTable("challengeRosters", {
 	id: serial().primaryKey(),
@@ -166,9 +166,9 @@ export const challengeRosters = pgTable("challengeRosters", {
 	points: integer().default(0).notNull(),
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-	unique("challenge_user_asset_idx").on(table.challengeId, table.userId, table.assetType, table.assetId),
-]);
+	(table) => [
+		unique("challenge_user_asset_idx").on(table.challengeId, table.userId, table.assetType, table.assetId),
+	]);
 
 export const challenges = pgTable("challenges", {
 	id: serial().primaryKey(),
@@ -183,8 +183,8 @@ export const challenges = pgTable("challenges", {
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-]);
+	(table) => [
+	]);
 
 export const draftPicks = pgTable("draftPicks", {
 	id: serial().primaryKey(),
@@ -196,9 +196,9 @@ export const draftPicks = pgTable("draftPicks", {
 	assetId: integer().notNull(),
 	pickTime: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-	unique("league_pick_idx").on(table.leagueId, table.pickNumber),
-]);
+	(table) => [
+		unique("league_pick_idx").on(table.leagueId, table.pickNumber),
+	]);
 
 export const leagueMessages = pgTable("leagueMessages", {
 	id: serial().primaryKey(),
@@ -207,9 +207,9 @@ export const leagueMessages = pgTable("leagueMessages", {
 	message: text().notNull(),
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-	index("league_time_idx").on(table.leagueId, table.createdAt),
-]);
+	(table) => [
+		index("league_time_idx").on(table.leagueId, table.createdAt),
+	]);
 
 export const leagues = pgTable("leagues", {
 	id: serial().primaryKey(),
@@ -236,9 +236,9 @@ export const leagues = pgTable("leagues", {
 	currentDraftRound: integer().default(1),
 	draftPickTimeLimit: integer().default(120),
 },
-(table) => [
-	unique("leagues_leagueCode_unique").on(table.leagueCode),
-]);
+	(table) => [
+		unique("leagues_leagueCode_unique").on(table.leagueCode),
+	]);
 
 export const manufacturerWeeklyStats = pgTable("manufacturerWeeklyStats", {
 	id: serial().primaryKey(),
@@ -253,10 +253,10 @@ export const manufacturerWeeklyStats = pgTable("manufacturerWeeklyStats", {
 	totalPoints: integer().default(0).notNull(),
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-	index("manufacturer_week_idx").on(table.year, table.week),
-	unique("manufacturer_week_unique").on(table.manufacturerId, table.year, table.week),
-]);
+	(table) => [
+		index("manufacturer_week_idx").on(table.year, table.week),
+		unique("manufacturer_week_unique").on(table.manufacturerId, table.year, table.week),
+	]);
 
 export const manufacturerDailyStats = pgTable("manufacturerDailyStats", {
 	id: serial().primaryKey(),
@@ -271,10 +271,10 @@ export const manufacturerDailyStats = pgTable("manufacturerDailyStats", {
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-	index("manufacturer_daily_date_idx").on(table.statDate),
-	unique("manufacturer_daily_unique").on(table.manufacturerId, table.statDate),
-]);
+	(table) => [
+		index("manufacturer_daily_date_idx").on(table.statDate),
+		unique("manufacturer_daily_unique").on(table.manufacturerId, table.statDate),
+	]);
 
 export const manufacturers = pgTable("manufacturers", {
 	id: serial().primaryKey(),
@@ -288,10 +288,10 @@ export const manufacturers = pgTable("manufacturers", {
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-	index("manufacturers_name_idx").on(table.name),
-	unique("manufacturers_name_unique").on(table.name),
-]);
+	(table) => [
+		index("manufacturers_name_idx").on(table.name),
+		unique("manufacturers_name_unique").on(table.name),
+	]);
 
 export const matchups = pgTable("matchups", {
 	id: serial().primaryKey(),
@@ -307,9 +307,9 @@ export const matchups = pgTable("matchups", {
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-	index("league_week_idx").on(table.leagueId, table.year, table.week),
-]);
+	(table) => [
+		index("league_week_idx").on(table.leagueId, table.year, table.week),
+	]);
 
 export const pharmacies = pgTable("pharmacies", {
 	id: serial().primaryKey(),
@@ -326,9 +326,9 @@ export const pharmacies = pgTable("pharmacies", {
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-	index("pharmacies_name_idx").on(table.name),
-	unique("pharmacies_name_unique").on(table.name),
+	(table) => [
+		index("pharmacies_name_idx").on(table.name),
+		unique("pharmacies_name_unique").on(table.name),
 	]);
 
 export const products = pgTable("products", {
@@ -346,10 +346,10 @@ export const products = pgTable("products", {
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-	index("products_name_idx").on(table.name),
-	unique("products_name_unique").on(table.name),
-]);
+	(table) => [
+		index("products_name_idx").on(table.name),
+		unique("products_name_unique").on(table.name),
+	]);
 
 export const productDailyStats = pgTable("productDailyStats", {
 	id: serial().primaryKey(),
@@ -362,10 +362,10 @@ export const productDailyStats = pgTable("productDailyStats", {
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-	index("product_daily_date_idx").on(table.statDate),
-	unique("product_daily_unique").on(table.productId, table.statDate),
-]);
+	(table) => [
+		index("product_daily_date_idx").on(table.statDate),
+		unique("product_daily_unique").on(table.productId, table.statDate),
+	]);
 
 export const pharmacyWeeklyStats = pgTable("pharmacyWeeklyStats", {
 	id: serial().primaryKey(),
@@ -382,10 +382,10 @@ export const pharmacyWeeklyStats = pgTable("pharmacyWeeklyStats", {
 	totalPoints: integer().default(0).notNull(),
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-	index("pharmacy_week_idx").on(table.year, table.week),
-	unique("pharmacy_week_unique").on(table.pharmacyId, table.year, table.week),
-]);
+	(table) => [
+		index("pharmacy_week_idx").on(table.year, table.week),
+		unique("pharmacy_week_unique").on(table.pharmacyId, table.year, table.week),
+	]);
 
 export const pharmacyDailyStats = pgTable("pharmacyDailyStats", {
 	id: serial().primaryKey(),
@@ -402,10 +402,10 @@ export const pharmacyDailyStats = pgTable("pharmacyDailyStats", {
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-	index("pharmacy_daily_date_idx").on(table.statDate),
-	unique("pharmacy_daily_unique").on(table.pharmacyId, table.statDate),
-]);
+	(table) => [
+		index("pharmacy_daily_date_idx").on(table.statDate),
+		unique("pharmacy_daily_unique").on(table.pharmacyId, table.statDate),
+	]);
 
 export const rosters = pgTable("rosters", {
 	id: serial().primaryKey(),
@@ -416,9 +416,9 @@ export const rosters = pgTable("rosters", {
 	acquiredVia: varchar({ length: 50 }).notNull(),
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-	unique("team_asset_idx").on(table.teamId, table.assetType, table.assetId),
-]);
+	(table) => [
+		unique("team_asset_idx").on(table.teamId, table.assetType, table.assetId),
+	]);
 
 export const scoringBreakdowns = pgTable("scoringBreakdowns", {
 	id: serial().primaryKey(),
@@ -430,8 +430,8 @@ export const scoringBreakdowns = pgTable("scoringBreakdowns", {
 	totalPoints: integer().notNull(),
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-]);
+	(table) => [
+	]);
 
 export const dailyScoringBreakdowns = pgTable("dailyScoringBreakdowns", {
 	id: serial().primaryKey(),
@@ -444,8 +444,8 @@ export const dailyScoringBreakdowns = pgTable("dailyScoringBreakdowns", {
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-]);
+	(table) => [
+	]);
 
 export const strainWeeklyStats = pgTable("strainWeeklyStats", {
 	id: serial().primaryKey(),
@@ -462,10 +462,10 @@ export const strainWeeklyStats = pgTable("strainWeeklyStats", {
 	totalPoints: integer().default(0).notNull(),
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-	index("strain_week_idx").on(table.year, table.week),
-	unique("strain_week_unique").on(table.strainId, table.year, table.week),
-]);
+	(table) => [
+		index("strain_week_idx").on(table.year, table.week),
+		unique("strain_week_unique").on(table.strainId, table.year, table.week),
+	]);
 
 export const strainDailyStats = pgTable("strainDailyStats", {
 	id: serial().primaryKey(),
@@ -482,10 +482,10 @@ export const strainDailyStats = pgTable("strainDailyStats", {
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-	index("strain_daily_date_idx").on(table.statDate),
-	unique("strain_daily_unique").on(table.strainId, table.statDate),
-]);
+	(table) => [
+		index("strain_daily_date_idx").on(table.statDate),
+		unique("strain_daily_unique").on(table.strainId, table.statDate),
+	]);
 
 export const strains = pgTable("strains", {
 	id: serial().primaryKey(),
@@ -507,11 +507,11 @@ export const strains = pgTable("strains", {
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-	index("strains_name_idx").on(table.name),
-	index("strains_manufacturer_idx").on(table.manufacturerId),
-	unique("strains_metabaseId_unique").on(table.metabaseId),
-]);
+	(table) => [
+		index("strains_name_idx").on(table.name),
+		index("strains_manufacturer_idx").on(table.manufacturerId),
+		unique("strains_metabaseId_unique").on(table.metabaseId),
+	]);
 
 export const teams = pgTable("teams", {
 	id: serial().primaryKey(),
@@ -532,9 +532,9 @@ export const teams = pgTable("teams", {
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-	unique("league_user_idx").on(table.leagueId, table.userId),
-]);
+	(table) => [
+		unique("league_user_idx").on(table.leagueId, table.userId),
+	]);
 
 export const invitations = pgTable("invitations", {
 	id: serial().primaryKey(),
@@ -547,12 +547,12 @@ export const invitations = pgTable("invitations", {
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	acceptedAt: timestamp({ mode: 'string', withTimezone: true }),
 },
-(table) => [
-	index("invitations_token_idx").on(table.token),
-	index("invitations_league_idx").on(table.leagueId),
-	index("invitations_email_idx").on(table.email),
-	unique("invitations_token_unique").on(table.token),
-]);
+	(table) => [
+		index("invitations_token_idx").on(table.token),
+		index("invitations_league_idx").on(table.leagueId),
+		index("invitations_email_idx").on(table.email),
+		unique("invitations_token_unique").on(table.token),
+	]);
 
 export const trades = pgTable("trades", {
 	id: serial().primaryKey(),
@@ -567,8 +567,8 @@ export const trades = pgTable("trades", {
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-]);
+	(table) => [
+	]);
 
 export const users = pgTable("users", {
 	id: serial().primaryKey(),
@@ -588,11 +588,11 @@ export const users = pgTable("users", {
 	lastSignedIn: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	avatarUrl: varchar({ length: 500 }),
 },
-(table) => [
-	unique("users_openId_unique").on(table.openId),
-	unique("users_referralCode_unique").on(table.referralCode),
-	index("users_referredBy_idx").on(table.referredByUserId),
-]);
+	(table) => [
+		unique("users_openId_unique").on(table.openId),
+		unique("users_referralCode_unique").on(table.referralCode),
+		index("users_referredBy_idx").on(table.referredByUserId),
+	]);
 
 export const waiverClaims = pgTable("waiverClaims", {
 	id: serial().primaryKey(),
@@ -610,8 +610,8 @@ export const waiverClaims = pgTable("waiverClaims", {
 	processedAt: timestamp({ mode: 'string', withTimezone: true }),
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-]);
+	(table) => [
+	]);
 
 export const weeklyLineups = pgTable("weeklyLineups", {
 	id: serial().primaryKey(),
@@ -629,14 +629,16 @@ export const weeklyLineups = pgTable("weeklyLineups", {
 	brd1Id: integer(),
 	flexId: integer(),
 	flexType: varchar({ length: 50 }),
+	captainId: integer(),
+	captainType: varchar({ length: 50 }),
 	isLocked: integer().default(0).notNull(),
 	lockedAt: timestamp({ mode: 'string', withTimezone: true }),
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-	unique("weekly_lineups_team_week_unique").on(table.teamId, table.year, table.week),
-]);
+	(table) => [
+		unique("weekly_lineups_team_week_unique").on(table.teamId, table.year, table.week),
+	]);
 
 export const weeklyTeamScores = pgTable("weeklyTeamScores", {
 	id: serial().primaryKey(),
@@ -658,9 +660,9 @@ export const weeklyTeamScores = pgTable("weeklyTeamScores", {
 	totalPoints: integer().default(0).notNull(),
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-	unique("weekly_team_scores_team_week_unique").on(table.teamId, table.year, table.week),
-]);
+	(table) => [
+		unique("weekly_team_scores_team_week_unique").on(table.teamId, table.year, table.week),
+	]);
 
 export const dailyTeamScores = pgTable("dailyTeamScores", {
 	id: serial().primaryKey(),
@@ -683,11 +685,11 @@ export const dailyTeamScores = pgTable("dailyTeamScores", {
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-	index("daily_scores_date_idx").on(table.statDate),
-	index("daily_scores_challenge_idx").on(table.challengeId),
-	unique("daily_scores_unique").on(table.challengeId, table.teamId, table.statDate),
-]);
+	(table) => [
+		index("daily_scores_date_idx").on(table.statDate),
+		index("daily_scores_challenge_idx").on(table.challengeId),
+		unique("daily_scores_unique").on(table.challengeId, table.teamId, table.statDate),
+	]);
 
 export const referrals = pgTable("referrals", {
 	id: serial().primaryKey(),
@@ -699,11 +701,11 @@ export const referrals = pgTable("referrals", {
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	completedAt: timestamp({ mode: 'string', withTimezone: true }),
 },
-(table) => [
-	unique("referrals_referredUser_unique").on(table.referredUserId),
-	index("referrals_referrer_idx").on(table.referrerUserId),
-	index("referrals_code_idx").on(table.referralCode),
-]);
+	(table) => [
+		unique("referrals_referredUser_unique").on(table.referredUserId),
+		index("referrals_referrer_idx").on(table.referrerUserId),
+		index("referrals_code_idx").on(table.referralCode),
+	]);
 
 export const streakFreezes = pgTable("streakFreezes", {
 	id: serial().primaryKey(),
@@ -715,10 +717,10 @@ export const streakFreezes = pgTable("streakFreezes", {
 	usedAt: timestamp({ mode: 'string', withTimezone: true }),
 	expiresAt: timestamp({ mode: 'string', withTimezone: true }),
 },
-(table) => [
-	index("streak_freezes_user_idx").on(table.userId),
-	index("streak_freezes_period_idx").on(table.period),
-]);
+	(table) => [
+		index("streak_freezes_user_idx").on(table.userId),
+		index("streak_freezes_period_idx").on(table.period),
+	]);
 
 
 // Admin Dashboard - Sync Jobs and Logs
@@ -733,10 +735,10 @@ export const syncJobs = pgTable("syncJobs", {
 	totalCount: integer("total_count").default(0),
 	createdAt: timestamp("created_at", { mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-	index("sync_jobs_status_idx").on(table.status),
-	index("sync_jobs_created_at_idx").on(table.createdAt),
-]);
+	(table) => [
+		index("sync_jobs_status_idx").on(table.status),
+		index("sync_jobs_created_at_idx").on(table.createdAt),
+	]);
 
 export const syncLogs = pgTable("syncLogs", {
 	id: serial("id").primaryKey(),
@@ -746,10 +748,10 @@ export const syncLogs = pgTable("syncLogs", {
 	metadata: json("metadata"),
 	timestamp: timestamp("timestamp", { mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-	index("sync_logs_job_id_idx").on(table.jobId),
-	index("sync_logs_timestamp_idx").on(table.timestamp),
-]);
+	(table) => [
+		index("sync_logs_job_id_idx").on(table.jobId),
+		index("sync_logs_timestamp_idx").on(table.timestamp),
+	]);
 
 // Daily Challenge Stats Tables
 export * from './dailyChallengeSchema';
@@ -772,11 +774,11 @@ export const dailyMatchups = pgTable("dailyMatchups", {
 	isScored: boolean("isScored").default(false).notNull(),
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-	index("matchup_date_idx").on(table.matchupDate),
-	index("matchup_scored_idx").on(table.isScored),
-	unique("matchup_unique").on(table.matchupDate, table.entityAId, table.entityBId),
-]);
+	(table) => [
+		index("matchup_date_idx").on(table.matchupDate),
+		index("matchup_scored_idx").on(table.isScored),
+		unique("matchup_unique").on(table.matchupDate, table.entityAId, table.entityBId),
+	]);
 
 export const userPredictions = pgTable("userPredictions", {
 	id: serial().primaryKey(),
@@ -787,11 +789,23 @@ export const userPredictions = pgTable("userPredictions", {
 	submittedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
-(table) => [
-	index("user_matchup_idx").on(table.userId, table.matchupId),
-	index("user_predictions_date_idx").on(table.submittedAt),
-	unique("user_matchup_unique").on(table.userId, table.matchupId),
-]);
+	(table) => [
+		index("user_matchup_idx").on(table.userId, table.matchupId),
+		index("user_predictions_date_idx").on(table.submittedAt),
+		unique("user_matchup_unique").on(table.userId, table.matchupId),
+	]);
+
+export const userFavorites = pgTable("userFavorites", {
+	id: serial().primaryKey(),
+	userId: integer().notNull(),
+	entityType: varchar({ length: 50 }).notNull(),
+	entityId: integer().notNull(),
+	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
+},
+	(table) => [
+		index("user_favorites_user_idx").on(table.userId),
+		unique("user_favorites_unique").on(table.userId, table.entityType, table.entityId),
+	]);
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;

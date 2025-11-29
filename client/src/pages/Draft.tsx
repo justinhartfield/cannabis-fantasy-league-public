@@ -537,12 +537,52 @@ export default function Draft() {
     },
   });
 
+  // Captain Selection Mutation
+  const setCaptainMutation = trpc.lineup.setCaptain.useMutation({
+    onSuccess: () => {
+      toast.success("Captain updated!");
+      refetchLineup();
+    },
+    onError: (error) => {
+      toast.error(`Failed to set captain: ${error.message}`);
+    },
+  });
+
+  const handleSetCaptain = (assetType: AssetType, assetId: number) => {
+    if (!myTeam || !league) return;
+    setCaptainMutation.mutate({
+      teamId: myTeam.id,
+      year: league.seasonYear,
+      week: league.currentWeek,
+      captainId: assetId,
+      captainType: assetType,
+    });
+  };
+
+  // Favorite Toggle Mutation
+  const toggleFavoriteMutation = trpc.favorite.toggleFavorite.useMutation({
+    onSuccess: (data) => {
+      toast.success(data.isFavorited ? "Added to favorites!" : "Removed from favorites!");
+      refetchFavorites();
+    },
+    onError: (error) => {
+      toast.error(`Failed to update favorite: ${error.message}`);
+    },
+  });
+
+  const handleToggleFavorite = (brandId: number) => {
+    toggleFavoriteMutation.mutate({
+      entityType: "brand",
+      entityId: brandId,
+    });
+  };
+
   // Auto-draft logic: when enabled and it's my turn, automatically pick best available
   // Also handles auto-pick from queue when that setting is enabled
   useEffect(() => {
     // Check if we should auto-draft (either via autoDraftEnabled or autoPickFromQueue)
     const shouldAutoDraft = autoDraftEnabled || autoPickFromQueue;
-    
+
     // Guard against multiple simultaneous auto-draft attempts
     // Check: enabled, is my turn, have team info, not already in progress, mutation not pending
     if (!shouldAutoDraft || !isMyTurn || !myTeam || autoDraftInProgressRef.current || makeDraftPickMutation.isPending) {
@@ -609,7 +649,7 @@ export default function Draft() {
           const isPending = pendingPicks[queuedPlayer.assetType]?.has(queuedPlayer.assetId);
           const isExcluded = excludeAssets.has(`${queuedPlayer.assetType}-${queuedPlayer.assetId}`);
           const hasOpenPosition = isPositionAvailable(queuedPlayer.assetType);
-          
+
           if (!isDrafted && !isPending && !isExcluded && hasOpenPosition) {
             return {
               assetType: queuedPlayer.assetType,
@@ -688,7 +728,7 @@ export default function Draft() {
 
     console.log('[AutoDraft] Best available pick:', bestPick);
     console.log('[AutoDraft] Auto-picking:', bestPick);
-    
+
     // Prevent multiple picks
     autoDraftInProgressRef.current = true;
 
@@ -697,7 +737,7 @@ export default function Draft() {
 
     // Remove from queue if it was queued
     if (autoPickFromQueue) {
-      setDraftQueue(prev => prev.filter(p => 
+      setDraftQueue(prev => prev.filter(p =>
         !(p.assetType === bestPick.assetType && p.assetId === bestPick.id)
       ));
     }
@@ -723,21 +763,21 @@ export default function Draft() {
           break; // Success, exit retry loop
         } catch (error: any) {
           console.error('[AutoDraft] Error:', error);
-          
+
           // Clear the failed pick from pending
           clearAssetPending(currentPick.assetType, currentPick.id);
-          
+
           // Add to failed list
           failedAssets.add(`${currentPick.assetType}-${currentPick.id}`);
-          
+
           // Check if it's a "player already drafted" error - this means race condition
           const errorMessage = error?.message || '';
-          const isRaceConditionError = 
+          const isRaceConditionError =
             errorMessage.includes('already been drafted') ||
             errorMessage.includes('Failed query') ||
             errorMessage.includes('duplicate') ||
             errorMessage.includes('unique constraint');
-          
+
           if (isRaceConditionError && attempt < MAX_RETRIES - 1) {
             // Try to find another pick
             const nextPick = findBestPick(failedAssets);
@@ -750,13 +790,13 @@ export default function Draft() {
               continue;
             }
           }
-          
+
           // Either not a race condition error, no more retries, or no alternative picks
           toast.error('Auto-Draft fehlgeschlagen');
           break;
         }
       }
-      
+
       // Only reset after operation completes (success or failure)
       autoDraftInProgressRef.current = false;
     }, 500); // Slightly longer delay to prevent rapid re-triggers
@@ -1029,16 +1069,8 @@ export default function Draft() {
       {/* Challenge Draft Board with Fields */}
       <ChallengeDraftBoard
         leagueId={leagueId}
-        myTeam={{
-          id: myTeam.id,
-          name: myTeam.name,
-          userName: user?.name || null,
-        }}
-        opponentTeam={opponentTeam ? {
-          id: opponentTeam.id,
-          name: opponentTeam.name,
-          userName: opponentTeam.userName || null,
-        } : null}
+        myTeam={myTeam}
+        opponentTeam={opponentTeam}
         myRoster={mergedRoster}
         opponentRoster={mergedOpponentRoster}
         currentPickNumber={currentPickNumber}
@@ -1049,15 +1081,28 @@ export default function Draft() {
         products={availableProducts}
         pharmacies={availablePharmacies}
         brands={availableBrands}
-        onDraftPick={handleDraftPick}
+        onDraftPick={(assetType, assetId) => {
+          if (!myTeam) return;
+          makeDraftPickMutation.mutate({
+            leagueId,
+            teamId: myTeam.id,
+            assetType,
+            assetId,
+          });
+        }}
         onSearchChange={setSearchQuery}
         searchQuery={searchQuery}
-        isLoading={false}
+        isLoading={rosterLoading}
         draftedAssets={draftedAssets}
         autoDraftEnabled={autoDraftEnabled}
         onAutoDraftChange={handleAutoDraftChange}
         timerSeconds={timerSeconds}
-        draftPending={makeDraftPickMutation.isPending}
+        draftPending={makeDraftPickMutation.isPending || autoDraftInProgressRef.current}
+        captainId={weeklyLineup?.captainId}
+        captainType={weeklyLineup?.captainType}
+        onSetCaptain={handleSetCaptain}
+        favoritedBrandIds={favoritedBrandIds}
+        onToggleFavorite={handleToggleFavorite}
       />
     </div>
   );

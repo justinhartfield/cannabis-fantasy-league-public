@@ -17,6 +17,7 @@ import {
   cannabisStrainWeeklyStats,
   pharmacyWeeklyStats,
   brandWeeklyStats,
+  teams,
   weeklyLineups,
   weeklyTeamScores,
   scoringBreakdowns,
@@ -29,6 +30,7 @@ import {
   brandDailyStats,
   dailyTeamScores,
   dailyScoringBreakdowns,
+  userFavorites,
 } from '../drizzle/schema';
 import {
   manufacturerDailyChallengeStats,
@@ -1981,14 +1983,14 @@ async function getAssetNamesForBreakdowns(
     for (const s of strainData) {
       result.set(`cannabis_strain-${s.id}`, { name: s.name, imageUrl: s.imageUrl });
     }
-    
+
     // Also check strains table for products
     const productData = await db
-      .select({ id: strains.id, name: strains.name, imageUrl: strains.imageUrl })
+      .select({ id: strains.id, name: strains.name })
       .from(strains)
       .where(sql`${strains.id} = ANY(ARRAY[${sql.raw(strainIds.join(','))}]::int[])`);
     for (const p of productData) {
-      result.set(`product-${p.id}`, { name: p.name, imageUrl: p.imageUrl });
+      result.set(`product-${p.id}`, { name: p.name, imageUrl: null });
     }
   }
 
@@ -2185,14 +2187,111 @@ async function computeTeamScore(options: TeamScoreComputationOptions): Promise<T
 
   const subtotal = Object.values(positionPoints).reduce((sum, pts) => sum + pts, 0);
 
-  const { bonuses: teamBonuses, totalBonus } = calculateTeamBonuses(
-    subtotal,
+  // --- CAPTAIN & FAN BUFF LOGIC (Daily Challenge Only) ---
+  let totalBonus = 0;
+  const teamBonuses: any[] = [];
+
+  // Only apply for Daily Challenge
+  if (scope.type === 'daily' && teamLineup.captainId && teamLineup.captainType) {
+    // 1. Apply Captain Multiplier (1.5x)
+    const captainMultiplier = 1.5;
+    const captainType = teamLineup.captainType;
+    const captainId = teamLineup.captainId;
+
+    // Find the breakdown item for the captain
+    const captainItem = breakdowns.find(b => b.assetType === captainType && b.assetId === captainId);
+
+    if (captainItem) {
+      const originalPoints = captainItem.points || 0;
+      const boostedPoints = originalPoints * captainMultiplier;
+      const bonusPoints = boostedPoints - originalPoints;
+
+      // Update the item's points
+      captainItem.points = boostedPoints;
+      captainItem.isCaptain = true;
+      captainItem.captainBonus = bonusPoints;
+
+      // Update position points map
+      // We need to find which position key corresponds to this item
+      // This is a bit tricky since multiple slots can have same type
+      // But we can map back from the breakdown's position field (e.g. 'MFG1')
+      const posKey = captainItem.position.toLowerCase(); // 'mfg1', 'cstr1', etc.
+      if (positionPoints[posKey] !== undefined) {
+        positionPoints[posKey] = boostedPoints;
+      }
+
+      // Add to team bonuses for tracking
+      teamBonuses.push({
+        type: 'captain_boost',
+        description: `Captain Boost (1.5x) for ${captainItem.assetName || 'Captain'}`,
+        points: bonusPoints,
+      });
+
+      totalBonus += bonusPoints;
+    }
+
+    // 2. Apply Fan Buff (+10)
+    // We need to fetch user favorites. Since we don't have userId easily here (teamLineup has teamId),
+    // we need to fetch the team to get the userId, then fetch favorites.
+    // This adds a DB call.
+    const [team] = await db.select().from(teams).where(eq(teams.id, options.teamId)).limit(1);
+    if (team) {
+      const favorites = await db
+        .select()
+        .from(userFavorites)
+        .where(
+          and(
+            eq(userFavorites.userId, team.userId),
+            eq(userFavorites.entityType, 'brand')
+          )
+        );
+
+      const favoriteBrandIds = new Set(favorites.map(f => f.entityId));
+
+      // Check if any brand in the lineup is a favorite
+      // Brands can be in BRD1 or FLEX
+      const brandItems = breakdowns.filter(b => b.assetType === 'brand');
+
+      for (const item of brandItems) {
+        if (favoriteBrandIds.has(item.assetId)) {
+          const fanBuff = 10;
+          item.points = (item.points || 0) + fanBuff;
+          item.isFavorite = true;
+          item.fanBuff = fanBuff;
+
+          const posKey = item.position.toLowerCase();
+          if (positionPoints[posKey] !== undefined) {
+            positionPoints[posKey] = item.points;
+          }
+
+          teamBonuses.push({
+            type: 'fan_buff',
+            description: `Fan Buff (+10) for ${item.assetName || 'Favorite Brand'}`,
+            points: fanBuff,
+          });
+
+          totalBonus += fanBuff;
+        }
+      }
+    }
+  }
+
+  // Calculate standard team bonuses (if any existing logic)
+  const { bonuses: standardBonuses, totalBonus: standardTotal } = calculateTeamBonuses(
+    subtotal, // Note: subtotal here is pre-captain/fan buff. 
+    // If standard bonuses depend on final points, we should recalculate subtotal.
+    // But usually standard bonuses are separate.
+    // However, if we modified positionPoints above, we should re-sum subtotal if needed.
+    // For now, let's assume standard bonuses are additive.
     positionPoints,
     breakdowns,
     scope
   );
 
-  const totalPoints = subtotal + totalBonus;
+  totalBonus += standardTotal;
+  teamBonuses.push(...standardBonuses);
+
+  const totalPoints = Object.values(positionPoints).reduce((sum, pts) => sum + pts, 0); // Re-sum with boosted points
 
   const result: TeamScoreComputationResult = {
     totalPoints,
