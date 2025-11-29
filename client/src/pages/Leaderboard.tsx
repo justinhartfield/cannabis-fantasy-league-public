@@ -8,6 +8,7 @@ import { Trophy, TrendingUp, Users, Medal, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EntityHistoryModal } from "@/components/EntityHistoryModal";
 import { SEO } from "@/components/SEO";
+import { staticContent } from "@/content/static-pages";
 
 // Entity Types
 type EntityType = 'all' | 'manufacturer' | 'pharmacy' | 'brand' | 'product' | 'strain';
@@ -564,6 +565,11 @@ const Leaderboard = () => {
           entityImage={selectedEntity.image}
         />
       )}
+
+      {/* SEO Content */}
+      <section className="mt-16 prose prose-invert max-w-none text-muted-foreground px-4 pb-8">
+        <div dangerouslySetInnerHTML={{ __html: staticContent.leaderboard.content }} />
+      </section>
     </div>
   );
 };

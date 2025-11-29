@@ -8,6 +8,7 @@ import { autoPopulateLeagueLineups } from "./lineupAutoPopulate";
 import { generateSeasonMatchupsForLeague } from "./matchupService";
 import { calculateSeasonTeamDailyScore, getScarcityMultipliers } from "./scoringEngine";
 import { getWeekDateRange } from "./utils/isoWeek";
+import { checkAchievements } from "./achievementService";
 
 /**
  * Matchup Router
@@ -243,9 +244,9 @@ export const matchupRouter = router({
         : null;
       const hasSeasonStarted = Boolean(
         leagueInfo &&
-          (leagueInfo.status === 'active' ||
-            leagueInfo.draftCompleted === 1 ||
-            (seasonStartDate ? seasonStartDate.getTime() <= now.getTime() : false))
+        (leagueInfo.status === 'active' ||
+          leagueInfo.draftCompleted === 1 ||
+          (seasonStartDate ? seasonStartDate.getTime() <= now.getTime() : false))
       );
       const isCurrentWeekActive =
         !!leagueInfo &&
@@ -456,7 +457,7 @@ export const matchupRouter = router({
           const team1Score = team1Scores[0].totalPoints;
           const team2Score = team2Scores[0].totalPoints;
           const winnerId = team1Score > team2Score ? matchup.team1Id :
-                          team2Score > team1Score ? matchup.team2Id : null;
+            team2Score > team1Score ? matchup.team2Id : null;
 
           await db
             .update(matchups)
@@ -467,6 +468,14 @@ export const matchupRouter = router({
               status: 'final',
             })
             .where(eq(matchups.id, matchup.id));
+
+          // Check achievements for both users
+          // We need to get the userIds for the teams
+          const [team1] = await db.select({ userId: teams.userId }).from(teams).where(eq(teams.id, matchup.team1Id)).limit(1);
+          const [team2] = await db.select({ userId: teams.userId }).from(teams).where(eq(teams.id, matchup.team2Id)).limit(1);
+
+          if (team1) await checkAchievements(team1.userId, input.leagueId);
+          if (team2) await checkAchievements(team2.userId, input.leagueId);
 
           updated++;
         }

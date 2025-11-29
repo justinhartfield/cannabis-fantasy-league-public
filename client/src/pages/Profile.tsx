@@ -10,6 +10,7 @@ import { getLoginUrl } from "@/const";
 import { useState, useRef } from "react";
 import { toast } from "sonner";
 import { AchievementsSection } from "@/components/AchievementsSection";
+import { FavoriteSelector } from "@/components/FavoriteSelector";
 
 export default function Profile() {
   const { user, loading: authLoading, isAuthenticated } = useAuth();
@@ -66,6 +67,25 @@ export default function Profile() {
       toast.error(`Failed to remove avatar: ${error.message}`);
     },
   });
+
+  const { data: favorites, refetch: refetchFavorites } = trpc.favorite.getAllFavorites.useQuery(
+    undefined,
+    { enabled: isAuthenticated }
+  );
+
+  const setFavoriteMutation = trpc.favorite.setFavorite.useMutation({
+    onSuccess: () => {
+      toast.success("Favorite updated!");
+      refetchFavorites();
+    },
+    onError: (error) => {
+      toast.error(`Failed to update favorite: ${error.message}`);
+    },
+  });
+
+  const handleSetFavorite = (entityType: "brand" | "manufacturer" | "pharmacy" | "cannabis_strain", entityId: number) => {
+    setFavoriteMutation.mutate({ entityType, entityId });
+  };
 
   if (!authLoading && !isAuthenticated) {
     const loginUrl = getLoginUrl();
@@ -337,6 +357,38 @@ export default function Profile() {
           </div>
         </div>
       </div>
+
+      <section className="rounded-[28px] border border-white/10 bg-white/5 p-6 text-white">
+        <h2 className="text-lg font-semibold mb-4">My Favorites</h2>
+        <p className="text-sm text-white/60 mb-6">Select your favorites to get a +5 Fan Buff when you play them in Daily Challenges!</p>
+
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <FavoriteSelector
+            entityType="brand"
+            label="Favorite Brand"
+            currentFavorite={favorites?.find(f => f.entityType === 'brand')}
+            onSelect={(id) => handleSetFavorite('brand', id)}
+          />
+          <FavoriteSelector
+            entityType="manufacturer"
+            label="Favorite Manufacturer"
+            currentFavorite={favorites?.find(f => f.entityType === 'manufacturer')}
+            onSelect={(id) => handleSetFavorite('manufacturer', id)}
+          />
+          <FavoriteSelector
+            entityType="pharmacy"
+            label="Favorite Pharmacy"
+            currentFavorite={favorites?.find(f => f.entityType === 'pharmacy')}
+            onSelect={(id) => handleSetFavorite('pharmacy', id)}
+          />
+          <FavoriteSelector
+            entityType="cannabis_strain"
+            label="Favorite Strain"
+            currentFavorite={favorites?.find(f => f.entityType === 'cannabis_strain')}
+            onSelect={(id) => handleSetFavorite('cannabis_strain', id)}
+          />
+        </div>
+      </section>
 
       <section className="rounded-[28px] border border-white/10 bg-white/5 p-6 text-white">
         <h2 className="text-lg font-semibold mb-4">Achievements</h2>

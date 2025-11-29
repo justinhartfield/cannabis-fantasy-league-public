@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { EntityRankingCard } from "@/components/EntityRankingCard";
 import { RankBadge } from "@/components/RankBadge";
 import { RankingsSEO } from "@/components/SEO";
+import { staticContent } from "@/content/static-pages";
 
 type EntityCategory = "all" | "manufacturer" | "pharmacy" | "brand" | "product" | "strain";
 
@@ -36,7 +37,7 @@ export default function PublicRankings() {
 
   const handleShare = async () => {
     const shareData = { title: "Cannabis Fantasy League Rankings", text: "Check out the official rankings for the German cannabis market!", url: window.location.href };
-    if (navigator.share) { try { await navigator.share(shareData); } catch {} } else { navigator.clipboard.writeText(window.location.href); }
+    if (navigator.share) { try { await navigator.share(shareData); } catch { } } else { navigator.clipboard.writeText(window.location.href); }
   };
 
   const renderCategorySection = (categoryKey: Exclude<EntityCategory, "all">, items: any[]) => {
@@ -125,6 +126,17 @@ export default function PublicRankings() {
               <Link href="/rules"><Button size="lg" variant="outline" className="w-full sm:w-auto gap-2">Learn How to Play</Button></Link>
             </div>
           </div>
+        </section>
+
+        {/* SEO Content */}
+        <section className="mt-16 prose prose-invert max-w-none text-muted-foreground">
+          <div
+            dangerouslySetInnerHTML={{
+              __html: category === 'all'
+                ? staticContent.rankings.general.content
+                : staticContent.rankings[category as keyof typeof staticContent.rankings]?.content || staticContent.rankings.general.content
+            }}
+          />
         </section>
       </div>
     </div>

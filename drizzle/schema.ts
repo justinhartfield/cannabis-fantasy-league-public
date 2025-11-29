@@ -302,6 +302,7 @@ export const manufacturers = pgTable("manufacturers", {
 	monthlyRank: integer(),
 	quarterlyRank: integer(),
 	productCount: integer().default(0).notNull(),
+	description: text(),
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
@@ -342,6 +343,7 @@ export const pharmacies = pgTable("pharmacies", {
 	appUsageRate: integer().default(0).notNull(),
 	promoOptOut: boolean("promoOptOut").default(false).notNull(), // Opt-out from promotional highlights
 	promoOptOutAt: timestamp({ mode: 'string', withTimezone: true }), // When opt-out was requested
+	description: text(),
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
@@ -523,6 +525,7 @@ export const strains = pgTable("strains", {
 	thcContent: varchar({ length: 50 }),
 	cbdContent: varchar({ length: 50 }),
 	genetics: varchar({ length: 50 }),
+	description: text(),
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },

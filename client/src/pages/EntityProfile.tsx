@@ -40,7 +40,7 @@ export default function EntityProfile() {
 
   const handleShare = async () => {
     const shareData = { title: `${entity?.name || "Entity"} - CFL Rankings`, text: `Check out ${entity?.name}'s performance in the Cannabis Fantasy League!`, url: window.location.href };
-    if (navigator.share) { try { await navigator.share(shareData); } catch {} } else { navigator.clipboard.writeText(window.location.href); }
+    if (navigator.share) { try { await navigator.share(shareData); } catch { } } else { navigator.clipboard.writeText(window.location.href); }
   };
 
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -78,6 +78,12 @@ export default function EntityProfile() {
             </div>
             <div className="flex gap-2"><Button onClick={handleShare} variant="outline" size="sm" className="gap-2"><Share2 className="w-4 h-4" />Share</Button></div>
           </div>
+
+          {entity.description && (
+            <div className="mt-8 prose prose-invert max-w-none text-muted-foreground/90">
+              <div dangerouslySetInnerHTML={{ __html: entity.description }} />
+            </div>
+          )}
         </div>
       </div>
       <div className="max-w-4xl mx-auto px-4 pb-20">

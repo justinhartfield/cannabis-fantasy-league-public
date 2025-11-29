@@ -42,6 +42,16 @@ import {
 import { eq, and, count, sql, sum, max, desc, gte, lte } from 'drizzle-orm';
 import { wsManager } from './websocket';
 import { getOrCreateLineup } from './utils/autoLineup';
+import {
+  calculateManufacturerTrendScore,
+  calculateStrainTrendScore,
+  calculateProductTrendScore
+} from './trendScoringEngine';
+import {
+  buildManufacturerTrendBreakdown,
+  buildStrainTrendBreakdown,
+  buildProductTrendBreakdown
+} from './trendScoringBreakdowns';
 
 import {
   calculateManufacturerScore as calculateDailyManufacturerScore,
@@ -56,6 +66,7 @@ import {
   calculateRankBonus,
 } from './trendScoringEngine';
 import { getWeekDateRange } from './utils/isoWeek';
+import { checkAchievements } from './achievementService';
 
 export type BreakdownComponent = {
   category: string;
@@ -440,8 +451,8 @@ export function buildManufacturerDailyBreakdown(statRecord: ManufacturerDailySou
   });
 
   // Use trend-based scoring exclusively
-  const { calculateManufacturerTrendScore } = require('./trendScoringEngine');
-  const { buildManufacturerTrendBreakdown } = require('./trendScoringBreakdowns');
+  // Use trend-based scoring exclusively
+  // Imports moved to top level
 
   // Calculate the trend score breakdown
   const scoring = calculateManufacturerTrendScore({
@@ -476,8 +487,8 @@ export function buildStrainDailyBreakdown(statRecord: StrainDailySource): Breakd
   });
 
   // Use trend-based scoring exclusively
-  const { calculateStrainTrendScore } = require('./trendScoringEngine');
-  const { buildStrainTrendBreakdown } = require('./trendScoringBreakdowns');
+  // Use trend-based scoring exclusively
+  // Imports moved to top level
 
   // Calculate the trend score breakdown
   const scoring = calculateStrainTrendScore({
@@ -511,8 +522,8 @@ export function buildProductDailyBreakdown(statRecord: ProductDailySource): Brea
     statDate: statRecord.statDate ?? null,
   });
 
-  const { calculateProductTrendScore } = require('./trendScoringEngine');
-  const { buildProductTrendBreakdown } = require('./trendScoringBreakdowns');
+  // Use trend-based scoring exclusively
+  // Imports moved to top level
 
   const scoring = calculateProductTrendScore({
     orderCount,
@@ -2230,31 +2241,26 @@ async function computeTeamScore(options: TeamScoreComputationOptions): Promise<T
       totalBonus += bonusPoints;
     }
 
-    // 2. Apply Fan Buff (+10)
+    // 2. Apply Fan Buff (+5 for any Favorite)
     // We need to fetch user favorites. Since we don't have userId easily here (teamLineup has teamId),
     // we need to fetch the team to get the userId, then fetch favorites.
-    // This adds a DB call.
     const [team] = await db.select().from(teams).where(eq(teams.id, options.teamId)).limit(1);
     if (team) {
       const favorites = await db
         .select()
         .from(userFavorites)
-        .where(
-          and(
-            eq(userFavorites.userId, team.userId),
-            eq(userFavorites.entityType, 'brand')
-          )
-        );
+        .where(eq(userFavorites.userId, team.userId));
 
-      const favoriteBrandIds = new Set(favorites.map(f => f.entityId));
+      // Create a map of favorite entities for quick lookup
+      // Key: `${entityType}-${entityId}`
+      const favoriteSet = new Set(favorites.map(f => `${f.entityType}-${f.entityId}`));
 
-      // Check if any brand in the lineup is a favorite
-      // Brands can be in BRD1 or FLEX
-      const brandItems = breakdowns.filter(b => b.assetType === 'brand');
+      // Check if any asset in the lineup is a favorite
+      for (const item of breakdowns) {
+        const key = `${item.assetType}-${item.assetId}`;
 
-      for (const item of brandItems) {
-        if (favoriteBrandIds.has(item.assetId)) {
-          const fanBuff = 10;
+        if (favoriteSet.has(key)) {
+          const fanBuff = 5; // +5 Bonus Points
           item.points = (item.points || 0) + fanBuff;
           item.isFavorite = true;
           item.fanBuff = fanBuff;
@@ -2266,7 +2272,7 @@ async function computeTeamScore(options: TeamScoreComputationOptions): Promise<T
 
           teamBonuses.push({
             type: 'fan_buff',
-            description: `Fan Buff (+10) for ${item.assetName || 'Favorite Brand'}`,
+            description: `Fan Buff (+5) for Favorite ${item.assetType}: ${item.assetName || 'Asset'}`,
             points: fanBuff,
           });
 
@@ -2309,6 +2315,16 @@ async function computeTeamScore(options: TeamScoreComputationOptions): Promise<T
       totalBonus,
       breakdowns,
     });
+
+    // Check achievements
+    try {
+      const [team] = await db.select({ userId: teams.userId, leagueId: teams.leagueId }).from(teams).where(eq(teams.id, options.teamId)).limit(1);
+      if (team) {
+        await checkAchievements(team.userId, team.leagueId);
+      }
+    } catch (err) {
+      console.error("[Scoring] Failed to check achievements:", err);
+    }
   }
 
   console.log(`[Scoring] Team ${options.teamId} scored ${totalPoints} points (${options.persistence.mode})`);
