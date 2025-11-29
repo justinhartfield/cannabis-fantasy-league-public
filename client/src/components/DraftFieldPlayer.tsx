@@ -199,7 +199,7 @@ export function DraftFieldPlayer({
   const assetType = position === "FLEX" && player?.assetType
     ? player.assetType
     : positionAssetType;
-  const colors = POSITION_COLORS[assetType as AssetType | "flex"];
+  const colors = POSITION_COLORS[assetType as AssetType | "flex"] || POSITION_COLORS.flex;
   const positionLabel = POSITION_LABELS[position];
   const positionCode = POSITION_CODES[position];
   const roleLabel = position === "FLEX" && player?.assetType
