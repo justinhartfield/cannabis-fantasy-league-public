@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown, Minus, Trophy, BarChart3, Flame, Zap, Target, TrendingUpDown } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Trophy, BarChart3, Flame, Zap, Target, TrendingUpDown, Crown, Heart } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -337,6 +337,8 @@ export default function ScoringBreakdownV2({
     if (type.includes("Velocity")) return <Zap className="w-4 h-4" />;
     if (type.includes("Consistency")) return <Target className="w-4 h-4" />;
     if (type.includes("Market")) return <TrendingUpDown className="w-4 h-4" />;
+    if (type.includes("Captain")) return <Crown className="w-4 h-4 text-yellow-400" />;
+    if (type.includes("Fan") || type.includes("Favorite")) return <Heart className="w-4 h-4 text-pink-400" />;
     return <TrendingUp className="w-4 h-4" />;
   };
 

@@ -21,7 +21,6 @@ import {
   weeklyLineups,
   weeklyTeamScores,
   scoringBreakdowns,
-  teams,
   leagues,
   manufacturerDailyStats,
   strainDailyStats,
@@ -45,7 +44,9 @@ import { getOrCreateLineup } from './utils/autoLineup';
 import {
   calculateManufacturerTrendScore,
   calculateStrainTrendScore,
-  calculateProductTrendScore
+  calculateProductTrendScore,
+  calculatePharmacyTrendScore,
+  calculateRankBonus,
 } from './trendScoringEngine';
 import {
   buildManufacturerTrendBreakdown,
@@ -59,12 +60,6 @@ import {
   calculatePharmacyScore as calculateDailyPharmacyScore,
   calculateBrandScore as calculateDailyBrandScore,
 } from './dailyChallengeScoringEngine';
-import {
-  calculateManufacturerTrendScore,
-  calculateStrainTrendScore,
-  calculatePharmacyTrendScore,
-  calculateRankBonus,
-} from './trendScoringEngine';
 import { getWeekDateRange } from './utils/isoWeek';
 import { checkAchievements } from './achievementService';
 
@@ -458,7 +453,7 @@ export function buildManufacturerDailyBreakdown(statRecord: ManufacturerDailySou
   const scoring = calculateManufacturerTrendScore({
     orderCount,
     trendMultiplier,
-    rank,
+    currentRank: rank,
     previousRank: statRecord.previousRank ?? rank,
     consistencyScore: Number(statRecord.consistencyScore ?? 0),
     velocityScore: Number(statRecord.velocityScore ?? 0),
@@ -487,14 +482,13 @@ export function buildStrainDailyBreakdown(statRecord: StrainDailySource): Breakd
   });
 
   // Use trend-based scoring exclusively
-  // Use trend-based scoring exclusively
   // Imports moved to top level
 
   // Calculate the trend score breakdown
   const scoring = calculateStrainTrendScore({
     orderCount,
     trendMultiplier,
-    rank,
+    currentRank: rank,
     previousRank: statRecord.previousRank ?? rank,
     consistencyScore: Number(statRecord.consistencyScore ?? 0),
     velocityScore: Number(statRecord.velocityScore ?? 0),
@@ -528,7 +522,7 @@ export function buildProductDailyBreakdown(statRecord: ProductDailySource): Brea
   const scoring = calculateProductTrendScore({
     orderCount,
     trendMultiplier,
-    rank,
+    currentRank: rank,
     previousRank: statRecord.previousRank ?? rank,
     consistencyScore: Number(statRecord.consistencyScore ?? 0),
     velocityScore: Number(statRecord.velocityScore ?? 0),
@@ -702,6 +696,7 @@ export function buildPharmacyDailyBreakdown(statRecord: PharmacyDailySource): Br
   });
 
   // Use trend-based scoring exclusively
+  // Imports moved to top level
   const scoring = calculatePharmacyTrendScore({
     orderCount,
     trendMultiplier,
@@ -2215,7 +2210,7 @@ async function computeTeamScore(options: TeamScoreComputationOptions): Promise<T
 
       if (captainItem) {
         const originalPoints = captainItem.points || 0;
-        const boostedPoints = originalPoints * captainMultiplier;
+        const boostedPoints = Math.round(originalPoints * captainMultiplier); // Ensure integer
         const bonusPoints = boostedPoints - originalPoints;
 
         // Update the item's points
@@ -2223,8 +2218,19 @@ async function computeTeamScore(options: TeamScoreComputationOptions): Promise<T
         captainItem.isCaptain = true;
         captainItem.captainBonus = bonusPoints;
 
+        // CRITICAL: Update the breakdown JSON so the UI sees the bonus
+        if (captainItem.breakdown) {
+          captainItem.breakdown.bonuses = captainItem.breakdown.bonuses || [];
+          captainItem.breakdown.bonuses.push({
+            type: 'Captain Boost',
+            condition: '1.5x Multiplier',
+            points: bonusPoints
+          });
+          captainItem.breakdown.total = boostedPoints;
+        }
+
         // Update position points map
-        const posKey = captainItem.position.toLowerCase();
+        const posKey = captainItem.position.toLowerCase() as keyof PositionPointsMap;
         if (positionPoints[posKey] !== undefined) {
           positionPoints[posKey] = boostedPoints;
         }
@@ -2264,7 +2270,18 @@ async function computeTeamScore(options: TeamScoreComputationOptions): Promise<T
           item.isFavorite = true;
           item.fanBuff = fanBuff;
 
-          const posKey = item.position.toLowerCase();
+          // CRITICAL: Update the breakdown JSON so the UI sees the bonus
+          if (item.breakdown) {
+            item.breakdown.bonuses = item.breakdown.bonuses || [];
+            item.breakdown.bonuses.push({
+              type: 'Fan Buff',
+              condition: 'User Favorite',
+              points: fanBuff
+            });
+            item.breakdown.total = item.points;
+          }
+
+          const posKey = item.position.toLowerCase() as keyof PositionPointsMap;
           if (positionPoints[posKey] !== undefined) {
             positionPoints[posKey] = item.points;
           }

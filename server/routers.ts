@@ -61,7 +61,7 @@ export const appRouter = router({
   trade: tradeRouter,
   recap: recapRouter,
   achievement: achievementRouter,
-  achievement: achievementRouter,
+
   chat: chatRouter,
   favorite: favoriteRouter,
 });
