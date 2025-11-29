@@ -2199,9 +2199,9 @@ async function computeTeamScore(options: TeamScoreComputationOptions): Promise<T
 
   // Only apply for Daily Challenge
   if (scope.type === 'daily') {
-    // 1. Apply Captain Multiplier (1.5x)
+    // 1. Apply Captain Multiplier (1.25x)
     if (teamLineup.captainId && teamLineup.captainType) {
-      const captainMultiplier = 1.5;
+      const captainMultiplier = 1.25;
       const captainType = teamLineup.captainType;
       const captainId = teamLineup.captainId;
 
@@ -2223,7 +2223,7 @@ async function computeTeamScore(options: TeamScoreComputationOptions): Promise<T
           captainItem.breakdown.bonuses = captainItem.breakdown.bonuses || [];
           captainItem.breakdown.bonuses.push({
             type: 'Captain Boost',
-            condition: '1.5x Multiplier',
+            condition: `${captainMultiplier}x Multiplier`,
             points: bonusPoints
           });
           captainItem.breakdown.total = boostedPoints;
@@ -2238,7 +2238,7 @@ async function computeTeamScore(options: TeamScoreComputationOptions): Promise<T
         // Add to team bonuses for tracking
         teamBonuses.push({
           type: 'captain_boost',
-          description: `Captain Boost (1.5x) for ${captainItem.assetName || 'Captain'}`,
+          description: `Captain Boost (${captainMultiplier}x) for ${captainItem.assetName || 'Captain'}`,
           points: bonusPoints,
         });
 
