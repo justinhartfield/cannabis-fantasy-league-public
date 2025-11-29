@@ -550,7 +550,7 @@ export const teams = pgTable("teams", {
 	fighterIllustrationLegacy: varchar("fighterIllustration", { length: 100 }),
 	battlefieldBackground: varchar({ length: 100 }),
 	autoPickEnabled: integer().default(0).notNull(), // 0 = disabled, 1 = enabled (auto-enabled when timer expires)
-	autoDraftEnabled: integer("autoDraftEnabled").default(0).notNull(),
+	autoDraftEnabled: boolean("autoDraftEnabled").default(false).notNull(),
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
