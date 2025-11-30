@@ -107,22 +107,14 @@ class ScoreBroadcaster {
         }
       }
 
-      // Fetch products (productId references strains table, not products table)
+      // Fetch products (productId references strains table)
       if (productIds.length > 0) {
-        console.log('[ScoreBroadcaster] Looking up product IDs in strains table:', productIds);
         const productData = await db
           .select({ id: strains.id, name: strains.name })
           .from(strains)
           .where(inArray(strains.id, productIds));
-        console.log('[ScoreBroadcaster] Found products in strains:', productData.map(p => ({ id: p.id, name: p.name })));
         for (const p of productData) {
           result.set(`product:${p.id}`, { name: p.name, imageUrl: null });
-        }
-        // Log any missing products
-        const foundIds = new Set(productData.map(p => p.id));
-        const missingIds = productIds.filter(id => !foundIds.has(id));
-        if (missingIds.length > 0) {
-          console.warn('[ScoreBroadcaster] Products NOT FOUND in strains table:', missingIds);
         }
       }
 

@@ -1156,19 +1156,9 @@ export const scoringRouter = router({
               .where(inArray(cannabisStrains.id, Array.from(strainIds)))
             : [],
           productIds.size > 0
-            ? (async () => {
-                console.log('[getChallengeDayBreakdown] Looking up product IDs in strains:', Array.from(productIds));
-                const results = await db.select({ id: strains.id, name: strains.name, imageUrl: sql<string | null>`NULL` })
-                  .from(strains)
-                  .where(inArray(strains.id, Array.from(productIds)));
-                console.log('[getChallengeDayBreakdown] Found products in strains:', results.map(r => ({ id: r.id, name: r.name })));
-                const foundIds = new Set(results.map(r => r.id));
-                const missingIds = Array.from(productIds).filter(id => !foundIds.has(id));
-                if (missingIds.length > 0) {
-                  console.warn('[getChallengeDayBreakdown] Product IDs NOT FOUND in strains table:', missingIds);
-                }
-                return results;
-              })()
+            ? db.select({ id: strains.id, name: strains.name, imageUrl: sql<string | null>`NULL` })
+              .from(strains)
+              .where(inArray(strains.id, Array.from(productIds)))
             : [],
           pharmacyIds.size > 0
             ? db.select({ id: pharmacies.id, name: pharmacies.name, imageUrl: pharmacies.logoUrl })
