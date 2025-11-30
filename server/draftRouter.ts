@@ -1,16 +1,16 @@
 import { z } from "zod";
-import { eq, and, notInArray, inArray, sql } from "drizzle-orm";
+import { eq, and, notInArray, inArray, sql, desc } from "drizzle-orm";
 import { protectedProcedure, router } from "./_core/trpc";
 import { getDb } from "./db";
-import { 
-  manufacturers, 
-  cannabisStrains, 
-  strains, 
-  pharmacies, 
-  brands, 
-  rosters, 
-  leagues, 
-  teams, 
+import {
+  manufacturers,
+  cannabisStrains,
+  strains,
+  pharmacies,
+  brands,
+  rosters,
+  leagues,
+  teams,
   draftPicks,
   users,
   manufacturerWeeklyStats,
@@ -46,10 +46,10 @@ function logDraftTiming(step: string, data?: Record<string, unknown>) {
  */
 function parseJsonOrArray(value: string | null | undefined): string[] {
   if (!value) return [];
-  
+
   // If it's already an array (shouldn't happen but safe check)
   if (Array.isArray(value)) return value;
-  
+
   // Try to parse as JSON first
   try {
     const parsed = JSON.parse(value);
@@ -165,14 +165,14 @@ export const draftRouter = router({
       // Get already drafted manufacturers
       const draftedManufacturers = teamIds.length > 0
         ? await db
-            .select({ assetId: rosters.assetId })
-            .from(rosters)
-            .where(
-              and(
-                inArray(rosters.teamId, teamIds),
-                eq(rosters.assetType, "manufacturer")
-              )
+          .select({ assetId: rosters.assetId })
+          .from(rosters)
+          .where(
+            and(
+              inArray(rosters.teamId, teamIds),
+              eq(rosters.assetType, "manufacturer")
             )
+          )
         : [];
 
       const draftedIds = draftedManufacturers.map((r) => r.assetId);
@@ -180,26 +180,44 @@ export const draftRouter = router({
       // Get available manufacturers
       // Build where conditions
       const conditions = [];
-      
+
       // Only include manufacturers with pharma products (exclude accessory brands)
       conditions.push(sql`${manufacturers.productCount} > 0`);
-      
+
       if (draftedIds.length > 0) {
         conditions.push(notInArray(manufacturers.id, draftedIds));
       }
-      
+
       if (input.search) {
         conditions.push(sql`${manufacturers.name} ILIKE ${`%${input.search}%`}`);
       }
-      
-      let query = db.select().from(manufacturers);
-      
+
+      const { yesterdayStatDate } = getDailyChallengeStatDates();
+
+      let query = db
+        .select({
+          manufacturer: manufacturers,
+          stats: manufacturerDailyChallengeStats,
+        })
+        .from(manufacturers)
+        .leftJoin(
+          manufacturerDailyChallengeStats,
+          and(
+            eq(manufacturerDailyChallengeStats.manufacturerId, manufacturers.id),
+            eq(manufacturerDailyChallengeStats.statDate, yesterdayStatDate)
+          )
+        );
+
       if (conditions.length > 0) {
         query = query.where(and(...conditions)) as any;
       }
 
-      const available = await query.limit(input.limit);
-      
+      const results = await query
+        .orderBy(desc(manufacturerDailyChallengeStats.totalPoints))
+        .limit(input.limit);
+
+      const available = results.map((r: any) => r.manufacturer);
+
       const { todayStatDate, yesterdayStatDate } = getDailyChallengeStatDates();
       const manufacturerIds = available.map((mfg) => mfg.id);
       const { todayMap, yesterdayMap } = await getDailyChallengePoints(db, {
@@ -220,7 +238,7 @@ export const draftRouter = router({
         todayStatDate,
         yesterdayStatDate,
       }));
-      
+
       return result;
     }),
 
@@ -250,14 +268,14 @@ export const draftRouter = router({
       // Get already drafted cannabis strains
       const draftedStrains = teamIds.length > 0
         ? await db
-            .select({ assetId: rosters.assetId })
-            .from(rosters)
-            .where(
-              and(
-                inArray(rosters.teamId, teamIds),
-                eq(rosters.assetType, "cannabis_strain")
-              )
+          .select({ assetId: rosters.assetId })
+          .from(rosters)
+          .where(
+            and(
+              inArray(rosters.teamId, teamIds),
+              eq(rosters.assetType, "cannabis_strain")
             )
+          )
         : [];
 
       const draftedIds = draftedStrains.map((r) => r.assetId);
@@ -265,22 +283,40 @@ export const draftRouter = router({
       // Get available cannabis strains
       // Build where conditions
       const conditions = [];
-      
+
       if (draftedIds.length > 0) {
         conditions.push(notInArray(cannabisStrains.id, draftedIds));
       }
-      
+
       if (input.search) {
         conditions.push(sql`${cannabisStrains.name} ILIKE ${`%${input.search}%`}`);
       }
-      
-      let query = db.select().from(cannabisStrains);
-      
+
+      const { yesterdayStatDate } = getDailyChallengeStatDates();
+
+      let query = db
+        .select({
+          strain: cannabisStrains,
+          stats: strainDailyChallengeStats,
+        })
+        .from(cannabisStrains)
+        .leftJoin(
+          strainDailyChallengeStats,
+          and(
+            eq(strainDailyChallengeStats.strainId, cannabisStrains.id),
+            eq(strainDailyChallengeStats.statDate, yesterdayStatDate)
+          )
+        );
+
       if (conditions.length > 0) {
         query = query.where(and(...conditions)) as any;
       }
 
-      const available = await query.limit(input.limit);
+      const results = await query
+        .orderBy(desc(strainDailyChallengeStats.totalPoints))
+        .limit(input.limit);
+
+      const available = results.map((r: any) => r.strain);
       const { todayStatDate, yesterdayStatDate } = getDailyChallengeStatDates();
       const strainIds = available.map((strain) => strain.id);
       const { todayMap, yesterdayMap } = await getDailyChallengePoints(db, {
@@ -304,7 +340,7 @@ export const draftRouter = router({
         yesterdayStatDate,
         // TODO: Add more stats
       }));
-      
+
       return result;
     }),
 
@@ -334,14 +370,14 @@ export const draftRouter = router({
       // Get already drafted products
       const draftedProducts = teamIds.length > 0
         ? await db
-            .select({ assetId: rosters.assetId })
-            .from(rosters)
-            .where(
-              and(
-                inArray(rosters.teamId, teamIds),
-                eq(rosters.assetType, "product")
-              )
+          .select({ assetId: rosters.assetId })
+          .from(rosters)
+          .where(
+            and(
+              inArray(rosters.teamId, teamIds),
+              eq(rosters.assetType, "product")
             )
+          )
         : [];
 
       const draftedIds = draftedProducts.map((r) => r.assetId);
@@ -349,22 +385,40 @@ export const draftRouter = router({
       // Get available products
       // Build where conditions
       const conditions = [];
-      
+
       if (draftedIds.length > 0) {
         conditions.push(notInArray(strains.id, draftedIds));
       }
-      
+
       if (input.search) {
         conditions.push(sql`${strains.name} ILIKE ${`%${input.search}%`}`);
       }
-      
-      let query = db.select().from(strains);
-      
+
+      const { yesterdayStatDate } = getDailyChallengeStatDates();
+
+      let query = db
+        .select({
+          product: strains,
+          stats: productDailyChallengeStats,
+        })
+        .from(strains)
+        .leftJoin(
+          productDailyChallengeStats,
+          and(
+            eq(productDailyChallengeStats.productId, strains.id),
+            eq(productDailyChallengeStats.statDate, yesterdayStatDate)
+          )
+        );
+
       if (conditions.length > 0) {
         query = query.where(and(...conditions)) as any;
       }
 
-      const available = await query.limit(input.limit);
+      const results = await query
+        .orderBy(desc(productDailyChallengeStats.totalPoints))
+        .limit(input.limit);
+
+      const available = results.map((r: any) => r.product);
       const { todayStatDate, yesterdayStatDate } = getDailyChallengeStatDates();
       const productIds = available.map((product) => product.id);
       const { todayMap, yesterdayMap } = await getDailyChallengePoints(db, {
@@ -389,7 +443,7 @@ export const draftRouter = router({
         yesterdayStatDate,
         // TODO: Add more stats
       }));
-      
+
       return result;
     }),
 
@@ -419,14 +473,14 @@ export const draftRouter = router({
       // Get already drafted pharmacies
       const draftedPharmacies = teamIds.length > 0
         ? await db
-            .select({ assetId: rosters.assetId })
-            .from(rosters)
-            .where(
-              and(
-                inArray(rosters.teamId, teamIds),
-                eq(rosters.assetType, "pharmacy")
-              )
+          .select({ assetId: rosters.assetId })
+          .from(rosters)
+          .where(
+            and(
+              inArray(rosters.teamId, teamIds),
+              eq(rosters.assetType, "pharmacy")
             )
+          )
         : [];
 
       const draftedIds = draftedPharmacies.map((r) => r.assetId);
@@ -434,22 +488,40 @@ export const draftRouter = router({
       // Get available pharmacies
       // Build where conditions
       const conditions = [];
-      
+
       if (draftedIds.length > 0) {
         conditions.push(notInArray(pharmacies.id, draftedIds));
       }
-      
+
       if (input.search) {
         conditions.push(sql`${pharmacies.name} ILIKE ${`%${input.search}%`}`);
       }
-      
-      let query = db.select().from(pharmacies);
-      
+
+      const { yesterdayStatDate } = getDailyChallengeStatDates();
+
+      let query = db
+        .select({
+          pharmacy: pharmacies,
+          stats: pharmacyDailyChallengeStats,
+        })
+        .from(pharmacies)
+        .leftJoin(
+          pharmacyDailyChallengeStats,
+          and(
+            eq(pharmacyDailyChallengeStats.pharmacyId, pharmacies.id),
+            eq(pharmacyDailyChallengeStats.statDate, yesterdayStatDate)
+          )
+        );
+
       if (conditions.length > 0) {
         query = query.where(and(...conditions)) as any;
       }
 
-      const available = await query.limit(input.limit);
+      const results = await query
+        .orderBy(desc(pharmacyDailyChallengeStats.totalPoints))
+        .limit(input.limit);
+
+      const available = results.map((r: any) => r.pharmacy);
       const { todayStatDate, yesterdayStatDate } = getDailyChallengeStatDates();
       const pharmacyIds = available.map((phm) => phm.id);
       const { todayMap, yesterdayMap } = await getDailyChallengePoints(db, {
@@ -499,14 +571,14 @@ export const draftRouter = router({
       // Get already drafted brands
       const draftedBrands = teamIds.length > 0
         ? await db
-            .select({ assetId: rosters.assetId })
-            .from(rosters)
-            .where(
-              and(
-                inArray(rosters.teamId, teamIds),
-                eq(rosters.assetType, "brand")
-              )
+          .select({ assetId: rosters.assetId })
+          .from(rosters)
+          .where(
+            and(
+              inArray(rosters.teamId, teamIds),
+              eq(rosters.assetType, "brand")
             )
+          )
         : [];
 
       const draftedIds = draftedBrands.map((r) => r.assetId);
@@ -514,22 +586,40 @@ export const draftRouter = router({
       // Get available brands
       // Build where conditions
       const conditions = [];
-      
+
       if (draftedIds.length > 0) {
         conditions.push(notInArray(brands.id, draftedIds));
       }
-      
+
       if (input.search) {
         conditions.push(sql`${brands.name} ILIKE ${`%${input.search}%`}`);
       }
-      
-      let query = db.select().from(brands);
-      
+
+      const { yesterdayStatDate } = getDailyChallengeStatDates();
+
+      let query = db
+        .select({
+          brand: brands,
+          stats: brandDailyChallengeStats,
+        })
+        .from(brands)
+        .leftJoin(
+          brandDailyChallengeStats,
+          and(
+            eq(brandDailyChallengeStats.brandId, brands.id),
+            eq(brandDailyChallengeStats.statDate, yesterdayStatDate)
+          )
+        );
+
       if (conditions.length > 0) {
         query = query.where(and(...conditions)) as any;
       }
 
-      const available = await query.limit(input.limit);
+      const results = await query
+        .orderBy(desc(brandDailyChallengeStats.totalPoints))
+        .limit(input.limit);
+
+      const available = results.map((r: any) => r.brand);
       const { todayStatDate, yesterdayStatDate } = getDailyChallengeStatDates();
       const brandIds = available.map((brand) => brand.id);
       const { todayMap, yesterdayMap } = await getDailyChallengePoints(db, {
@@ -625,7 +715,7 @@ export const draftRouter = router({
       // ========== PARALLEL PHASE 2: Asset Lookup + DB Writes ==========
       // Asset lookup runs in parallel with roster/draftPicks inserts
       const writeStart = Date.now();
-      
+
       // Get asset name based on type (single query)
       const assetLookupPromise = (async () => {
         if (input.assetType === "manufacturer") {
@@ -817,7 +907,7 @@ export const draftRouter = router({
       wsManager.broadcastToDraftRoom(input.leagueId, {
         type: "draft_started",
         timestamp: Date.now(),
-        });
+      });
 
       // Start timer for first pick
       await draftTimerManager.startTimer(input.leagueId);
@@ -860,11 +950,11 @@ export const draftRouter = router({
     .input(z.object({ leagueId: z.number() }))
     .mutation(async ({ input }) => {
       const wasCompleted = await checkAndCompleteDraft(input.leagueId);
-      
+
       if (wasCompleted) {
         // Notify all clients
         wsManager.notifyDraftComplete(input.leagueId);
-        
+
         return {
           success: true,
           message: "Draft has been marked as complete",
@@ -972,25 +1062,25 @@ export const draftRouter = router({
 
       // Batch fetch all assets (parallel)
       const [mfgData, strainData, productData, pharmacyData, brandData] = await Promise.all([
-        manufacturerIds.length > 0 
+        manufacturerIds.length > 0
           ? db.select({ id: manufacturers.id, name: manufacturers.name, logoUrl: manufacturers.logoUrl })
-              .from(manufacturers).where(inArray(manufacturers.id, manufacturerIds))
+            .from(manufacturers).where(inArray(manufacturers.id, manufacturerIds))
           : Promise.resolve([]),
         cannabisStrainIds.length > 0
           ? db.select({ id: cannabisStrains.id, name: cannabisStrains.name, imageUrl: cannabisStrains.imageUrl })
-              .from(cannabisStrains).where(inArray(cannabisStrains.id, cannabisStrainIds))
+            .from(cannabisStrains).where(inArray(cannabisStrains.id, cannabisStrainIds))
           : Promise.resolve([]),
         productIds.length > 0
           ? db.select({ id: strains.id, name: strains.name, imageUrl: strains.imageUrl })
-              .from(strains).where(inArray(strains.id, productIds))
+            .from(strains).where(inArray(strains.id, productIds))
           : Promise.resolve([]),
         pharmacyIds.length > 0
           ? db.select({ id: pharmacies.id, name: pharmacies.name, logoUrl: pharmacies.logoUrl })
-              .from(pharmacies).where(inArray(pharmacies.id, pharmacyIds))
+            .from(pharmacies).where(inArray(pharmacies.id, pharmacyIds))
           : Promise.resolve([]),
         brandIds.length > 0
           ? db.select({ id: brands.id, name: brands.name, logoUrl: brands.logoUrl })
-              .from(brands).where(inArray(brands.id, brandIds))
+            .from(brands).where(inArray(brands.id, brandIds))
           : Promise.resolve([]),
       ]);
 
@@ -1017,53 +1107,53 @@ export const draftRouter = router({
         const [mfgStats1, mfgStats2, strainStats1, strainStats2, productStats1, productStats2, pharmStats1, pharmStats2, brandStats1, brandStats2] = await Promise.all([
           manufacturerIds.length > 0
             ? db.select({ id: manufacturerWeeklyStats.manufacturerId, pts: manufacturerWeeklyStats.totalPoints })
-                .from(manufacturerWeeklyStats)
-                .where(and(inArray(manufacturerWeeklyStats.manufacturerId, manufacturerIds), eq(manufacturerWeeklyStats.year, input.year), eq(manufacturerWeeklyStats.week, lastWeek)))
+              .from(manufacturerWeeklyStats)
+              .where(and(inArray(manufacturerWeeklyStats.manufacturerId, manufacturerIds), eq(manufacturerWeeklyStats.year, input.year), eq(manufacturerWeeklyStats.week, lastWeek)))
             : Promise.resolve([]),
           manufacturerIds.length > 0
             ? db.select({ id: manufacturerWeeklyStats.manufacturerId, pts: manufacturerWeeklyStats.totalPoints })
-                .from(manufacturerWeeklyStats)
-                .where(and(inArray(manufacturerWeeklyStats.manufacturerId, manufacturerIds), eq(manufacturerWeeklyStats.year, input.year), eq(manufacturerWeeklyStats.week, twoWeeksAgo)))
+              .from(manufacturerWeeklyStats)
+              .where(and(inArray(manufacturerWeeklyStats.manufacturerId, manufacturerIds), eq(manufacturerWeeklyStats.year, input.year), eq(manufacturerWeeklyStats.week, twoWeeksAgo)))
             : Promise.resolve([]),
           cannabisStrainIds.length > 0
             ? db.select({ id: cannabisStrainWeeklyStats.cannabisStrainId, pts: cannabisStrainWeeklyStats.totalPoints })
-                .from(cannabisStrainWeeklyStats)
-                .where(and(inArray(cannabisStrainWeeklyStats.cannabisStrainId, cannabisStrainIds), eq(cannabisStrainWeeklyStats.year, input.year), eq(cannabisStrainWeeklyStats.week, lastWeek)))
+              .from(cannabisStrainWeeklyStats)
+              .where(and(inArray(cannabisStrainWeeklyStats.cannabisStrainId, cannabisStrainIds), eq(cannabisStrainWeeklyStats.year, input.year), eq(cannabisStrainWeeklyStats.week, lastWeek)))
             : Promise.resolve([]),
           cannabisStrainIds.length > 0
             ? db.select({ id: cannabisStrainWeeklyStats.cannabisStrainId, pts: cannabisStrainWeeklyStats.totalPoints })
-                .from(cannabisStrainWeeklyStats)
-                .where(and(inArray(cannabisStrainWeeklyStats.cannabisStrainId, cannabisStrainIds), eq(cannabisStrainWeeklyStats.year, input.year), eq(cannabisStrainWeeklyStats.week, twoWeeksAgo)))
+              .from(cannabisStrainWeeklyStats)
+              .where(and(inArray(cannabisStrainWeeklyStats.cannabisStrainId, cannabisStrainIds), eq(cannabisStrainWeeklyStats.year, input.year), eq(cannabisStrainWeeklyStats.week, twoWeeksAgo)))
             : Promise.resolve([]),
           productIds.length > 0
             ? db.select({ id: strainWeeklyStats.strainId, pts: strainWeeklyStats.totalPoints })
-                .from(strainWeeklyStats)
-                .where(and(inArray(strainWeeklyStats.strainId, productIds), eq(strainWeeklyStats.year, input.year), eq(strainWeeklyStats.week, lastWeek)))
+              .from(strainWeeklyStats)
+              .where(and(inArray(strainWeeklyStats.strainId, productIds), eq(strainWeeklyStats.year, input.year), eq(strainWeeklyStats.week, lastWeek)))
             : Promise.resolve([]),
           productIds.length > 0
             ? db.select({ id: strainWeeklyStats.strainId, pts: strainWeeklyStats.totalPoints })
-                .from(strainWeeklyStats)
-                .where(and(inArray(strainWeeklyStats.strainId, productIds), eq(strainWeeklyStats.year, input.year), eq(strainWeeklyStats.week, twoWeeksAgo)))
+              .from(strainWeeklyStats)
+              .where(and(inArray(strainWeeklyStats.strainId, productIds), eq(strainWeeklyStats.year, input.year), eq(strainWeeklyStats.week, twoWeeksAgo)))
             : Promise.resolve([]),
           pharmacyIds.length > 0
             ? db.select({ id: pharmacyWeeklyStats.pharmacyId, pts: pharmacyWeeklyStats.totalPoints })
-                .from(pharmacyWeeklyStats)
-                .where(and(inArray(pharmacyWeeklyStats.pharmacyId, pharmacyIds), eq(pharmacyWeeklyStats.year, input.year), eq(pharmacyWeeklyStats.week, lastWeek)))
+              .from(pharmacyWeeklyStats)
+              .where(and(inArray(pharmacyWeeklyStats.pharmacyId, pharmacyIds), eq(pharmacyWeeklyStats.year, input.year), eq(pharmacyWeeklyStats.week, lastWeek)))
             : Promise.resolve([]),
           pharmacyIds.length > 0
             ? db.select({ id: pharmacyWeeklyStats.pharmacyId, pts: pharmacyWeeklyStats.totalPoints })
-                .from(pharmacyWeeklyStats)
-                .where(and(inArray(pharmacyWeeklyStats.pharmacyId, pharmacyIds), eq(pharmacyWeeklyStats.year, input.year), eq(pharmacyWeeklyStats.week, twoWeeksAgo)))
+              .from(pharmacyWeeklyStats)
+              .where(and(inArray(pharmacyWeeklyStats.pharmacyId, pharmacyIds), eq(pharmacyWeeklyStats.year, input.year), eq(pharmacyWeeklyStats.week, twoWeeksAgo)))
             : Promise.resolve([]),
           brandIds.length > 0
             ? db.select({ id: brandWeeklyStats.brandId, pts: brandWeeklyStats.totalPoints })
-                .from(brandWeeklyStats)
-                .where(and(inArray(brandWeeklyStats.brandId, brandIds), eq(brandWeeklyStats.year, input.year), eq(brandWeeklyStats.week, lastWeek)))
+              .from(brandWeeklyStats)
+              .where(and(inArray(brandWeeklyStats.brandId, brandIds), eq(brandWeeklyStats.year, input.year), eq(brandWeeklyStats.week, lastWeek)))
             : Promise.resolve([]),
           brandIds.length > 0
             ? db.select({ id: brandWeeklyStats.brandId, pts: brandWeeklyStats.totalPoints })
-                .from(brandWeeklyStats)
-                .where(and(inArray(brandWeeklyStats.brandId, brandIds), eq(brandWeeklyStats.year, input.year), eq(brandWeeklyStats.week, twoWeeksAgo)))
+              .from(brandWeeklyStats)
+              .where(and(inArray(brandWeeklyStats.brandId, brandIds), eq(brandWeeklyStats.year, input.year), eq(brandWeeklyStats.week, twoWeeksAgo)))
             : Promise.resolve([]),
         ]);
 

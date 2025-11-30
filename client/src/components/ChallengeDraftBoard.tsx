@@ -560,24 +560,7 @@ export function ChallengeDraftBoard({
                             {draftPending ? "..." : "Draft"}
                           </button>
 
-                          {/* Favorite Button (Brands only) */}
-                          {player.assetType === "brand" && onToggleFavorite && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onToggleFavorite(player.id);
-                              }}
-                              className={cn(
-                                "w-8 h-8 flex items-center justify-center rounded-lg transition-all",
-                                favoritedBrandIds?.has(player.id)
-                                  ? "text-red-500 bg-red-500/10 hover:bg-red-500/20"
-                                  : "text-white/20 hover:text-white/40 hover:bg-white/5"
-                              )}
-                              title={favoritedBrandIds?.has(player.id) ? "Remove Favorite" : "Add Favorite (+10 Fan Buff)"}
-                            >
-                              {favoritedBrandIds?.has(player.id) ? "❤️" : "🤍"}
-                            </button>
-                          )}
+
 
                           {/* Player Thumbnail */}
                           <Avatar className="w-10 h-10 shrink-0 border-2" style={{ borderColor: colors.jersey }}>
