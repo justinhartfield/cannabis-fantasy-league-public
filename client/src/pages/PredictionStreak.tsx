@@ -8,18 +8,20 @@ import {
   TrendingUp,
   CheckCircle,
   XCircle,
-  Snowflake,
+  Coins,
 } from "lucide-react";
 import { toast } from "sonner";
 
 interface Prediction {
   matchupId: number;
   predictedWinnerId: number;
+  isDoubleDown?: boolean;
 }
 
 export default function PredictionStreak() {
   const utils = trpc.useUtils();
   const [predictions, setPredictions] = useState<Map<number, number>>(new Map());
+  const [doubleDowns, setDoubleDowns] = useState<Set<number>>(new Set());
 
   const { data: matchupsData, isLoading: matchupsLoading } = trpc.prediction.getDailyMatchups.useQuery();
   const { data: resultsData } = trpc.prediction.getYesterdayResults.useQuery();
@@ -29,23 +31,10 @@ export default function PredictionStreak() {
     onSuccess: () => {
       toast.success("Predictions submitted! Check back tomorrow to see how you did.");
       utils.prediction.getDailyMatchups.invalidate();
-    },
-    onError: (error) => {
-      toast.error(`Submission failed: ${error.message}`);
-    },
-  });
-
-  const activateFreezeMutation = trpc.prediction.activateStreakFreeze.useMutation({
-    onSuccess: (data) => {
-      if (data.alreadyActive) {
-        toast.info("You already have an active streak freeze for today.");
-      } else {
-        toast.success("Streak freeze activated for today. One loss will not break your streak.");
-      }
       utils.prediction.getUserStats.invalidate();
     },
     onError: (error) => {
-      toast.error(error.message || "Failed to activate streak freeze.");
+      toast.error(`Submission failed: ${error.message}`);
     },
   });
 
@@ -57,6 +46,26 @@ export default function PredictionStreak() {
     });
   };
 
+  const handleDoubleDownToggle = (matchupId: number) => {
+    if (!stats) return;
+
+    setDoubleDowns((prev) => {
+      const next = new Set(prev);
+      if (next.has(matchupId)) {
+        next.delete(matchupId);
+      } else {
+        // Check if user has enough tokens
+        const usedTokens = next.size;
+        if (usedTokens < (stats.doubleDownTokens || 0)) {
+          next.add(matchupId);
+        } else {
+          toast.error("No Double Down tokens remaining!");
+        }
+      }
+      return next;
+    });
+  };
+
   const handleSubmit = () => {
     if (!matchupsData?.matchups) return;
 
@@ -64,7 +73,11 @@ export default function PredictionStreak() {
     for (const matchup of matchupsData.matchups) {
       const prediction = predictions.get(matchup.id);
       if (prediction) {
-        allPredictions.push({ matchupId: matchup.id, predictedWinnerId: prediction });
+        allPredictions.push({
+          matchupId: matchup.id,
+          predictedWinnerId: prediction,
+          isDoubleDown: doubleDowns.has(matchup.id)
+        });
       }
     }
 
@@ -102,7 +115,7 @@ export default function PredictionStreak() {
         </div>
 
         {stats && (
-          <div className="mt-6 grid gap-3 md:grid-cols-5">
+          <div className="mt-6 grid gap-3 md:grid-cols-4">
             <StatCard label="Best Streak" icon={<Trophy className="h-4 w-4 text-yellow-400" />}>
               {stats.longestStreak || 0}
             </StatCard>
@@ -112,32 +125,11 @@ export default function PredictionStreak() {
             <StatCard label="Total Correct" icon={<CheckCircle className="h-4 w-4 text-weed-green" />}>
               {stats.correctPredictions || 0}/{stats.totalPredictions || 0}
             </StatCard>
-            <StatCard label="Freeze Tokens" icon={<Snowflake className="h-4 w-4 text-cyan-300" />}>
-              <div className="flex flex-col gap-2">
-                <span className="text-2xl font-bold">{stats.streakFreezeTokens || 0}</span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={
-                    activateFreezeMutation.isPending ||
-                    !stats ||
-                    (stats.streakFreezeTokens || 0) <= 0
-                  }
-                  onClick={() => activateFreezeMutation.mutate()}
-                  className="rounded-2xl border-white/40 text-white"
-                >
-                  {activateFreezeMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Activating...
-                    </>
-                  ) : (
-                    "Activate"
-                  )}
-                </Button>
+            <StatCard label="Double Down Tokens" icon={<Coins className="h-4 w-4 text-yellow-400" />}>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-bold">{stats.doubleDownTokens || 0}</span>
+                <span className="text-xs text-white/50">(Use for 2x streak)</span>
               </div>
-            </StatCard>
-            <StatCard label="Streak Freeze" icon={<Zap className="h-4 w-4 text-pink-300" />}>
-              {stats.freezeActive ? "Active" : "Ready"}
             </StatCard>
           </div>
         )}
@@ -171,6 +163,11 @@ export default function PredictionStreak() {
                   <span>
                     {result.entityAName} vs {result.entityBName}
                   </span>
+                  {result.userPrediction?.isDoubleDown && (
+                    <span className="ml-2 rounded-full bg-yellow-500/20 px-2 py-0.5 text-[10px] text-yellow-500">
+                      2x
+                    </span>
+                  )}
                 </div>
                 <span className="text-white/60">
                   Winner: {result.winnerId === result.entityAId ? result.entityAName : result.entityBName}
@@ -196,6 +193,8 @@ export default function PredictionStreak() {
             <div className="space-y-4">
               {matchupsData.matchups.map((matchup) => {
                 const userSelection = predictions.get(matchup.id) || matchup.userPrediction?.predictedWinnerId;
+                const isDoubleDown = doubleDowns.has(matchup.id) || matchup.userPrediction?.isDoubleDown;
+
                 return (
                   <div key={matchup.id} className="rounded-[28px] border border-white/10 bg-black/30 p-4">
                     <div className="flex items-center justify-between gap-4">
@@ -207,7 +206,28 @@ export default function PredictionStreak() {
                         type={matchup.entityType}
                         image={matchup.entityAImage}
                       />
-                      <span className="text-2xl font-bold text-white/40">VS</span>
+                      <div className="flex flex-col items-center gap-2">
+                        <span className="text-2xl font-bold text-white/40">VS</span>
+                        {!matchupsData.hasSubmitted && userSelection && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDoubleDownToggle(matchup.id)}
+                            className={`h-8 rounded-full px-3 text-xs font-bold transition-all ${isDoubleDown
+                                ? "bg-yellow-500 text-black hover:bg-yellow-400"
+                                : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white"
+                              }`}
+                          >
+                            <Coins className="mr-1 h-3 w-3" />
+                            {isDoubleDown ? "2x ACTIVE" : "DOUBLE DOWN"}
+                          </Button>
+                        )}
+                        {matchupsData.hasSubmitted && isDoubleDown && (
+                          <span className="rounded-full bg-yellow-500/20 px-2 py-0.5 text-[10px] font-bold text-yellow-500">
+                            2x APPLIED
+                          </span>
+                        )}
+                      </div>
                       <PredictionButton
                         selected={userSelection === matchup.entityBId}
                         disabled={matchupsData.hasSubmitted}
@@ -295,11 +315,10 @@ function PredictionButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`flex-1 rounded-3xl border px-4 py-5 text-left transition ${
-        selected
+      className={`flex-1 rounded-3xl border px-4 py-5 text-left transition ${selected
           ? "border-weed-green bg-weed-green/10 ring-2 ring-weed-green"
           : "border-white/10 bg-black/40 hover:border-weed-green/40"
-      } ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
+        } ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
     >
       <div className="flex items-center gap-3">
         {image && (

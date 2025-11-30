@@ -1,7 +1,7 @@
 import { getDb } from './db';
-import { 
-  dailyMatchups, 
-  userPredictions, 
+import {
+  dailyMatchups,
+  userPredictions,
   users,
   manufacturers,
   cannabisStrains,
@@ -11,7 +11,6 @@ import {
   cannabisStrainDailyStats,
   brandDailyStats,
   pharmacyDailyStats,
-  streakFreezes,
 } from '../drizzle/schema';
 import { eq, and, desc, isNotNull, sql } from 'drizzle-orm';
 
@@ -28,7 +27,7 @@ interface MatchupPair {
 
 export async function generateDailyMatchups(): Promise<void> {
   console.log('[PredictionService] Generating daily matchups...');
-  
+
   const db = await getDb();
   if (!db) {
     console.error('[PredictionService] Database not available');
@@ -37,13 +36,13 @@ export async function generateDailyMatchups(): Promise<void> {
 
   try {
     const today = new Date().toISOString().split('T')[0];
-    
+
     const existing = await db
       .select()
       .from(dailyMatchups)
       .where(eq(dailyMatchups.matchupDate, today))
       .limit(1);
-    
+
     if (existing.length > 0) {
       console.log('[PredictionService] Matchups already exist for today');
       return;
@@ -124,12 +123,12 @@ async function generateManufacturerMatchups(count: number): Promise<MatchupPair[
       .from(manufacturers)
       .where(hasNonEmptyUrl(manufacturers.logoUrl))
       .limit(100);
-    
+
     if (allManufacturers.length < count * 2) {
       console.warn('[PredictionService] Not enough manufacturers in database');
       return [];
     }
-    
+
     entitiesToUse = allManufacturers.map(m => ({ ...m, points: 0 }));
   }
 
@@ -198,12 +197,12 @@ async function generateStrainMatchups(count: number): Promise<MatchupPair[]> {
       .from(cannabisStrains)
       .where(hasNonEmptyUrl(cannabisStrains.imageUrl))
       .limit(100);
-    
+
     if (allStrains.length < count * 2) {
       console.warn('[PredictionService] Not enough strains in database');
       return [];
     }
-    
+
     entitiesToUse = allStrains.map(s => ({ ...s, points: 0 }));
   }
 
@@ -272,12 +271,12 @@ async function generateBrandMatchups(count: number): Promise<MatchupPair[]> {
       .from(brands)
       .where(hasNonEmptyUrl(brands.logoUrl))
       .limit(100);
-    
+
     if (allBrands.length < count * 2) {
       console.warn('[PredictionService] Not enough brands in database');
       return [];
     }
-    
+
     entitiesToUse = allBrands.map(b => ({ ...b, points: 0 }));
   }
 
@@ -346,12 +345,12 @@ async function generatePharmacyMatchups(count: number): Promise<MatchupPair[]> {
       .from(pharmacies)
       .where(hasNonEmptyUrl(pharmacies.logoUrl))
       .limit(100);
-    
+
     if (allPharmacies.length < count * 2) {
       console.warn('[PredictionService] Not enough pharmacies in database');
       return [];
     }
-    
+
     entitiesToUse = allPharmacies.map(p => ({ ...p, points: 0 }));
   }
 
@@ -384,7 +383,7 @@ async function generatePharmacyMatchups(count: number): Promise<MatchupPair[]> {
 
 export async function scorePreviousDayMatchups(): Promise<void> {
   console.log('[PredictionService] Scoring previous day matchups...');
-  
+
   const db = await getDb();
   if (!db) {
     console.error('[PredictionService] Database not available');
@@ -435,7 +434,7 @@ async function scoreMatchup(matchup: any): Promise<void> {
           eq(manufacturerDailyStats.statDate, matchup.matchupDate)
         ))
         .limit(1);
-      
+
       const statsB = await db
         .select()
         .from(manufacturerDailyStats)
@@ -467,7 +466,7 @@ async function scoreMatchup(matchup: any): Promise<void> {
         const rankBonus = rank <= 10 ? (11 - rank) * 5 : 0;
         entityBPoints = Math.floor(sales / 10) + (products * 3) + rankBonus;
       }
-    } 
+    }
     else if (matchup.entityType === 'strain') {
       const statsA = await db
         .select()
@@ -477,7 +476,7 @@ async function scoreMatchup(matchup: any): Promise<void> {
           eq(cannabisStrainDailyStats.statDate, matchup.matchupDate)
         ))
         .limit(1);
-      
+
       const statsB = await db
         .select()
         .from(cannabisStrainDailyStats)
@@ -517,7 +516,7 @@ async function scoreMatchup(matchup: any): Promise<void> {
           eq(brandDailyStats.statDate, matchup.matchupDate)
         ))
         .limit(1);
-      
+
       const statsB = await db
         .select()
         .from(brandDailyStats)
@@ -559,7 +558,7 @@ async function scoreMatchup(matchup: any): Promise<void> {
           eq(pharmacyDailyStats.statDate, matchup.matchupDate)
         ))
         .limit(1);
-      
+
       const statsB = await db
         .select()
         .from(pharmacyDailyStats)
@@ -599,8 +598,8 @@ async function scoreMatchup(matchup: any): Promise<void> {
 
     // Determine winner - use strict > to avoid bias in ties
     // In case of a tie with non-zero scores, Entity A wins (rare case)
-    const winnerId = entityAPoints > entityBPoints 
-      ? matchup.entityAId 
+    const winnerId = entityAPoints > entityBPoints
+      ? matchup.entityAId
       : matchup.entityBId;
 
     // Update predictions FIRST. If this fails, the matchup won't be marked as scored,
@@ -608,11 +607,11 @@ async function scoreMatchup(matchup: any): Promise<void> {
     await updateUserPredictionsForMatchup(matchup.id, winnerId, matchup.matchupDate);
 
     await db.update(dailyMatchups)
-      .set({ 
-        winnerId, 
+      .set({
+        winnerId,
         entityAPoints,
         entityBPoints,
-        isScored: true 
+        isScored: true
       })
       .where(eq(dailyMatchups.id, matchup.id));
 
@@ -649,7 +648,7 @@ export async function updateUserPredictionsForMatchup(
         .set({ isCorrect })
         .where(eq(userPredictions.id, prediction.id));
 
-      await updateUserStreak(prediction.userId, isCorrect, matchupDate);
+      await updateUserStreak(prediction.userId, isCorrect, matchupDate, prediction.isDoubleDown);
     }
   } catch (error) {
     console.error(`[PredictionService] Error updating predictions for matchup ${matchupId}:`, error);
@@ -659,7 +658,8 @@ export async function updateUserPredictionsForMatchup(
 export async function updateUserStreak(
   userId: number,
   wasCorrect: boolean,
-  matchupDate: string
+  matchupDate: string,
+  isDoubleDown: boolean = false
 ): Promise<void> {
   const db = await getDb();
   if (!db) return;
@@ -673,49 +673,27 @@ export async function updateUserStreak(
 
     if (!user) return;
 
-    let usedFreeze = false;
-
-    // If the prediction was incorrect, see if the user has an active streak freeze
-    if (!wasCorrect) {
-      const [freeze] = await db
-        .select()
-        .from(streakFreezes)
-        .where(
-          and(
-            eq(streakFreezes.userId, userId),
-            eq(streakFreezes.scope, "prediction"),
-            eq(streakFreezes.period, matchupDate),
-            eq(streakFreezes.status, "active")
-          )
-        )
-        .limit(1);
-
-      if (freeze) {
-        usedFreeze = true;
-
-        await db
-          .update(streakFreezes)
-          .set({
-            status: "used",
-            usedAt: new Date().toISOString(),
-          })
-          .where(eq(streakFreezes.id, freeze.id));
-      }
-    }
-
     let newStreak: number;
 
     if (wasCorrect) {
-      newStreak = (user.currentPredictionStreak || 0) + 1;
-    } else if (usedFreeze) {
-      // Freeze protects the current streak from being reset
-      newStreak = user.currentPredictionStreak || 0;
+      const increment = isDoubleDown ? 2 : 1;
+      newStreak = (user.currentPredictionStreak || 0) + increment;
+
+      // If Double Down was successful, consume the token
+      if (isDoubleDown) {
+        await db
+          .update(users)
+          .set({
+            doubleDownTokens: sql`${users.doubleDownTokens} - 1`,
+          })
+          .where(and(eq(users.id, userId), sql`${users.doubleDownTokens} > 0`));
+      }
     } else {
       newStreak = 0;
     }
 
     const newLongest = Math.max(
-      newStreak, 
+      newStreak,
       user.longestPredictionStreak || 0
     );
 

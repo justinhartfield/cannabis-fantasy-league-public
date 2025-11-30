@@ -605,7 +605,7 @@ export const users = pgTable("users", {
 	currentPredictionStreak: integer().default(0).notNull(),
 	longestPredictionStreak: integer().default(0).notNull(),
 	referralCredits: integer().default(0).notNull(),
-	streakFreezeTokens: integer().default(0).notNull(),
+	doubleDownTokens: integer().default(0).notNull(),
 	referralCode: varchar({ length: 32 }),
 	referredByUserId: integer(),
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
@@ -732,20 +732,7 @@ export const referrals = pgTable("referrals", {
 		index("referrals_code_idx").on(table.referralCode),
 	]);
 
-export const streakFreezes = pgTable("streakFreezes", {
-	id: serial().primaryKey(),
-	userId: integer().notNull(),
-	scope: varchar({ length: 50 }).default('prediction').notNull(),
-	period: date({ mode: 'string' }).notNull(),
-	status: varchar({ length: 50 }).default('active').notNull(),
-	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
-	usedAt: timestamp({ mode: 'string', withTimezone: true }),
-	expiresAt: timestamp({ mode: 'string', withTimezone: true }),
-},
-	(table) => [
-		index("streak_freezes_user_idx").on(table.userId),
-		index("streak_freezes_period_idx").on(table.period),
-	]);
+
 
 
 // Admin Dashboard - Sync Jobs and Logs
@@ -832,6 +819,7 @@ export const userPredictions = pgTable("userPredictions", {
 	matchupId: integer().notNull(),
 	predictedWinnerId: integer().notNull(),
 	isCorrect: boolean("isCorrect"),
+	isDoubleDown: boolean("isDoubleDown").default(false).notNull(),
 	submittedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
 },
