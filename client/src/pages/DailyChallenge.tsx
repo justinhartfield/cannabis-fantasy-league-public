@@ -373,17 +373,38 @@ export default function DailyChallenge() {
     }
   );
 
+  // Get the tRPC utils for cache invalidation
+  const trpcUtils = trpc.useUtils();
+  
   // Captain selection mutation
   const setCaptainMutation = trpc.lineup.setCaptain.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Captain set! Recalculating scores...");
-      // Refetch lineup to get updated captain info
+      
+      // Invalidate all relevant caches to ensure fresh data
+      await trpcUtils.lineup.getWeeklyLineup.invalidate();
+      await trpcUtils.scoring.getChallengeDayBreakdown.invalidate();
+      await trpcUtils.scoring.getChallengeDayScores.invalidate();
+      
+      // Refetch lineup immediately
       refetchLineup();
-      // Refetch breakdown to get updated scores with captain bonus
-      setTimeout(() => {
+      
+      // Refetch breakdown and scores after delay to allow recalculation to complete
+      setTimeout(async () => {
+        // Invalidate again and refetch
+        await trpcUtils.scoring.getChallengeDayBreakdown.invalidate();
+        await trpcUtils.scoring.getChallengeDayScores.invalidate();
         refetchBreakdown();
         refetchScores();
-      }, 1000); // Give server time to recalculate
+      }, 2000);
+      
+      // Final refresh after 4 seconds
+      setTimeout(async () => {
+        await trpcUtils.scoring.getChallengeDayBreakdown.invalidate();
+        refetchBreakdown();
+        refetchScores();
+        toast.success("Scores updated with Captain bonus!");
+      }, 4000);
     },
     onError: (error) => {
       toast.error(`Failed to set captain: ${error.message}`);

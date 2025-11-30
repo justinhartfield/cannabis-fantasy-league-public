@@ -341,6 +341,21 @@ export const lineupRouter = router({
           .where(eq(weeklyLineups.id, existing.id));
       }
 
+      // Verify the captain was saved by reading it back
+      const verifyLineup = await db
+        .select({ captainId: weeklyLineups.captainId, captainType: weeklyLineups.captainType })
+        .from(weeklyLineups)
+        .where(
+          and(
+            eq(weeklyLineups.teamId, input.teamId),
+            eq(weeklyLineups.year, input.year),
+            eq(weeklyLineups.week, input.week)
+          )
+        )
+        .limit(1);
+      
+      console.log(`[setCaptain] Verified lineup captain: captainId=${verifyLineup[0]?.captainId}, captainType=${verifyLineup[0]?.captainType}`);
+
       // Trigger score recalculation to apply captain bonus
       // Find the team's league and trigger recalculation
       try {

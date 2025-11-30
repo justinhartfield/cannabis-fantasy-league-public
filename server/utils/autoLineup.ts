@@ -141,8 +141,9 @@ export async function getOrCreateLineup(
     .limit(1);
 
   if (existingLineup.length > 0) {
-    console.log(`[AutoLineup] Using existing lineup for team ${teamId}, ${year}-W${week}`);
-    return existingLineup[0];
+    const lineup = existingLineup[0];
+    console.log(`[AutoLineup] Using existing lineup for team ${teamId}, ${year}-W${week}, captainId=${lineup.captainId}, captainType=${lineup.captainType}`);
+    return lineup;
   }
 
   // No lineup found, generate from roster
