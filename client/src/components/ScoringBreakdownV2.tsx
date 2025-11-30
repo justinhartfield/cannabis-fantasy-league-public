@@ -56,6 +56,10 @@ interface ScoringBreakdownProps {
     year: number;
     week: number;
   };
+  // Optional callback when player name is clicked (for profile modal)
+  onNameClick?: (assetId: number, assetType: string, assetName: string, imageUrl?: string | null) => void;
+  // Asset ID needed for the onNameClick callback
+  assetId?: number;
 }
 
 type ComponentTooltipDetails = {
@@ -456,6 +460,8 @@ export default function ScoringBreakdownV2({
   useTrendDisplay = true,
   variant = "classic",
   weekContext,
+  onNameClick,
+  assetId,
 }: ScoringBreakdownProps) {
   const getAssetTypeColor = (type: string) => {
     switch (type) {
@@ -628,7 +634,17 @@ export default function ScoringBreakdownV2({
               <div className="text-[11px] uppercase tracking-[0.35em] text-white/50">
                 {getAssetTypeLabel(data.assetType)}
               </div>
-              <div className="text-2xl font-semibold">{data.assetName}</div>
+              {onNameClick && assetId ? (
+                <button
+                  type="button"
+                  onClick={() => onNameClick(assetId, data.assetType, data.assetName, data.imageUrl)}
+                  className="text-2xl font-semibold text-left hover:text-primary transition-colors cursor-pointer underline-offset-2 hover:underline"
+                >
+                  {data.assetName}
+                </button>
+              ) : (
+                <div className="text-2xl font-semibold">{data.assetName}</div>
+              )}
               {useTrendDisplay && data.trendMultiplier && (
                 <div className="mt-1 inline-flex items-center gap-2 text-xs text-white/70">
                   <span className="px-2 py-0.5 rounded-full bg-white/10 flex items-center gap-1">

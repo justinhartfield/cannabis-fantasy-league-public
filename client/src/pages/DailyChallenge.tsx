@@ -13,6 +13,7 @@ import { LeagueChat } from "@/components/LeagueChat";
 import { ChallengeInviteLanding } from "@/components/ChallengeInviteLanding";
 import type { ScoringPlayData } from "@/components/ScoringPlayOverlay";
 import { ScoringPlayAnnouncement } from "@/components/ScoringPlayAnnouncement";
+import { EntityHistoryModal } from "@/components/EntityHistoryModal";
 
 import {
   Loader2,
@@ -191,6 +192,14 @@ export default function DailyChallenge() {
 
   // Recent plays feed (last 3 scoring plays with timestamps)
   const [recentPlays, setRecentPlays] = useState<(ScoringPlayData & { timestamp: Date })[]>([]);
+
+  // Selected entity for profile modal
+  const [selectedEntity, setSelectedEntity] = useState<{
+    type: 'manufacturer' | 'pharmacy' | 'brand' | 'product' | 'strain';
+    id: number;
+    name: string;
+    image?: string | null;
+  } | null>(null);
 
   // Live display scores - updated incrementally with each scoring play for realistic effect
   // Map of teamId -> current display score
@@ -411,6 +420,18 @@ export default function DailyChallenge() {
       captainType: assetType as "manufacturer" | "cannabis_strain" | "product" | "pharmacy" | "brand",
     });
   }, [selectedTeamId, isUserTeamSelected, userTeamHasCaptain, currentYear, currentWeek, setCaptainMutation]);
+
+  // Handle player name click to show profile modal
+  const handlePlayerNameClick = useCallback((assetId: number, assetType: string, assetName: string, imageUrl?: string | null) => {
+    // Map cannabis_strain to strain for the EntityHistoryModal
+    const entityType = assetType === 'cannabis_strain' ? 'strain' : assetType as 'manufacturer' | 'pharmacy' | 'brand' | 'product' | 'strain';
+    setSelectedEntity({
+      type: entityType,
+      id: assetId,
+      name: assetName,
+      image: imageUrl,
+    });
+  }, []);
 
   // Scroll to top when content finishes loading (not during loading state)
   const isStillLoading = !challengeId || authLoading || leagueLoading || scoresLoading;
@@ -1463,6 +1484,8 @@ export default function DailyChallenge() {
                               weeklyTrend={item.weeklyTrend}
                               useTrendDisplay={true}
                               variant="app"
+                              assetId={item.assetId}
+                              onNameClick={handlePlayerNameClick}
                             />
                           </div>
                         );
@@ -1482,6 +1505,18 @@ export default function DailyChallenge() {
           </Card>
         )}
       </main>
+
+      {/* Entity Profile Modal */}
+      {selectedEntity && (
+        <EntityHistoryModal
+          isOpen={!!selectedEntity}
+          onClose={() => setSelectedEntity(null)}
+          entityType={selectedEntity.type}
+          entityId={selectedEntity.id}
+          entityName={selectedEntity.name}
+          entityImage={selectedEntity.image}
+        />
+      )}
     </div>
   );
 }
