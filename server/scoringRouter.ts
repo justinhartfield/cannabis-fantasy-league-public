@@ -86,6 +86,7 @@ import {
   strains,
   pharmacies,
   brands,
+  products,
   dailyTeamScores,
   dailyScoringBreakdowns,
   weeklyLineups,
@@ -428,13 +429,12 @@ export const scoringRouter = router({
           : [],
         productIds.size > 0
           ? db.select({
-            id: strains.id,
-            name: strains.name,
-            imageUrl: cannabisStrains.imageUrl,
+            id: products.id,
+            name: products.name,
+            imageUrl: products.imageUrl,
           })
-            .from(strains)
-            .leftJoin(cannabisStrains, eq(strains.strainId, cannabisStrains.id))
-            .where(inArray(strains.id, Array.from(productIds)))
+            .from(products)
+            .where(inArray(products.id, Array.from(productIds)))
           : [],
         pharmacyIds.size > 0
           ? db.select({
@@ -1157,9 +1157,9 @@ export const scoringRouter = router({
               .where(inArray(cannabisStrains.id, Array.from(strainIds)))
             : [],
           productIds.size > 0
-            ? db.select({ id: strains.id, name: strains.name, imageUrl: sql<string | null>`NULL` })
-              .from(strains)
-              .where(inArray(strains.id, Array.from(productIds)))
+            ? db.select({ id: products.id, name: products.name, imageUrl: products.imageUrl })
+              .from(products)
+              .where(inArray(products.id, Array.from(productIds)))
             : [],
           pharmacyIds.size > 0
             ? db.select({ id: pharmacies.id, name: pharmacies.name, imageUrl: pharmacies.logoUrl })

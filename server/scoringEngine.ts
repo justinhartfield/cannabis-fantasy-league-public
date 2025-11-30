@@ -12,6 +12,7 @@ import {
   cannabisStrains,
   pharmacies,
   brands,
+  products,
   manufacturerWeeklyStats,
   strainWeeklyStats,
   cannabisStrainWeeklyStats,
@@ -1957,13 +1958,15 @@ async function getAssetNamesForBreakdowns(
   // Group by asset type
   const manufacturerIds: number[] = [];
   const strainIds: number[] = [];
+  const productIds: number[] = [];
   const pharmacyIds: number[] = [];
   const brandIds: number[] = [];
 
   for (const b of breakdowns) {
     if (!b.assetId || !b.assetType) continue;
     if (b.assetType === 'manufacturer') manufacturerIds.push(b.assetId);
-    else if (b.assetType === 'cannabis_strain' || b.assetType === 'product') strainIds.push(b.assetId);
+    else if (b.assetType === 'cannabis_strain') strainIds.push(b.assetId);
+    else if (b.assetType === 'product') productIds.push(b.assetId);
     else if (b.assetType === 'pharmacy') pharmacyIds.push(b.assetId);
     else if (b.assetType === 'brand') brandIds.push(b.assetId);
   }
@@ -1979,9 +1982,8 @@ async function getAssetNamesForBreakdowns(
     }
   }
 
-  // Fetch strains/products (using cannabisStrains table for genetics)
+  // Fetch cannabis strains
   if (strainIds.length > 0) {
-    // Try cannabis_strains first
     const strainData = await db
       .select({ id: cannabisStrains.id, name: cannabisStrains.name, imageUrl: cannabisStrains.imageUrl })
       .from(cannabisStrains)
@@ -1989,14 +1991,16 @@ async function getAssetNamesForBreakdowns(
     for (const s of strainData) {
       result.set(`cannabis_strain-${s.id}`, { name: s.name, imageUrl: s.imageUrl });
     }
+  }
 
-    // Also check strains table for products
+  // Fetch products (separate table from strains)
+  if (productIds.length > 0) {
     const productData = await db
-      .select({ id: strains.id, name: strains.name })
-      .from(strains)
-      .where(sql`${strains.id} = ANY(ARRAY[${sql.raw(strainIds.join(','))}]::int[])`);
+      .select({ id: products.id, name: products.name, imageUrl: products.imageUrl })
+      .from(products)
+      .where(sql`${products.id} = ANY(ARRAY[${sql.raw(productIds.join(','))}]::int[])`);
     for (const p of productData) {
-      result.set(`product-${p.id}`, { name: p.name, imageUrl: null });
+      result.set(`product-${p.id}`, { name: p.name, imageUrl: p.imageUrl });
     }
   }
 

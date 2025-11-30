@@ -10,7 +10,7 @@
 
 import { getDb } from './db';
 import { wsManager } from './websocket';
-import { dailyTeamScores, dailyScoringBreakdowns, teams, manufacturers, cannabisStrains, pharmacies, brands } from '../drizzle/schema';
+import { dailyTeamScores, dailyScoringBreakdowns, teams, manufacturers, cannabisStrains, pharmacies, brands, products } from '../drizzle/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 
 type AssetType = 'manufacturer' | 'cannabis_strain' | 'product' | 'pharmacy' | 'brand';
@@ -72,12 +72,14 @@ class ScoreBroadcaster {
     // Group by asset type
     const manufacturerIds: number[] = [];
     const strainIds: number[] = [];
+    const productIds: number[] = [];
     const pharmacyIds: number[] = [];
     const brandIds: number[] = [];
 
     for (const b of breakdowns) {
       if (b.assetType === 'manufacturer') manufacturerIds.push(b.assetId);
-      else if (b.assetType === 'cannabis_strain' || b.assetType === 'product') strainIds.push(b.assetId);
+      else if (b.assetType === 'cannabis_strain') strainIds.push(b.assetId);
+      else if (b.assetType === 'product') productIds.push(b.assetId);
       else if (b.assetType === 'pharmacy') pharmacyIds.push(b.assetId);
       else if (b.assetType === 'brand') brandIds.push(b.assetId);
     }
@@ -94,7 +96,7 @@ class ScoreBroadcaster {
         }
       }
 
-      // Fetch strains (for both cannabis_strain and product types)
+      // Fetch strains
       if (strainIds.length > 0) {
         const strainData = await db
           .select({ id: cannabisStrains.id, name: cannabisStrains.name, imageUrl: cannabisStrains.imageUrl })
@@ -102,7 +104,17 @@ class ScoreBroadcaster {
           .where(inArray(cannabisStrains.id, strainIds));
         for (const s of strainData) {
           result.set(`cannabis_strain:${s.id}`, { name: s.name, imageUrl: s.imageUrl });
-          result.set(`product:${s.id}`, { name: s.name, imageUrl: s.imageUrl });
+        }
+      }
+
+      // Fetch products (separate from strains)
+      if (productIds.length > 0) {
+        const productData = await db
+          .select({ id: products.id, name: products.name, imageUrl: products.imageUrl })
+          .from(products)
+          .where(inArray(products.id, productIds));
+        for (const p of productData) {
+          result.set(`product:${p.id}`, { name: p.name, imageUrl: p.imageUrl });
         }
       }
 
