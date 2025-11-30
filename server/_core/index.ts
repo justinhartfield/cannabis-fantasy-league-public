@@ -16,6 +16,7 @@ import { initDailyChallengeScheduler } from "../dailyChallengeScheduler";
 import { initPredictionScheduler } from "../predictionScheduler";
 import { getDailyStatsScheduler } from "../dailyStatsScheduler";
 import { wsManager } from "../websocket";
+import { getDailySummaryService } from "../services/dailySummaryService";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -79,30 +80,50 @@ async function startServer() {
 
   server.listen(port, '0.0.0.0', () => {
     console.log(`Server running on http://localhost:${port}/`);
-    
+
     // Initialize WebSocket manager
     wsManager.initialize(server);
     console.log('[WebSocket] Manager initialized');
-    
+
     // Start scoring scheduler
     scoringScheduler.start();
     console.log('[Scoring] Scheduler started');
 
     // Start season-long scoring scheduler
     seasonScoringScheduler.start();
-    
+
     // Start daily challenge scheduler
     initDailyChallengeScheduler();
     console.log('[DailyChallenge] Scheduler started');
-    
+
     // Start daily stats aggregation scheduler
     const dailyStatsScheduler = getDailyStatsScheduler();
     dailyStatsScheduler.start();
     console.log('[DailyStats] Scheduler started');
-    
+
     // Start prediction scheduler
     initPredictionScheduler();
     console.log('[Prediction] Scheduler started');
+
+    // Startup: Check if daily summary exists for yesterday, if not, generate it.
+    (async () => {
+      try {
+        const date = new Date();
+        date.setDate(date.getDate() - 1);
+        const dateStr = date.toISOString().split('T')[0];
+        const service = getDailySummaryService();
+        const existing = await service.getSummaryByDate(dateStr);
+        if (!existing) {
+          console.log(`[DailySummary] No summary found for ${dateStr}, generating now...`);
+          await service.generateDailySummary(dateStr);
+          console.log(`[DailySummary] Generated summary for ${dateStr}`);
+        } else {
+          console.log(`[DailySummary] Summary already exists for ${dateStr}`);
+        }
+      } catch (err) {
+        console.error('[DailySummary] Failed to check/generate summary on startup:', err);
+      }
+    })();
   });
 }
 

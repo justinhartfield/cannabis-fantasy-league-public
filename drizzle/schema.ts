@@ -814,6 +814,18 @@ export const dailyMatchups = pgTable("dailyMatchups", {
 		unique("matchup_unique").on(table.matchupDate, table.entityAId, table.entityBId),
 	]);
 
+export const dailySummaries = pgTable("dailySummaries", {
+	id: serial().primaryKey(),
+	date: date({ mode: 'string' }).notNull(),
+	headline: varchar({ length: 255 }).notNull(),
+	content: text().notNull(),
+	stats: json().notNull(),
+	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
+},
+	(table) => [
+		unique("daily_summaries_date_unique").on(table.date),
+	]);
+
 export const userPredictions = pgTable("userPredictions", {
 	id: serial().primaryKey(),
 	userId: integer().notNull(),

@@ -1,5 +1,12 @@
 import { getDb } from "./db";
 import { manufacturers, cannabisStrains, strains, pharmacies, brands, rosters, teams, draftPicks, leagues } from "../drizzle/schema";
+import {
+  manufacturerDailyChallengeStats,
+  strainDailyChallengeStats,
+  productDailyChallengeStats,
+  pharmacyDailyChallengeStats,
+  brandDailyChallengeStats
+} from "../drizzle/dailyChallengeSchema";
 import { eq, and, notInArray, inArray, sql, desc } from "drizzle-orm";
 import { advanceDraftPick, calculateNextPick } from "./draftLogic";
 import { wsManager } from "./websocket";
@@ -10,6 +17,15 @@ import { wsManager } from "./websocket";
  * Automatically selects the best available player when timer expires
  * Uses a simple "best available" strategy based on position needs
  */
+
+function getDailyChallengeStatDates() {
+  const today = new Date();
+  const todayStatDate = today.toISOString().split("T")[0];
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  const yesterdayStatDate = yesterday.toISOString().split("T")[0];
+  return { todayStatDate, yesterdayStatDate };
+}
 
 export async function makeAutoPick(leagueId: number, teamId: number): Promise<void> {
   const db = await getDb();
@@ -58,27 +74,40 @@ export async function makeAutoPick(leagueId: number, teamId: number): Promise<vo
   // Get already drafted players of this type
   const draftedAssets = teamIds.length > 0
     ? await db
-        .select({ assetId: rosters.assetId })
-        .from(rosters)
-        .where(
-          and(
-            inArray(rosters.teamId, teamIds),
-            eq(rosters.assetType, targetPosition)
-          )
+      .select({ assetId: rosters.assetId })
+      .from(rosters)
+      .where(
+        and(
+          inArray(rosters.teamId, teamIds),
+          eq(rosters.assetType, targetPosition)
         )
+      )
     : [];
 
   const draftedIds = draftedAssets.map((r) => r.assetId);
+  const { yesterdayStatDate } = getDailyChallengeStatDates();
 
   // Get best available player
   let pickedAsset: { id: number; name: string; imageUrl: string | null } | null = null;
 
   if (targetPosition === "manufacturer") {
     const available = await db
-      .select()
+      .select({
+        id: manufacturers.id,
+        name: manufacturers.name,
+        logoUrl: manufacturers.logoUrl,
+        points: manufacturerDailyChallengeStats.totalPoints
+      })
       .from(manufacturers)
+      .leftJoin(
+        manufacturerDailyChallengeStats,
+        and(
+          eq(manufacturerDailyChallengeStats.manufacturerId, manufacturers.id),
+          eq(manufacturerDailyChallengeStats.statDate, yesterdayStatDate)
+        )
+      )
       .where(draftedIds.length > 0 ? notInArray(manufacturers.id, draftedIds) : undefined)
-      .orderBy(desc(manufacturers.productCount))
+      .orderBy(desc(manufacturerDailyChallengeStats.totalPoints), desc(manufacturers.productCount))
       .limit(1);
 
     if (available.length > 0) {
@@ -86,10 +115,22 @@ export async function makeAutoPick(leagueId: number, teamId: number): Promise<vo
     }
   } else if (targetPosition === "cannabis_strain") {
     const available = await db
-      .select()
+      .select({
+        id: cannabisStrains.id,
+        name: cannabisStrains.name,
+        imageUrl: cannabisStrains.imageUrl,
+        points: strainDailyChallengeStats.totalPoints
+      })
       .from(cannabisStrains)
+      .leftJoin(
+        strainDailyChallengeStats,
+        and(
+          eq(strainDailyChallengeStats.strainId, cannabisStrains.id),
+          eq(strainDailyChallengeStats.statDate, yesterdayStatDate)
+        )
+      )
       .where(draftedIds.length > 0 ? notInArray(cannabisStrains.id, draftedIds) : undefined)
-      .orderBy(desc(cannabisStrains.pharmaceuticalProductCount))
+      .orderBy(desc(strainDailyChallengeStats.totalPoints), desc(cannabisStrains.pharmaceuticalProductCount))
       .limit(1);
 
     if (available.length > 0) {
@@ -97,10 +138,22 @@ export async function makeAutoPick(leagueId: number, teamId: number): Promise<vo
     }
   } else if (targetPosition === "product") {
     const available = await db
-      .select()
+      .select({
+        id: strains.id,
+        name: strains.name,
+        imageUrl: strains.imageUrl,
+        points: productDailyChallengeStats.totalPoints
+      })
       .from(strains)
+      .leftJoin(
+        productDailyChallengeStats,
+        and(
+          eq(productDailyChallengeStats.productId, strains.id),
+          eq(productDailyChallengeStats.statDate, yesterdayStatDate)
+        )
+      )
       .where(draftedIds.length > 0 ? notInArray(strains.id, draftedIds) : undefined)
-      .orderBy(desc(strains.pharmacyCount), desc(strains.favoriteCount))
+      .orderBy(desc(productDailyChallengeStats.totalPoints), desc(strains.pharmacyCount), desc(strains.favoriteCount))
       .limit(1);
 
     if (available.length > 0) {
@@ -108,10 +161,22 @@ export async function makeAutoPick(leagueId: number, teamId: number): Promise<vo
     }
   } else if (targetPosition === "pharmacy") {
     const available = await db
-      .select()
+      .select({
+        id: pharmacies.id,
+        name: pharmacies.name,
+        logoUrl: pharmacies.logoUrl,
+        points: pharmacyDailyChallengeStats.totalPoints
+      })
       .from(pharmacies)
+      .leftJoin(
+        pharmacyDailyChallengeStats,
+        and(
+          eq(pharmacyDailyChallengeStats.pharmacyId, pharmacies.id),
+          eq(pharmacyDailyChallengeStats.statDate, yesterdayStatDate)
+        )
+      )
       .where(draftedIds.length > 0 ? notInArray(pharmacies.id, draftedIds) : undefined)
-      .orderBy(desc(pharmacies.productCount), desc(pharmacies.weeklyRevenueCents))
+      .orderBy(desc(pharmacyDailyChallengeStats.totalPoints), desc(pharmacies.productCount), desc(pharmacies.weeklyRevenueCents))
       .limit(1);
 
     if (available.length > 0) {
@@ -119,10 +184,22 @@ export async function makeAutoPick(leagueId: number, teamId: number): Promise<vo
     }
   } else if (targetPosition === "brand") {
     const available = await db
-      .select()
+      .select({
+        id: brands.id,
+        name: brands.name,
+        logoUrl: brands.logoUrl,
+        points: brandDailyChallengeStats.totalPoints
+      })
       .from(brands)
+      .leftJoin(
+        brandDailyChallengeStats,
+        and(
+          eq(brandDailyChallengeStats.brandId, brands.id),
+          eq(brandDailyChallengeStats.statDate, yesterdayStatDate)
+        )
+      )
       .where(draftedIds.length > 0 ? notInArray(brands.id, draftedIds) : undefined)
-      .orderBy(desc(brands.totalFavorites), desc(brands.affiliateClicks))
+      .orderBy(desc(brandDailyChallengeStats.totalPoints), desc(brands.totalFavorites), desc(brands.affiliateClicks))
       .limit(1);
 
     if (available.length > 0) {

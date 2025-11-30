@@ -213,7 +213,7 @@ export const draftRouter = router({
       }
 
       const results = await query
-        .orderBy(desc(manufacturerDailyChallengeStats.totalPoints))
+        .orderBy(sql`${manufacturerDailyChallengeStats.totalPoints} DESC NULLS LAST`)
         .limit(input.limit);
 
       const available = results.map((r: any) => r.manufacturer);
@@ -313,7 +313,7 @@ export const draftRouter = router({
       }
 
       const results = await query
-        .orderBy(desc(strainDailyChallengeStats.totalPoints))
+        .orderBy(sql`${strainDailyChallengeStats.totalPoints} DESC NULLS LAST`)
         .limit(input.limit);
 
       const available = results.map((r: any) => r.strain);
@@ -415,7 +415,7 @@ export const draftRouter = router({
       }
 
       const results = await query
-        .orderBy(desc(productDailyChallengeStats.totalPoints))
+        .orderBy(sql`${productDailyChallengeStats.totalPoints} DESC NULLS LAST`)
         .limit(input.limit);
 
       const available = results.map((r: any) => r.product);
@@ -518,7 +518,7 @@ export const draftRouter = router({
       }
 
       const results = await query
-        .orderBy(desc(pharmacyDailyChallengeStats.totalPoints))
+        .orderBy(sql`${pharmacyDailyChallengeStats.totalPoints} DESC NULLS LAST`)
         .limit(input.limit);
 
       const available = results.map((r: any) => r.pharmacy);
@@ -616,7 +616,7 @@ export const draftRouter = router({
       }
 
       const results = await query
-        .orderBy(desc(brandDailyChallengeStats.totalPoints))
+        .orderBy(sql`${brandDailyChallengeStats.totalPoints} DESC NULLS LAST`)
         .limit(input.limit);
 
       const available = results.map((r: any) => r.brand);

@@ -2,7 +2,7 @@
 import { getDb } from "../server/db";
 import { manufacturers } from "../drizzle/schema";
 import { manufacturerDailyChallengeStats } from "../drizzle/dailyChallengeSchema";
-import { desc, eq, and } from "drizzle-orm";
+import { desc, eq, and, sql } from "drizzle-orm";
 
 async function verifySorting() {
     const db = await getDb();
@@ -29,7 +29,7 @@ async function verifySorting() {
                 eq(manufacturerDailyChallengeStats.statDate, yesterdayStatDate)
             )
         )
-        .orderBy(desc(manufacturerDailyChallengeStats.totalPoints))
+        .orderBy(sql`${manufacturerDailyChallengeStats.totalPoints} DESC NULLS LAST`)
         .limit(10);
 
     console.log("Top 10 Manufacturers by Yesterday's Points:");
