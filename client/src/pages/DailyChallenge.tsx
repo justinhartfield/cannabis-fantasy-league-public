@@ -20,6 +20,7 @@ import {
   Trophy,
   UserPlus,
   Copy,
+  Crown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -171,6 +172,7 @@ export default function DailyChallenge() {
   const {
     data: teamLineup,
     isLoading: teamLineupLoading,
+    refetch: refetchLineup,
   } = trpc.lineup.getWeeklyLineup.useQuery(
     {
       teamId: selectedTeamId || 0,
@@ -181,6 +183,54 @@ export default function DailyChallenge() {
       enabled: !!selectedTeamId,
     }
   );
+
+  // Captain selection mutation
+  const setCaptainMutation = trpc.lineup.setCaptain.useMutation({
+    onSuccess: () => {
+      toast.success("Captain set! Recalculating scores...");
+      // Refetch lineup to get updated captain info
+      refetchLineup();
+      // Refetch breakdown to get updated scores with captain bonus
+      setTimeout(() => {
+        refetchBreakdown();
+        refetchScores();
+      }, 1000); // Give server time to recalculate
+    },
+    onError: (error) => {
+      toast.error(`Failed to set captain: ${error.message}`);
+    },
+  });
+
+  // Check if user's team already has a captain set
+  const userTeamHasCaptain = useMemo(() => {
+    if (!teamLineup) return false;
+    return !!(teamLineup.captainId && teamLineup.captainType);
+  }, [teamLineup]);
+
+  // Find user's team from the league
+  const userTeamFromLeague = useMemo(() => {
+    if (!league?.teams || !user?.id) return null;
+    return league.teams.find((team: any) => team.userId === user.id) || null;
+  }, [league, user]);
+
+  // Check if the selected team belongs to the current user
+  const isUserTeamSelected = useMemo(() => {
+    if (!selectedTeamId || !userTeamFromLeague) return false;
+    return selectedTeamId === userTeamFromLeague.id;
+  }, [selectedTeamId, userTeamFromLeague]);
+
+  // Handle captain selection
+  const handleSetCaptain = useCallback((assetId: number, assetType: string) => {
+    if (!selectedTeamId || !isUserTeamSelected || userTeamHasCaptain) return;
+    
+    setCaptainMutation.mutate({
+      teamId: selectedTeamId,
+      year: currentYear,
+      week: currentWeek,
+      captainId: assetId,
+      captainType: assetType as "manufacturer" | "cannabis_strain" | "product" | "pharmacy" | "brand",
+    });
+  }, [selectedTeamId, isUserTeamSelected, userTeamHasCaptain, currentYear, currentWeek, setCaptainMutation]);
 
   // Scroll to top when content finishes loading (not during loading state)
   const isStillLoading = !challengeId || authLoading || leagueLoading || scoresLoading;
@@ -606,10 +656,8 @@ export default function DailyChallenge() {
   const leader = sortedScores[0];
   const challenger = sortedScores[1];
   const activeTeamCount = dayScores?.length ?? league?.teams?.length ?? 0;
-  const userTeam = useMemo(() => {
-    if (!league?.teams || !user?.id) return null;
-    return league.teams.find((team: any) => team.userId === user.id) || null;
-  }, [league, user]);
+  // userTeam is defined earlier as userTeamFromLeague
+  const userTeam = userTeamFromLeague;
   const showInviteCard = (league?.teams?.length ?? 0) < (league?.teamCount ?? 2);
   const scoreDiff =
     leader && challenger ? (leader.points || 0) - (challenger.points || 0) : 0;
@@ -933,9 +981,24 @@ export default function DailyChallenge() {
         {/* Detailed Breakdown */}
         {selectedTeamId && breakdown?.breakdowns?.length ? (
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              Scoring Breakdown
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                Scoring Breakdown
+              </h3>
+              {/* Captain Selection Hint */}
+              {isUserTeamSelected && !userTeamHasCaptain && (
+                <div className="flex items-center gap-2 text-xs text-yellow-400 animate-pulse">
+                  <Crown className="w-4 h-4" />
+                  <span>Click a player to make them Captain (1.25x bonus)</span>
+                </div>
+              )}
+              {isUserTeamSelected && userTeamHasCaptain && (
+                <div className="flex items-center gap-2 text-xs text-green-400">
+                  <Crown className="w-4 h-4" />
+                  <span>Captain set!</span>
+                </div>
+              )}
+            </div>
             <div className="space-y-6">
               {/* Group assets by type and display in 2-column grid */}
               {(() => {
@@ -962,33 +1025,68 @@ export default function DailyChallenge() {
 
                   return (
                     <div key={assetType} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {items.map((item: any, index: number) => (
-                        <div key={`${item.assetId}-${index}`}>
-                          <ScoringBreakdownV2
-                            data={{
-                              assetName:
-                                item.assetName || `Unknown ${item.assetType}`,
-                              assetType: item.assetType,
-                              imageUrl: item.imageUrl || null,
-                              components: item.breakdown?.components || [],
-                              bonuses: item.breakdown?.bonuses || [],
-                              penalties: item.breakdown?.penalties || [],
-                              subtotal: item.breakdown?.subtotal || 0,
-                              total: item.breakdown?.total ?? item.totalPoints ?? 0,
-                              // Pass new trend fields
-                              trendMultiplier: item.breakdown?.trendMultiplier,
-                              streakDays: item.breakdown?.streakDays,
-                              marketSharePercent: item.breakdown?.marketSharePercent,
-                              consistencyScore: item.breakdown?.consistencyScore,
-                              velocityScore: item.breakdown?.velocityScore,
+                      {items.map((item: any, index: number) => {
+                        // Check if this item is the captain
+                        const isCaptain = teamLineup?.captainId === item.assetId && 
+                                          teamLineup?.captainType === item.assetType;
+                        // Can select as captain if: user's team, no captain set yet, not already captain
+                        const canSelectAsCaptain = isUserTeamSelected && !userTeamHasCaptain && !isCaptain;
+                        
+                        return (
+                          <div 
+                            key={`${item.assetId}-${index}`}
+                            className={cn(
+                              "relative transition-all duration-200",
+                              canSelectAsCaptain && "cursor-pointer hover:scale-[1.02] hover:ring-2 hover:ring-yellow-400/50 rounded-[28px]",
+                              isCaptain && "ring-2 ring-yellow-400 rounded-[28px]"
+                            )}
+                            onClick={() => {
+                              if (canSelectAsCaptain && item.assetId) {
+                                handleSetCaptain(item.assetId, item.assetType);
+                              }
                             }}
-                            leagueAverage={item.leagueAverage}
-                            weeklyTrend={item.weeklyTrend}
-                            useTrendDisplay={true}
-                            variant="app"
-                          />
-                        </div>
-                      ))}
+                          >
+                            {/* Captain Badge */}
+                            {isCaptain && (
+                              <div className="absolute -top-2 -right-2 z-20 flex items-center justify-center w-8 h-8 rounded-full bg-yellow-500 text-black font-bold shadow-lg border-2 border-white">
+                                C
+                              </div>
+                            )}
+                            {/* Make Captain Overlay */}
+                            {canSelectAsCaptain && (
+                              <div className="absolute inset-0 z-10 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-200 bg-black/40 rounded-[28px]">
+                                <div className="bg-yellow-500 text-black px-4 py-2 rounded-full font-bold text-sm flex items-center gap-2">
+                                  <Crown className="w-4 h-4" />
+                                  Make Captain
+                                </div>
+                              </div>
+                            )}
+                            <ScoringBreakdownV2
+                              data={{
+                                assetName:
+                                  item.assetName || `Unknown ${item.assetType}`,
+                                assetType: item.assetType,
+                                imageUrl: item.imageUrl || null,
+                                components: item.breakdown?.components || [],
+                                bonuses: item.breakdown?.bonuses || [],
+                                penalties: item.breakdown?.penalties || [],
+                                subtotal: item.breakdown?.subtotal || 0,
+                                total: item.breakdown?.total ?? item.totalPoints ?? 0,
+                                // Pass new trend fields
+                                trendMultiplier: item.breakdown?.trendMultiplier,
+                                streakDays: item.breakdown?.streakDays,
+                                marketSharePercent: item.breakdown?.marketSharePercent,
+                                consistencyScore: item.breakdown?.consistencyScore,
+                                velocityScore: item.breakdown?.velocityScore,
+                              }}
+                              leagueAverage={item.leagueAverage}
+                              weeklyTrend={item.weeklyTrend}
+                              useTrendDisplay={true}
+                              variant="app"
+                            />
+                          </div>
+                        );
+                      })}
                     </div>
                   );
                 });
