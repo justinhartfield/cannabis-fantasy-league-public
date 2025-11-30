@@ -2,7 +2,7 @@ import { z } from "zod";
 import { eq, and } from "drizzle-orm";
 import { protectedProcedure, router } from "./_core/trpc";
 import { getDb } from "./db";
-import { weeklyLineups, weeklyTeamScores, rosters, manufacturers, cannabisStrains, strains, pharmacies, brands } from "../drizzle/schema";
+import { weeklyLineups, weeklyTeamScores, rosters, manufacturers, cannabisStrains, strains, pharmacies, brands, teams, leagues } from "../drizzle/schema";
 
 /**
  * Lineup Router
@@ -339,6 +339,38 @@ export const lineupRouter = router({
             captainType: input.captainType,
           })
           .where(eq(weeklyLineups.id, existing.id));
+      }
+
+      // Trigger score recalculation to apply captain bonus
+      // Find the team's league and trigger recalculation
+      const [team] = await db
+        .select({ leagueId: teams.leagueId })
+        .from(teams)
+        .where(eq(teams.id, input.teamId))
+        .limit(1);
+
+      if (team) {
+        const [league] = await db
+          .select({ isChallenge: leagues.isChallenge, createdAt: leagues.createdAt })
+          .from(leagues)
+          .where(eq(leagues.id, team.leagueId))
+          .limit(1);
+
+        if (league?.isChallenge) {
+          // For daily challenges, recalculate the day's scores
+          const statDate = new Date(league.createdAt).toISOString().split('T')[0];
+          console.log(`[setCaptain] Triggering score recalculation for team ${input.teamId}, challenge ${team.leagueId}, date ${statDate}`);
+          
+          // Import and call the score calculation
+          const { calculateTeamDailyScore } = await import('./scoringEngine');
+          try {
+            await calculateTeamDailyScore(input.teamId, team.leagueId, statDate);
+            console.log(`[setCaptain] Score recalculated successfully for team ${input.teamId}`);
+          } catch (error) {
+            console.error(`[setCaptain] Error recalculating scores:`, error);
+            // Don't throw - captain was set successfully, just log the score calc error
+          }
+        }
       }
 
       return { success: true };

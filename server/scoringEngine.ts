@@ -2200,6 +2200,8 @@ async function computeTeamScore(options: TeamScoreComputationOptions): Promise<T
   // Only apply for Daily Challenge
   if (scope.type === 'daily') {
     // 1. Apply Captain Multiplier (1.25x)
+    console.log(`[Captain] Team ${options.teamId} lineup captain info: captainId=${teamLineup.captainId}, captainType=${teamLineup.captainType}`);
+    
     if (teamLineup.captainId && teamLineup.captainType) {
       const captainMultiplier = 1.25;
       const captainType = teamLineup.captainType;
@@ -2207,8 +2209,12 @@ async function computeTeamScore(options: TeamScoreComputationOptions): Promise<T
 
       // Find the breakdown item for the captain
       const captainItem = breakdowns.find(b => b.assetType === captainType && b.assetId === captainId);
+      
+      console.log(`[Captain] Looking for captain in breakdowns: type=${captainType}, id=${captainId}`);
+      console.log(`[Captain] Available breakdowns:`, breakdowns.map(b => `${b.assetType}#${b.assetId}`).join(', '));
 
       if (captainItem) {
+        console.log(`[Captain] Found captain item: ${captainItem.assetName || 'Unknown'} with ${captainItem.points} base points`);
         const originalPoints = captainItem.points || 0;
         const boostedPoints = Math.round(originalPoints * captainMultiplier); // Ensure integer
         const bonusPoints = boostedPoints - originalPoints;
@@ -2227,6 +2233,10 @@ async function computeTeamScore(options: TeamScoreComputationOptions): Promise<T
             points: bonusPoints
           });
           captainItem.breakdown.total = boostedPoints;
+          console.log(`[Captain] Updated breakdown.bonuses, now has ${captainItem.breakdown.bonuses.length} bonus(es):`, 
+            captainItem.breakdown.bonuses.map((b: any) => b.type).join(', '));
+        } else {
+          console.warn(`[Captain] captainItem.breakdown is falsy - cannot add bonus to breakdown JSON`);
         }
 
         // Update position points map
@@ -2243,7 +2253,12 @@ async function computeTeamScore(options: TeamScoreComputationOptions): Promise<T
         });
 
         totalBonus += bonusPoints;
+        console.log(`[Captain] Applied ${bonusPoints} bonus points. New total: ${boostedPoints}`);
+      } else {
+        console.warn(`[Captain] Captain item NOT found in breakdowns! captainType=${captainType}, captainId=${captainId}`);
       }
+    } else {
+      console.log(`[Captain] No captain set for team ${options.teamId}`);
     }
 
     // 2. Apply Fan Buff (+5 for any Favorite)
