@@ -279,6 +279,19 @@ type BonusTooltipDetails = {
 };
 
 /**
+ * Parse numeric values from bonus condition strings
+ * Examples: "(27/100)" -> 27, "(+56)" -> 56, "2 days" -> 2, "×1.10" -> 1.10
+ */
+const parseValueFromCondition = (condition: string, pattern: RegExp): number | null => {
+  const match = condition.match(pattern);
+  if (match && match[1]) {
+    const parsed = parseFloat(match[1]);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+};
+
+/**
  * Get detailed tooltip content for bonus items
  * Shows explanation, formula, and specific math for the current asset
  */
@@ -287,10 +300,15 @@ const getBonusTooltipContent = (
   data: ScoringBreakdownData
 ): BonusTooltipDetails => {
   const bonusType = bonus.type.toLowerCase();
+  const condition = bonus.condition || '';
   
-  // Consistency Bonus
+  // Consistency Bonus - parse from "(X/100)" in condition
   if (bonusType.includes('consistency')) {
-    const score = data.consistencyScore ?? 0;
+    // Try to get from data first, then parse from condition like "(27/100)"
+    let score = data.consistencyScore;
+    if (!score || score === 0) {
+      score = parseValueFromCondition(condition, /\((\d+)\/100\)/) ?? 0;
+    }
     return {
       title: 'Consistency Bonus',
       explanation: 'Rewards stable daily performance. Lower variance in daily activity = higher consistency score.',
@@ -299,9 +317,13 @@ const getBonusTooltipContent = (
     };
   }
   
-  // Velocity Bonus
+  // Velocity Bonus - parse from "(+X)" or "(-X)" in condition
   if (bonusType.includes('velocity')) {
-    const score = data.velocityScore ?? 0;
+    // Try to get from data first, then parse from condition like "(+56)"
+    let score = data.velocityScore;
+    if (score === undefined || score === 0) {
+      score = parseValueFromCondition(condition, /\(([+-]?\d+)\)/) ?? 0;
+    }
     return {
       title: 'Velocity Bonus',
       explanation: 'Rewards accelerating growth trends. Measures the change in growth rate (acceleration).',
@@ -310,13 +332,26 @@ const getBonusTooltipContent = (
     };
   }
   
-  // Rank Bonus
+  // Rank Bonus - parse from "Rank #X" or infer tier from points
   if (bonusType.includes('rank') && !bonusType.includes('market')) {
-    const rank = data.currentRank ?? 0;
-    const tierText = rank === 1 ? '#1' : 
-                     rank <= 3 ? '#2-3' : 
-                     rank <= 5 ? '#4-5' : 
-                     rank <= 10 ? '#6-10' : 'Unranked';
+    let rank = data.currentRank;
+    if (!rank || rank === 0) {
+      rank = parseValueFromCondition(condition, /[Rr]ank\s*#?(\d+)/) ?? 0;
+    }
+    // Infer rank tier from points if rank not found
+    let tierText: string;
+    if (rank > 0) {
+      tierText = rank === 1 ? '#1' : 
+                 rank <= 3 ? '#2-3' : 
+                 rank <= 5 ? '#4-5' : 
+                 rank <= 10 ? '#6-10' : `#${rank}`;
+    } else {
+      // Infer from bonus points
+      tierText = bonus.points === 30 ? '#1' :
+                 bonus.points === 20 ? '#2-3' :
+                 bonus.points === 15 ? '#4-5' :
+                 bonus.points === 10 ? '#6-10' : 'Top 10';
+    }
     return {
       title: 'Rank Bonus',
       explanation: 'Points for current market position. Higher ranks earn more bonus points.',
@@ -325,38 +360,62 @@ const getBonusTooltipContent = (
     };
   }
   
-  // Market Share Bonus
+  // Market Share Bonus - infer tier from points
   if (bonusType.includes('market') && bonusType.includes('share')) {
-    const share = data.marketSharePercent ?? 0;
-    const tierText = share >= 15 ? '15%+ (Dominant)' :
-                     share >= 8 ? '8-14% (Major)' :
-                     share >= 4 ? '4-7% (Significant)' :
-                     share >= 2 ? '2-3% (Notable)' : '<2%';
+    let share = data.marketSharePercent;
+    if (!share || share === 0) {
+      // Try to parse percentage from condition
+      share = parseValueFromCondition(condition, /(\d+(?:\.\d+)?)\s*%/) ?? 0;
+    }
+    // Infer tier from bonus points if share not found
+    let tierText: string;
+    if (share > 0) {
+      tierText = share >= 15 ? '15%+ (Dominant)' :
+                 share >= 8 ? '8-14% (Major)' :
+                 share >= 4 ? '4-7% (Significant)' :
+                 share >= 2 ? '2-3% (Notable)' : `${share.toFixed(1)}%`;
+    } else {
+      // Infer from bonus points
+      tierText = bonus.points === 20 ? '15%+ (Dominant)' :
+                 bonus.points === 15 ? '8-14% (Major)' :
+                 bonus.points === 10 ? '4-7% (Significant)' :
+                 bonus.points === 5 ? '2-3% (Notable)' : 'Notable';
+    }
+    const shareDisplay = share > 0 ? `${share.toFixed(1)}% share` : tierText;
     return {
       title: 'Market Share Bonus',
       explanation: 'Points for holding significant market share relative to competitors.',
       formula: '15%+ = 20 pts, 8-14% = 15 pts, 4-7% = 10 pts, 2-3% = 5 pts',
-      calculation: `${share.toFixed(1)}% share (${tierText}) → ${bonus.points} pts`,
+      calculation: `${shareDisplay} → ${bonus.points} pts`,
     };
   }
   
-  // Hot Streak Bonus
+  // Hot Streak Bonus - parse from "X days" in condition
   if (bonusType.includes('streak')) {
-    const days = data.streakDays ?? 0;
-    const tierName = getStreakTierName(days);
+    let days = data.streakDays;
+    if (!days || days === 0) {
+      days = parseValueFromCondition(condition, /(\d+)\s*days?/) ?? 0;
+    }
+    // Try to parse multiplier from condition like "×1.10 multiplier"
+    const multiplier = parseValueFromCondition(condition, /[×x](\d+(?:\.\d+)?)\s*mult/i);
+    const tierName = days > 0 ? getStreakTierName(days) : '';
+    const multiplierText = multiplier ? ` (${multiplier}x)` : '';
     return {
       title: 'Hot Streak',
       explanation: 'Consecutive days ranking in the top 10. Longer streaks earn more bonus points.',
       formula: 'streakDays × 2 pts (max 15 pts)',
-      calculation: `${days} days × 2 = ${bonus.points} pts (${tierName})`,
+      calculation: `${days} days × 2 = ${bonus.points} pts${tierName ? ` ${tierName}` : ''}${multiplierText}`,
     };
   }
   
-  // Captain Boost
+  // Captain Boost - parse multiplier from condition
   if (bonusType.includes('captain')) {
-    const multiplier = data.captainMultiplier ?? 1.25;
-    // Try to extract base points from the bonus condition or calculate from points
-    const basePoints = bonus.points / (multiplier - 1);
+    let multiplier = data.captainMultiplier;
+    if (!multiplier || multiplier === 0) {
+      multiplier = parseValueFromCondition(condition, /(\d+(?:\.\d+)?)\s*[×x]/i) ?? 1.25;
+    }
+    // Calculate base points from the bonus (bonus = base * (mult - 1))
+    const basePoints = multiplier > 1 ? bonus.points / (multiplier - 1) : bonus.points * 4;
     return {
       title: 'Captain Boost',
       explanation: 'Multiplier bonus applied to the designated team captain\'s points.',
