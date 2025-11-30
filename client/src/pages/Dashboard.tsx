@@ -156,6 +156,10 @@ export default function Dashboard() {
   return (
     <div className="space-y-8 pb-12">
       <LiveActivityTicker />
+
+      {/* Daily Summary Widget */}
+      <DailySummaryWidget />
+
       <section className="rounded-[32px] bg-gradient-to-br from-[#0d0d0f] to-[#1c1b22] p-6 shadow-[0_25px_75px_rgba(0,0,0,0.45)] sm:p-8">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="space-y-2">
@@ -499,6 +503,43 @@ export default function Dashboard() {
         </div>
       </footer>
     </div>
+  );
+}
+
+function DailySummaryWidget() {
+  const { data: summary } = trpc.dailySummary.getLatest.useQuery();
+
+  if (!summary) return null;
+
+  return (
+    <Link href="/daily-summary">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-900 to-purple-900 p-4 shadow-lg transition hover:scale-[1.01] cursor-pointer border border-white/10">
+        <div className="absolute top-0 right-0 p-2 opacity-10">
+          <Trophy className="h-24 w-24" />
+        </div>
+        <div className="relative z-10 flex items-center justify-between">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-xs font-medium text-white">
+                DAILY RECAP
+              </span>
+              <span className="text-xs text-white/60">
+                {new Date(summary.date).toLocaleDateString()}
+              </span>
+            </div>
+            <h3 className="text-lg font-bold text-white line-clamp-1">
+              {summary.headline}
+            </h3>
+            <p className="text-sm text-white/80 line-clamp-2 max-w-2xl">
+              {summary.content.split('\n')[0]}
+            </p>
+          </div>
+          <div className="hidden sm:flex items-center justify-center h-10 w-10 rounded-full bg-white/10">
+            <ArrowRight className="h-5 w-5 text-white" />
+          </div>
+        </div>
+      </div>
+    </Link>
   );
 }
 
