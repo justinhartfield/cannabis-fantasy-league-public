@@ -7,6 +7,66 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Types for entity data
+type EntityWithId = { id: number; name: string };
+type StatsSnapshot = {
+    topManufacturers: EntityWithId[];
+    topStrains: EntityWithId[];
+    topPharmacies: EntityWithId[];
+    topBrands: EntityWithId[];
+};
+
+/**
+ * Escape special regex characters in a string
+ */
+function escapeRegex(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Post-process AI content to ensure all entity mentions are properly linked.
+ * This catches cases where the AI might have mentioned an entity without 
+ * using the markdown link format.
+ */
+function ensureEntityLinks(content: string, stats: StatsSnapshot): string {
+    let processed = content;
+
+    // Build entity lookup with type info
+    const entities: Array<{ name: string; id: number; type: string; path: string }> = [
+        ...stats.topManufacturers.map(e => ({ ...e, type: 'manufacturer', path: `/entity/manufacturer/${e.id}` })),
+        ...stats.topStrains.map(e => ({ ...e, type: 'strain', path: `/entity/strain/${e.id}` })),
+        ...stats.topPharmacies.map(e => ({ ...e, type: 'pharmacy', path: `/entity/pharmacy/${e.id}` })),
+        ...stats.topBrands.map(e => ({ ...e, type: 'brand', path: `/entity/brand/${e.id}` })),
+    ];
+
+    // Sort by name length descending to handle longer names first
+    // (prevents partial matches like "Green" matching before "Green House Seeds")
+    entities.sort((a, b) => b.name.length - a.name.length);
+
+    for (const entity of entities) {
+        // Skip empty names
+        if (!entity.name || entity.name.trim() === '') continue;
+
+        // Pattern to match entity name that is NOT already inside a markdown link
+        // Uses negative lookbehind for [ and negative lookahead for ]( or ](/
+        // This regex matches the entity name only if it's not part of [Name](url) format
+        const escapedName = escapeRegex(entity.name);
+        
+        // Match entity name that:
+        // - Is not preceded by [ (would be link text start)
+        // - Is not followed by ]( (would be inside link)
+        // - Has word boundaries
+        const pattern = new RegExp(
+            `(?<!\\[)\\b(${escapedName})\\b(?!\\]\\()`,
+            'gi'
+        );
+
+        processed = processed.replace(pattern, `[$1](${entity.path})`);
+    }
+
+    return processed;
+}
+
 export const getDailySummaryService = () => {
     return {
         async generateDailySummary(date: string) {
@@ -110,23 +170,31 @@ export const getDailySummaryService = () => {
 
             const result = JSON.parse(completion.choices[0].message.content || '{}');
 
-            // 3. Save to DB
+            // 3. Post-process content to ensure all entity mentions are linked
+            const processedContent = ensureEntityLinks(
+                result.content || 'No summary available.',
+                statsSnapshot
+            );
+
+            console.log('[DailySummary] Post-processed content with entity links');
+
+            // 4. Save to DB
             await db.insert(dailySummaries).values({
                 date,
                 headline: result.headline || `Daily Summary for ${date}`,
-                content: result.content || 'No summary available.',
+                content: processedContent,
                 stats: statsSnapshot,
             }).onConflictDoUpdate({
                 target: dailySummaries.date,
                 set: {
                     headline: result.headline,
-                    content: result.content,
+                    content: processedContent,
                     stats: statsSnapshot,
                     createdAt: new Date().toISOString(), // Update timestamp
                 },
             });
 
-            return result;
+            return { ...result, content: processedContent };
         },
 
         async getLatestSummary() {

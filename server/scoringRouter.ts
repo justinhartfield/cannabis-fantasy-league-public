@@ -1393,8 +1393,23 @@ export function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow, statRecord
 
   // Preserve special bonuses (Captain Boost, Fan Buff) from the persisted breakdown
   // These are applied at the team level, not the asset level, so they aren't recalculated by the builders above
-  if (current && Array.isArray(current.bonuses)) {
-    const specialBonuses = current.bonuses.filter((b: any) =>
+  
+  // Handle case where bd.breakdown might be a string (JSON not auto-parsed) or an object
+  let parsedBreakdown: BreakdownDetail | Record<string, any> | null = current;
+  if (typeof bd.breakdown === 'string') {
+    try {
+      parsedBreakdown = JSON.parse(bd.breakdown);
+    } catch (e) {
+      console.warn('[normalizeDailyBreakdownPayload] Failed to parse breakdown JSON string:', e);
+      parsedBreakdown = null;
+    }
+  }
+  
+  // Extract bonuses array from the persisted breakdown
+  const persistedBonuses = parsedBreakdown?.bonuses;
+  
+  if (persistedBonuses && Array.isArray(persistedBonuses)) {
+    const specialBonuses = persistedBonuses.filter((b: any) =>
       b.type === 'captain_boost' ||
       b.type === 'Captain Boost' ||
       b.type === 'Fan Buff' ||
@@ -1406,7 +1421,13 @@ export function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow, statRecord
       // Add the bonus points to the total
       const bonusPoints = specialBonuses.reduce((sum: number, b: any) => sum + (b.points || 0), 0);
       result.total += bonusPoints;
+      console.log(`[normalizeDailyBreakdownPayload] Preserved ${specialBonuses.length} special bonus(es) for ${bd.assetType} #${bd.assetId}:`, 
+        specialBonuses.map((b: any) => `${b.type}: +${b.points}`).join(', '));
     }
+  } else if (parsedBreakdown && parsedBreakdown.bonuses !== undefined) {
+    // Log if bonuses exists but isn't an array - helps debug type issues
+    console.warn(`[normalizeDailyBreakdownPayload] Unexpected bonuses type for ${bd.assetType} #${bd.assetId}:`, 
+      typeof parsedBreakdown.bonuses, parsedBreakdown.bonuses);
   }
 
   return result;
