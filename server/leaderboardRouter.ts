@@ -20,6 +20,7 @@ import {
   strainDailyChallengeStats,
 } from "../drizzle/dailyChallengeSchema";
 import { desc, eq, and, sql, gt, gte } from "drizzle-orm";
+import { getIsoYearWeek, getWeekDateRange } from "./utils/isoWeek";
 
 function prioritizeByLogo<
   T extends { logoUrl?: string | null; score?: number | null }
@@ -230,29 +231,27 @@ export const leaderboardRouter = router({
       if (!db) return { manufacturers: [], pharmacies: [], brands: [], products: [], strains: [] };
 
       // Calculate ISO week and date range
+      // Calculate ISO week and date range
       const now = new Date();
-      let targetYear = input.year ?? now.getFullYear();
+      let targetYear = input.year;
       let targetWeek = input.week;
 
       // If no week provided, calculate current ISO week
       if (!targetWeek) {
-        const jan1 = new Date(targetYear, 0, 1);
-        const days = Math.floor((now.getTime() - jan1.getTime()) / (24 * 60 * 60 * 1000));
-        targetWeek = Math.ceil((days + jan1.getDay() + 1) / 7);
-      }
-
-      // Calculate date range for the week (Monday to Sunday)
-      const simpleDate = new Date(targetYear, 0, 1 + (targetWeek - 1) * 7);
-      const dayOfWeek = simpleDate.getDay();
-      const ISOweekStart = new Date(simpleDate);
-      if (dayOfWeek <= 4) {
-        ISOweekStart.setDate(simpleDate.getDate() - simpleDate.getDay() + 1);
+        const iso = getIsoYearWeek(now);
+        targetWeek = iso.week;
+        // If year is not provided, use the ISO year corresponding to the week
+        if (!targetYear) {
+          targetYear = iso.year;
+        }
       } else {
-        ISOweekStart.setDate(simpleDate.getDate() + 8 - simpleDate.getDay());
+        // If week is provided but year is not, default to current year
+        if (!targetYear) {
+          targetYear = now.getFullYear();
+        }
       }
 
-      const startDate = ISOweekStart.toISOString().split('T')[0];
-      const endDate = new Date(ISOweekStart.getTime() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const { startDate, endDate } = getWeekDateRange(targetYear, targetWeek);
 
       const [
         rawManufacturers,

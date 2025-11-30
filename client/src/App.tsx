@@ -36,6 +36,8 @@ import EmbedLeaderboard from "./pages/EmbedLeaderboard";
 import EmbedEntityBadge from "./pages/EmbedEntityBadge";
 import DisplayMode from "./pages/DisplayMode";
 import DailySummaryPage from "./pages/DailySummaryPage";
+import LeagueNews from "./pages/LeagueNews";
+import LeagueNewsArticle from "./pages/LeagueNewsArticle";
 import { useEffect } from "react";
 import { AppLayout } from "./components/AppLayout";
 import DashboardLayout from "./components/DashboardLayout";
@@ -114,6 +116,9 @@ function Router() {
       <Route path={"/embed/entity/:type/:id"} component={EmbedEntityBadge} />
       {/* Display Mode - full-screen for events */}
       <Route path={"/display/leaderboard"} component={DisplayMode} />
+      {/* League News - public for SEO */}
+      <Route path={"/news"} component={LeagueNews} />
+      <Route path={"/news/:date/:slug"} component={LeagueNewsArticle} />
       {/* League/Challenge creation must come before :id routes to avoid "create" being matched as an ID */}
       <Route path={"/league/create"} component={CreateLeague} />
       {/* Public challenge routes - these need to work without auth for landing page */}

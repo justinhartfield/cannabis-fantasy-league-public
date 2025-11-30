@@ -76,3 +76,79 @@ export function EntitySEO({ name, type, rank, score, imageUrl }: { name: string;
 export function DisplayModeSEO() {
   return <SEO title="Live Leaderboard Display" description="Real-time cannabis market rankings display for events and venues." />;
 }
+
+export function LeagueNewsSEO() {
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "name": "League News - Cannabis Fantasy League",
+    "description": "Daily recaps and market updates from the Cannabis Fantasy League. Stay informed about top performers and trending strains.",
+    "publisher": {
+      "@type": "Organization",
+      "name": SITE_NAME,
+      "url": typeof window !== "undefined" ? window.location.origin : ""
+    }
+  };
+
+  return (
+    <SEO
+      title="League News"
+      description="Daily recaps and market updates from the Cannabis Fantasy League. Stay informed about top performers, trending strains, and market movements in German medical cannabis."
+      type="website"
+      structuredData={structuredData}
+    />
+  );
+}
+
+interface ArticleSEOProps {
+  headline: string;
+  description: string;
+  date: string;
+  url: string;
+  image?: string;
+}
+
+export function ArticleSEO({ headline, description, date, url, image }: ArticleSEOProps) {
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const fullUrl = `${origin}${url}`;
+  
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    "headline": headline,
+    "description": description,
+    "datePublished": date,
+    "dateModified": date,
+    "author": {
+      "@type": "Organization",
+      "name": SITE_NAME,
+      "url": origin
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": SITE_NAME,
+      "url": origin,
+      "logo": {
+        "@type": "ImageObject",
+        "url": `${origin}/og-image.png`
+      }
+    },
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": fullUrl
+    },
+    "isAccessibleForFree": true,
+    "articleSection": "Cannabis Market News"
+  };
+
+  return (
+    <SEO
+      title={headline}
+      description={description}
+      url={fullUrl}
+      type="article"
+      image={image}
+      structuredData={structuredData}
+    />
+  );
+}

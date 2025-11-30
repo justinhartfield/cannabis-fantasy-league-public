@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { FileText, Shield, Mail } from "lucide-react";
+import { FileText, Shield, Mail, Newspaper } from "lucide-react";
 
 export function GlobalFooter() {
   const currentYear = new Date().getFullYear();
@@ -9,6 +9,16 @@ export function GlobalFooter() {
       <div className="mx-auto max-w-5xl px-4 sm:px-6 py-6">
         {/* Main Footer Links */}
         <nav className="flex flex-wrap items-center justify-center gap-2 sm:gap-6 mb-4">
+          <Link
+            href="/news"
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5"
+          >
+            <Newspaper className="w-4 h-4" />
+            <span>League News</span>
+          </Link>
+
+          <span className="hidden sm:block text-white/20">|</span>
+
           <Link
             href="/rules"
             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5"

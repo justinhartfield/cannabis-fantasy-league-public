@@ -209,6 +209,12 @@ export const getDailySummaryService = () => {
             if (!db) return null;
             const result = await db.select().from(dailySummaries).where(eq(dailySummaries.date, date));
             return result[0];
+        },
+
+        async getAllSummaries() {
+            const db = await getDb();
+            if (!db) return [];
+            return db.select().from(dailySummaries).orderBy(desc(dailySummaries.date));
         }
     };
 };
