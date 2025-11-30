@@ -343,34 +343,43 @@ export const lineupRouter = router({
 
       // Trigger score recalculation to apply captain bonus
       // Find the team's league and trigger recalculation
-      const [team] = await db
-        .select({ leagueId: teams.leagueId })
-        .from(teams)
-        .where(eq(teams.id, input.teamId))
-        .limit(1);
-
-      if (team) {
-        const [league] = await db
-          .select({ isChallenge: leagues.isChallenge, createdAt: leagues.createdAt })
-          .from(leagues)
-          .where(eq(leagues.id, team.leagueId))
+      try {
+        const teamResult = await db
+          .select({ leagueId: teams.leagueId })
+          .from(teams)
+          .where(eq(teams.id, input.teamId))
           .limit(1);
 
-        if (league?.isChallenge) {
-          // For daily challenges, recalculate the day's scores
-          const statDate = new Date(league.createdAt).toISOString().split('T')[0];
-          console.log(`[setCaptain] Triggering score recalculation for team ${input.teamId}, challenge ${team.leagueId}, date ${statDate}`);
-          
-          // Import and call the score calculation
-          const { calculateTeamDailyScore } = await import('./scoringEngine');
-          try {
-            await calculateTeamDailyScore(input.teamId, team.leagueId, statDate);
-            console.log(`[setCaptain] Score recalculated successfully for team ${input.teamId}`);
-          } catch (error) {
-            console.error(`[setCaptain] Error recalculating scores:`, error);
-            // Don't throw - captain was set successfully, just log the score calc error
+        const team = teamResult[0];
+        
+        if (team && team.leagueId) {
+          const leagueResult = await db
+            .select({ isChallenge: leagues.isChallenge, createdAt: leagues.createdAt })
+            .from(leagues)
+            .where(eq(leagues.id, team.leagueId))
+            .limit(1);
+
+          const league = leagueResult[0];
+
+          if (league?.isChallenge && league.createdAt) {
+            // For daily challenges, recalculate the day's scores
+            const statDate = new Date(league.createdAt).toISOString().split('T')[0];
+            console.log(`[setCaptain] Triggering score recalculation for team ${input.teamId}, challenge ${team.leagueId}, date ${statDate}`);
+            
+            // Import and call the score calculation
+            const { calculateTeamDailyScore } = await import('./scoringEngine');
+            try {
+              await calculateTeamDailyScore(input.teamId, team.leagueId, statDate);
+              console.log(`[setCaptain] Score recalculated successfully for team ${input.teamId}`);
+            } catch (scoreError) {
+              console.error(`[setCaptain] Error recalculating scores:`, scoreError);
+              // Don't throw - captain was set successfully, just log the score calc error
+            }
           }
         }
+      } catch (recalcError) {
+        console.error(`[setCaptain] Error during recalculation lookup:`, recalcError);
+        // Don't throw - captain was set successfully, recalculation is optional
       }
 
       return { success: true };
