@@ -404,12 +404,12 @@ class WebSocketManager {
   }
 
   /**
-   * Notify when auto-pick is enabled for a team (due to timer expiration)
+   * Notify when auto-pick is enabled for a team (due to timer expiration or other reasons)
    */
   notifyAutoPickEnabled(leagueId: number, data: {
     teamId: number;
     teamName: string;
-    reason: 'timer_expired';
+    reason: 'timer_expired' | 'error_disabled' | 'manual';
   }) {
     this.broadcastToDraftRoom(leagueId, {
       type: 'auto_pick_enabled',

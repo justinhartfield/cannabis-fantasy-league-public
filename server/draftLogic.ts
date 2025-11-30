@@ -92,6 +92,28 @@ export async function isTeamsTurn(leagueId: number, teamId: number): Promise<boo
 }
 
 /**
+ * Roster limits for different league types
+ */
+const CHALLENGE_ROSTER_LIMITS = {
+  manufacturer: 2,
+  cannabis_strain: 2,
+  product: 2,
+  pharmacy: 2,
+  brand: 1,
+} as const;
+
+const SEASON_ROSTER_LIMITS = {
+  manufacturer: 2,
+  cannabis_strain: 2,
+  product: 2,
+  pharmacy: 2,
+  brand: 2, // Season leagues have 2 brand slots
+} as const;
+
+const CHALLENGE_TOTAL_SLOTS = 9;
+const SEASON_TOTAL_SLOTS = 10;
+
+/**
  * Validate if a draft pick is allowed
  */
 export async function validateDraftPick(
@@ -102,6 +124,21 @@ export async function validateDraftPick(
 ): Promise<{ valid: boolean; error?: string }> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+
+  // Get league info to determine roster limits
+  const [league] = await db
+    .select()
+    .from(leagues)
+    .where(eq(leagues.id, leagueId))
+    .limit(1);
+
+  if (!league) {
+    return { valid: false, error: "League not found" };
+  }
+
+  const isChallenge = league.leagueType === "challenge";
+  const limits = isChallenge ? CHALLENGE_ROSTER_LIMITS : SEASON_ROSTER_LIMITS;
+  const totalSlots = isChallenge ? CHALLENGE_TOTAL_SLOTS : SEASON_TOTAL_SLOTS;
 
   // Check if it's the team's turn
   const isTurn = await isTeamsTurn(leagueId, teamId);
@@ -146,22 +183,22 @@ export async function validateDraftPick(
     }
   }
 
-  // Check roster limits (2 of each type except brand which is 1, total of 10 including 1 flex)
-  const limits = {
-    manufacturer: 2,
-    cannabis_strain: 2,
-    product: 2,
-    pharmacy: 2,
-    brand: 1,
-  };
+  // Check roster limits
+  const totalPicks = Object.values(assetCounts).reduce((a, b) => a + b, 0);
 
+  // First check if roster is already full
+  if (totalPicks >= totalSlots) {
+    return { valid: false, error: "Roster is full" };
+  }
+
+  // Check position-specific limits
   if (assetCounts[assetType] >= limits[assetType]) {
-    // Check if we can use the FLEX spot
-    const totalPicks = Object.values(assetCounts).reduce((a, b) => a + b, 0);
-    if (totalPicks >= 10) {
-      return { valid: false, error: "Roster is full" };
+    // For season leagues, check if we can use the FLEX spot
+    if (!isChallenge && totalPicks < totalSlots) {
+      // FLEX spot can be used for any position in season leagues
+      return { valid: true };
     }
-    // FLEX spot can be used for any position
+    return { valid: false, error: `Already have maximum ${limits[assetType]} ${assetType.replace('_', ' ')}(s)` };
   }
 
   return { valid: true };
@@ -376,6 +413,17 @@ export async function getDraftStatus(leagueId: number) {
 
   if (!league) throw new Error("League not found");
 
+  // Get actual team count
+  const allTeams = await db
+    .select()
+    .from(teams)
+    .where(eq(teams.leagueId, leagueId));
+  
+  const teamCount = allTeams.length;
+  const isChallenge = league.leagueType === "challenge";
+  const rosterSlots = isChallenge ? CHALLENGE_TOTAL_SLOTS : SEASON_TOTAL_SLOTS;
+  const totalPicks = teamCount * rosterSlots;
+
   const nextPick = await calculateNextPick(leagueId);
 
   return {
@@ -383,11 +431,12 @@ export async function getDraftStatus(leagueId: number) {
     draftCompleted: league.draftCompleted === 1,
     currentPick: league.currentDraftPick,
     currentRound: league.currentDraftRound,
-    totalRounds: 10,
-    totalPicks: league.teamCount * 10,
+    totalRounds: rosterSlots,
+    totalPicks,
     nextTeam: nextPick,
     draftType: league.draftType,
     pickTimeLimit: league.draftPickTimeLimit,
+    leagueType: league.leagueType,
   };
 }
 
