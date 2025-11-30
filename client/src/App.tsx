@@ -35,6 +35,7 @@ import EntityProfile from "./pages/EntityProfile";
 import EmbedLeaderboard from "./pages/EmbedLeaderboard";
 import EmbedEntityBadge from "./pages/EmbedEntityBadge";
 import DisplayMode from "./pages/DisplayMode";
+import DailySummaryPage from "./pages/DailySummaryPage";
 import { useEffect } from "react";
 import { AppLayout } from "./components/AppLayout";
 import DashboardLayout from "./components/DashboardLayout";
@@ -77,6 +78,7 @@ function AuthedRoutes() {
         <Route path={"/rules"} component={Rules} />
         <Route path={"/privacy"} component={Privacy} />
         <Route path={"/contact"} component={Contact} />
+        <Route path={"/daily-summary"} component={DailySummaryPage} />
         <Route path={"/404"} component={NotFound} />
         <Route component={NotFound} />
       </Switch>
