@@ -12,7 +12,6 @@ import {
   cannabisStrains,
   pharmacies,
   brands,
-  products,
   manufacturerWeeklyStats,
   strainWeeklyStats,
   cannabisStrainWeeklyStats,
@@ -1993,14 +1992,14 @@ async function getAssetNamesForBreakdowns(
     }
   }
 
-  // Fetch products (separate table from strains)
+  // Fetch products (productId references strains table, not products table)
   if (productIds.length > 0) {
     const productData = await db
-      .select({ id: products.id, name: products.name, imageUrl: products.imageUrl })
-      .from(products)
-      .where(sql`${products.id} = ANY(ARRAY[${sql.raw(productIds.join(','))}]::int[])`);
+      .select({ id: strains.id, name: strains.name })
+      .from(strains)
+      .where(sql`${strains.id} = ANY(ARRAY[${sql.raw(productIds.join(','))}]::int[])`);
     for (const p of productData) {
-      result.set(`product-${p.id}`, { name: p.name, imageUrl: p.imageUrl });
+      result.set(`product-${p.id}`, { name: p.name, imageUrl: null });
     }
   }
 

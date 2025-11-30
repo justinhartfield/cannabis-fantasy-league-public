@@ -10,7 +10,7 @@
 
 import { getDb } from './db';
 import { wsManager } from './websocket';
-import { dailyTeamScores, dailyScoringBreakdowns, teams, manufacturers, cannabisStrains, pharmacies, brands, products } from '../drizzle/schema';
+import { dailyTeamScores, dailyScoringBreakdowns, teams, manufacturers, cannabisStrains, strains, pharmacies, brands } from '../drizzle/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 
 type AssetType = 'manufacturer' | 'cannabis_strain' | 'product' | 'pharmacy' | 'brand';
@@ -107,14 +107,22 @@ class ScoreBroadcaster {
         }
       }
 
-      // Fetch products (separate from strains)
+      // Fetch products (productId references strains table, not products table)
       if (productIds.length > 0) {
+        console.log('[ScoreBroadcaster] Looking up product IDs in strains table:', productIds);
         const productData = await db
-          .select({ id: products.id, name: products.name, imageUrl: products.imageUrl })
-          .from(products)
-          .where(inArray(products.id, productIds));
+          .select({ id: strains.id, name: strains.name })
+          .from(strains)
+          .where(inArray(strains.id, productIds));
+        console.log('[ScoreBroadcaster] Found products in strains:', productData.map(p => ({ id: p.id, name: p.name })));
         for (const p of productData) {
-          result.set(`product:${p.id}`, { name: p.name, imageUrl: p.imageUrl });
+          result.set(`product:${p.id}`, { name: p.name, imageUrl: null });
+        }
+        // Log any missing products
+        const foundIds = new Set(productData.map(p => p.id));
+        const missingIds = productIds.filter(id => !foundIds.has(id));
+        if (missingIds.length > 0) {
+          console.warn('[ScoreBroadcaster] Products NOT FOUND in strains table:', missingIds);
         }
       }
 
