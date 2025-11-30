@@ -29,6 +29,21 @@ export class DailyStatsScheduler {
         timezone: 'Europe/Berlin',
       }
     );
+
+    // Schedule Daily Summary Generation (e.g., at 6:00 AM for previous day)
+    cron.schedule(
+      '0 6 * * *', // Every day at 6:00 AM
+      async () => {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = yesterday.toISOString().split('T')[0];
+        await this.generateDailySummary(yesterdayStr);
+      },
+      {
+        scheduled: true,
+        timezone: 'Europe/Berlin',
+      }
+    );
   }
 
   /**
@@ -59,6 +74,15 @@ export class DailyStatsScheduler {
     } catch (error) {
       console.error(`[DailyStatsScheduler] Failed for ${statDate}:`, error);
       throw error;
+    }
+  }
+
+  async generateDailySummary(date: string) {
+    try {
+      const { getDailySummaryService } = await import('./services/dailySummaryService');
+      await getDailySummaryService().generateDailySummary(date);
+    } catch (error) {
+      console.error(`[DailyStatsScheduler] Failed to generate summary for ${date}:`, error);
     }
   }
 

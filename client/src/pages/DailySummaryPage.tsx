@@ -1,0 +1,146 @@
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { trpc } from '../lib/trpc';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Badge } from '../components/ui/badge';
+import { ScrollArea } from '../components/ui/scroll-area';
+import { Loader2, TrendingUp, TrendingDown, Trophy } from 'lucide-react';
+
+export default function DailySummaryPage() {
+    const { data: summary, isLoading } = trpc.dailySummary.getLatest.useQuery();
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
+
+    if (!summary) {
+        return (
+            <div className="container mx-auto p-4 text-center">
+                <h1 className="text-2xl font-bold mb-4">Daily Summary</h1>
+                <p className="text-muted-foreground">No summary available for today yet.</p>
+            </div>
+        );
+    }
+
+    const { headline, content, stats } = summary;
+    const { topManufacturers, topStrains, topPharmacies } = stats as any;
+
+    return (
+        <div className="container mx-auto p-4 max-w-4xl space-y-8">
+            {/* Header Section */}
+            <div className="space-y-4 text-center">
+                <Badge variant="outline" className="mb-2">
+                    {new Date(summary.date).toLocaleDateString(undefined, {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                    })}
+                </Badge>
+                <h1 className="text-4xl font-extrabold tracking-tight lg:text-5xl text-primary">
+                    {headline}
+                </h1>
+            </div>
+
+            {/* Main Content */}
+            <Card className="bg-card/50 backdrop-blur-sm border-primary/20">
+                <CardContent className="p-6 text-lg leading-relaxed space-y-4">
+                    {content.split('\n\n').map((paragraph: string, index: number) => (
+                        <p key={index}>{paragraph}</p>
+                    ))}
+                </CardContent>
+            </Card>
+
+            {/* Top Performers Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Manufacturers */}
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                            <Trophy className="h-5 w-5 text-yellow-500" />
+                            Top Manufacturers
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <ScrollArea className="h-[200px] pr-4">
+                            <div className="space-y-4">
+                                {topManufacturers?.map((m: any, i: number) => (
+                                    <div key={i} className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <span className="font-bold text-muted-foreground w-4">{i + 1}</span>
+                                            <span className="font-medium truncate max-w-[120px]">{m.name}</span>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="font-bold text-primary">{m.points} pts</div>
+                                            <div className="text-xs text-muted-foreground">{m.sales}g</div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </ScrollArea>
+                    </CardContent>
+                </Card>
+
+                {/* Strains */}
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                            <TrendingUp className="h-5 w-5 text-green-500" />
+                            Top Strains
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <ScrollArea className="h-[200px] pr-4">
+                            <div className="space-y-4">
+                                {topStrains?.map((s: any, i: number) => (
+                                    <div key={i} className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <span className="font-bold text-muted-foreground w-4">{i + 1}</span>
+                                            <span className="font-medium truncate max-w-[120px]">{s.name}</span>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="font-bold text-primary">{s.points} pts</div>
+                                            <div className="text-xs text-muted-foreground">{s.orders}g</div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </ScrollArea>
+                    </CardContent>
+                </Card>
+
+                {/* Pharmacies */}
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                            <TrendingUp className="h-5 w-5 text-blue-500" />
+                            Top Pharmacies
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <ScrollArea className="h-[200px] pr-4">
+                            <div className="space-y-4">
+                                {topPharmacies?.map((p: any, i: number) => (
+                                    <div key={i} className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <span className="font-bold text-muted-foreground w-4">{i + 1}</span>
+                                            <span className="font-medium truncate max-w-[120px]">{p.name}</span>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="font-bold text-primary">{p.points} pts</div>
+                                            <div className="text-xs text-muted-foreground">${(p.revenue / 100).toFixed(0)}</div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </ScrollArea>
+                    </CardContent>
+                </Card>
+            </div>
+        </div>
+    );
+}

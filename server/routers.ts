@@ -24,6 +24,7 @@ import { recapRouter } from "./recapRouter";
 import { achievementRouter } from "./achievementRouter";
 import { chatRouter } from "./chatRouter";
 import { favoriteRouter } from "./favoriteRouter";
+import { dailySummaryRouter } from "./dailySummaryRouter";
 
 
 export const appRouter = router({
@@ -64,6 +65,7 @@ export const appRouter = router({
 
   chat: chatRouter,
   favorite: favoriteRouter,
+  dailySummary: dailySummaryRouter,
 });
 
 export type AppRouter = typeof appRouter;
