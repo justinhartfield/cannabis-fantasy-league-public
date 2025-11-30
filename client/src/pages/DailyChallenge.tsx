@@ -48,6 +48,129 @@ interface ChallengeSummary {
   createdAt?: string;
 }
 
+// Types for enhanced breakdown caching (for client-side delta detection)
+type AssetType = 'manufacturer' | 'cannabis_strain' | 'product' | 'pharmacy' | 'brand';
+
+interface CachedAssetBreakdown {
+  assetType: AssetType;
+  assetId: number;
+  assetName: string;
+  position: string;
+  points: number;
+  imageUrl?: string | null;
+}
+
+interface CachedTeamBreakdown {
+  teamId: number;
+  teamName: string;
+  totalPoints: number;
+  assets: CachedAssetBreakdown[];
+}
+
+interface BreakdownCache {
+  teams: Record<number, CachedTeamBreakdown>;
+  timestamp: number;
+}
+
+/**
+ * Detect scoring plays by comparing cached breakdowns with new breakdowns
+ * Mirrors server-side logic in scoreBroadcaster.ts
+ */
+function detectClientScoringPlays(
+  cachedBreakdowns: BreakdownCache | null,
+  newBreakdowns: Record<number, CachedTeamBreakdown>
+): ScoringPlayData[] {
+  const plays: ScoringPlayData[] = [];
+  
+  // Need cached data to compare against (skip first load)
+  if (!cachedBreakdowns || Object.keys(cachedBreakdowns.teams).length === 0) {
+    return plays;
+  }
+
+  const teamIds = Object.keys(newBreakdowns).map(Number);
+  if (teamIds.length < 2) return plays;
+
+  // Check each team's assets for changes since cached snapshot
+  for (const teamId of teamIds) {
+    const newTeam = newBreakdowns[teamId];
+    const cachedTeam = cachedBreakdowns.teams[teamId];
+    if (!newTeam || !cachedTeam) continue;
+
+    const opponentId = teamIds.find(id => id !== teamId);
+    if (!opponentId) continue;
+    const opponent = newBreakdowns[opponentId];
+    if (!opponent) continue;
+
+    // Build lookup for cached assets
+    const cachedAssetMap = new Map<string, CachedAssetBreakdown>();
+    for (const asset of cachedTeam.assets) {
+      cachedAssetMap.set(`${asset.assetType}:${asset.assetId}`, asset);
+    }
+
+    // Compare each asset in new breakdown
+    for (const asset of newTeam.assets) {
+      const key = `${asset.assetType}:${asset.assetId}`;
+      const cachedAsset = cachedAssetMap.get(key);
+      const previousPoints = cachedAsset?.points || 0;
+      let delta = asset.points - previousPoints;
+
+      // Cap delta at asset's total points
+      if (delta > asset.points) {
+        delta = asset.points;
+      }
+
+      // Only generate plays for real changes (deltas > 0.5 points)
+      if (delta > 0.5) {
+        plays.push({
+          attackingTeamId: teamId,
+          attackingTeamName: newTeam.teamName,
+          defendingTeamId: opponentId,
+          defendingTeamName: opponent.teamName,
+          playerName: asset.assetName,
+          playerType: asset.assetType,
+          pointsScored: Math.round(delta * 10) / 10,
+          attackerNewTotal: newTeam.totalPoints,
+          defenderTotal: opponent.totalPoints,
+          imageUrl: asset.imageUrl,
+          position: asset.position,
+        });
+      }
+    }
+  }
+
+  // Sort plays by points scored (most exciting plays last)
+  plays.sort((a, b) => a.pointsScored - b.pointsScored);
+  return plays;
+}
+
+/**
+ * Convert breakdown API response to cacheable format
+ */
+function breakdownToCacheFormat(
+  teamId: number,
+  teamName: string,
+  totalPoints: number,
+  breakdowns: any[] | undefined
+): CachedTeamBreakdown {
+  const assets: CachedAssetBreakdown[] = [];
+  
+  if (breakdowns) {
+    for (const item of breakdowns) {
+      if (!item.assetId || !item.assetType) continue;
+      assets.push({
+        assetType: item.assetType as AssetType,
+        assetId: item.assetId,
+        assetName: item.assetName || `Unknown ${item.assetType}`,
+        position: item.position || 'unknown',
+        points: item.breakdown?.total ?? item.totalPoints ?? 0,
+        imageUrl: item.imageUrl || null,
+      });
+    }
+  }
+
+  return { teamId, teamName, totalPoints, assets };
+}
+
 export default function DailyChallenge() {
   const { id } = useParams();
   const [, setLocation] = useLocation();
@@ -81,11 +204,23 @@ export default function DailyChallenge() {
     }
   }, []);
 
+  // Cleanup spread timer on unmount
+  useEffect(() => {
+    return () => {
+      if (clientPlaySpreadTimerRef.current) {
+        clearInterval(clientPlaySpreadTimerRef.current);
+        clientPlaySpreadTimerRef.current = null;
+      }
+    };
+  }, []);
+
   // Track if we've scrolled to top after content loads
   const hasScrolledRef = useRef(false);
 
   // Cache scores in localStorage for instant display on page load
   const SCORE_CACHE_KEY = `challenge-${challengeId}-scores`;
+  const BREAKDOWN_CACHE_KEY = `challenge-${challengeId}-breakdowns`;
+  
   const [cachedScores, setCachedScores] = useState<any[]>(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -104,6 +239,29 @@ export default function DailyChallenge() {
     }
     return [];
   });
+
+  // Cache breakdowns for client-side delta detection
+  const [cachedBreakdowns, setCachedBreakdowns] = useState<BreakdownCache | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem(BREAKDOWN_CACHE_KEY);
+        if (cached) {
+          const parsed = JSON.parse(cached) as BreakdownCache;
+          // Check if cache is less than 1 hour old
+          if (Date.now() - parsed.timestamp < 3600000) {
+            console.log('[BreakdownCache] Loaded cached breakdowns from localStorage');
+            return parsed;
+          }
+        }
+      } catch (e) {
+        console.error('[BreakdownCache] Failed to parse cached breakdowns', e);
+      }
+    }
+    return null;
+  });
+
+  // Client-side play spread timer ref
+  const clientPlaySpreadTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const {
     data: league,
@@ -162,6 +320,28 @@ export default function DailyChallenge() {
     },
     {
       enabled: !!selectedTeamId && !!statDate,
+    }
+  );
+
+  // Get opponent team ID for breakdown fetching
+  const opponentTeamId = useMemo(() => {
+    if (!league?.teams || league.teams.length < 2 || !selectedTeamId) return null;
+    const opponent = league.teams.find((t: any) => t.id !== selectedTeamId);
+    return opponent?.id || null;
+  }, [league?.teams, selectedTeamId]);
+
+  // Fetch opponent team's breakdown for delta detection
+  const {
+    data: opponentBreakdown,
+    refetch: refetchOpponentBreakdown,
+  } = trpc.scoring.getChallengeDayBreakdown.useQuery(
+    {
+      challengeId,
+      teamId: opponentTeamId || 0,
+      statDate: statDate || '',
+    },
+    {
+      enabled: !!opponentTeamId && !!statDate,
     }
   );
 
@@ -262,21 +442,32 @@ export default function DailyChallenge() {
         // Force liveScores to update from server on next dayScores fetch
         hasReceivedWsUpdateRef.current = false;
         refetchScores();
+        // Refetch BOTH team breakdowns for delta detection
         if (selectedTeamId) refetchBreakdown();
+        if (opponentTeamId) refetchOpponentBreakdown();
         // Show toast for user feedback
         toast.success("Scores refreshed!");
       } else {
         console.warn('[ScoreSync] Sync returned unsuccessful:', result.message);
+        pendingClientDeltaCheckRef.current = false;
       }
     },
     onError: (error) => {
       console.error('[ScoreSync] Sync failed:', error.message);
       toast.error('Score sync failed');
+      pendingClientDeltaCheckRef.current = false;
     },
   });
 
+  // Track when we're doing a manual or visibility-triggered sync for client-side delta detection
+  const pendingClientDeltaCheckRef = useRef(false);
+
   const handleManualSync = useCallback(() => {
     if (!statDate || syncScoresMutation.isPending) return;
+    
+    // Mark that we want to do client-side delta detection after sync completes
+    pendingClientDeltaCheckRef.current = true;
+    
     syncScoresMutation.mutate({ challengeId, statDate });
   }, [challengeId, statDate, syncScoresMutation]);
 
@@ -314,6 +505,92 @@ export default function DailyChallenge() {
     setTimeout(() => {
       playNextScoringPlay();
     }, 500);
+  }, [playNextScoringPlay]);
+
+  /**
+   * Queue scoring plays with spread timer (mirrors server-side logic)
+   * Spreads plays over 10 minutes for a realistic broadcast feel
+   */
+  const queueClientPlaysForDisplay = useCallback((plays: ScoringPlayData[], spreadOverMinutes: number = 10) => {
+    if (plays.length === 0) return;
+
+    // Clear any existing spread timer
+    if (clientPlaySpreadTimerRef.current) {
+      clearInterval(clientPlaySpreadTimerRef.current);
+      clientPlaySpreadTimerRef.current = null;
+    }
+
+    // Calculate interval between plays
+    const totalTimeMs = spreadOverMinutes * 60 * 1000;
+    const intervalMs = Math.max(
+      15000, // Minimum 15 seconds between plays
+      Math.floor(totalTimeMs / plays.length)
+    );
+
+    console.log(
+      `[ClientPlayQueue] Queueing ${plays.length} plays over ${spreadOverMinutes} min ` +
+      `(${Math.round(intervalMs / 1000)}s apart)`
+    );
+
+    // Create a copy of plays to work with
+    const pendingPlays = [...plays];
+
+    // Queue first play immediately
+    const firstPlay = pendingPlays.shift();
+    if (firstPlay) {
+      scoringPlayQueueRef.current.push(firstPlay);
+      setRecentPlays(prev => [{ ...firstPlay, timestamp: new Date() }, ...prev].slice(0, 10));
+      
+      // Update live scores from this play
+      setLiveScores(prev => {
+        const updated = new Map(prev);
+        updated.set(firstPlay.attackingTeamId, firstPlay.attackerNewTotal);
+        updated.set(firstPlay.defendingTeamId, firstPlay.defenderTotal);
+        return updated;
+      });
+
+      // Start playing if not already
+      if (!isPlayingRef.current) {
+        playNextScoringPlay();
+      }
+      setLastUpdateTime(new Date());
+    }
+
+    // Schedule remaining plays
+    if (pendingPlays.length > 0) {
+      let playIndex = 0;
+      clientPlaySpreadTimerRef.current = setInterval(() => {
+        if (playIndex >= pendingPlays.length) {
+          if (clientPlaySpreadTimerRef.current) {
+            clearInterval(clientPlaySpreadTimerRef.current);
+            clientPlaySpreadTimerRef.current = null;
+          }
+          return;
+        }
+
+        const play = pendingPlays[playIndex];
+        playIndex++;
+
+        scoringPlayQueueRef.current.push(play);
+        setRecentPlays(prev => [{ ...play, timestamp: new Date() }, ...prev].slice(0, 10));
+        
+        // Update live scores
+        setLiveScores(prev => {
+          const updated = new Map(prev);
+          updated.set(play.attackingTeamId, play.attackerNewTotal);
+          updated.set(play.defendingTeamId, play.defenderTotal);
+          return updated;
+        });
+
+        // Start playing if not already
+        if (!isPlayingRef.current) {
+          playNextScoringPlay();
+        }
+        setLastUpdateTime(new Date());
+
+        console.log(`[ClientPlayQueue] Queued: ${play.playerName} (+${play.pointsScored}) (${pendingPlays.length - playIndex} remaining)`);
+      }, intervalMs);
+    }
   }, [playNextScoringPlay]);
 
   // WebSocket connection for real-time updates
@@ -480,6 +757,74 @@ export default function DailyChallenge() {
     }
   }, [dayScores, SCORE_CACHE_KEY, liveScores]);
 
+  // Client-side delta detection: watch for breakdown changes and detect scoring plays
+  useEffect(() => {
+    // Need both breakdowns and a pending check flag
+    if (!pendingClientDeltaCheckRef.current) return;
+    if (!breakdown?.breakdowns || !opponentBreakdown?.breakdowns) return;
+    if (!selectedTeamId || !opponentTeamId) return;
+    if (!dayScores || dayScores.length < 2) return;
+
+    // Build new breakdowns object for comparison
+    const selectedTeamScore = dayScores.find(s => s.teamId === selectedTeamId);
+    const opponentTeamScore = dayScores.find(s => s.teamId === opponentTeamId);
+    if (!selectedTeamScore || !opponentTeamScore) return;
+
+    const newBreakdowns: Record<number, CachedTeamBreakdown> = {
+      [selectedTeamId]: breakdownToCacheFormat(
+        selectedTeamId,
+        selectedTeamScore.teamName || `Team ${selectedTeamId}`,
+        selectedTeamScore.points || 0,
+        breakdown.breakdowns
+      ),
+      [opponentTeamId]: breakdownToCacheFormat(
+        opponentTeamId,
+        opponentTeamScore.teamName || `Team ${opponentTeamId}`,
+        opponentTeamScore.points || 0,
+        opponentBreakdown.breakdowns
+      ),
+    };
+
+    // Detect plays comparing cached vs new
+    const plays = detectClientScoringPlays(cachedBreakdowns, newBreakdowns);
+    
+    console.log(`[ClientDelta] Detected ${plays.length} scoring plays from cache comparison`);
+
+    // Queue plays for display with 10 minute spread
+    if (plays.length > 0) {
+      queueClientPlaysForDisplay(plays, 10);
+    }
+
+    // Update the cache with new breakdowns
+    const newCache: BreakdownCache = {
+      teams: newBreakdowns,
+      timestamp: Date.now(),
+    };
+    setCachedBreakdowns(newCache);
+    
+    // Save to localStorage
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(BREAKDOWN_CACHE_KEY, JSON.stringify(newCache));
+        console.log('[BreakdownCache] Saved breakdowns to localStorage');
+      } catch (e) {
+        console.error('[BreakdownCache] Failed to save breakdowns', e);
+      }
+    }
+
+    // Clear the pending flag
+    pendingClientDeltaCheckRef.current = false;
+  }, [
+    breakdown, 
+    opponentBreakdown, 
+    selectedTeamId, 
+    opponentTeamId, 
+    dayScores, 
+    cachedBreakdowns, 
+    queueClientPlaysForDisplay,
+    BREAKDOWN_CACHE_KEY
+  ]);
+
   // Auto-sync scores when WebSocket connects to ensure real-time updates flow
   // This triggers a score calculation while the client is in the broadcast channel
   useEffect(() => {
@@ -507,8 +852,43 @@ export default function DailyChallenge() {
     console.log(`[ScoreSync] Auto-syncing on WS connect (hasScores: ${hasRealScores})`);
     hasAutoSyncedRef.current = true;
     lastSyncTimeRef.current = Date.now();
+    
+    // Enable client-side delta detection for page load/refresh
+    pendingClientDeltaCheckRef.current = true;
+    
     syncScoresMutation.mutate({ challengeId, statDate });
   }, [league, statDate, dayScores, scoresLoading, syncScoresMutation, challengeId, isConnected]);
+
+  // Visibility change listener: detect when page becomes visible (screen wake, tab switch)
+  // and trigger delta detection to show any score changes that happened while away
+  useEffect(() => {
+    if (!statDate || !league || league.status !== 'active') return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Page became visible - check for score changes
+        const timeSinceLastSync = Date.now() - lastSyncTimeRef.current;
+        
+        // Only sync if more than 30 seconds since last sync
+        if (timeSinceLastSync > 30000 && !syncScoresMutation.isPending) {
+          console.log('[Visibility] Page visible, checking for score changes...');
+          lastSyncTimeRef.current = Date.now();
+          
+          // Enable client-side delta detection
+          pendingClientDeltaCheckRef.current = true;
+          
+          // Trigger sync and refetch
+          syncScoresMutation.mutate({ challengeId, statDate });
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [statDate, league, challengeId, syncScoresMutation]);
 
   // Show invite landing page for unauthenticated users
   // (Logged-in users always see the normal challenge page)
