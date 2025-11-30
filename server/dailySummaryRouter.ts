@@ -1,4 +1,4 @@
-import { router, publicProcedure } from './trpc';
+import { router, publicProcedure } from './_core/trpc';
 import { z } from 'zod';
 import { getDailySummaryService } from './services/dailySummaryService';
 

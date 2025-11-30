@@ -218,7 +218,7 @@ export const draftRouter = router({
 
       const available = results.map((r: any) => r.manufacturer);
 
-      const { todayStatDate, yesterdayStatDate } = getDailyChallengeStatDates();
+      const { todayStatDate } = getDailyChallengeStatDates();
       const manufacturerIds = available.map((mfg) => mfg.id);
       const { todayMap, yesterdayMap } = await getDailyChallengePoints(db, {
         ids: manufacturerIds,
@@ -317,7 +317,7 @@ export const draftRouter = router({
         .limit(input.limit);
 
       const available = results.map((r: any) => r.strain);
-      const { todayStatDate, yesterdayStatDate } = getDailyChallengeStatDates();
+      const { todayStatDate } = getDailyChallengeStatDates();
       const strainIds = available.map((strain) => strain.id);
       const { todayMap, yesterdayMap } = await getDailyChallengePoints(db, {
         ids: strainIds,
@@ -419,7 +419,7 @@ export const draftRouter = router({
         .limit(input.limit);
 
       const available = results.map((r: any) => r.product);
-      const { todayStatDate, yesterdayStatDate } = getDailyChallengeStatDates();
+      const { todayStatDate } = getDailyChallengeStatDates();
       const productIds = available.map((product) => product.id);
       const { todayMap, yesterdayMap } = await getDailyChallengePoints(db, {
         ids: productIds,
@@ -522,7 +522,7 @@ export const draftRouter = router({
         .limit(input.limit);
 
       const available = results.map((r: any) => r.pharmacy);
-      const { todayStatDate, yesterdayStatDate } = getDailyChallengeStatDates();
+      const { todayStatDate } = getDailyChallengeStatDates();
       const pharmacyIds = available.map((phm) => phm.id);
       const { todayMap, yesterdayMap } = await getDailyChallengePoints(db, {
         ids: pharmacyIds,
@@ -620,7 +620,7 @@ export const draftRouter = router({
         .limit(input.limit);
 
       const available = results.map((r: any) => r.brand);
-      const { todayStatDate, yesterdayStatDate } = getDailyChallengeStatDates();
+      const { todayStatDate } = getDailyChallengeStatDates();
       const brandIds = available.map((brand) => brand.id);
       const { todayMap, yesterdayMap } = await getDailyChallengePoints(db, {
         ids: brandIds,

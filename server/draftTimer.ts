@@ -74,10 +74,6 @@ class DraftTimerManager {
       return;
     }
 
-<<<<<<< Updated upstream
-    const nextPick = await calculateNextPick(leagueId);
-    
-=======
     if (league.draftCompleted) {
       logDraftTimer("Draft already completed, not starting timer", { leagueId });
       return;
@@ -91,7 +87,6 @@ class DraftTimerManager {
       return;
     }
 
->>>>>>> Stashed changes
     // Check if this team has auto-pick enabled
     const [team] = await db
       .select()
@@ -100,16 +95,6 @@ class DraftTimerManager {
       .limit(1);
 
     if (team && team.autoPickEnabled === 1) {
-<<<<<<< Updated upstream
-      // Team has auto-pick enabled, immediately make the pick
-      console.log(`[DraftTimer] Team ${nextPick.teamId} (${team.name}) has auto-pick enabled - skipping timer and auto-picking`);
-      
-      // Small delay to prevent race conditions and allow UI to update
-      setTimeout(async () => {
-        await this.handleTimeExpired(leagueId, nextPick.teamId);
-      }, 1500); // 1.5 second delay so users can see the pick happening
-      
-=======
       // Team has auto-pick enabled - trigger immediate auto-pick
       logDraftTimer("Team has auto-pick enabled, triggering immediate pick", { 
         leagueId, 
@@ -119,7 +104,6 @@ class DraftTimerManager {
 
       // Execute auto-pick synchronously (no delay)
       await this.executeAutoPick(leagueId, nextPick.teamId, team.name);
->>>>>>> Stashed changes
       return;
     }
 
@@ -256,17 +240,9 @@ class DraftTimerManager {
     this.autoPickInProgress.set(leagueId, true);
 
     try {
-<<<<<<< Updated upstream
-      // Import here to avoid circular dependency
-      const { makeAutoPick } = await import("./autoPick");
-      
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-=======
       logDraftTimer("Executing auto-pick via service", { leagueId, teamId, teamName });
 
       const result = await autoPickService.executeAutoPick(leagueId, teamId);
->>>>>>> Stashed changes
 
       if (result.success) {
         logDraftTimer("Auto-pick successful", { 
@@ -276,19 +252,6 @@ class DraftTimerManager {
           draftCompleted: result.draftCompleted,
           retryCount: result.retryCount 
         });
-<<<<<<< Updated upstream
-      }
-      
-      console.log(`[DraftTimer] Auto-picking for team ${teamId} in league ${leagueId}`);
-      
-      await makeAutoPick(leagueId, teamId);
-      
-      const [league] = await db
-        .select()
-        .from(leagues)
-        .where(eq(leagues.id, leagueId))
-        .limit(1);
-=======
 
         if (!result.draftCompleted) {
           // Draft continues - start timer for next pick
@@ -316,7 +279,6 @@ class DraftTimerManager {
               .update(teams)
               .set({ autoPickEnabled: 0, updatedAt: new Date().toISOString() })
               .where(eq(teams.id, teamId));
->>>>>>> Stashed changes
 
             logDraftTimer("Circuit breaker tripped, disabled auto-pick for team", { 
               leagueId, 
@@ -345,13 +307,6 @@ class DraftTimerManager {
         }
       }
     } catch (error) {
-<<<<<<< Updated upstream
-      console.error("[DraftTimer] Error handling time expired:", error);
-      // Notify clients of error
-      wsManager.broadcastToDraftRoom(leagueId, {
-        type: "error",
-        message: "Failed to auto-pick player",
-=======
       logDraftTimer("Unexpected error in executeAutoPick", { 
         leagueId, 
         teamId, 
@@ -362,7 +317,6 @@ class DraftTimerManager {
       wsManager.broadcastToDraftRoom(leagueId, {
         type: "error",
         message: "Unexpected error during auto-pick. Timer restarted.",
->>>>>>> Stashed changes
       });
 
       // Attempt to restart timer
@@ -398,13 +352,9 @@ class DraftTimerManager {
     if (timer) {
       clearInterval(timer.interval);
       clearTimeout(timer.timeout);
-<<<<<<< Updated upstream
-      
-=======
 
       const remaining = this.getRemainingTime(leagueId) || 0;
 
->>>>>>> Stashed changes
       wsManager.notifyTimerPause(leagueId, {
         remaining,
       });
