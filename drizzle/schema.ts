@@ -842,6 +842,25 @@ export const userFavorites = pgTable("userFavorites", {
 	]);
 
 // ============================================================================
+// LEGACY: PHARMACY-PRODUCT SALES (placeholder to preserve existing data)
+// This table is deprecated but kept to prevent data loss during migrations
+// ============================================================================
+
+export const pharmacyProductSales = pgTable("pharmacyProductSales", {
+	id: serial().primaryKey(),
+	pharmacyId: integer(),
+	productId: integer(),
+	manufacturerId: integer(),
+	strainId: integer(),
+	statDate: date({ mode: 'string' }),
+	orderCount: integer().default(0),
+	salesVolumeGrams: integer().default(0),
+	revenueCents: integer().default(0),
+	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow(),
+	updatedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow(),
+});
+
+// ============================================================================
 // PHARMACY-PRODUCT RELATIONSHIPS
 // Track which manufacturers, products, and strains are sold at each pharmacy
 // ============================================================================
