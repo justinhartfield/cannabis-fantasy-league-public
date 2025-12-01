@@ -37,6 +37,11 @@ export class DailyStatsScheduler {
         const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
         const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+        // Ensure stats are up to date before generating summary
+        console.log(`[DailyStatsScheduler] Aggregating stats for ${yesterdayStr} before summary generation...`);
+        await this.aggregateForDate(yesterdayStr);
+
         await this.generateDailySummary(yesterdayStr);
       },
       {

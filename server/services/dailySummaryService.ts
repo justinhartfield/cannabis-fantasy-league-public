@@ -1,10 +1,10 @@
 import { getDb } from '../db';
 import { dailySummaries, manufacturers, cannabisStrains, pharmacies, brands } from '../../drizzle/schema';
-import { 
-    manufacturerDailyChallengeStats, 
-    strainDailyChallengeStats, 
-    pharmacyDailyChallengeStats, 
-    brandDailyChallengeStats 
+import {
+    manufacturerDailyChallengeStats,
+    strainDailyChallengeStats,
+    pharmacyDailyChallengeStats,
+    brandDailyChallengeStats
 } from '../../drizzle/dailyChallengeSchema';
 import { eq, desc, and, sql } from 'drizzle-orm';
 import OpenAI from 'openai';
@@ -140,6 +140,18 @@ export const getDailySummaryService = () => {
                 topPharmacies,
                 topBrands,
             };
+
+            // Check if we have any stats
+            const hasStats =
+                topManufacturers.length > 0 ||
+                topStrains.length > 0 ||
+                topPharmacies.length > 0 ||
+                topBrands.length > 0;
+
+            if (!hasStats) {
+                console.warn(`[DailySummary] No stats found for ${date}. Aborting summary generation.`);
+                return { headline: 'No Data Available', content: `No stats available for ${date}.` };
+            }
 
             console.log('Stats snapshot:', JSON.stringify(statsSnapshot, null, 2));
 
