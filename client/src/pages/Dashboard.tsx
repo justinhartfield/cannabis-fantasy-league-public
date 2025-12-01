@@ -531,7 +531,7 @@ function DailySummaryWidget() {
               {summary.headline}
             </h3>
             <p className="text-sm text-white/80 line-clamp-2 max-w-2xl">
-              {summary.content.split('\n')[0]}
+              {stripMarkdownLinks(summary.content.split('\n')[0])}
             </p>
           </div>
           <div className="hidden sm:flex items-center justify-center h-10 w-10 rounded-full bg-white/10">
@@ -541,6 +541,10 @@ function DailySummaryWidget() {
       </div>
     </Link>
   );
+}
+
+function stripMarkdownLinks(text: string): string {
+  return text.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
 }
 
 function FactoryIcon(props: SVGProps<SVGSVGElement>) {
