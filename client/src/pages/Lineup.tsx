@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getLoginUrl } from "@/const";
 import LineupEditor from "@/components/LineupEditor";
-import ScoringBreakdown from "@/components/ScoringBreakdownV2";
+import ScoringCard, { adaptLegacyData } from "@/components/ScoringCard";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useEffect } from "react";
@@ -199,9 +199,9 @@ export default function Lineup() {
                   {scoringData.breakdowns
                     .filter((breakdown: any) => breakdown.assetId !== null && breakdown.assetId !== undefined)
                     .map((breakdown: any, index: number) => (
-                      <ScoringBreakdown
+                      <ScoringCard
                         key={index}
-                        data={{
+                        {...adaptLegacyData({
                           assetName: breakdown.assetName || "Unknown",
                           assetType: breakdown.assetType,
                           imageUrl: breakdown.imageUrl || null,
@@ -210,10 +210,13 @@ export default function Lineup() {
                           penalties: breakdown.penalties || [],
                           subtotal: breakdown.subtotal || 0,
                           total: breakdown.totalPoints || 0,
-                        }}
-                        leagueAverage={breakdown.leagueAverage}
-                        weeklyTrend={breakdown.weeklyTrend}
-                        weekContext={{ year: currentYear, week: currentWeek }}
+                          trendMultiplier: breakdown.trendMultiplier,
+                          streakDays: breakdown.streakDays,
+                          marketSharePercent: breakdown.marketSharePercent,
+                          consistencyScore: breakdown.consistencyScore,
+                          velocityScore: breakdown.velocityScore,
+                          currentRank: breakdown.currentRank,
+                        })}
                       />
                     ))}
                 </div>

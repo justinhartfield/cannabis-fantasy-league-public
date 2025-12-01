@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
-import ScoringBreakdown from "@/components/ScoringBreakdownV2";
+import ScoringCard, { adaptLegacyData } from "@/components/ScoringCard";
 import {
   RefreshCw,
   BarChart3,
@@ -833,9 +833,9 @@ export default function Scoring() {
                       </h4>
                       <div className="grid gap-4 lg:grid-cols-2">
                         {section.items.map((assetBreakdown: any, index: number) => (
-                          <ScoringBreakdown
+                          <ScoringCard
                             key={`${section.type}-${index}`}
-                            data={{
+                            {...adaptLegacyData({
                               assetName:
                                 assetBreakdown.assetName ||
                                 `${assetBreakdown.assetType} #${assetBreakdown.assetId}`,
@@ -852,9 +852,8 @@ export default function Scoring() {
                                 assetBreakdown.breakdown?.marketSharePercent,
                               consistencyScore: assetBreakdown.breakdown?.consistencyScore,
                               velocityScore: assetBreakdown.breakdown?.velocityScore,
-                            }}
-                            variant="app"
-                            weekContext={{ year: selectedYear, week: selectedWeek }}
+                              currentRank: assetBreakdown.breakdown?.currentRank,
+                            })}
                           />
                         ))}
                       </div>

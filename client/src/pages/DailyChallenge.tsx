@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LiveIndicator } from "@/components/LiveIndicator";
-import ScoringBreakdownV2 from "@/components/ScoringBreakdownV2";
+import ScoringCard, { adaptLegacyData } from "@/components/ScoringCard";
 import { CoinFlip } from "@/components/CoinFlip";
 import { BattleArena } from "@/components/BattleArena";
 import { LeagueChat } from "@/components/LeagueChat";
@@ -1483,8 +1483,8 @@ export default function DailyChallenge() {
                                 </div>
                               </div>
                             )}
-                            <ScoringBreakdownV2
-                              data={{
+                            <ScoringCard
+                              {...adaptLegacyData({
                                 assetName:
                                   item.assetName || `Unknown ${item.assetType}`,
                                 assetType: item.assetType,
@@ -1494,19 +1494,14 @@ export default function DailyChallenge() {
                                 penalties: item.breakdown?.penalties || [],
                                 subtotal: item.breakdown?.subtotal || 0,
                                 total: item.breakdown?.total ?? item.totalPoints ?? 0,
-                                // Pass new trend fields
                                 trendMultiplier: item.breakdown?.trendMultiplier,
                                 streakDays: item.breakdown?.streakDays,
                                 marketSharePercent: item.breakdown?.marketSharePercent,
                                 consistencyScore: item.breakdown?.consistencyScore,
                                 velocityScore: item.breakdown?.velocityScore,
-                              }}
-                              leagueAverage={item.leagueAverage}
-                              weeklyTrend={item.weeklyTrend}
-                              useTrendDisplay={true}
-                              variant="app"
-                              assetId={item.assetId}
-                              onNameClick={handlePlayerNameClick}
+                                currentRank: item.breakdown?.currentRank,
+                              })}
+                              onNameClick={() => handlePlayerNameClick(item.assetId, item.assetType, item.assetName || '', item.imageUrl)}
                             />
                           </div>
                         );
