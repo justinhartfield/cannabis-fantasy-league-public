@@ -526,17 +526,6 @@ function JerseyHero({
           )}
         </g>
 
-        {/* Number on back simulation - small at bottom */}
-        <text
-          x="70"
-          y="145"
-          textAnchor="middle"
-          fontSize="16"
-          fontWeight="bold"
-          fill="rgba(255,255,255,0.3)"
-        >
-          {rank && rank <= 99 ? String(rank).padStart(2, '0') : '00'}
-        </text>
       </svg>
 
       {/* Hover glow effect */}
