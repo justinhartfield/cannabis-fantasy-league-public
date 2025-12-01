@@ -235,12 +235,14 @@ function JerseyHero({
   assetName,
   rank,
   isCaptain,
+  onClick,
 }: { 
   assetType: AssetType;
   imageUrl?: string | null;
   assetName: string;
   rank?: number;
   isCaptain?: boolean;
+  onClick?: () => void;
 }) {
   const [imgError, setImgError] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -291,6 +293,9 @@ function JerseyHero({
       className="relative flex flex-col items-center group cursor-pointer"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
     >
       {/* Rank Badge */}
       <div className="absolute top-2 left-2 z-10">
@@ -638,6 +643,56 @@ function BonusItem({ bonus, streakTier }: { bonus: ScoringBonus; streakTier?: { 
   const config = BONUS_CONFIG[bonus.type] || BONUS_CONFIG.rank;
   const isStreak = bonus.type === 'streak';
   
+  // Extract calculation details from the condition/value
+  const getCalculationDetails = () => {
+    const condition = typeof bonus.value === 'string' ? bonus.value : '';
+    
+    switch (bonus.type) {
+      case 'rank':
+        return {
+          formula: '#1 = 30pts, #2-3 = 20pts, #4-5 = 15pts, #6-10 = 10pts',
+          calculation: condition || `Rank bonus → ${bonus.points} pts`,
+        };
+      case 'streak':
+        return {
+          formula: 'streakDays × 2 pts (max 15 pts)',
+          calculation: condition || `Streak bonus → ${bonus.points} pts`,
+        };
+      case 'velocity':
+        return {
+          formula: 'velocityScore × 0.15 (max 15 pts)',
+          calculation: condition || `Velocity × 0.15 = ${bonus.points} pts`,
+        };
+      case 'consistency':
+        return {
+          formula: 'consistencyScore × 0.20 (max 20 pts)',
+          calculation: condition || `Consistency × 0.20 = ${bonus.points} pts`,
+        };
+      case 'marketShare':
+        return {
+          formula: '15%+ = 20pts, 8-14% = 15pts, 4-7% = 10pts, 2-3% = 5pts',
+          calculation: condition || `Market share → ${bonus.points} pts`,
+        };
+      case 'captain':
+        return {
+          formula: 'momentumScore × (2.5 - 1)',
+          calculation: condition || `Captain boost = +${bonus.points} pts`,
+        };
+      case 'positionGain':
+        return {
+          formula: 'positionsGained × 8 pts',
+          calculation: condition || `Position gain → ${bonus.points} pts`,
+        };
+      default:
+        return {
+          formula: 'Bonus calculation',
+          calculation: condition || `+${bonus.points} pts`,
+        };
+    }
+  };
+  
+  const calcDetails = getCalculationDetails();
+  
   return (
     <TooltipProvider>
       <Tooltip>
@@ -695,9 +750,15 @@ function BonusItem({ bonus, streakTier }: { bonus: ScoringBonus; streakTier?: { 
               <span className={cn("font-bold", config.color)}>{bonus.label}</span>
             </div>
             <p className="text-xs text-white/70">{config.description}</p>
-            <div className="pt-2 border-t border-white/10">
-              <span className="text-xs text-white/50">Earned: </span>
-              <span className="text-[#A3FF12] font-bold">+{bonus.points} pts</span>
+            <div className="pt-2 border-t border-white/10 space-y-1">
+              <div>
+                <span className="text-[10px] text-white/40 uppercase tracking-wider">Formula: </span>
+                <span className="text-xs text-white/60 font-mono">{calcDetails.formula}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-white/40 uppercase tracking-wider">Calculation: </span>
+                <span className="text-xs text-[#A3FF12] font-mono">{calcDetails.calculation}</span>
+              </div>
             </div>
           </div>
         </TooltipContent>
@@ -765,6 +826,7 @@ export default function ScoringCard({
           assetName={assetName}
           rank={rank}
           isCaptain={isCaptain}
+          onClick={onNameClick}
         />
 
         {/* Name and Type */}
@@ -802,12 +864,6 @@ export default function ScoringCard({
             TOTAL POINTS
           </div>
         </div>
-      </div>
-
-      {/* Asset Name Banner */}
-      <div className="bg-[#0f0a1a] py-3 px-6 text-center border-t border-b border-white/5">
-        <div className="text-lg font-bold text-white">{assetName}</div>
-        <div className="text-xs uppercase tracking-wider text-white/40">{config.label}</div>
       </div>
 
       {/* 4-Stat Grid with enhanced visuals */}
@@ -958,6 +1014,26 @@ export function adaptLegacyData(data: LegacyScoringBreakdownData): ScoringCardPr
     b.type.toLowerCase().includes('captain')
   );
 
+  // Extract rank from currentRank or from rank bonus condition
+  let rank = data.currentRank;
+  if (!rank) {
+    // Try to extract from rank bonus condition like "Rank #3" or "Rank #1"
+    const rankBonus = data.bonuses.find(b => b.type.toLowerCase().includes('rank') && !b.type.toLowerCase().includes('market'));
+    if (rankBonus?.condition) {
+      const rankMatch = rankBonus.condition.match(/[Rr]ank\s*#?(\d+)/);
+      if (rankMatch) {
+        rank = parseInt(rankMatch[1], 10);
+      }
+    }
+    // Also try to infer rank from bonus points
+    if (!rank && rankBonus) {
+      if (rankBonus.points === 30) rank = 1;
+      else if (rankBonus.points === 20) rank = 2; // Could be 2 or 3
+      else if (rankBonus.points === 15) rank = 4; // Could be 4 or 5
+      else if (rankBonus.points === 10) rank = 6; // Could be 6-10
+    }
+  }
+
   return {
     assetName: data.assetName,
     assetType: data.assetType,
@@ -967,7 +1043,7 @@ export function adaptLegacyData(data: LegacyScoringBreakdownData): ScoringCardPr
     momentumMultiplier: data.trendMultiplier,
     momentumPoints,
     bonuses,
-    rank: data.currentRank,
+    rank,
     streakDays: data.streakDays,
     marketSharePercent: data.marketSharePercent,
     isCaptain,
