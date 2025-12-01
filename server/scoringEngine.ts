@@ -1058,6 +1058,238 @@ export function calculateCannabisStrainPoints(stats: {
 
 
 // ============================================================================
+// SYNERGY BONUS SCORING
+// ============================================================================
+
+type SynergyBonusResult = {
+  totalSynergyBonus: number;
+  synergyBonuses: TeamBonusEntry[];
+  positionUpdates: Array<{ position: string; newPoints: number }>;
+};
+
+/**
+ * Calculate synergy bonuses for pharmacy + strain/product combinations
+ * - Pharmacy + Strain: +25% bonus on both assets
+ * - Pharmacy + Strain + Product (full synergy): +50% bonus on all three
+ */
+async function calculateSynergyBonuses(
+  breakdowns: Array<{
+    position: string;
+    assetType: AssetType;
+    assetId: number;
+    points: number;
+    breakdown?: BreakdownDetail;
+    assetName?: string;
+  }>,
+  positionPoints: PositionPointsMap,
+  statDate: string
+): Promise<SynergyBonusResult> {
+  const { checkPharmacySynergyRelationship } = await import('./lib/metabase-pharmacy-relationships');
+
+  const synergyBonuses: TeamBonusEntry[] = [];
+  const positionUpdates: Array<{ position: string; newPoints: number }> = [];
+  let totalSynergyBonus = 0;
+
+  // Get all pharmacies from the lineup
+  const pharmacyAssets = breakdowns.filter(b => b.assetType === 'pharmacy');
+  const strainAssets = breakdowns.filter(b => b.assetType === 'cannabis_strain');
+  const productAssets = breakdowns.filter(b => b.assetType === 'product');
+
+  if (pharmacyAssets.length === 0 || (strainAssets.length === 0 && productAssets.length === 0)) {
+    return { totalSynergyBonus: 0, synergyBonuses: [], positionUpdates: [] };
+  }
+
+  // Track which assets have already received synergy bonuses
+  const processedAssets = new Set<string>();
+
+  for (const pharmacy of pharmacyAssets) {
+    // Check for full synergy (pharmacy + strain + product all match)
+    for (const strain of strainAssets) {
+      for (const product of productAssets) {
+        const synergyCheck = await checkPharmacySynergyRelationship(
+          pharmacy.assetId,
+          null, // manufacturerId - not checking this directly
+          product.assetId,
+          strain.assetId,
+          statDate
+        );
+
+        if (synergyCheck.hasFullSynergy) {
+          // Apply 50% bonus to all three assets
+          const fullSynergyMultiplier = 0.50;
+          const assetsToBoost = [pharmacy, strain, product];
+
+          for (const asset of assetsToBoost) {
+            const assetKey = `${asset.assetType}-${asset.assetId}`;
+            if (processedAssets.has(assetKey)) continue;
+            processedAssets.add(assetKey);
+
+            const bonusPoints = Math.round(asset.points * fullSynergyMultiplier);
+            const newPoints = asset.points + bonusPoints;
+
+            asset.points = newPoints;
+            totalSynergyBonus += bonusPoints;
+
+            // Update breakdown
+            if (asset.breakdown) {
+              asset.breakdown.bonuses = asset.breakdown.bonuses || [];
+              asset.breakdown.bonuses.push({
+                type: 'Full Synergy Bonus',
+                condition: 'Pharmacy + Strain + Product combo',
+                points: bonusPoints,
+              });
+              asset.breakdown.total = newPoints;
+            }
+
+            positionUpdates.push({
+              position: asset.position,
+              newPoints,
+            });
+          }
+
+          synergyBonuses.push({
+            type: 'Full Synergy Bonus',
+            condition: `+50% for ${pharmacy.assetName || 'Pharmacy'} + ${strain.assetName || 'Strain'} + ${product.assetName || 'Product'}`,
+            points: assetsToBoost.reduce((sum, a) => {
+              const key = `${a.assetType}-${a.assetId}`;
+              return sum + Math.round(a.points * fullSynergyMultiplier / (1 + fullSynergyMultiplier));
+            }, 0),
+          });
+        }
+      }
+    }
+
+    // Check for partial synergy (pharmacy + strain only)
+    for (const strain of strainAssets) {
+      const strainKey = `cannabis_strain-${strain.assetId}`;
+      const pharmacyKey = `pharmacy-${pharmacy.assetId}`;
+
+      // Skip if already processed with full synergy
+      if (processedAssets.has(strainKey) && processedAssets.has(pharmacyKey)) continue;
+
+      const synergyCheck = await checkPharmacySynergyRelationship(
+        pharmacy.assetId,
+        null,
+        null,
+        strain.assetId,
+        statDate
+      );
+
+      if (synergyCheck.hasPharmacyStrain) {
+        // Apply 25% bonus to pharmacy and strain
+        const partialSynergyMultiplier = 0.25;
+        const assetsToBoost = [pharmacy, strain].filter(a => {
+          const key = `${a.assetType}-${a.assetId}`;
+          return !processedAssets.has(key);
+        });
+
+        if (assetsToBoost.length === 0) continue;
+
+        for (const asset of assetsToBoost) {
+          const assetKey = `${asset.assetType}-${asset.assetId}`;
+          processedAssets.add(assetKey);
+
+          const bonusPoints = Math.round(asset.points * partialSynergyMultiplier);
+          const newPoints = asset.points + bonusPoints;
+
+          asset.points = newPoints;
+          totalSynergyBonus += bonusPoints;
+
+          // Update breakdown
+          if (asset.breakdown) {
+            asset.breakdown.bonuses = asset.breakdown.bonuses || [];
+            asset.breakdown.bonuses.push({
+              type: 'Synergy Bonus',
+              condition: 'Pharmacy + Strain combo',
+              points: bonusPoints,
+            });
+            asset.breakdown.total = newPoints;
+          }
+
+          positionUpdates.push({
+            position: asset.position,
+            newPoints,
+          });
+        }
+
+        if (assetsToBoost.length > 0) {
+          synergyBonuses.push({
+            type: 'Synergy Bonus',
+            condition: `+25% for ${pharmacy.assetName || 'Pharmacy'} + ${strain.assetName || 'Strain'}`,
+            points: assetsToBoost.reduce((sum, a) => sum + Math.round(a.points * partialSynergyMultiplier / (1 + partialSynergyMultiplier)), 0),
+          });
+        }
+      }
+    }
+
+    // Check for partial synergy (pharmacy + product only)
+    for (const product of productAssets) {
+      const productKey = `product-${product.assetId}`;
+      const pharmacyKey = `pharmacy-${pharmacy.assetId}`;
+
+      // Skip if already processed
+      if (processedAssets.has(productKey) && processedAssets.has(pharmacyKey)) continue;
+
+      const synergyCheck = await checkPharmacySynergyRelationship(
+        pharmacy.assetId,
+        null,
+        product.assetId,
+        null,
+        statDate
+      );
+
+      if (synergyCheck.hasPharmacyProduct) {
+        // Apply 25% bonus to pharmacy and product
+        const partialSynergyMultiplier = 0.25;
+        const assetsToBoost = [pharmacy, product].filter(a => {
+          const key = `${a.assetType}-${a.assetId}`;
+          return !processedAssets.has(key);
+        });
+
+        if (assetsToBoost.length === 0) continue;
+
+        for (const asset of assetsToBoost) {
+          const assetKey = `${asset.assetType}-${asset.assetId}`;
+          processedAssets.add(assetKey);
+
+          const bonusPoints = Math.round(asset.points * partialSynergyMultiplier);
+          const newPoints = asset.points + bonusPoints;
+
+          asset.points = newPoints;
+          totalSynergyBonus += bonusPoints;
+
+          // Update breakdown
+          if (asset.breakdown) {
+            asset.breakdown.bonuses = asset.breakdown.bonuses || [];
+            asset.breakdown.bonuses.push({
+              type: 'Synergy Bonus',
+              condition: 'Pharmacy + Product combo',
+              points: bonusPoints,
+            });
+            asset.breakdown.total = newPoints;
+          }
+
+          positionUpdates.push({
+            position: asset.position,
+            newPoints,
+          });
+        }
+
+        if (assetsToBoost.length > 0) {
+          synergyBonuses.push({
+            type: 'Synergy Bonus',
+            condition: `+25% for ${pharmacy.assetName || 'Pharmacy'} + ${product.assetName || 'Product'}`,
+            points: assetsToBoost.reduce((sum, a) => sum + Math.round(a.points * partialSynergyMultiplier / (1 + partialSynergyMultiplier)), 0),
+          });
+        }
+      }
+    }
+  }
+
+  return { totalSynergyBonus, synergyBonuses, positionUpdates };
+}
+
+// ============================================================================
 // TEAM SCORING
 // ============================================================================
 
@@ -2331,6 +2563,29 @@ async function computeTeamScore(options: TeamScoreComputationOptions): Promise<T
           totalBonus += fanBuff;
         }
       }
+    }
+
+    // 3. Apply Synergy Bonus (Pharmacy + Strain/Product combinations)
+    // Check for pharmacy-strain/product relationships and apply percentage bonuses
+    const synergyResult = await calculateSynergyBonuses(
+      breakdowns,
+      positionPoints,
+      options.scope.statDate
+    );
+
+    if (synergyResult.totalSynergyBonus > 0) {
+      totalBonus += synergyResult.totalSynergyBonus;
+      teamBonuses.push(...synergyResult.synergyBonuses);
+
+      // Update position points with synergy-boosted values
+      for (const update of synergyResult.positionUpdates) {
+        const posKey = update.position.toLowerCase() as keyof PositionPointsMap;
+        if (positionPoints[posKey] !== undefined) {
+          positionPoints[posKey] = update.newPoints;
+        }
+      }
+
+      console.log(`[SynergyBonus] Applied ${synergyResult.synergyBonuses.length} synergy bonuses totaling +${synergyResult.totalSynergyBonus} pts`);
     }
   }
 

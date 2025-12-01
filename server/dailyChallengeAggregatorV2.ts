@@ -68,6 +68,7 @@ export type DailyChallengeAggregationSummary = {
   products: EntityAggregationSummary;
   pharmacies: EntityAggregationSummary;
   brands: EntityAggregationSummary;
+  pharmacyRelationships: EntityAggregationSummary;
 };
 
 type AggregationOptions = {
@@ -663,7 +664,7 @@ export class DailyChallengeAggregatorV2 {
     }
 
     // Aggregate with trend scoring
-    const [manufacturers, strains, pharmacies, products, brands] = await Promise.all([
+    const [manufacturers, strains, pharmacies, products, brands, pharmacyRelationships] = await Promise.all([
       options?.brandsOnly ? { processed: 0, skipped: 0 } : this.aggregateManufacturersWithTrends(db, dateString, orders, logger),
       options?.brandsOnly ? { processed: 0, skipped: 0 } : this.aggregateStrainsWithTrends(db, dateString, orders, logger),
       options?.brandsOnly ? Promise.resolve({ processed: 0, skipped: 0 }) : import('./aggregatePharmaciesV2').then(({ aggregatePharmaciesWithTrends }) =>
@@ -672,7 +673,11 @@ export class DailyChallengeAggregatorV2 {
       options?.brandsOnly ? Promise.resolve({ processed: 0, skipped: 0 }) : import('./aggregateProductsV2').then(({ aggregateProductsWithTrends }) =>
         aggregateProductsWithTrends(db, dateString, orders, logger, this.log.bind(this))
       ),
-      this.aggregateBrands(db, dateString, orders, logger)
+      this.aggregateBrands(db, dateString, orders, logger),
+      // Aggregate pharmacy-product relationships for synergy bonuses
+      options?.brandsOnly ? Promise.resolve({ processed: 0, skipped: 0 }) : import('./lib/metabase-pharmacy-relationships').then(({ aggregatePharmacyProductRelationships }) =>
+        aggregatePharmacyProductRelationships(dateString, orders, logger)
+      ),
     ]);
 
     return {
@@ -683,6 +688,7 @@ export class DailyChallengeAggregatorV2 {
       products,
       pharmacies,
       brands,
+      pharmacyRelationships,
     };
   }
 }

@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown, Minus, Trophy, BarChart3, Flame, Zap, Target, TrendingUpDown, Crown, Heart } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Trophy, BarChart3, Flame, Zap, Target, TrendingUpDown, Crown, Heart, Sparkles, Link } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -438,6 +438,26 @@ const getBonusTooltipContent = (
     };
   }
   
+  // Synergy Bonus (Full Synergy - Pharmacy + Strain + Product)
+  if (bonusType.includes('full synergy')) {
+    return {
+      title: 'Full Synergy Bonus',
+      explanation: 'This pharmacy sells products with this exact strain from this manufacturer! Massive combo bonus for drafting all three together.',
+      formula: '+50% bonus applied to all three assets',
+      calculation: `Pharmacy + Strain + Product combo → +${bonus.points} pts`,
+    };
+  }
+  
+  // Synergy Bonus (Partial - Pharmacy + Strain or Product)
+  if (bonusType.includes('synergy')) {
+    return {
+      title: 'Synergy Bonus',
+      explanation: 'This pharmacy sells products with this strain! Bonus for drafting both in your lineup.',
+      formula: '+25% bonus applied to both assets',
+      calculation: `Pharmacy + Strain/Product combo → +${bonus.points} pts`,
+    };
+  }
+  
   // Default fallback for unknown bonus types
   return {
     title: bonus.type,
@@ -520,6 +540,7 @@ export default function ScoringBreakdownV2({
     if (type.includes("Market")) return <TrendingUpDown className="w-4 h-4" />;
     if (type.includes("Captain")) return <Crown className="w-4 h-4 text-yellow-400" />;
     if (type.includes("Fan") || type.includes("Favorite")) return <Heart className="w-4 h-4 text-pink-400" />;
+    if (type.includes("Synergy") || type.includes("synergy")) return <Sparkles className="w-4 h-4 text-emerald-400" />;
     return <TrendingUp className="w-4 h-4" />;
   };
 

@@ -841,5 +841,29 @@ export const userFavorites = pgTable("userFavorites", {
 		unique("user_favorites_unique").on(table.userId, table.entityType, table.entityId),
 	]);
 
+// ============================================================================
+// PHARMACY-PRODUCT RELATIONSHIPS
+// Track which manufacturers, products, and strains are sold at each pharmacy
+// ============================================================================
+
+export const pharmacyProductRelationships = pgTable("pharmacyProductRelationships", {
+	id: serial().primaryKey(),
+	pharmacyId: integer().notNull(),
+	manufacturerId: integer(),
+	productId: integer(),        // References strains table (products)
+	strainId: integer(),         // References cannabisStrains table
+	statDate: date({ mode: 'string' }).notNull(),
+	orderCount: integer().default(0),
+	salesVolumeGrams: integer().default(0),
+	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
+},
+	(table) => [
+		index("pharmacy_product_rel_date_idx").on(table.statDate),
+		index("pharmacy_product_rel_pharmacy_idx").on(table.pharmacyId, table.statDate),
+		index("pharmacy_product_rel_manufacturer_idx").on(table.manufacturerId, table.statDate),
+		index("pharmacy_product_rel_strain_idx").on(table.strainId, table.statDate),
+		unique("pharmacy_product_rel_unique").on(table.pharmacyId, table.manufacturerId, table.productId, table.strainId, table.statDate),
+	]);
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;

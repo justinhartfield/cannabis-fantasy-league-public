@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
-import { Loader2, TrendingUp, Trophy, BarChart3 } from "lucide-react";
+import { Loader2, TrendingUp, Trophy, BarChart3, Factory, Building2 } from "lucide-react";
 import {
     LineChart,
     Line,
@@ -43,6 +43,18 @@ export function EntityHistoryModal({
         {
             enabled: isOpen && !!entityId
         }
+    );
+
+    // Fetch manufacturer stats for pharmacies
+    const { data: pharmacyMfgStats, isLoading: pharmacyMfgLoading } = trpc.leaderboard.getPharmacyManufacturerStats.useQuery(
+        { pharmacyId: entityId, limit: 5 },
+        { enabled: isOpen && entityType === 'pharmacy' && !!entityId }
+    );
+
+    // Fetch manufacturer stats for strains
+    const { data: strainMfgStats, isLoading: strainMfgLoading } = trpc.leaderboard.getStrainManufacturerStats.useQuery(
+        { strainId: entityId, limit: 5 },
+        { enabled: isOpen && entityType === 'strain' && !!entityId }
     );
 
     if (!isOpen) return null;
@@ -248,6 +260,118 @@ export function EntityHistoryModal({
                                 </ResponsiveContainer>
                             </div>
                         </div>
+
+                        {/* Manufacturer Stats - Pharmacy */}
+                        {entityType === 'pharmacy' && (
+                            <div className="bg-card/50 p-4 rounded-xl border border-border">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-2">
+                                        <Factory className="w-5 h-5 text-emerald-500" />
+                                        <h3 className="font-semibold">Top Manufacturers</h3>
+                                    </div>
+                                    {pharmacyMfgStats?.manufacturerCount !== undefined && (
+                                        <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                                            {pharmacyMfgStats.manufacturerCount} total
+                                        </span>
+                                    )}
+                                </div>
+                                {pharmacyMfgLoading ? (
+                                    <div className="flex justify-center py-6">
+                                        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                                    </div>
+                                ) : !pharmacyMfgStats?.manufacturers?.length ? (
+                                    <p className="text-sm text-muted-foreground text-center py-4">
+                                        No manufacturer data available yet
+                                    </p>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {pharmacyMfgStats.manufacturers.map((mfg, index) => (
+                                            <div
+                                                key={mfg.manufacturerId}
+                                                className="flex items-center justify-between p-2 rounded-lg bg-background/50 hover:bg-background/80 transition-colors"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <span className="text-xs text-muted-foreground w-5">#{index + 1}</span>
+                                                    <Avatar className="w-8 h-8 border border-border">
+                                                        <AvatarImage src={mfg.logoUrl || undefined} />
+                                                        <AvatarFallback className="text-xs">
+                                                            {mfg.manufacturerName.substring(0, 2).toUpperCase()}
+                                                        </AvatarFallback>
+                                                    </Avatar>
+                                                    <span className="text-sm font-medium truncate max-w-[150px]">
+                                                        {mfg.manufacturerName}
+                                                    </span>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-sm font-semibold text-primary">{mfg.orderCount} orders</p>
+                                                    <p className="text-xs text-muted-foreground">{mfg.salesVolumeGrams}g</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Manufacturer Stats - Strain */}
+                        {entityType === 'strain' && (
+                            <div className="bg-card/50 p-4 rounded-xl border border-border">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-2">
+                                        <Factory className="w-5 h-5 text-emerald-500" />
+                                        <h3 className="font-semibold">Sold By Manufacturers</h3>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        {strainMfgStats?.pharmacyCount !== undefined && strainMfgStats.pharmacyCount > 0 && (
+                                            <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full flex items-center gap-1">
+                                                <Building2 className="w-3 h-3" />
+                                                {strainMfgStats.pharmacyCount} pharmacies
+                                            </span>
+                                        )}
+                                        {strainMfgStats?.manufacturerCount !== undefined && (
+                                            <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                                                {strainMfgStats.manufacturerCount} manufacturers
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                                {strainMfgLoading ? (
+                                    <div className="flex justify-center py-6">
+                                        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                                    </div>
+                                ) : !strainMfgStats?.manufacturers?.length ? (
+                                    <p className="text-sm text-muted-foreground text-center py-4">
+                                        No manufacturer data available yet
+                                    </p>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {strainMfgStats.manufacturers.map((mfg, index) => (
+                                            <div
+                                                key={mfg.manufacturerId}
+                                                className="flex items-center justify-between p-2 rounded-lg bg-background/50 hover:bg-background/80 transition-colors"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <span className="text-xs text-muted-foreground w-5">#{index + 1}</span>
+                                                    <Avatar className="w-8 h-8 border border-border">
+                                                        <AvatarImage src={mfg.logoUrl || undefined} />
+                                                        <AvatarFallback className="text-xs">
+                                                            {mfg.manufacturerName.substring(0, 2).toUpperCase()}
+                                                        </AvatarFallback>
+                                                    </Avatar>
+                                                    <span className="text-sm font-medium truncate max-w-[150px]">
+                                                        {mfg.manufacturerName}
+                                                    </span>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-sm font-semibold text-primary">{mfg.orderCount} orders</p>
+                                                    <p className="text-xs text-muted-foreground">{mfg.salesVolumeGrams}g</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
             </DialogContent>

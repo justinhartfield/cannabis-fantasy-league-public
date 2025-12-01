@@ -4,11 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Trophy, TrendingUp, Users, Medal, Loader2 } from "lucide-react";
+import { Trophy, TrendingUp, Users, Medal, Loader2, Factory, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EntityHistoryModal } from "@/components/EntityHistoryModal";
 import { SEO } from "@/components/SEO";
 import { staticContent } from "@/content/static-pages";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Entity Types
 type EntityType = 'all' | 'manufacturer' | 'pharmacy' | 'brand' | 'product' | 'strain';
@@ -101,7 +102,30 @@ const Leaderboard = () => {
                   <AvatarFallback>{item.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                 </Avatar>
                 <div>
-                  <div className="font-medium">{item.name}</div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{item.name}</span>
+                    {/* Synergy badge for pharmacies and strains */}
+                    {(type === 'pharmacy' || type === 'strain') && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-medium">
+                              <Sparkles className="w-3 h-3" />
+                              Synergy
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs">
+                              {type === 'pharmacy' 
+                                ? 'Draft with matching strains for +25% bonus!'
+                                : 'Draft with matching pharmacies for +25% bonus!'
+                              }
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                  </div>
                   {item.rankChange !== undefined && item.rankChange !== 0 && (
                     <div className={cn(
                       "text-xs flex items-center gap-1",
@@ -112,8 +136,17 @@ const Leaderboard = () => {
                   )}
                 </div>
               </div>
-              <div className="font-bold text-primary">
-                {item.score.toLocaleString()} pts
+              <div className="text-right">
+                <div className="font-bold text-primary">
+                  {item.score.toLocaleString()} pts
+                </div>
+                {/* Show manufacturer indicator for pharmacies */}
+                {type === 'pharmacy' && (
+                  <div className="text-[10px] text-muted-foreground flex items-center justify-end gap-1">
+                    <Factory className="w-3 h-3" />
+                    <span>Multi-manufacturer</span>
+                  </div>
+                )}
               </div>
             </div>
           ))}

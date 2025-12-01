@@ -1,0 +1,437 @@
+/**
+ * Metabase Pharmacy Relationships Sync Service
+ * 
+ * Syncs pharmacy-product-manufacturer-strain relationships from order data.
+ * This data is used for:
+ * 1. Synergy bonus calculations in Daily Challenges
+ * 2. Manufacturer stats display in the leaderboard UI
+ */
+
+import { getDb } from '../db';
+import {
+  pharmacyProductRelationships,
+  pharmacies,
+  manufacturers,
+  strains,
+  cannabisStrains,
+} from '../../drizzle/schema';
+import { eq, and, sql } from 'drizzle-orm';
+import { pLimit } from '../utils/concurrency';
+
+interface OrderRecord {
+  ID: string;
+  Status: string;
+  OrderDate: string;
+  Quantity: number;
+  TotalPrice: number;
+  ProductManufacturer: string;
+  ProductStrainName: string;
+  ProductBrand?: string;
+  PharmacyName: string;
+  Product: string;
+  Pharmacy: string;
+}
+
+interface RelationshipStats {
+  pharmacyId: number;
+  manufacturerId: number | null;
+  productId: number | null;
+  strainId: number | null;
+  orderCount: number;
+  salesVolumeGrams: number;
+}
+
+type Logger = {
+  info?: (message: string, metadata?: any) => Promise<void> | void;
+  warn?: (message: string, metadata?: any) => Promise<void> | void;
+  error?: (message: string, metadata?: any) => Promise<void> | void;
+};
+
+/**
+ * Aggregate pharmacy-product relationships from order data
+ */
+export async function aggregatePharmacyProductRelationships(
+  statDate: string,
+  orders: OrderRecord[],
+  logger?: Logger
+): Promise<{ processed: number; skipped: number }> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error('Database not available');
+  }
+
+  const log = (level: 'info' | 'warn' | 'error', message: string, metadata?: any) => {
+    const prefix = '[PharmacyRelationships]';
+    if (logger?.[level]) {
+      logger[level]?.(message, metadata);
+    }
+    if (level === 'error') {
+      console.error(`${prefix} ${message}`, metadata || '');
+    } else if (level === 'warn') {
+      console.warn(`${prefix} ${message}`, metadata || '');
+    } else {
+      console.log(`${prefix} ${message}`, metadata || '');
+    }
+  };
+
+  log('info', `Aggregating pharmacy-product relationships for ${statDate}...`);
+
+  // Build lookup maps for entity IDs
+  const [pharmacyList, manufacturerList, productList, strainList] = await Promise.all([
+    db.select({ id: pharmacies.id, name: pharmacies.name }).from(pharmacies),
+    db.select({ id: manufacturers.id, name: manufacturers.name }).from(manufacturers),
+    db.select({ id: strains.id, name: strains.name }).from(strains),
+    db.select({ id: cannabisStrains.id, name: cannabisStrains.name }).from(cannabisStrains),
+  ]);
+
+  const pharmacyMap = new Map(pharmacyList.map(p => [p.name.toLowerCase(), p.id]));
+  const manufacturerMap = new Map(manufacturerList.map(m => [m.name.toLowerCase(), m.id]));
+  const productMap = new Map(productList.map(p => [p.name.toLowerCase(), p.id]));
+  const strainMap = new Map(strainList.map(s => [s.name.toLowerCase(), s.id]));
+
+  // Aggregate relationships from orders
+  // Key: `pharmacyId-manufacturerId-productId-strainId`
+  const relationshipMap = new Map<string, RelationshipStats>();
+
+  for (const order of orders) {
+    const pharmacyName = order.PharmacyName || order.Pharmacy;
+    const manufacturerName = order.ProductManufacturer;
+    const productName = order.Product;
+    const strainName = order.ProductStrainName;
+
+    if (!pharmacyName) continue;
+
+    const pharmacyId = pharmacyMap.get(pharmacyName.toLowerCase());
+    if (!pharmacyId) continue;
+
+    const manufacturerId = manufacturerName ? manufacturerMap.get(manufacturerName.toLowerCase()) : null;
+    const productId = productName ? productMap.get(productName.toLowerCase()) : null;
+    const strainId = strainName ? strainMap.get(strainName.toLowerCase()) : null;
+
+    // Skip if we don't have at least one relationship
+    if (!manufacturerId && !productId && !strainId) continue;
+
+    const key = `${pharmacyId}-${manufacturerId || 'null'}-${productId || 'null'}-${strainId || 'null'}`;
+    
+    const existing = relationshipMap.get(key) || {
+      pharmacyId,
+      manufacturerId: manufacturerId || null,
+      productId: productId || null,
+      strainId: strainId || null,
+      orderCount: 0,
+      salesVolumeGrams: 0,
+    };
+
+    existing.orderCount += 1;
+    existing.salesVolumeGrams += order.Quantity || 0;
+    relationshipMap.set(key, existing);
+  }
+
+  log('info', `Found ${relationshipMap.size} unique relationships`);
+
+  // Upsert relationships
+  let processed = 0;
+  let skipped = 0;
+
+  const relationships = Array.from(relationshipMap.values());
+
+  await pLimit(relationships, 50, async (rel) => {
+    try {
+      await db
+        .insert(pharmacyProductRelationships)
+        .values({
+          pharmacyId: rel.pharmacyId,
+          manufacturerId: rel.manufacturerId,
+          productId: rel.productId,
+          strainId: rel.strainId,
+          statDate,
+          orderCount: rel.orderCount,
+          salesVolumeGrams: rel.salesVolumeGrams,
+          createdAt: new Date(),
+        })
+        .onConflictDoUpdate({
+          target: [
+            pharmacyProductRelationships.pharmacyId,
+            pharmacyProductRelationships.manufacturerId,
+            pharmacyProductRelationships.productId,
+            pharmacyProductRelationships.strainId,
+            pharmacyProductRelationships.statDate,
+          ],
+          set: {
+            orderCount: rel.orderCount,
+            salesVolumeGrams: rel.salesVolumeGrams,
+          },
+        });
+      processed += 1;
+    } catch (error) {
+      log('error', `Error upserting relationship for pharmacy ${rel.pharmacyId}:`, error);
+      skipped += 1;
+    }
+  });
+
+  log('info', `Processed ${processed} relationships, skipped ${skipped}`);
+  return { processed, skipped };
+}
+
+/**
+ * Get manufacturer stats for a specific pharmacy
+ * Returns top manufacturers selling at this pharmacy with order counts
+ */
+export async function getPharmacyManufacturerStats(
+  pharmacyId: number,
+  statDate?: string,
+  limit: number = 10
+): Promise<Array<{
+  manufacturerId: number;
+  manufacturerName: string;
+  logoUrl: string | null;
+  orderCount: number;
+  salesVolumeGrams: number;
+}>> {
+  const db = await getDb();
+  if (!db) return [];
+
+  // Use latest date if not specified
+  const targetDate = statDate || new Date().toISOString().split('T')[0];
+
+  const results = await db
+    .select({
+      manufacturerId: pharmacyProductRelationships.manufacturerId,
+      manufacturerName: manufacturers.name,
+      logoUrl: manufacturers.logoUrl,
+      orderCount: sql<number>`sum(${pharmacyProductRelationships.orderCount})`.mapWith(Number),
+      salesVolumeGrams: sql<number>`sum(${pharmacyProductRelationships.salesVolumeGrams})`.mapWith(Number),
+    })
+    .from(pharmacyProductRelationships)
+    .innerJoin(manufacturers, eq(pharmacyProductRelationships.manufacturerId, manufacturers.id))
+    .where(
+      and(
+        eq(pharmacyProductRelationships.pharmacyId, pharmacyId),
+        eq(pharmacyProductRelationships.statDate, targetDate)
+      )
+    )
+    .groupBy(
+      pharmacyProductRelationships.manufacturerId,
+      manufacturers.name,
+      manufacturers.logoUrl
+    )
+    .orderBy(sql`sum(${pharmacyProductRelationships.orderCount}) DESC`)
+    .limit(limit);
+
+  return results.filter(r => r.manufacturerId !== null) as any;
+}
+
+/**
+ * Get manufacturer stats for a specific strain
+ * Returns manufacturers that sell products with this strain
+ */
+export async function getStrainManufacturerStats(
+  strainId: number,
+  statDate?: string,
+  limit: number = 10
+): Promise<Array<{
+  manufacturerId: number;
+  manufacturerName: string;
+  logoUrl: string | null;
+  orderCount: number;
+  salesVolumeGrams: number;
+}>> {
+  const db = await getDb();
+  if (!db) return [];
+
+  // Use latest date if not specified
+  const targetDate = statDate || new Date().toISOString().split('T')[0];
+
+  const results = await db
+    .select({
+      manufacturerId: pharmacyProductRelationships.manufacturerId,
+      manufacturerName: manufacturers.name,
+      logoUrl: manufacturers.logoUrl,
+      orderCount: sql<number>`sum(${pharmacyProductRelationships.orderCount})`.mapWith(Number),
+      salesVolumeGrams: sql<number>`sum(${pharmacyProductRelationships.salesVolumeGrams})`.mapWith(Number),
+    })
+    .from(pharmacyProductRelationships)
+    .innerJoin(manufacturers, eq(pharmacyProductRelationships.manufacturerId, manufacturers.id))
+    .where(
+      and(
+        eq(pharmacyProductRelationships.strainId, strainId),
+        eq(pharmacyProductRelationships.statDate, targetDate)
+      )
+    )
+    .groupBy(
+      pharmacyProductRelationships.manufacturerId,
+      manufacturers.name,
+      manufacturers.logoUrl
+    )
+    .orderBy(sql`sum(${pharmacyProductRelationships.orderCount}) DESC`)
+    .limit(limit);
+
+  return results.filter(r => r.manufacturerId !== null) as any;
+}
+
+/**
+ * Check if a pharmacy sells products from a specific manufacturer with a specific strain
+ * Used for synergy bonus calculation
+ */
+export async function checkPharmacySynergyRelationship(
+  pharmacyId: number,
+  manufacturerId?: number | null,
+  productId?: number | null,
+  strainId?: number | null,
+  statDate?: string
+): Promise<{
+  hasPharmacyStrain: boolean;
+  hasPharmacyProduct: boolean;
+  hasPharmacyManufacturer: boolean;
+  hasFullSynergy: boolean;
+}> {
+  const db = await getDb();
+  if (!db) {
+    return {
+      hasPharmacyStrain: false,
+      hasPharmacyProduct: false,
+      hasPharmacyManufacturer: false,
+      hasFullSynergy: false,
+    };
+  }
+
+  const targetDate = statDate || new Date().toISOString().split('T')[0];
+
+  // Check pharmacy-strain relationship
+  let hasPharmacyStrain = false;
+  if (strainId) {
+    const strainRel = await db
+      .select({ id: pharmacyProductRelationships.id })
+      .from(pharmacyProductRelationships)
+      .where(
+        and(
+          eq(pharmacyProductRelationships.pharmacyId, pharmacyId),
+          eq(pharmacyProductRelationships.strainId, strainId),
+          eq(pharmacyProductRelationships.statDate, targetDate)
+        )
+      )
+      .limit(1);
+    hasPharmacyStrain = strainRel.length > 0;
+  }
+
+  // Check pharmacy-product relationship
+  let hasPharmacyProduct = false;
+  if (productId) {
+    const productRel = await db
+      .select({ id: pharmacyProductRelationships.id })
+      .from(pharmacyProductRelationships)
+      .where(
+        and(
+          eq(pharmacyProductRelationships.pharmacyId, pharmacyId),
+          eq(pharmacyProductRelationships.productId, productId),
+          eq(pharmacyProductRelationships.statDate, targetDate)
+        )
+      )
+      .limit(1);
+    hasPharmacyProduct = productRel.length > 0;
+  }
+
+  // Check pharmacy-manufacturer relationship
+  let hasPharmacyManufacturer = false;
+  if (manufacturerId) {
+    const mfgRel = await db
+      .select({ id: pharmacyProductRelationships.id })
+      .from(pharmacyProductRelationships)
+      .where(
+        and(
+          eq(pharmacyProductRelationships.pharmacyId, pharmacyId),
+          eq(pharmacyProductRelationships.manufacturerId, manufacturerId),
+          eq(pharmacyProductRelationships.statDate, targetDate)
+        )
+      )
+      .limit(1);
+    hasPharmacyManufacturer = mfgRel.length > 0;
+  }
+
+  // Full synergy requires pharmacy + strain + product (or manufacturer)
+  const hasFullSynergy = hasPharmacyStrain && (hasPharmacyProduct || hasPharmacyManufacturer);
+
+  return {
+    hasPharmacyStrain,
+    hasPharmacyProduct,
+    hasPharmacyManufacturer,
+    hasFullSynergy,
+  };
+}
+
+/**
+ * Get pharmacy count and manufacturer count for leaderboard badges
+ */
+export async function getEntityRelationshipSummary(
+  entityType: 'pharmacy' | 'strain' | 'manufacturer',
+  entityId: number,
+  statDate?: string
+): Promise<{
+  manufacturerCount?: number;
+  pharmacyCount?: number;
+  strainCount?: number;
+}> {
+  const db = await getDb();
+  if (!db) return {};
+
+  const targetDate = statDate || new Date().toISOString().split('T')[0];
+
+  if (entityType === 'pharmacy') {
+    // Count manufacturers selling at this pharmacy
+    const result = await db
+      .select({
+        manufacturerCount: sql<number>`count(distinct ${pharmacyProductRelationships.manufacturerId})`.mapWith(Number),
+      })
+      .from(pharmacyProductRelationships)
+      .where(
+        and(
+          eq(pharmacyProductRelationships.pharmacyId, entityId),
+          eq(pharmacyProductRelationships.statDate, targetDate)
+        )
+      );
+    return { manufacturerCount: result[0]?.manufacturerCount || 0 };
+  }
+
+  if (entityType === 'strain') {
+    // Count manufacturers and pharmacies selling this strain
+    const result = await db
+      .select({
+        manufacturerCount: sql<number>`count(distinct ${pharmacyProductRelationships.manufacturerId})`.mapWith(Number),
+        pharmacyCount: sql<number>`count(distinct ${pharmacyProductRelationships.pharmacyId})`.mapWith(Number),
+      })
+      .from(pharmacyProductRelationships)
+      .where(
+        and(
+          eq(pharmacyProductRelationships.strainId, entityId),
+          eq(pharmacyProductRelationships.statDate, targetDate)
+        )
+      );
+    return {
+      manufacturerCount: result[0]?.manufacturerCount || 0,
+      pharmacyCount: result[0]?.pharmacyCount || 0,
+    };
+  }
+
+  if (entityType === 'manufacturer') {
+    // Count pharmacies and strains for this manufacturer
+    const result = await db
+      .select({
+        pharmacyCount: sql<number>`count(distinct ${pharmacyProductRelationships.pharmacyId})`.mapWith(Number),
+        strainCount: sql<number>`count(distinct ${pharmacyProductRelationships.strainId})`.mapWith(Number),
+      })
+      .from(pharmacyProductRelationships)
+      .where(
+        and(
+          eq(pharmacyProductRelationships.manufacturerId, entityId),
+          eq(pharmacyProductRelationships.statDate, targetDate)
+        )
+      );
+    return {
+      pharmacyCount: result[0]?.pharmacyCount || 0,
+      strainCount: result[0]?.strainCount || 0,
+    };
+  }
+
+  return {};
+}
+

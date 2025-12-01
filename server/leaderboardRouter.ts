@@ -644,6 +644,109 @@ export const leaderboardRouter = router({
       } catch (error) { console.error('[Leaderboard] Error fetching mini leaderboard:', error); return { items: [], date: null, entityType, theme: input.theme }; }
     }),
 
+  /**
+   * Get manufacturer stats for a specific pharmacy
+   * Returns top manufacturers selling at this pharmacy with order counts
+   */
+  getPharmacyManufacturerStats: publicProcedure
+    .input(z.object({
+      pharmacyId: z.number(),
+      date: z.string().optional(),
+      limit: z.number().default(10),
+    }))
+    .query(async ({ input }) => {
+      try {
+        const { getPharmacyManufacturerStats, getEntityRelationshipSummary } = await import('./lib/metabase-pharmacy-relationships');
+        
+        const [stats, summary] = await Promise.all([
+          getPharmacyManufacturerStats(input.pharmacyId, input.date, input.limit),
+          getEntityRelationshipSummary('pharmacy', input.pharmacyId, input.date),
+        ]);
+
+        return {
+          pharmacyId: input.pharmacyId,
+          date: input.date || new Date().toISOString().split('T')[0],
+          manufacturerCount: summary.manufacturerCount || 0,
+          manufacturers: stats,
+        };
+      } catch (error) {
+        console.error('[Leaderboard] Error fetching pharmacy manufacturer stats:', error);
+        return {
+          pharmacyId: input.pharmacyId,
+          date: input.date || new Date().toISOString().split('T')[0],
+          manufacturerCount: 0,
+          manufacturers: [],
+        };
+      }
+    }),
+
+  /**
+   * Get manufacturer stats for a specific strain
+   * Returns manufacturers that sell products with this strain
+   */
+  getStrainManufacturerStats: publicProcedure
+    .input(z.object({
+      strainId: z.number(),
+      date: z.string().optional(),
+      limit: z.number().default(10),
+    }))
+    .query(async ({ input }) => {
+      try {
+        const { getStrainManufacturerStats, getEntityRelationshipSummary } = await import('./lib/metabase-pharmacy-relationships');
+        
+        const [stats, summary] = await Promise.all([
+          getStrainManufacturerStats(input.strainId, input.date, input.limit),
+          getEntityRelationshipSummary('strain', input.strainId, input.date),
+        ]);
+
+        return {
+          strainId: input.strainId,
+          date: input.date || new Date().toISOString().split('T')[0],
+          manufacturerCount: summary.manufacturerCount || 0,
+          pharmacyCount: summary.pharmacyCount || 0,
+          manufacturers: stats,
+        };
+      } catch (error) {
+        console.error('[Leaderboard] Error fetching strain manufacturer stats:', error);
+        return {
+          strainId: input.strainId,
+          date: input.date || new Date().toISOString().split('T')[0],
+          manufacturerCount: 0,
+          pharmacyCount: 0,
+          manufacturers: [],
+        };
+      }
+    }),
+
+  /**
+   * Get relationship summary for any entity (for leaderboard badges)
+   */
+  getEntityRelationshipSummary: publicProcedure
+    .input(z.object({
+      entityType: z.enum(['pharmacy', 'strain', 'manufacturer']),
+      entityId: z.number(),
+      date: z.string().optional(),
+    }))
+    .query(async ({ input }) => {
+      try {
+        const { getEntityRelationshipSummary } = await import('./lib/metabase-pharmacy-relationships');
+        const summary = await getEntityRelationshipSummary(input.entityType, input.entityId, input.date);
+        return {
+          entityType: input.entityType,
+          entityId: input.entityId,
+          date: input.date || new Date().toISOString().split('T')[0],
+          ...summary,
+        };
+      } catch (error) {
+        console.error('[Leaderboard] Error fetching entity relationship summary:', error);
+        return {
+          entityType: input.entityType,
+          entityId: input.entityId,
+          date: input.date || new Date().toISOString().split('T')[0],
+        };
+      }
+    }),
+
   getEmbedConfig: publicProcedure
     .input(z.object({ widgetType: z.enum(['leaderboard', 'entity-badge', 'mini-rank']) }))
     .query(async ({ input }) => {
