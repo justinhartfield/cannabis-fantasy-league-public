@@ -41,6 +41,12 @@ export default function LeagueNewsArticle() {
         { enabled: !!params.date }
     );
 
+    // Fetch fresh leaderboard data for the summary date to ensure correct entity links
+    const { data: leaderboardData } = trpc.leaderboard.getDailyEntityLeaderboard.useQuery(
+        { date: params.date || '', limit: 5 },
+        { enabled: !!params.date }
+    );
+
     const handleShare = async () => {
         const url = window.location.href;
         if (navigator.share) {
@@ -84,15 +90,13 @@ export default function LeagueNewsArticle() {
         );
     }
 
-    const { headline, content, stats, date } = summary;
-    const typedStats = stats as {
-        topManufacturers?: any[];
-        topStrains?: any[];
-        topPharmacies?: any[];
-        topBrands?: any[];
-    };
-
-    const { topManufacturers, topStrains, topPharmacies, topBrands } = typedStats;
+    const { headline, content, date } = summary;
+    
+    // Use fresh leaderboard data for correct entity links (fixes ID mismatches from stored stats)
+    const topManufacturers = leaderboardData?.manufacturers?.slice(0, 5) || [];
+    const topStrains = leaderboardData?.strains?.slice(0, 5) || [];
+    const topPharmacies = leaderboardData?.pharmacies?.slice(0, 5) || [];
+    const topBrands = leaderboardData?.brands?.slice(0, 5) || [];
     const formattedDate = new Date(date).toLocaleDateString(undefined, {
         weekday: 'long',
         year: 'numeric',
@@ -200,8 +204,7 @@ export default function LeagueNewsArticle() {
                                                         </Link>
                                                     </div>
                                                     <div className="text-right">
-                                                        <div className="font-bold text-weed-green text-sm">{m.points} pts</div>
-                                                        <div className="text-xs text-white/40">{m.sales}g</div>
+                                                        <div className="font-bold text-weed-green text-sm">{m.score} pts</div>
                                                     </div>
                                                 </div>
                                             ))
@@ -237,8 +240,7 @@ export default function LeagueNewsArticle() {
                                                         </Link>
                                                     </div>
                                                     <div className="text-right">
-                                                        <div className="font-bold text-weed-green text-sm">{b.points} pts</div>
-                                                        <div className="text-xs text-white/40">{b.sales}g</div>
+                                                        <div className="font-bold text-weed-green text-sm">{b.score} pts</div>
                                                     </div>
                                                 </div>
                                             ))
@@ -274,8 +276,7 @@ export default function LeagueNewsArticle() {
                                                         </Link>
                                                     </div>
                                                     <div className="text-right">
-                                                        <div className="font-bold text-weed-green text-sm">{s.points} pts</div>
-                                                        <div className="text-xs text-white/40">{s.orders}g</div>
+                                                        <div className="font-bold text-weed-green text-sm">{s.score} pts</div>
                                                     </div>
                                                 </div>
                                             ))
@@ -311,8 +312,7 @@ export default function LeagueNewsArticle() {
                                                         </Link>
                                                     </div>
                                                     <div className="text-right">
-                                                        <div className="font-bold text-weed-green text-sm">{p.points} pts</div>
-                                                        <div className="text-xs text-white/40">${(p.revenue / 100).toFixed(0)}</div>
+                                                        <div className="font-bold text-weed-green text-sm">{p.score} pts</div>
                                                     </div>
                                                 </div>
                                             ))

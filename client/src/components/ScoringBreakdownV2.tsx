@@ -412,19 +412,19 @@ const getBonusTooltipContent = (
     };
   }
   
-  // Captain Boost - parse multiplier from condition
+  // Captain Boost - 2.5x multiplier applied to Momentum Score
   if (bonusType.includes('captain')) {
     let multiplier = data.captainMultiplier;
     if (!multiplier || multiplier === 0) {
-      multiplier = parseValueFromCondition(condition, /(\d+(?:\.\d+)?)\s*[×x]/i) ?? 1.25;
+      multiplier = parseValueFromCondition(condition, /(\d+(?:\.\d+)?)\s*[×x]/i) ?? 2.5;
     }
-    // Calculate base points from the bonus (bonus = base * (mult - 1))
-    const basePoints = multiplier > 1 ? bonus.points / (multiplier - 1) : bonus.points * 4;
+    // Calculate base momentum points from the bonus (bonus = momentum * (mult - 1))
+    const baseMomentumPoints = multiplier > 1 ? bonus.points / (multiplier - 1) : bonus.points;
     return {
       title: 'Captain Boost',
-      explanation: 'Multiplier bonus applied to the designated team captain\'s points.',
-      formula: 'basePoints × (multiplier - 1)',
-      calculation: `${basePoints.toFixed(0)} base × (${multiplier}x - 1) = +${bonus.points} pts`,
+      explanation: '2.5x multiplier applied to the captain\'s Momentum Score.',
+      formula: 'momentumScore × (2.5 - 1)',
+      calculation: `${baseMomentumPoints.toFixed(0)} momentum × (${multiplier}x - 1) = +${bonus.points} pts`,
     };
   }
   

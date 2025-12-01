@@ -1411,7 +1411,7 @@ export default function DailyChallenge() {
               {isUserTeamSelected && !userTeamHasCaptain && (
                 <div className="flex items-center gap-2 text-xs text-yellow-400 animate-pulse">
                   <Crown className="w-4 h-4" />
-                  <span>Click a player to make them Captain (1.25x bonus)</span>
+                  <span>Click a player to make them Captain (2.5x Momentum Score)</span>
                 </div>
               )}
               {isUserTeamSelected && userTeamHasCaptain && (

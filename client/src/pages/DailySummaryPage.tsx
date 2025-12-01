@@ -25,6 +25,12 @@ const renderContent = (text: string) => {
 
 export default function DailySummaryPage() {
     const { data: summary, isLoading } = trpc.dailySummary.getLatest.useQuery();
+    
+    // Fetch fresh leaderboard data for correct entity links (fixes ID mismatches from stored stats)
+    const { data: leaderboardData } = trpc.leaderboard.getDailyEntityLeaderboard.useQuery(
+        { date: summary?.date || '', limit: 5 },
+        { enabled: !!summary?.date }
+    );
 
     if (isLoading) {
         return (
@@ -43,16 +49,13 @@ export default function DailySummaryPage() {
         );
     }
 
-    const { headline, content, stats } = summary;
-    // Type assertion to handle the JSON type
-    const typedStats = stats as {
-        topManufacturers?: any[];
-        topStrains?: any[];
-        topPharmacies?: any[];
-        topBrands?: any[];
-    };
-
-    const { topManufacturers, topStrains, topPharmacies, topBrands } = typedStats;
+    const { headline, content } = summary;
+    
+    // Use fresh leaderboard data for correct entity links
+    const topManufacturers = leaderboardData?.manufacturers?.slice(0, 5) || [];
+    const topStrains = leaderboardData?.strains?.slice(0, 5) || [];
+    const topPharmacies = leaderboardData?.pharmacies?.slice(0, 5) || [];
+    const topBrands = leaderboardData?.brands?.slice(0, 5) || [];
 
     return (
         <div className="container mx-auto p-4 max-w-4xl space-y-8">
@@ -103,8 +106,7 @@ export default function DailySummaryPage() {
                                                 </Link>
                                             </div>
                                             <div className="text-right">
-                                                <div className="font-bold text-primary">{m.points} pts</div>
-                                                <div className="text-xs text-muted-foreground">{m.sales}g</div>
+                                                <div className="font-bold text-primary">{m.score} pts</div>
                                             </div>
                                         </div>
                                     ))
@@ -137,8 +139,7 @@ export default function DailySummaryPage() {
                                                 </Link>
                                             </div>
                                             <div className="text-right">
-                                                <div className="font-bold text-primary">{b.points} pts</div>
-                                                <div className="text-xs text-muted-foreground">{b.sales}g</div>
+                                                <div className="font-bold text-primary">{b.score} pts</div>
                                             </div>
                                         </div>
                                     ))
@@ -171,8 +172,7 @@ export default function DailySummaryPage() {
                                                 </Link>
                                             </div>
                                             <div className="text-right">
-                                                <div className="font-bold text-primary">{s.points} pts</div>
-                                                <div className="text-xs text-muted-foreground">{s.orders}g</div>
+                                                <div className="font-bold text-primary">{s.score} pts</div>
                                             </div>
                                         </div>
                                     ))
@@ -205,8 +205,7 @@ export default function DailySummaryPage() {
                                                 </Link>
                                             </div>
                                             <div className="text-right">
-                                                <div className="font-bold text-primary">{p.points} pts</div>
-                                                <div className="text-xs text-muted-foreground">${(p.revenue / 100).toFixed(0)}</div>
+                                                <div className="font-bold text-primary">{p.score} pts</div>
                                             </div>
                                         </div>
                                     ))

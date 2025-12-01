@@ -32,7 +32,7 @@ async function testNormalization() {
             components: [{ category: 'Test', points: 100 }],
             bonuses: [
                 { type: 'Rank Bonus', points: 10 }, // Should be recalculated/replaced by fresh stats
-                { type: 'Captain Boost', points: 25, condition: '1.25x Multiplier' } // Should be PRESERVED
+                { type: 'Captain Boost', points: 75, condition: '2.5x Momentum Score' } // Should be PRESERVED
             ],
             total: 135
         },

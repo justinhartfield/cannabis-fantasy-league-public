@@ -2202,26 +2202,47 @@ async function computeTeamScore(options: TeamScoreComputationOptions): Promise<T
 
   // Only apply for Daily Challenge
   if (scope.type === 'daily') {
-    // 1. Apply Captain Multiplier (1.25x)
+    // 1. Apply Captain Multiplier (2.5x to Momentum Score only)
     console.log(`[Captain] Team ${options.teamId} lineup captain info: captainId=${teamLineup.captainId}, captainType=${teamLineup.captainType}`);
 
     if (teamLineup.captainId && teamLineup.captainType) {
-      const captainMultiplier = 1.25;
+      const captainMultiplier = 2.5;
       const captainType = teamLineup.captainType;
       const captainId = teamLineup.captainId;
 
-      console.log(`[computeTeamScore] Checking Captain Boost: ${captainType} #${captainId}`);
+      console.log(`[computeTeamScore] Checking Captain Boost (2.5x Momentum Score): ${captainType} #${captainId}`);
 
       // Find the breakdown item for the captain
       const captainItem = breakdowns.find(b => b.assetType === captainType && b.assetId === captainId);
 
       if (captainItem) {
         console.log(`[computeTeamScore] Found captain item: ${captainItem.assetName}, points=${captainItem.points}`);
-        const originalPoints = captainItem.points || 0;
-        const boostedPoints = Math.round(originalPoints * captainMultiplier); // Ensure integer
-        const bonusPoints = boostedPoints - originalPoints;
+        
+        // Find the Momentum Score (Trend Bonus) component and apply 2.5x to it
+        let bonusPoints = 0;
+        if (captainItem.breakdown && captainItem.breakdown.components) {
+          const momentumComponent = captainItem.breakdown.components.find(
+            (c: any) => c.category === 'Trend Bonus' || c.category === 'Momentum Score'
+          );
+          
+          if (momentumComponent) {
+            const originalMomentumPoints = momentumComponent.points || 0;
+            const boostedMomentumPoints = Math.round(originalMomentumPoints * captainMultiplier);
+            bonusPoints = boostedMomentumPoints - originalMomentumPoints;
+            
+            // Update the momentum component's points
+            momentumComponent.points = boostedMomentumPoints;
+            momentumComponent.formula = `${momentumComponent.formula} (Captain 2.5x)`;
+            
+            console.log(`[computeTeamScore] Applied Captain Boost to Momentum Score: ${originalMomentumPoints} → ${boostedMomentumPoints} (+${bonusPoints} pts)`);
+          } else {
+            console.log(`[computeTeamScore] No Momentum Score component found for captain`);
+          }
+        }
 
-        // Update the item's points
+        // Update the item's total points
+        const originalPoints = captainItem.points || 0;
+        const boostedPoints = originalPoints + bonusPoints;
         captainItem.points = boostedPoints;
         captainItem.isCaptain = true;
         captainItem.captainBonus = bonusPoints;
@@ -2231,7 +2252,7 @@ async function computeTeamScore(options: TeamScoreComputationOptions): Promise<T
           captainItem.breakdown.bonuses = captainItem.breakdown.bonuses || [];
           captainItem.breakdown.bonuses.push({
             type: 'Captain Boost',
-            condition: `${captainMultiplier}x Multiplier`,
+            condition: `${captainMultiplier}x Momentum Score`,
             points: bonusPoints
           });
           captainItem.breakdown.total = boostedPoints;
@@ -2249,7 +2270,7 @@ async function computeTeamScore(options: TeamScoreComputationOptions): Promise<T
         // Add to team bonuses for tracking
         teamBonuses.push({
           type: 'captain_boost',
-          description: `Captain Boost (${captainMultiplier}x) for ${captainItem.assetName || 'Captain'}`,
+          description: `Captain Boost (${captainMultiplier}x Momentum Score) for ${captainItem.assetName || 'Captain'}`,
           points: bonusPoints,
         });
 
