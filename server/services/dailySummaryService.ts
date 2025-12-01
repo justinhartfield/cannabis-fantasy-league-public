@@ -1,5 +1,11 @@
 import { getDb } from '../db';
-import { dailySummaries, manufacturerDailyStats, strainDailyStats, pharmacyDailyStats, brandDailyStats, manufacturers, cannabisStrains, pharmacies, brands } from '../../drizzle/schema';
+import { dailySummaries, manufacturers, cannabisStrains, pharmacies, brands } from '../../drizzle/schema';
+import { 
+    manufacturerDailyChallengeStats, 
+    strainDailyChallengeStats, 
+    pharmacyDailyChallengeStats, 
+    brandDailyChallengeStats 
+} from '../../drizzle/dailyChallengeSchema';
 import { eq, desc, and, sql } from 'drizzle-orm';
 import OpenAI from 'openai';
 
@@ -75,56 +81,57 @@ export const getDailySummaryService = () => {
 
             console.log(`Generating daily summary for ${date}...`);
 
-            // 1. Fetch Stats
+            // 1. Fetch Stats (using DailyChallengeStats tables to match EntityProfile data)
             const topManufacturers = await db
                 .select({
                     id: manufacturers.id,
                     name: manufacturers.name,
-                    points: manufacturerDailyStats.totalPoints,
-                    sales: manufacturerDailyStats.salesVolumeGrams,
+                    points: manufacturerDailyChallengeStats.totalPoints,
+                    sales: manufacturerDailyChallengeStats.salesVolumeGrams,
                 })
-                .from(manufacturerDailyStats)
-                .innerJoin(manufacturers, eq(manufacturerDailyStats.manufacturerId, manufacturers.id))
-                .where(eq(manufacturerDailyStats.statDate, date))
-                .orderBy(desc(manufacturerDailyStats.totalPoints))
+                .from(manufacturerDailyChallengeStats)
+                .innerJoin(manufacturers, eq(manufacturerDailyChallengeStats.manufacturerId, manufacturers.id))
+                .where(eq(manufacturerDailyChallengeStats.statDate, date))
+                .orderBy(desc(manufacturerDailyChallengeStats.totalPoints))
                 .limit(5);
 
             const topStrains = await db
                 .select({
                     id: cannabisStrains.id,
                     name: cannabisStrains.name,
-                    points: strainDailyStats.totalPoints,
-                    orders: strainDailyStats.orderVolumeGrams,
+                    points: strainDailyChallengeStats.totalPoints,
+                    orders: strainDailyChallengeStats.salesVolumeGrams,
                 })
-                .from(strainDailyStats)
-                .innerJoin(cannabisStrains, eq(strainDailyStats.strainId, cannabisStrains.id))
-                .where(eq(strainDailyStats.statDate, date))
-                .orderBy(desc(strainDailyStats.totalPoints))
+                .from(strainDailyChallengeStats)
+                .innerJoin(cannabisStrains, eq(strainDailyChallengeStats.strainId, cannabisStrains.id))
+                .where(eq(strainDailyChallengeStats.statDate, date))
+                .orderBy(desc(strainDailyChallengeStats.totalPoints))
                 .limit(5);
 
             const topPharmacies = await db
                 .select({
                     id: pharmacies.id,
                     name: pharmacies.name,
-                    points: pharmacyDailyStats.totalPoints,
-                    revenue: pharmacyDailyStats.revenueCents,
+                    points: pharmacyDailyChallengeStats.totalPoints,
+                    revenue: pharmacyDailyChallengeStats.revenueCents,
                 })
-                .from(pharmacyDailyStats)
-                .innerJoin(pharmacies, eq(pharmacyDailyStats.pharmacyId, pharmacies.id))
-                .where(eq(pharmacyDailyStats.statDate, date))
-                .orderBy(desc(pharmacyDailyStats.totalPoints))
+                .from(pharmacyDailyChallengeStats)
+                .innerJoin(pharmacies, eq(pharmacyDailyChallengeStats.pharmacyId, pharmacies.id))
+                .where(eq(pharmacyDailyChallengeStats.statDate, date))
+                .orderBy(desc(pharmacyDailyChallengeStats.totalPoints))
                 .limit(5);
 
             const topBrands = await db
                 .select({
                     id: brands.id,
                     name: brands.name,
-                    points: brandDailyStats.totalPoints,
+                    points: brandDailyChallengeStats.totalPoints,
+                    sales: brandDailyChallengeStats.totalRatings, // Using totalRatings as activity metric
                 })
-                .from(brandDailyStats)
-                .innerJoin(brands, eq(brandDailyStats.brandId, brands.id))
-                .where(eq(brandDailyStats.statDate, date))
-                .orderBy(desc(brandDailyStats.totalPoints))
+                .from(brandDailyChallengeStats)
+                .innerJoin(brands, eq(brandDailyChallengeStats.brandId, brands.id))
+                .where(eq(brandDailyChallengeStats.statDate, date))
+                .orderBy(desc(brandDailyChallengeStats.totalPoints))
                 .limit(5);
 
             const statsSnapshot = {

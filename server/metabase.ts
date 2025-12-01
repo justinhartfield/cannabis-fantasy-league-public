@@ -91,7 +91,13 @@ export class MetabaseClient {
       timeout: 60000, // Increased timeout for large queries
       headers: {
         'Content-Type': 'application/json',
-        'X-API-KEY': METABASE_API_KEY,
+        ...(METABASE_API_KEY.startsWith('mb_')
+          ? { 'X-API-KEY': METABASE_API_KEY }
+          : {
+            'X-Metabase-Session': METABASE_API_KEY,
+            'Cookie': `metabase.SESSION=${METABASE_API_KEY}`
+          }
+        ),
       },
     });
   }
