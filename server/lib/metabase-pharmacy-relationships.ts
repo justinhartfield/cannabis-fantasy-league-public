@@ -75,6 +75,7 @@ export async function aggregatePharmacyProductRelationships(
   };
 
   log('info', `Aggregating pharmacy-product relationships for ${statDate}...`);
+  log('info', `Processing ${orders.length} orders for relationship extraction`);
 
   // Build lookup maps for entity IDs
   const [pharmacyList, manufacturerList, productList, strainList] = await Promise.all([
@@ -83,6 +84,8 @@ export async function aggregatePharmacyProductRelationships(
     db.select({ id: strains.id, name: strains.name }).from(strains),
     db.select({ id: cannabisStrains.id, name: cannabisStrains.name }).from(cannabisStrains),
   ]);
+
+  log('info', `Loaded ${pharmacyList.length} pharmacies, ${manufacturerList.length} manufacturers, ${productList.length} products, ${strainList.length} strains`);
 
   const pharmacyMap = new Map(pharmacyList.map(p => [p.name.toLowerCase(), p.id]));
   const manufacturerMap = new Map(manufacturerList.map(m => [m.name.toLowerCase(), m.id]));
@@ -93,23 +96,48 @@ export async function aggregatePharmacyProductRelationships(
   // Key: `pharmacyId-manufacturerId-productId-strainId`
   const relationshipMap = new Map<string, RelationshipStats>();
 
+  // Debug counters
+  let noPharmacyName = 0;
+  let pharmacyNotFound = 0;
+  let noRelationships = 0;
+  let successfulMatches = 0;
+  const unmatchedPharmacies = new Set<string>();
+  const unmatchedManufacturers = new Set<string>();
+
   for (const order of orders) {
     const pharmacyName = order.PharmacyName || order.Pharmacy;
     const manufacturerName = order.ProductManufacturer;
     const productName = order.Product;
     const strainName = order.ProductStrainName;
 
-    if (!pharmacyName) continue;
+    if (!pharmacyName) {
+      noPharmacyName++;
+      continue;
+    }
 
     const pharmacyId = pharmacyMap.get(pharmacyName.toLowerCase());
-    if (!pharmacyId) continue;
+    if (!pharmacyId) {
+      pharmacyNotFound++;
+      unmatchedPharmacies.add(pharmacyName);
+      continue;
+    }
 
     const manufacturerId = manufacturerName ? manufacturerMap.get(manufacturerName.toLowerCase()) : null;
     const productId = productName ? productMap.get(productName.toLowerCase()) : null;
     const strainId = strainName ? strainMap.get(strainName.toLowerCase()) : null;
 
+    // Track unmatched manufacturers for debugging
+    if (manufacturerName && !manufacturerId) {
+      unmatchedManufacturers.add(manufacturerName);
+    }
+
     // Skip if we don't have at least one relationship
-    if (!manufacturerId && !productId && !strainId) continue;
+    if (!manufacturerId && !productId && !strainId) {
+      noRelationships++;
+      continue;
+    }
+
+    successfulMatches++;
 
     const key = `${pharmacyId}-${manufacturerId || 'null'}-${productId || 'null'}-${strainId || 'null'}`;
     
@@ -125,6 +153,16 @@ export async function aggregatePharmacyProductRelationships(
     existing.orderCount += 1;
     existing.salesVolumeGrams += order.Quantity || 0;
     relationshipMap.set(key, existing);
+  }
+
+  // Log debug stats
+  log('info', `Order processing stats: ${successfulMatches} matched, ${noPharmacyName} no pharmacy name, ${pharmacyNotFound} pharmacy not found, ${noRelationships} no relationships`);
+  
+  if (unmatchedPharmacies.size > 0 && unmatchedPharmacies.size <= 10) {
+    log('warn', `Unmatched pharmacies (sample): ${Array.from(unmatchedPharmacies).slice(0, 5).join(', ')}`);
+  }
+  if (unmatchedManufacturers.size > 0 && unmatchedManufacturers.size <= 10) {
+    log('warn', `Unmatched manufacturers (sample): ${Array.from(unmatchedManufacturers).slice(0, 5).join(', ')}`);
   }
 
   log('info', `Found ${relationshipMap.size} unique relationships`);
