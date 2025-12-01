@@ -22,6 +22,7 @@ import {
   Package,
   Building2,
   Star,
+  Sparkles,
 } from "lucide-react";
 
 // ============================================================================
@@ -38,7 +39,8 @@ export type BonusType =
   | "marketShare" 
   | "captain" 
   | "fan"
-  | "positionGain";
+  | "positionGain"
+  | "synergy";
 
 export interface ScoringBonus {
   type: BonusType;
@@ -191,6 +193,13 @@ const BONUS_CONFIG: Record<BonusType, {
     color: "text-emerald-400",
     bgColor: "bg-emerald-500/20",
     description: "Gained ranking positions this period",
+  },
+  synergy: {
+    emoji: "✨",
+    icon: <Sparkles className="w-4 h-4" />,
+    color: "text-emerald-400",
+    bgColor: "bg-emerald-500/20",
+    description: "Bonus for pharmacy + strain/product combo in lineup",
   },
 };
 
@@ -981,7 +990,8 @@ export function adaptLegacyData(data: LegacyScoringBreakdownData): ScoringCardPr
     const typeLower = b.type.toLowerCase();
     let type: BonusType = "rank";
     
-    if (typeLower.includes("streak")) type = "streak";
+    if (typeLower.includes("synergy")) type = "synergy";
+    else if (typeLower.includes("streak")) type = "streak";
     else if (typeLower.includes("velocity")) type = "velocity";
     else if (typeLower.includes("consistency")) type = "consistency";
     else if (typeLower.includes("market") && typeLower.includes("share")) type = "marketShare";
