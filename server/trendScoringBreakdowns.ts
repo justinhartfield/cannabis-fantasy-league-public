@@ -26,6 +26,15 @@ export type BreakdownDetail = {
   penalties: BreakdownBonus[];
   subtotal: number;
   total: number;
+  // Raw values for fallback when stat record is not found
+  orderCount?: number;
+  rank?: number;
+  previousRank?: number;
+  streakDays?: number;
+  trendMultiplier?: number;
+  consistencyScore?: number;
+  velocityScore?: number;
+  marketSharePercent?: number;
 };
 
 export type BreakdownResult = {
@@ -147,6 +156,14 @@ export function buildManufacturerTrendBreakdown(
       penalties,
       subtotal,
       total,
+      // Raw values for fallback when stat record lookup fails
+      orderCount,
+      rank,
+      previousRank,
+      streakDays,
+      trendMultiplier: scoring.trendMultiplier,
+      consistencyScore: scoring.consistencyScore,
+      velocityScore: scoring.velocityScore,
     },
   };
 }
@@ -294,6 +311,14 @@ export function buildStrainTrendBreakdown(
       penalties,
       subtotal,
       total,
+      // Raw values for fallback when stat record lookup fails
+      orderCount,
+      rank,
+      previousRank,
+      streakDays,
+      trendMultiplier: scoring.trendMultiplier,
+      consistencyScore: scoring.consistencyScore,
+      velocityScore: scoring.velocityScore,
     },
   };
 }
@@ -406,6 +431,14 @@ export function buildProductTrendBreakdown(
       penalties,
       subtotal,
       total,
+      // Raw values for fallback when stat record lookup fails
+      orderCount,
+      rank,
+      previousRank,
+      streakDays,
+      trendMultiplier: scoring.trendMultiplier,
+      consistencyScore: scoring.consistencyScore,
+      velocityScore: scoring.velocityScore,
     },
   };
 }
@@ -518,6 +551,14 @@ export function buildPharmacyTrendBreakdown(
       penalties,
       subtotal,
       total,
+      // Raw values for fallback when stat record lookup fails
+      orderCount,
+      rank,
+      previousRank,
+      streakDays,
+      trendMultiplier: scoring.trendMultiplier,
+      consistencyScore: scoring.consistencyScore,
+      velocityScore: scoring.velocityScore,
     },
   };
 }
