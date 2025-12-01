@@ -378,12 +378,8 @@ export const lineupRouter = router({
 
           if (league?.leagueType === 'challenge' && league.createdAt) {
             // For daily challenges, recalculate the day's scores
-            // The stat date is typically the day BEFORE the challenge was created (since we draft based on yesterday's stats)
-            const createdDate = new Date(league.createdAt);
-            createdDate.setDate(createdDate.getDate() - 1);
-            const statDate = createdDate.toISOString().split('T')[0];
-
-            console.log(`[setCaptain] Triggering score recalculation for team ${input.teamId}, challenge ${team.leagueId}, date ${statDate} (derived from created ${league.createdAt})`);
+            const statDate = new Date(league.createdAt).toISOString().split('T')[0];
+            console.log(`[setCaptain] Triggering score recalculation for team ${input.teamId}, challenge ${team.leagueId}, date ${statDate}`);
 
             // Import and call the score calculation
             const { calculateTeamDailyScore } = await import('./scoringEngine');

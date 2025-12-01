@@ -286,10 +286,7 @@ export default function DailyChallenge() {
   const currentWeek = league?.currentWeek || 1;
   const statDate = useMemo(() => {
     if (!league?.createdAt) return null;
-    // The stat date is typically the day BEFORE the challenge was created (since we draft based on yesterday's stats)
-    const createdDate = new Date(league.createdAt);
-    createdDate.setDate(createdDate.getDate() - 1);
-    return createdDate.toISOString().split('T')[0];
+    return new Date(league.createdAt).toISOString().split('T')[0];
   }, [league]);
   const challengeDateLabel = useMemo(() => {
     if (!statDate) return new Date().toLocaleDateString();
