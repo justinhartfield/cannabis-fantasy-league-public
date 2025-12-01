@@ -82,7 +82,7 @@ function detectClientScoringPlays(
   newBreakdowns: Record<number, CachedTeamBreakdown>
 ): ScoringPlayData[] {
   const plays: ScoringPlayData[] = [];
-  
+
   // Need cached data to compare against (skip first load)
   if (!cachedBreakdowns || Object.keys(cachedBreakdowns.teams).length === 0) {
     return plays;
@@ -154,7 +154,7 @@ function breakdownToCacheFormat(
   breakdowns: any[] | undefined
 ): CachedTeamBreakdown {
   const assets: CachedAssetBreakdown[] = [];
-  
+
   if (breakdowns) {
     for (const item of breakdowns) {
       if (!item.assetId || !item.assetType) continue;
@@ -229,7 +229,7 @@ export default function DailyChallenge() {
   // Cache scores in localStorage for instant display on page load
   const SCORE_CACHE_KEY = `challenge-${challengeId}-scores`;
   const BREAKDOWN_CACHE_KEY = `challenge-${challengeId}-breakdowns`;
-  
+
   const [cachedScores, setCachedScores] = useState<any[]>(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -286,7 +286,10 @@ export default function DailyChallenge() {
   const currentWeek = league?.currentWeek || 1;
   const statDate = useMemo(() => {
     if (!league?.createdAt) return null;
-    return new Date(league.createdAt).toISOString().split('T')[0];
+    // The stat date is typically the day BEFORE the challenge was created (since we draft based on yesterday's stats)
+    const createdDate = new Date(league.createdAt);
+    createdDate.setDate(createdDate.getDate() - 1);
+    return createdDate.toISOString().split('T')[0];
   }, [league]);
   const challengeDateLabel = useMemo(() => {
     if (!statDate) return new Date().toLocaleDateString();
@@ -375,20 +378,20 @@ export default function DailyChallenge() {
 
   // Get the tRPC utils for cache invalidation
   const trpcUtils = trpc.useUtils();
-  
+
   // Captain selection mutation
   const setCaptainMutation = trpc.lineup.setCaptain.useMutation({
     onSuccess: async () => {
       toast.success("Captain set! Recalculating scores...");
-      
+
       // Invalidate all relevant caches to ensure fresh data
       await trpcUtils.lineup.getWeeklyLineup.invalidate();
       await trpcUtils.scoring.getChallengeDayBreakdown.invalidate();
       await trpcUtils.scoring.getChallengeDayScores.invalidate();
-      
+
       // Refetch lineup immediately
       refetchLineup();
-      
+
       // Refetch breakdown and scores after delay to allow recalculation to complete
       setTimeout(async () => {
         // Invalidate again and refetch
@@ -397,7 +400,7 @@ export default function DailyChallenge() {
         refetchBreakdown();
         refetchScores();
       }, 2000);
-      
+
       // Final refresh after 4 seconds
       setTimeout(async () => {
         await trpcUtils.scoring.getChallengeDayBreakdown.invalidate();
@@ -432,7 +435,7 @@ export default function DailyChallenge() {
   // Handle captain selection
   const handleSetCaptain = useCallback((assetId: number, assetType: string) => {
     if (!selectedTeamId || !isUserTeamSelected || userTeamHasCaptain) return;
-    
+
     setCaptainMutation.mutate({
       teamId: selectedTeamId,
       year: currentYear,
@@ -506,10 +509,10 @@ export default function DailyChallenge() {
 
   const handleManualSync = useCallback(() => {
     if (!statDate || syncScoresMutation.isPending) return;
-    
+
     // Mark that we want to do client-side delta detection after sync completes
     pendingClientDeltaCheckRef.current = true;
-    
+
     syncScoresMutation.mutate({ challengeId, statDate });
   }, [challengeId, statDate, syncScoresMutation]);
 
@@ -582,7 +585,7 @@ export default function DailyChallenge() {
     if (firstPlay) {
       scoringPlayQueueRef.current.push(firstPlay);
       setRecentPlays(prev => [{ ...firstPlay, timestamp: new Date() }, ...prev].slice(0, 10));
-      
+
       // Update live scores from this play
       setLiveScores(prev => {
         const updated = new Map(prev);
@@ -615,7 +618,7 @@ export default function DailyChallenge() {
 
         scoringPlayQueueRef.current.push(play);
         setRecentPlays(prev => [{ ...play, timestamp: new Date() }, ...prev].slice(0, 10));
-        
+
         // Update live scores
         setLiveScores(prev => {
           const updated = new Map(prev);
@@ -829,7 +832,7 @@ export default function DailyChallenge() {
 
     // Detect plays comparing cached vs new
     const plays = detectClientScoringPlays(cachedBreakdowns, newBreakdowns);
-    
+
     console.log(`[ClientDelta] Detected ${plays.length} scoring plays from cache comparison`);
 
     // Queue plays for display with 10 minute spread
@@ -843,7 +846,7 @@ export default function DailyChallenge() {
       timestamp: Date.now(),
     };
     setCachedBreakdowns(newCache);
-    
+
     // Save to localStorage
     if (typeof window !== 'undefined') {
       try {
@@ -857,12 +860,12 @@ export default function DailyChallenge() {
     // Clear the pending flag
     pendingClientDeltaCheckRef.current = false;
   }, [
-    breakdown, 
-    opponentBreakdown, 
-    selectedTeamId, 
-    opponentTeamId, 
-    dayScores, 
-    cachedBreakdowns, 
+    breakdown,
+    opponentBreakdown,
+    selectedTeamId,
+    opponentTeamId,
+    dayScores,
+    cachedBreakdowns,
     queueClientPlaysForDisplay,
     BREAKDOWN_CACHE_KEY
   ]);
@@ -894,10 +897,10 @@ export default function DailyChallenge() {
     console.log(`[ScoreSync] Auto-syncing on WS connect (hasScores: ${hasRealScores})`);
     hasAutoSyncedRef.current = true;
     lastSyncTimeRef.current = Date.now();
-    
+
     // Enable client-side delta detection for page load/refresh
     pendingClientDeltaCheckRef.current = true;
-    
+
     syncScoresMutation.mutate({ challengeId, statDate });
   }, [league, statDate, dayScores, scoresLoading, syncScoresMutation, challengeId, isConnected]);
 
@@ -910,15 +913,15 @@ export default function DailyChallenge() {
       if (document.visibilityState === 'visible') {
         // Page became visible - check for score changes
         const timeSinceLastSync = Date.now() - lastSyncTimeRef.current;
-        
+
         // Only sync if more than 30 seconds since last sync
         if (timeSinceLastSync > 30000 && !syncScoresMutation.isPending) {
           console.log('[Visibility] Page visible, checking for score changes...');
           lastSyncTimeRef.current = Date.now();
-          
+
           // Enable client-side delta detection
           pendingClientDeltaCheckRef.current = true;
-          
+
           // Trigger sync and refetch
           syncScoresMutation.mutate({ challengeId, statDate });
         }
@@ -926,7 +929,7 @@ export default function DailyChallenge() {
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
@@ -1449,13 +1452,13 @@ export default function DailyChallenge() {
                     <div key={assetType} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {items.map((item: any, index: number) => {
                         // Check if this item is the captain
-                        const isCaptain = teamLineup?.captainId === item.assetId && 
-                                          teamLineup?.captainType === item.assetType;
+                        const isCaptain = teamLineup?.captainId === item.assetId &&
+                          teamLineup?.captainType === item.assetType;
                         // Can select as captain if: user's team, no captain set yet, not already captain
                         const canSelectAsCaptain = isUserTeamSelected && !userTeamHasCaptain && !isCaptain;
-                        
+
                         return (
-                          <div 
+                          <div
                             key={`${item.assetId}-${index}`}
                             className={cn(
                               "relative transition-all duration-200",

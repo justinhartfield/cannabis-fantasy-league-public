@@ -51,7 +51,7 @@ function ensureEntityLinks(content: string, stats: StatsSnapshot): string {
         // Uses negative lookbehind for [ and negative lookahead for ]( or ](/
         // This regex matches the entity name only if it's not part of [Name](url) format
         const escapedName = escapeRegex(entity.name);
-        
+
         // Match entity name that:
         // - Is not preceded by [ (would be link text start)
         // - Is not followed by ]( (would be inside link)
@@ -81,11 +81,11 @@ export const getDailySummaryService = () => {
                     id: manufacturers.id,
                     name: manufacturers.name,
                     points: manufacturerDailyStats.totalPoints,
-                    sales: manufacturerDailyStats.totalSalesVolume,
+                    sales: manufacturerDailyStats.salesVolumeGrams,
                 })
                 .from(manufacturerDailyStats)
                 .innerJoin(manufacturers, eq(manufacturerDailyStats.manufacturerId, manufacturers.id))
-                .where(eq(manufacturerDailyStats.date, date))
+                .where(eq(manufacturerDailyStats.statDate, date))
                 .orderBy(desc(manufacturerDailyStats.totalPoints))
                 .limit(5);
 
@@ -94,11 +94,11 @@ export const getDailySummaryService = () => {
                     id: cannabisStrains.id,
                     name: cannabisStrains.name,
                     points: strainDailyStats.totalPoints,
-                    orders: strainDailyStats.totalOrderVolume,
+                    orders: strainDailyStats.orderVolumeGrams,
                 })
                 .from(strainDailyStats)
                 .innerJoin(cannabisStrains, eq(strainDailyStats.strainId, cannabisStrains.id))
-                .where(eq(strainDailyStats.date, date))
+                .where(eq(strainDailyStats.statDate, date))
                 .orderBy(desc(strainDailyStats.totalPoints))
                 .limit(5);
 
@@ -107,11 +107,11 @@ export const getDailySummaryService = () => {
                     id: pharmacies.id,
                     name: pharmacies.name,
                     points: pharmacyDailyStats.totalPoints,
-                    revenue: pharmacyDailyStats.totalRevenue,
+                    revenue: pharmacyDailyStats.revenueCents,
                 })
                 .from(pharmacyDailyStats)
                 .innerJoin(pharmacies, eq(pharmacyDailyStats.pharmacyId, pharmacies.id))
-                .where(eq(pharmacyDailyStats.date, date))
+                .where(eq(pharmacyDailyStats.statDate, date))
                 .orderBy(desc(pharmacyDailyStats.totalPoints))
                 .limit(5);
 
@@ -120,11 +120,10 @@ export const getDailySummaryService = () => {
                     id: brands.id,
                     name: brands.name,
                     points: brandDailyStats.totalPoints,
-                    sales: brandDailyStats.totalSalesVolume,
                 })
                 .from(brandDailyStats)
                 .innerJoin(brands, eq(brandDailyStats.brandId, brands.id))
-                .where(eq(brandDailyStats.date, date))
+                .where(eq(brandDailyStats.statDate, date))
                 .orderBy(desc(brandDailyStats.totalPoints))
                 .limit(5);
 

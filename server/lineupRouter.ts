@@ -58,8 +58,8 @@ export const lineupRouter = router({
           year: input.year,
           week: input.week,
           isLocked: false,
-          captainId: lineup.captainId,
-          captainType: lineup.captainType as "manufacturer" | "cannabis_strain" | "product" | "pharmacy" | "brand" | null,
+          captainId: null,
+          captainType: null,
           lineup: [
             { position: "MFG1", assetType: "manufacturer" as const, assetId: null, assetName: null, points: 0, locked: false },
             { position: "MFG2", assetType: "manufacturer" as const, assetId: null, assetName: null, points: 0, locked: false },
@@ -237,7 +237,7 @@ export const lineupRouter = router({
           flexType: input.lineup.flexType,
           captainId: input.lineup.captainId,
           captainType: input.lineup.captainType,
-          isLocked: false,
+          isLocked: 0,
         });
         console.log('[updateLineup] Created new lineup');
       }
@@ -281,7 +281,7 @@ export const lineupRouter = router({
 
       await db
         .update(weeklyLineups)
-        .set({ isLocked: newLockState })
+        .set({ isLocked: newLockState ? 1 : 0 })
         .where(eq(weeklyLineups.id, lineup.id));
 
       return { success: true, isLocked: newLockState };
@@ -353,7 +353,7 @@ export const lineupRouter = router({
           )
         )
         .limit(1);
-      
+
       console.log(`[setCaptain] Verified lineup captain: captainId=${verifyLineup[0]?.captainId}, captainType=${verifyLineup[0]?.captainType}`);
 
       // Trigger score recalculation to apply captain bonus
@@ -366,21 +366,25 @@ export const lineupRouter = router({
           .limit(1);
 
         const team = teamResult[0];
-        
+
         if (team && team.leagueId) {
           const leagueResult = await db
-            .select({ isChallenge: leagues.isChallenge, createdAt: leagues.createdAt })
+            .select({ leagueType: leagues.leagueType, createdAt: leagues.createdAt })
             .from(leagues)
             .where(eq(leagues.id, team.leagueId))
             .limit(1);
 
           const league = leagueResult[0];
 
-          if (league?.isChallenge && league.createdAt) {
+          if (league?.leagueType === 'challenge' && league.createdAt) {
             // For daily challenges, recalculate the day's scores
-            const statDate = new Date(league.createdAt).toISOString().split('T')[0];
-            console.log(`[setCaptain] Triggering score recalculation for team ${input.teamId}, challenge ${team.leagueId}, date ${statDate}`);
-            
+            // The stat date is typically the day BEFORE the challenge was created (since we draft based on yesterday's stats)
+            const createdDate = new Date(league.createdAt);
+            createdDate.setDate(createdDate.getDate() - 1);
+            const statDate = createdDate.toISOString().split('T')[0];
+
+            console.log(`[setCaptain] Triggering score recalculation for team ${input.teamId}, challenge ${team.leagueId}, date ${statDate} (derived from created ${league.createdAt})`);
+
             // Import and call the score calculation
             const { calculateTeamDailyScore } = await import('./scoringEngine');
             try {

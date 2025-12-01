@@ -168,7 +168,16 @@ export class MetabaseClient {
       console.log(`[Metabase] Executing card ${cardId}${hasParams ? ' with parameters' : ''}...`, hasParams ? parameters : '');
 
       // Format parameters for Metabase API if provided
-      const requestBody = hasParams ? { parameters } : {};
+      // Metabase expects an array of parameter objects
+      let requestBody = {};
+      if (hasParams) {
+        const paramList = Object.entries(parameters).map(([key, value]) => ({
+          type: 'category',
+          target: ['variable', ['template-tag', key]],
+          value: value
+        }));
+        requestBody = { parameters: paramList };
+      }
       const response = await this.axiosInstance.post(`/api/card/${cardId}/query`, requestBody);
       const rows = response.data.data?.rows || [];
       const cols = response.data.data?.cols || [];
