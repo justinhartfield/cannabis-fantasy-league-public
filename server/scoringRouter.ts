@@ -1412,7 +1412,11 @@ export function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow, statRecord
       b.type === 'captain_boost' ||
       b.type === 'Captain Boost' ||
       b.type === 'Fan Buff' ||
-      b.type === 'fan_buff'
+      b.type === 'fan_buff' ||
+      b.type === 'Synergy Bonus' ||
+      b.type === 'synergy_bonus' ||
+      b.type === 'Full Synergy Bonus' ||
+      b.type === 'full_synergy_bonus'
     );
 
     if (specialBonuses.length > 0) {
