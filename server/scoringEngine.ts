@@ -1095,7 +1095,12 @@ async function calculateSynergyBonuses(
   const strainAssets = breakdowns.filter(b => b.assetType === 'cannabis_strain');
   const productAssets = breakdowns.filter(b => b.assetType === 'product');
 
+  console.log(`[SynergyBonus] Checking lineup for date ${statDate}: ${pharmacyAssets.length} pharmacies, ${strainAssets.length} strains, ${productAssets.length} products`);
+  console.log(`[SynergyBonus] Pharmacies: ${pharmacyAssets.map(p => `${p.assetName}(id:${p.assetId})`).join(', ')}`);
+  console.log(`[SynergyBonus] Strains: ${strainAssets.map(s => `${s.assetName}(id:${s.assetId})`).join(', ')}`);
+
   if (pharmacyAssets.length === 0 || (strainAssets.length === 0 && productAssets.length === 0)) {
+    console.log(`[SynergyBonus] Skipping - no pharmacy or no strains/products in lineup`);
     return { totalSynergyBonus: 0, synergyBonuses: [], positionUpdates: [] };
   }
 
