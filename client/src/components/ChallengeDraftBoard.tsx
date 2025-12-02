@@ -21,7 +21,6 @@ import {
 } from "./DraftFieldPlayer";
 import { Search, Building2, Leaf, Package, Tag, TrendingUp, SortAsc, Zap, Info, ChevronUp, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
-import ScoringCard from "@/components/ScoringCard";
 
 interface RosterItem {
   assetType: AssetType;
@@ -410,39 +409,6 @@ export function ChallengeDraftBoard({
             />
           </div>
         </div>
-
-        {/* Drafted jersey cards - mirrors Daily Challenge look */}
-        {myRoster.length > 0 && (
-          <div className="px-4 pb-4">
-            <div className="max-w-4xl mx-auto space-y-3">
-              <div className="flex items-center justify-between text-xs uppercase tracking-wider text-white/60">
-                <span>Drafted Jerseys</span>
-                <span className="text-white/40">{myRoster.length}/10 picks locked</span>
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                {myRoster.map((player, index) => (
-                  <ScoringCard
-                    key={`${player.assetType}-${player.assetId}-${index}`}
-                    assetName={player.name}
-                    assetType={player.assetType}
-                    imageUrl={player.imageUrl}
-                    totalPoints={0}
-                    bonuses={[
-                      {
-                        type: "fan",
-                        label: "Draft Pick",
-                        value: `#${index + 1}`,
-                        points: 0,
-                      },
-                    ]}
-                    isCaptain={player.assetId === captainId && player.assetType === captainType}
-                    className="w-full"
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Bottom Panel - Available Players (Expandable on mobile) */}
         <div className={cn(
