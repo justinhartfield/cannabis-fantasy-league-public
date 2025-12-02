@@ -789,18 +789,18 @@ export default function ScoringCard({
   const trendTier = momentumMultiplier ? getTrendTier(momentumMultiplier) : null;
   const streakTier = streakDays ? getStreakTier(streakDays) : null;
 
-  // Calculate status points (market presence bonuses)
-  const statusPoints = useMemo(() => {
-    return bonuses
-      .filter(b => b.type === 'rank' || b.type === 'marketShare' || b.type === 'positionGain')
-      .reduce((sum, b) => sum + b.points, 0);
-  }, [bonuses]);
-
   // Get streak bonus points
   const streakPoints = useMemo(() => {
     const streakBonus = bonuses.find(b => b.type === 'streak');
     return streakBonus?.points || 0;
   }, [bonuses]);
+
+  // Calculate status points as "all other bonuses"
+  // This ensures: TOTAL = Activity (orders) + Trend + Streak + Status
+  const statusPoints = useMemo(() => {
+    const totalBonusPoints = bonuses.reduce((sum, b) => sum + b.points, 0);
+    return totalBonusPoints - streakPoints;
+  }, [bonuses, streakPoints]);
 
 
   return (
@@ -981,7 +981,7 @@ export function adaptLegacyData(data: LegacyScoringBreakdownData): ScoringCardPr
   const orderPoints = orderComponent?.points || 0;
 
   // Extract momentum points from components
-  const momentumComponent = data.components.find(c => 
+  const momentumComponent = data.components.find(c =>
     c.category === "Momentum Score" || c.category === "Trend Bonus"
   );
   const momentumPoints = momentumComponent?.points || 0;
@@ -990,7 +990,7 @@ export function adaptLegacyData(data: LegacyScoringBreakdownData): ScoringCardPr
   const bonuses: ScoringBonus[] = data.bonuses.map(b => {
     const typeLower = b.type.toLowerCase();
     let type: BonusType = "rank";
-    
+
     if (typeLower.includes("synergy")) type = "synergy";
     else if (typeLower.includes("streak")) type = "streak";
     else if (typeLower.includes("velocity")) type = "velocity";
@@ -1003,22 +1003,24 @@ export function adaptLegacyData(data: LegacyScoringBreakdownData): ScoringCardPr
 
     return {
       type,
-      label: b.type.replace(/Hot Streak Streak/i, 'Hot Streak'),
+      label: b.type.replace(/Hot Streak Streak/i, "Hot Streak"),
       value: b.condition,
       points: b.points,
     };
   });
 
   // Check if captain
-  const isCaptain = data.bonuses.some(b => 
-    b.type.toLowerCase().includes('captain')
+  const isCaptain = data.bonuses.some(b =>
+    b.type.toLowerCase().includes("captain")
   );
 
   // Extract rank from currentRank or from rank bonus condition
   let rank = data.currentRank;
   if (!rank) {
     // Try to extract from rank bonus condition like "Rank #3" or "Rank #1"
-    const rankBonus = data.bonuses.find(b => b.type.toLowerCase().includes('rank') && !b.type.toLowerCase().includes('market'));
+    const rankBonus = data.bonuses.find(
+      b => b.type.toLowerCase().includes("rank") && !b.type.toLowerCase().includes("market")
+    );
     if (rankBonus?.condition) {
       const rankMatch = rankBonus.condition.match(/[Rr]ank\s*#?(\d+)/);
       if (rankMatch) {
@@ -1034,17 +1036,15 @@ export function adaptLegacyData(data: LegacyScoringBreakdownData): ScoringCardPr
     }
   }
 
-  // Calculate total from ALL components + ALL bonuses
-  // This ensures the displayed total equals the sum of all visible parts
-  const allComponentPoints = data.components.reduce((sum, c) => sum + c.points, 0);
-  const allBonusPoints = data.bonuses.reduce((sum, b) => sum + b.points, 0);
-  const calculatedTotal = allComponentPoints + allBonusPoints;
+  // IMPORTANT: use the server-calculated total (includes components, bonuses & penalties)
+  // so that the sum of all cards matches the grand total shown at the top.
+  const totalPoints = data.total;
 
   return {
     assetName: data.assetName,
     assetType: data.assetType,
     imageUrl: data.imageUrl,
-    totalPoints: calculatedTotal,  // Use calculated total, not server's data.total
+    totalPoints,
     orderPoints,
     momentumMultiplier: data.trendMultiplier,
     momentumPoints,
