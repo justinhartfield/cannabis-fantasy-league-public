@@ -167,17 +167,32 @@ export async function aggregatePharmacyProductRelationships(
 
   log('info', `Found ${relationshipMap.size} unique relationships`);
 
-  // Upsert relationships
-  let processed = 0;
-  let skipped = 0;
-
   const relationships = Array.from(relationshipMap.values());
+  
+  if (relationships.length === 0) {
+    log('info', 'No relationships to insert');
+    return { processed: 0, skipped: 0 };
+  }
 
-  await pLimit(relationships, 50, async (rel) => {
-    try {
-      await db
-        .insert(pharmacyProductRelationships)
-        .values({
+  // Strategy: Delete existing records for this date, then batch insert
+  // This avoids the NULL comparison issue with ON CONFLICT
+  try {
+    // Delete existing relationships for this date
+    const deleted = await db
+      .delete(pharmacyProductRelationships)
+      .where(eq(pharmacyProductRelationships.statDate, statDate));
+    
+    log('info', `Cleared existing relationships for ${statDate}`);
+
+    // Batch insert all relationships
+    const batchSize = 100;
+    let processed = 0;
+    
+    for (let i = 0; i < relationships.length; i += batchSize) {
+      const batch = relationships.slice(i, i + batchSize);
+      
+      await db.insert(pharmacyProductRelationships).values(
+        batch.map(rel => ({
           pharmacyId: rel.pharmacyId,
           manufacturerId: rel.manufacturerId,
           productId: rel.productId,
@@ -186,29 +201,18 @@ export async function aggregatePharmacyProductRelationships(
           orderCount: rel.orderCount,
           salesVolumeGrams: rel.salesVolumeGrams,
           createdAt: new Date(),
-        })
-        .onConflictDoUpdate({
-          target: [
-            pharmacyProductRelationships.pharmacyId,
-            pharmacyProductRelationships.manufacturerId,
-            pharmacyProductRelationships.productId,
-            pharmacyProductRelationships.strainId,
-            pharmacyProductRelationships.statDate,
-          ],
-          set: {
-            orderCount: rel.orderCount,
-            salesVolumeGrams: rel.salesVolumeGrams,
-          },
-        });
-      processed += 1;
-    } catch (error) {
-      log('error', `Error upserting relationship for pharmacy ${rel.pharmacyId}:`, error);
-      skipped += 1;
+        }))
+      );
+      
+      processed += batch.length;
     }
-  });
 
-  log('info', `Processed ${processed} relationships, skipped ${skipped}`);
-  return { processed, skipped };
+    log('info', `Successfully inserted ${processed} relationships for ${statDate}`);
+    return { processed, skipped: 0 };
+  } catch (error) {
+    log('error', `Error batch inserting relationships:`, error);
+    return { processed: 0, skipped: relationships.length };
+  }
 }
 
 /**
