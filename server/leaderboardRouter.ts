@@ -656,12 +656,16 @@ export const leaderboardRouter = router({
     }))
     .query(async ({ input }) => {
       try {
+        console.log(`[PharmacyMfgStats] Fetching stats for pharmacy ${input.pharmacyId}, date: ${input.date || 'auto'}`);
+        
         const { getPharmacyManufacturerStats, getEntityRelationshipSummary } = await import('./lib/metabase-pharmacy-relationships');
         
         const [stats, summary] = await Promise.all([
           getPharmacyManufacturerStats(input.pharmacyId, input.date, input.limit),
           getEntityRelationshipSummary('pharmacy', input.pharmacyId, input.date),
         ]);
+
+        console.log(`[PharmacyMfgStats] Found ${stats.length} manufacturers, count: ${summary.manufacturerCount}`);
 
         return {
           pharmacyId: input.pharmacyId,
@@ -692,12 +696,16 @@ export const leaderboardRouter = router({
     }))
     .query(async ({ input }) => {
       try {
+        console.log(`[StrainMfgStats] Fetching stats for strain ${input.strainId}, date: ${input.date || 'auto'}`);
+        
         const { getStrainManufacturerStats, getEntityRelationshipSummary } = await import('./lib/metabase-pharmacy-relationships');
         
         const [stats, summary] = await Promise.all([
           getStrainManufacturerStats(input.strainId, input.date, input.limit),
           getEntityRelationshipSummary('strain', input.strainId, input.date),
         ]);
+        
+        console.log(`[StrainMfgStats] Found ${stats.length} manufacturers, mfgCount: ${summary.manufacturerCount}, pharmacyCount: ${summary.pharmacyCount}`);
 
         return {
           strainId: input.strainId,

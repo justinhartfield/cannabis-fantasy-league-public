@@ -303,8 +303,7 @@ export function EntityHistoryModal({
                                                     </span>
                                                 </div>
                                                 <div className="text-right">
-                                                    <p className="text-sm font-semibold text-primary">{mfg.orderCount} orders</p>
-                                                    <p className="text-xs text-muted-foreground">{mfg.salesVolumeGrams}g</p>
+                                                    <p className="text-sm font-semibold text-primary">{mfg.orderCount} sales</p>
                                                 </div>
                                             </div>
                                         ))}
@@ -363,8 +362,7 @@ export function EntityHistoryModal({
                                                     </span>
                                                 </div>
                                                 <div className="text-right">
-                                                    <p className="text-sm font-semibold text-primary">{mfg.orderCount} orders</p>
-                                                    <p className="text-xs text-muted-foreground">{mfg.salesVolumeGrams}g</p>
+                                                    <p className="text-sm font-semibold text-primary">{mfg.orderCount} sales</p>
                                                 </div>
                                             </div>
                                         ))}

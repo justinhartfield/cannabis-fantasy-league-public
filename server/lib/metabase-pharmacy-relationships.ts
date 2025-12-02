@@ -349,6 +349,7 @@ export async function checkPharmacySynergyRelationship(
 }> {
   const db = await getDb();
   if (!db) {
+    console.log(`[SynergyCheck] No DB connection`);
     return {
       hasPharmacyStrain: false,
       hasPharmacyProduct: false,
@@ -357,7 +358,17 @@ export async function checkPharmacySynergyRelationship(
     };
   }
 
-  const targetDate = statDate || new Date().toISOString().split('T')[0];
+  // If no date specified, find the latest date with data for this pharmacy
+  let targetDate = statDate;
+  if (!targetDate) {
+    const latestDate = await db
+      .select({ maxDate: sql<string>`max(${pharmacyProductRelationships.statDate})` })
+      .from(pharmacyProductRelationships)
+      .where(eq(pharmacyProductRelationships.pharmacyId, pharmacyId));
+    targetDate = latestDate[0]?.maxDate || new Date().toISOString().split('T')[0];
+  }
+
+  console.log(`[SynergyCheck] Checking pharmacy=${pharmacyId}, strain=${strainId}, product=${productId}, date=${targetDate}`);
 
   // Check pharmacy-strain relationship
   let hasPharmacyStrain = false;
@@ -413,12 +424,16 @@ export async function checkPharmacySynergyRelationship(
   // Full synergy requires pharmacy + strain + product (or manufacturer)
   const hasFullSynergy = hasPharmacyStrain && (hasPharmacyProduct || hasPharmacyManufacturer);
 
-  return {
+  const result = {
     hasPharmacyStrain,
     hasPharmacyProduct,
     hasPharmacyManufacturer,
     hasFullSynergy,
   };
+
+  console.log(`[SynergyCheck] Result: strain=${hasPharmacyStrain}, product=${hasPharmacyProduct}, mfg=${hasPharmacyManufacturer}, full=${hasFullSynergy}`);
+
+  return result;
 }
 
 /**
