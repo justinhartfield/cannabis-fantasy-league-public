@@ -184,15 +184,13 @@ export async function aggregatePharmacyProductRelationships(
     
     log('info', `Cleared existing relationships for ${statDate}`);
 
-    // Batch insert all relationships
-    const batchSize = 100;
+    // Insert relationships one by one to avoid batch issues and get better error info
     let processed = 0;
+    let skipped = 0;
     
-    for (let i = 0; i < relationships.length; i += batchSize) {
-      const batch = relationships.slice(i, i + batchSize);
-      
-      await db.insert(pharmacyProductRelationships).values(
-        batch.map(rel => ({
+    for (const rel of relationships) {
+      try {
+        await db.insert(pharmacyProductRelationships).values({
           pharmacyId: rel.pharmacyId,
           manufacturerId: rel.manufacturerId,
           productId: rel.productId,
@@ -200,17 +198,25 @@ export async function aggregatePharmacyProductRelationships(
           statDate,
           orderCount: rel.orderCount,
           salesVolumeGrams: rel.salesVolumeGrams,
-          createdAt: new Date(),
-        }))
-      );
-      
-      processed += batch.length;
+          // createdAt uses defaultNow() in schema
+        });
+        processed++;
+      } catch (insertError: any) {
+        // Log first few errors with details
+        if (skipped < 3) {
+          const errMsg = insertError?.cause?.message || insertError?.message || String(insertError);
+          log('error', `Insert failed for pharmacy ${rel.pharmacyId}, mfg ${rel.manufacturerId}, prod ${rel.productId}, strain ${rel.strainId}: ${errMsg}`);
+        }
+        skipped++;
+      }
     }
 
-    log('info', `Successfully inserted ${processed} relationships for ${statDate}`);
-    return { processed, skipped: 0 };
-  } catch (error) {
-    log('error', `Error batch inserting relationships:`, error);
+    log('info', `Inserted ${processed} relationships, failed ${skipped} for ${statDate}`);
+    return { processed, skipped };
+  } catch (error: any) {
+    // Extract the underlying error message
+    const errorMessage = error?.cause?.message || error?.message || String(error);
+    log('error', `Error during relationship sync: ${errorMessage}`);
     return { processed: 0, skipped: relationships.length };
   }
 }
