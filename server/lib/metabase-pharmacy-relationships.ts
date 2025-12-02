@@ -448,21 +448,42 @@ export async function checkPharmacySynergyRelationship(
     }
   }
 
-  // Check pharmacy-product relationship
+  // Check pharmacy-product relationship using INDIRECT matching via genetic strain
+  // Since pharmacyProductRelationships.productId is often NULL (Metabase data issue),
+  // we match products by looking up the product's genetic strain and checking if
+  // the pharmacy sells that strain.
   let hasPharmacyProduct = false;
   if (productId) {
-    const productRel = await db
-      .select({ id: pharmacyProductRelationships.id })
-      .from(pharmacyProductRelationships)
-      .where(
-        and(
-          eq(pharmacyProductRelationships.pharmacyId, pharmacyId),
-          eq(pharmacyProductRelationships.productId, productId),
-          eq(pharmacyProductRelationships.statDate, targetDate)
-        )
-      )
+    // First, look up the product's genetic strain from the strains table
+    const productInfo = await db
+      .select({ strainId: strains.strainId, strainName: strains.strainName })
+      .from(strains)
+      .where(eq(strains.id, productId))
       .limit(1);
-    hasPharmacyProduct = productRel.length > 0;
+    
+    const productStrainId = productInfo[0]?.strainId;
+    
+    if (productStrainId) {
+      // Check if pharmacy sells products with this genetic strain
+      const productStrainRel = await db
+        .select({ id: pharmacyProductRelationships.id })
+        .from(pharmacyProductRelationships)
+        .where(
+          and(
+            eq(pharmacyProductRelationships.pharmacyId, pharmacyId),
+            eq(pharmacyProductRelationships.strainId, productStrainId),
+            eq(pharmacyProductRelationships.statDate, targetDate)
+          )
+        )
+        .limit(1);
+      hasPharmacyProduct = productStrainRel.length > 0;
+      
+      if (hasPharmacyProduct) {
+        console.log(`[SynergyCheck] Product ${productId} matched via genetic strain ${productStrainId} (${productInfo[0]?.strainName})`);
+      }
+    } else {
+      console.log(`[SynergyCheck] Product ${productId} has no genetic strain link, cannot check indirect match`);
+    }
   }
 
   // Check pharmacy-manufacturer relationship
