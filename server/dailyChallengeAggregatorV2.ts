@@ -401,19 +401,19 @@ export class DailyChallengeAggregatorV2 {
 
     // Brands use ratings data, not order data
     // Fetch from Metabase question that aggregates brand ratings
-    // This now fetches both today and yesterday to compute deltas
     let ratingsData: Awaited<ReturnType<typeof this.fetchBrandRatings>>;
     try {
       ratingsData = await this.fetchBrandRatings(dateString);
     } catch (error) {
       await this.log('error', 'Failed to fetch brand ratings from Metabase', { error: error instanceof Error ? error.message : String(error) }, logger);
-      ratingsData = [];
+      // Don't delete existing stats if fetch failed - preserve existing data
+      return { processed: 0, skipped: 0 };
     }
 
-    // If no brand reviews found, fall back to using Brand table engagement data
+    // If no brand reviews found, preserve existing stats
     if (!ratingsData || ratingsData.length === 0) {
-      await this.log('warn', 'No brand ratings data found - falling back to Brand table engagement data', undefined, logger);
-      return this.aggregateBrandsFromEngagement(db, dateString, logger);
+      await this.log('warn', 'No brand ratings data found - preserving existing stats for this date', undefined, logger);
+      return { processed: 0, skipped: 0 };
     }
 
     // Clear existing brand stats for this date before inserting new data
@@ -482,92 +482,6 @@ export class DailyChallengeAggregatorV2 {
     });
 
     await this.log('info', `Processed ${processed} brands, skipped ${skipped}`, undefined, logger);
-    return { processed, skipped };
-  }
-
-  /**
-   * Fallback: Aggregate brands using engagement data from the brands table
-   * Used when brand reviews aren't available from the ratings query
-   */
-  private async aggregateBrandsFromEngagement(
-    db: Database,
-    dateString: string,
-    logger?: AggregationLogger
-  ): Promise<EntityAggregationSummary> {
-    await this.log('info', 'Aggregating brands from engagement data (fallback)...', undefined, logger);
-
-    // Get all brands from the database
-    const allBrands = await db.select().from(brands);
-
-    if (allBrands.length === 0) {
-      await this.log('warn', 'No brands found in database', undefined, logger);
-      return { processed: 0, skipped: 0 };
-    }
-
-    // Sort by engagement (favorites + views + comments)
-    const sortedBrands = allBrands.sort((a, b) => {
-      const engagementA = (a.totalFavorites || 0) + (a.totalViews || 0) + (a.totalComments || 0);
-      const engagementB = (b.totalFavorites || 0) + (b.totalViews || 0) + (b.totalComments || 0);
-      return engagementB - engagementA;
-    });
-
-    // Clear existing brand stats for this date
-    await db.delete(brandDailyChallengeStats).where(eq(brandDailyChallengeStats.statDate, dateString));
-
-    let processed = 0;
-    let skipped = 0;
-
-    await pLimit(sortedBrands, 20, async (brand, index) => {
-      const rank = index + 1;
-
-      try {
-        // Use engagement metrics to simulate ratings
-        const totalEngagement = (brand.totalFavorites || 0) + (brand.totalViews || 0) + (brand.totalComments || 0);
-        
-        // Estimate an "average rating" based on engagement ratio (higher engagement = better)
-        // This is a rough approximation since we don't have actual ratings
-        const avgRating = totalEngagement > 0 ? Math.min(5, 2.5 + (brand.totalFavorites || 0) / Math.max(1, totalEngagement) * 2.5) : 3;
-
-        const scoring = calculateDailyBrandScore({
-          totalRatings: totalEngagement,
-          averageRating: avgRating,
-          bayesianAverage: avgRating,
-          veryGoodCount: brand.totalFavorites || 0,
-          goodCount: Math.floor((brand.totalComments || 0) / 2),
-          acceptableCount: Math.floor((brand.totalComments || 0) / 2),
-          badCount: 0,
-          veryBadCount: 0,
-          ratingDelta: 0,
-          bayesianDelta: 0,
-        }, rank);
-
-        await db.insert(brandDailyChallengeStats).values({
-          brandId: brand.id,
-          statDate: dateString,
-          totalRatings: totalEngagement,
-          averageRating: avgRating.toFixed(2),
-          bayesianAverage: avgRating.toFixed(2),
-          veryGoodCount: brand.totalFavorites || 0,
-          goodCount: 0,
-          acceptableCount: 0,
-          badCount: 0,
-          veryBadCount: 0,
-          totalPoints: scoring.totalPoints,
-          rank,
-          ratingDelta: 0,
-          bayesianDelta: '0',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        });
-
-        processed += 1;
-      } catch (error) {
-        await this.log('error', `Error processing brand ${brand.name}:`, error, logger);
-        skipped += 1;
-      }
-    });
-
-    await this.log('info', `Processed ${processed} brands from engagement data, skipped ${skipped}`, undefined, logger);
     return { processed, skipped };
   }
 

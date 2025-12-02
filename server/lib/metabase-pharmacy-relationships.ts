@@ -363,7 +363,6 @@ export async function checkPharmacySynergyRelationship(
 }> {
   const db = await getDb();
   if (!db) {
-    console.log(`[SynergyCheck] No DB connection`);
     return {
       hasPharmacyStrain: false,
       hasPharmacyProduct: false,
@@ -399,7 +398,6 @@ export async function checkPharmacySynergyRelationship(
       
       const fallbackDate = latestDate[0]?.maxDate;
       if (fallbackDate) {
-        console.log(`[SynergyCheck] No data for ${targetDate}, using latest date ${fallbackDate} for pharmacy ${pharmacyId}`);
         targetDate = fallbackDate;
       }
     }
@@ -411,8 +409,6 @@ export async function checkPharmacySynergyRelationship(
       .where(eq(pharmacyProductRelationships.pharmacyId, pharmacyId));
     targetDate = latestDate[0]?.maxDate || new Date().toISOString().split('T')[0];
   }
-
-  console.log(`[SynergyCheck] Checking pharmacy=${pharmacyId}, strain=${strainId}, product=${productId}, date=${targetDate}`);
 
   // Check pharmacy-strain relationship
   let hasPharmacyStrain = false;
@@ -429,23 +425,6 @@ export async function checkPharmacySynergyRelationship(
       )
       .limit(1);
     hasPharmacyStrain = strainRel.length > 0;
-    
-    // DEBUG: If not found with exact date, check if relationship exists at all
-    if (!hasPharmacyStrain) {
-      const anyDateRel = await db
-        .select({ statDate: pharmacyProductRelationships.statDate })
-        .from(pharmacyProductRelationships)
-        .where(
-          and(
-            eq(pharmacyProductRelationships.pharmacyId, pharmacyId),
-            eq(pharmacyProductRelationships.strainId, strainId)
-          )
-        )
-        .limit(1);
-      if (anyDateRel.length > 0) {
-        console.log(`[SynergyCheck] WARNING: Pharmacy ${pharmacyId} + Strain ${strainId} exists but for date ${anyDateRel[0].statDate}, not ${targetDate}`);
-      }
-    }
   }
 
   // Check pharmacy-product relationship using INDIRECT matching via genetic strain
@@ -477,12 +456,6 @@ export async function checkPharmacySynergyRelationship(
         )
         .limit(1);
       hasPharmacyProduct = productStrainRel.length > 0;
-      
-      if (hasPharmacyProduct) {
-        console.log(`[SynergyCheck] Product ${productId} matched via genetic strain ${productStrainId} (${productInfo[0]?.strainName})`);
-      }
-    } else {
-      console.log(`[SynergyCheck] Product ${productId} has no genetic strain link, cannot check indirect match`);
     }
   }
 
@@ -506,16 +479,12 @@ export async function checkPharmacySynergyRelationship(
   // Full synergy requires pharmacy + strain + product (or manufacturer)
   const hasFullSynergy = hasPharmacyStrain && (hasPharmacyProduct || hasPharmacyManufacturer);
 
-  const result = {
+  return {
     hasPharmacyStrain,
     hasPharmacyProduct,
     hasPharmacyManufacturer,
     hasFullSynergy,
   };
-
-  console.log(`[SynergyCheck] Result: strain=${hasPharmacyStrain}, product=${hasPharmacyProduct}, mfg=${hasPharmacyManufacturer}, full=${hasFullSynergy}`);
-
-  return result;
 }
 
 /**
