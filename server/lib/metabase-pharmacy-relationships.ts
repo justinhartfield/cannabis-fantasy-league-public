@@ -239,8 +239,15 @@ export async function getPharmacyManufacturerStats(
   const db = await getDb();
   if (!db) return [];
 
-  // Use latest date if not specified
-  const targetDate = statDate || new Date().toISOString().split('T')[0];
+  // If no date specified, find the latest date with data for this pharmacy
+  let targetDate = statDate;
+  if (!targetDate) {
+    const latestDate = await db
+      .select({ maxDate: sql<string>`max(${pharmacyProductRelationships.statDate})` })
+      .from(pharmacyProductRelationships)
+      .where(eq(pharmacyProductRelationships.pharmacyId, pharmacyId));
+    targetDate = latestDate[0]?.maxDate || new Date().toISOString().split('T')[0];
+  }
 
   const results = await db
     .select({
@@ -287,8 +294,15 @@ export async function getStrainManufacturerStats(
   const db = await getDb();
   if (!db) return [];
 
-  // Use latest date if not specified
-  const targetDate = statDate || new Date().toISOString().split('T')[0];
+  // If no date specified, find the latest date with data for this strain
+  let targetDate = statDate;
+  if (!targetDate) {
+    const latestDate = await db
+      .select({ maxDate: sql<string>`max(${pharmacyProductRelationships.statDate})` })
+      .from(pharmacyProductRelationships)
+      .where(eq(pharmacyProductRelationships.strainId, strainId));
+    targetDate = latestDate[0]?.maxDate || new Date().toISOString().split('T')[0];
+  }
 
   const results = await db
     .select({
@@ -422,7 +436,14 @@ export async function getEntityRelationshipSummary(
   const db = await getDb();
   if (!db) return {};
 
-  const targetDate = statDate || new Date().toISOString().split('T')[0];
+  // If no date specified, find the latest date with ANY data
+  let targetDate = statDate;
+  if (!targetDate) {
+    const latestDate = await db
+      .select({ maxDate: sql<string>`max(${pharmacyProductRelationships.statDate})` })
+      .from(pharmacyProductRelationships);
+    targetDate = latestDate[0]?.maxDate || new Date().toISOString().split('T')[0];
+  }
 
   if (entityType === 'pharmacy') {
     // Count manufacturers selling at this pharmacy
