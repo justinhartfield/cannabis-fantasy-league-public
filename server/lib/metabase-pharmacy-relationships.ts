@@ -103,6 +103,8 @@ export async function aggregatePharmacyProductRelationships(
   let successfulMatches = 0;
   const unmatchedPharmacies = new Set<string>();
   const unmatchedManufacturers = new Set<string>();
+  const unmatchedProducts = new Set<string>();
+  const unmatchedStrains = new Set<string>();
 
   for (const order of orders) {
     const pharmacyName = order.PharmacyName || order.Pharmacy;
@@ -126,9 +128,15 @@ export async function aggregatePharmacyProductRelationships(
     const productId = productName ? productMap.get(productName.toLowerCase()) : null;
     const strainId = strainName ? strainMap.get(strainName.toLowerCase()) : null;
 
-    // Track unmatched manufacturers for debugging
+    // Track unmatched entities for debugging
     if (manufacturerName && !manufacturerId) {
       unmatchedManufacturers.add(manufacturerName);
+    }
+    if (productName && !productId) {
+      unmatchedProducts.add(productName);
+    }
+    if (strainName && !strainId) {
+      unmatchedStrains.add(strainName);
     }
 
     // Skip if we don't have at least one relationship
@@ -158,11 +166,17 @@ export async function aggregatePharmacyProductRelationships(
   // Log debug stats
   log('info', `Order processing stats: ${successfulMatches} matched, ${noPharmacyName} no pharmacy name, ${pharmacyNotFound} pharmacy not found, ${noRelationships} no relationships`);
   
-  if (unmatchedPharmacies.size > 0 && unmatchedPharmacies.size <= 10) {
-    log('warn', `Unmatched pharmacies (sample): ${Array.from(unmatchedPharmacies).slice(0, 5).join(', ')}`);
+  if (unmatchedPharmacies.size > 0) {
+    log('warn', `Unmatched pharmacies (${unmatchedPharmacies.size}): ${Array.from(unmatchedPharmacies).slice(0, 3).join(', ')}`);
   }
-  if (unmatchedManufacturers.size > 0 && unmatchedManufacturers.size <= 10) {
-    log('warn', `Unmatched manufacturers (sample): ${Array.from(unmatchedManufacturers).slice(0, 5).join(', ')}`);
+  if (unmatchedManufacturers.size > 0) {
+    log('warn', `Unmatched manufacturers (${unmatchedManufacturers.size}): ${Array.from(unmatchedManufacturers).slice(0, 3).join(', ')}`);
+  }
+  if (unmatchedProducts.size > 0) {
+    log('warn', `Unmatched products (${unmatchedProducts.size}): ${Array.from(unmatchedProducts).slice(0, 3).join(', ')}`);
+  }
+  if (unmatchedStrains.size > 0) {
+    log('warn', `Unmatched strains (${unmatchedStrains.size}): ${Array.from(unmatchedStrains).slice(0, 3).join(', ')}`);
   }
 
   log('info', `Found ${relationshipMap.size} unique relationships`);
