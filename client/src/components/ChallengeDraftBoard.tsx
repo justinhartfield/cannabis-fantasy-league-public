@@ -556,7 +556,7 @@ export function ChallengeDraftBoard({
               <ScrollArea className={cn(
                 "flex-1 min-h-0",
                 // On mobile when expanded, use a fixed max height for better scrolling
-                isMobileExpanded && "lg:max-h-none"
+                isMobileExpanded && "max-h-[50vh] lg:max-h-none"
               )}>
                 <div className="space-y-1.5 pr-2 pb-4">
                   {isLoading ? (
