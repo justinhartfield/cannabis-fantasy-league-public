@@ -802,15 +802,12 @@ export default function ScoringCard({
     return streakBonus?.points || 0;
   }, [bonuses]);
 
-  // Calculate total from displayed components (sum of all visible parts)
-  // This ensures the displayed total matches what users see in the breakdown
-  const calculatedTotal = useMemo(() => {
-    const bonusTotal = bonuses.reduce((sum, b) => sum + b.points, 0);
-    const computed = orderPoints + momentumPoints + bonusTotal;
-    // Use calculated total if we have actual component data, otherwise fall back to prop
-    // This handles cases where breakdown data might be incomplete
-    return computed > 0 || totalPoints === 0 ? computed : totalPoints;
-  }, [orderPoints, momentumPoints, bonuses, totalPoints]);
+  // Calculate grand total as sum of all displayed values:
+  // ACTIVITY (orderPoints) + TREND (momentumPoints) + ALL BONUSES
+  const displayedTotal = useMemo(() => {
+    const allBonusPoints = bonuses.reduce((sum, b) => sum + b.points, 0);
+    return orderPoints + momentumPoints + allBonusPoints;
+  }, [orderPoints, momentumPoints, bonuses]);
 
   return (
     <div 
@@ -857,7 +854,7 @@ export default function ScoringCard({
           </div>
         </div>
 
-        {/* Total Points - calculated from visible components */}
+        {/* Total Points = TREND + STREAK + ACTIVITY + STATUS */}
         <div className="text-center mt-4">
           <div 
             className="text-6xl font-black animate-fade-in"
@@ -866,7 +863,7 @@ export default function ScoringCard({
               textShadow: `0 0 40px ${config.glowColor}`
             }}
           >
-            {Math.round(calculatedTotal)}
+            {Math.round(displayedTotal)}
           </div>
           <div className="text-xs uppercase tracking-[0.3em] text-white/40 font-semibold mt-1">
             TOTAL POINTS

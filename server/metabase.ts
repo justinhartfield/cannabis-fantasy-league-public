@@ -501,20 +501,68 @@ export class MetabaseClient {
    * @returns Array of query results
    */
   async executePublicQuery(publicUuid: string): Promise<any[]> {
+    const url = `${METABASE_URL.trim()}/api/public/card/${publicUuid}/query/json`;
     try {
       console.log(`[Metabase] Executing public query ${publicUuid}...`);
+      console.log(`[Metabase] Public query URL: ${url}`);
 
-      const response = await axios.get(`${METABASE_URL.trim()}/api/public/card/${publicUuid}/query/json`, {
+      const response = await axios.get(url, {
         timeout: 60000,
       });
 
-      const results = response.data || [];
+      console.log(`[Metabase] Public query response status: ${response.status}`);
+      
+      // Handle different response formats
+      let results: any[] = [];
+      if (Array.isArray(response.data)) {
+        results = response.data;
+      } else if (response.data && typeof response.data === 'object') {
+        // Some queries return { data: { rows: [...], cols: [...] } }
+        if (response.data.data?.rows) {
+          const rows = response.data.data.rows;
+          const cols = response.data.data.cols || [];
+          // Convert to objects if we have column metadata
+          if (cols.length > 0) {
+            results = rows.map((row: any[]) => {
+              const obj: Record<string, any> = {};
+              cols.forEach((col: any, index: number) => {
+                obj[col.display_name || col.name] = row[index];
+              });
+              return obj;
+            });
+          } else {
+            results = rows;
+          }
+        } else if (response.data.rows) {
+          results = response.data.rows;
+        } else {
+          console.warn(`[Metabase] Unexpected response format:`, JSON.stringify(response.data).substring(0, 500));
+        }
+      }
+      
       console.log(`[Metabase] Public query ${publicUuid} returned ${results.length} rows`);
+      
+      // Log sample data for debugging if empty
+      if (results.length === 0) {
+        console.warn(`[Metabase] Public query returned empty. Response type: ${typeof response.data}, isArray: ${Array.isArray(response.data)}`);
+        if (response.data && typeof response.data === 'object') {
+          console.warn(`[Metabase] Response keys: ${Object.keys(response.data).join(', ')}`);
+        }
+      } else if (results.length > 0) {
+        console.log(`[Metabase] Sample row keys: ${Object.keys(results[0]).join(', ')}`);
+      }
+      
       return results;
     } catch (error) {
-      console.error(`[Metabase] Public query failed: `, error);
-      if (axios.isAxiosError(error) && error.response) {
-        console.error('[Metabase] Error response:', error.response.data);
+      console.error(`[Metabase] Public query failed for URL: ${url}`);
+      if (axios.isAxiosError(error)) {
+        console.error(`[Metabase] Error status: ${error.response?.status}`);
+        console.error(`[Metabase] Error message: ${error.message}`);
+        if (error.response) {
+          console.error('[Metabase] Error response:', JSON.stringify(error.response.data).substring(0, 500));
+        }
+      } else {
+        console.error(`[Metabase] Error:`, error);
       }
       throw error;
     }
