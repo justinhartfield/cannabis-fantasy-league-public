@@ -372,9 +372,39 @@ export async function checkPharmacySynergyRelationship(
     };
   }
 
-  // If no date specified, find the latest date with data for this pharmacy
+  // First check if data exists for the requested date
+  // If not, use the latest available date (handles timezone mismatches between server and challenge creation)
   let targetDate = statDate;
-  if (!targetDate) {
+  
+  if (targetDate) {
+    // Check if any data exists for the requested date
+    const dateCheck = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(pharmacyProductRelationships)
+      .where(
+        and(
+          eq(pharmacyProductRelationships.pharmacyId, pharmacyId),
+          eq(pharmacyProductRelationships.statDate, targetDate)
+        )
+      );
+    
+    const hasDataForDate = (dateCheck[0]?.count || 0) > 0;
+    
+    if (!hasDataForDate) {
+      // Fall back to latest date with data for this pharmacy
+      const latestDate = await db
+        .select({ maxDate: sql<string>`max(${pharmacyProductRelationships.statDate})` })
+        .from(pharmacyProductRelationships)
+        .where(eq(pharmacyProductRelationships.pharmacyId, pharmacyId));
+      
+      const fallbackDate = latestDate[0]?.maxDate;
+      if (fallbackDate) {
+        console.log(`[SynergyCheck] No data for ${targetDate}, using latest date ${fallbackDate} for pharmacy ${pharmacyId}`);
+        targetDate = fallbackDate;
+      }
+    }
+  } else {
+    // No date specified, find the latest date with data for this pharmacy
     const latestDate = await db
       .select({ maxDate: sql<string>`max(${pharmacyProductRelationships.statDate})` })
       .from(pharmacyProductRelationships)
@@ -399,6 +429,23 @@ export async function checkPharmacySynergyRelationship(
       )
       .limit(1);
     hasPharmacyStrain = strainRel.length > 0;
+    
+    // DEBUG: If not found with exact date, check if relationship exists at all
+    if (!hasPharmacyStrain) {
+      const anyDateRel = await db
+        .select({ statDate: pharmacyProductRelationships.statDate })
+        .from(pharmacyProductRelationships)
+        .where(
+          and(
+            eq(pharmacyProductRelationships.pharmacyId, pharmacyId),
+            eq(pharmacyProductRelationships.strainId, strainId)
+          )
+        )
+        .limit(1);
+      if (anyDateRel.length > 0) {
+        console.log(`[SynergyCheck] WARNING: Pharmacy ${pharmacyId} + Strain ${strainId} exists but for date ${anyDateRel[0].statDate}, not ${targetDate}`);
+      }
+    }
   }
 
   // Check pharmacy-product relationship
