@@ -802,12 +802,6 @@ export default function ScoringCard({
     return streakBonus?.points || 0;
   }, [bonuses]);
 
-  // Calculate grand total as sum of all displayed values:
-  // ACTIVITY (orderPoints) + TREND (momentumPoints) + ALL BONUSES
-  const displayedTotal = useMemo(() => {
-    const allBonusPoints = bonuses.reduce((sum, b) => sum + b.points, 0);
-    return orderPoints + momentumPoints + allBonusPoints;
-  }, [orderPoints, momentumPoints, bonuses]);
 
   return (
     <div 
@@ -854,7 +848,7 @@ export default function ScoringCard({
           </div>
         </div>
 
-        {/* Total Points = TREND + STREAK + ACTIVITY + STATUS */}
+        {/* Total Points = ALL Components + ALL Bonuses */}
         <div className="text-center mt-4">
           <div 
             className="text-6xl font-black animate-fade-in"
@@ -863,7 +857,7 @@ export default function ScoringCard({
               textShadow: `0 0 40px ${config.glowColor}`
             }}
           >
-            {Math.round(displayedTotal)}
+            {Math.round(totalPoints)}
           </div>
           <div className="text-xs uppercase tracking-[0.3em] text-white/40 font-semibold mt-1">
             TOTAL POINTS
@@ -1040,11 +1034,17 @@ export function adaptLegacyData(data: LegacyScoringBreakdownData): ScoringCardPr
     }
   }
 
+  // Calculate total from ALL components + ALL bonuses
+  // This ensures the displayed total equals the sum of all visible parts
+  const allComponentPoints = data.components.reduce((sum, c) => sum + c.points, 0);
+  const allBonusPoints = data.bonuses.reduce((sum, b) => sum + b.points, 0);
+  const calculatedTotal = allComponentPoints + allBonusPoints;
+
   return {
     assetName: data.assetName,
     assetType: data.assetType,
     imageUrl: data.imageUrl,
-    totalPoints: data.total,
+    totalPoints: calculatedTotal,  // Use calculated total, not server's data.total
     orderPoints,
     momentumMultiplier: data.trendMultiplier,
     momentumPoints,
