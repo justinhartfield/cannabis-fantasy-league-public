@@ -402,16 +402,24 @@ export class DailyChallengeAggregatorV2 {
     // Brands use ratings data, not order data
     // Fetch from Metabase question that aggregates brand ratings
     // This now fetches both today and yesterday to compute deltas
-    const ratingsData = await this.fetchBrandRatings(dateString);
-
-    // Clear existing brand stats for this date to prevent stale data
-    // This ensures that if a brand no longer has ratings (or if we are re-running), old entries are removed
-    await db.delete(brandDailyChallengeStats).where(eq(brandDailyChallengeStats.statDate, dateString));
-
-    if (!ratingsData || ratingsData.length === 0) {
-      await this.log('warn', 'No brand ratings data found', undefined, logger);
+    let ratingsData: Awaited<ReturnType<typeof this.fetchBrandRatings>>;
+    try {
+      ratingsData = await this.fetchBrandRatings(dateString);
+    } catch (error) {
+      await this.log('error', 'Failed to fetch brand ratings from Metabase', { error: error instanceof Error ? error.message : String(error) }, logger);
+      // Don't delete existing stats if fetch failed - preserve existing data
       return { processed: 0, skipped: 0 };
     }
+
+    // Only clear existing brand stats for this date if we have new data to insert
+    // This prevents losing data if the API returns empty temporarily
+    if (!ratingsData || ratingsData.length === 0) {
+      await this.log('warn', 'No brand ratings data found - preserving existing stats for this date', undefined, logger);
+      return { processed: 0, skipped: 0 };
+    }
+
+    // Clear existing brand stats for this date before inserting new data
+    await db.delete(brandDailyChallengeStats).where(eq(brandDailyChallengeStats.statDate, dateString));
 
     // Sort by total ratings (engagement) to determine rank
     const sorted = ratingsData
@@ -520,6 +528,32 @@ export class DailyChallengeAggregatorV2 {
   }
 
   /**
+   * Helper to get a field value case-insensitively
+   */
+  private getFieldCaseInsensitive(row: Record<string, any>, fieldName: string): any {
+    // Try exact match first
+    if (row[fieldName] !== undefined) return row[fieldName];
+    
+    // Try lowercase
+    const lowerField = fieldName.toLowerCase();
+    for (const key of Object.keys(row)) {
+      if (key.toLowerCase() === lowerField) {
+        return row[key];
+      }
+    }
+    
+    // Try snake_case
+    const snakeField = fieldName.replace(/([A-Z])/g, '_$1').toLowerCase();
+    for (const key of Object.keys(row)) {
+      if (key.toLowerCase() === snakeField) {
+        return row[key];
+      }
+    }
+    
+    return undefined;
+  }
+
+  /**
    * Fetch brand ratings from Metabase
    * Uses the public questions for Today's ratings
    */
@@ -553,6 +587,12 @@ export class DailyChallengeAggregatorV2 {
         return [];
       }
 
+      // Log first row's keys to help debug field name issues
+      if (rawRows.length > 0) {
+        console.log(`[Brand Ratings] First row keys: ${Object.keys(rawRows[0]).join(', ')}`);
+        console.log(`[Brand Ratings] Sample row:`, JSON.stringify(rawRows[0]).substring(0, 500));
+      }
+
       // Aggregate rows by Brand (TargetName)
       const brandStats = new Map<string, {
         count: number;
@@ -560,14 +600,28 @@ export class DailyChallengeAggregatorV2 {
         ratings: number[];
       }>();
 
-      for (const row of rawRows) {
-        // Check if the row is for a Brand
-        if (row.ReviewType !== 'brand' && row.ReviewType !== 'Brand') continue;
+      let brandRowCount = 0;
+      let skippedRows = 0;
 
-        const brandName = row.TargetName;
+      for (const row of rawRows) {
+        // Check if the row is for a Brand (case-insensitive field lookup)
+        const reviewType = this.getFieldCaseInsensitive(row, 'ReviewType');
+        const reviewTypeLower = String(reviewType || '').toLowerCase();
+        
+        if (reviewTypeLower !== 'brand') {
+          skippedRows++;
+          continue;
+        }
+
+        brandRowCount++;
+
+        // Get brand name (case-insensitive)
+        const brandName = this.getFieldCaseInsensitive(row, 'TargetName') || 
+                          this.getFieldCaseInsensitive(row, 'BrandName') ||
+                          this.getFieldCaseInsensitive(row, 'Name');
         if (!brandName) continue;
 
-        const rating = Number(row.Rating) || 0;
+        const rating = Number(this.getFieldCaseInsensitive(row, 'Rating')) || 0;
 
         if (!brandStats.has(brandName)) {
           brandStats.set(brandName, { count: 0, sumRating: 0, ratings: [] });
@@ -578,6 +632,8 @@ export class DailyChallengeAggregatorV2 {
         stats.sumRating += rating;
         stats.ratings.push(rating);
       }
+
+      console.log(`[Brand Ratings] Found ${brandRowCount} brand rows out of ${rawRows.length} total (skipped ${skippedRows} non-brand rows)`);
 
       // Convert map to array
       const results = Array.from(brandStats.entries()).map(([name, stats]) => {
@@ -612,7 +668,8 @@ export class DailyChallengeAggregatorV2 {
       if (axios.isAxiosError(error) && error.response) {
         console.error('[Brand Ratings] API error details:', error.response.data);
       }
-      return [];
+      // Re-throw error instead of silently failing so it's visible in job logs
+      throw error;
     }
   }
 
