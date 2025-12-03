@@ -9,9 +9,16 @@ import {
 import { eq, desc, and, sql } from 'drizzle-orm';
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
+// Lazy-load OpenAI client to prevent startup crash if API key is missing
+let openai: OpenAI | null = null;
+function getOpenAI(): OpenAI | null {
+    if (!openai && process.env.OPENAI_API_KEY) {
+        openai = new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY,
+        });
+    }
+    return openai;
+}
 
 // Types for entity data
 type EntityWithId = { id: number; name: string };
@@ -155,8 +162,12 @@ export const getDailySummaryService = () => {
 
             console.log('Stats snapshot:', JSON.stringify(statsSnapshot, null, 2));
 
-            // 2. Generate Content with OpenAI
-            const prompt = `
+            // 2. Generate Content with OpenAI (if available)
+            const client = getOpenAI();
+            let result: { headline?: string; content?: string } = {};
+
+            if (client) {
+                const prompt = `
         You are a sports journalist covering the Cannabis Fantasy League.
         Write a daily wrap-up article for ${date}.
         
@@ -180,13 +191,20 @@ export const getDailySummaryService = () => {
         - Return JSON format: { "headline": "...", "content": "..." }
       `;
 
-            const completion = await openai.chat.completions.create({
-                messages: [{ role: 'user', content: prompt }],
-                model: 'gpt-4o',
-                response_format: { type: 'json_object' },
-            });
+                const completion = await client.chat.completions.create({
+                    messages: [{ role: 'user', content: prompt }],
+                    model: 'gpt-4o',
+                    response_format: { type: 'json_object' },
+                });
 
-            const result = JSON.parse(completion.choices[0].message.content || '{}');
+                result = JSON.parse(completion.choices[0].message.content || '{}');
+            } else {
+                console.warn('[DailySummary] OpenAI not configured - generating placeholder summary');
+                result = {
+                    headline: `Daily Recap: ${date}`,
+                    content: `Top performers today: ${topManufacturers[0]?.name || 'N/A'} led manufacturers, ${topStrains[0]?.name || 'N/A'} topped strains.`
+                };
+            }
 
             // 3. Post-process content to ensure all entity mentions are linked
             const processedContent = ensureEntityLinks(
