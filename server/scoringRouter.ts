@@ -1433,6 +1433,15 @@ export function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow, statRecord
       typeof parsedBreakdown.bonuses, parsedBreakdown.bonuses);
   }
 
+  // CRITICAL: Use the server-calculated totalPoints from the database, not the recalculated value.
+  // The recalculated breakdown above is for display purposes (showing components, bonuses breakdown),
+  // but the actual total must match what was stored in dailyScoringBreakdowns.totalPoints to ensure
+  // the sum of player cards equals the grand total in dailyTeamScores.totalPoints.
+  if (totalPoints > 0) {
+    result.total = totalPoints;
+    result.subtotal = totalPoints;
+  }
+
   return result;
 }
 
