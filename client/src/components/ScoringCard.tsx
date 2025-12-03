@@ -38,6 +38,7 @@ export type BonusType =
   | "consistency" 
   | "marketShare" 
   | "captain" 
+  | "firstGoal"
   | "fan"
   | "positionGain"
   | "synergy";
@@ -179,6 +180,13 @@ const BONUS_CONFIG: Record<BonusType, {
     color: "text-yellow-300",
     bgColor: "bg-yellow-500/30",
     description: "2.5x momentum multiplier as team captain",
+  },
+  firstGoal: {
+    emoji: "⚽",
+    icon: <Trophy className="w-4 h-4" />,
+    color: "text-yellow-400",
+    bgColor: "bg-gradient-to-r from-yellow-500/30 to-orange-500/30",
+    description: "Captain scored highest on the team! +15 pts",
   },
   fan: {
     emoji: "❤️",
@@ -676,6 +684,11 @@ function BonusItem({ bonus, streakTier }: { bonus: ScoringBonus; streakTier?: { 
           formula: 'momentumScore × (2.5 - 1)',
           calculation: condition || `Captain boost = +${bonus.points} pts`,
         };
+      case 'firstGoal':
+        return {
+          formula: 'Captain is top scorer → +15 pts',
+          calculation: '⚽ First Goal Bonus! Captain scored highest on team',
+        };
       case 'positionGain':
         return {
           formula: 'positionsGained × 8 pts',
@@ -991,7 +1004,8 @@ export function adaptLegacyData(data: LegacyScoringBreakdownData): ScoringCardPr
     const typeLower = b.type.toLowerCase();
     let type: BonusType = "rank";
 
-    if (typeLower.includes("synergy")) type = "synergy";
+    if (typeLower.includes("first goal")) type = "firstGoal";
+    else if (typeLower.includes("synergy")) type = "synergy";
     else if (typeLower.includes("streak")) type = "streak";
     else if (typeLower.includes("velocity")) type = "velocity";
     else if (typeLower.includes("consistency")) type = "consistency";
@@ -1009,9 +1023,9 @@ export function adaptLegacyData(data: LegacyScoringBreakdownData): ScoringCardPr
     };
   });
 
-  // Check if captain
+  // Check if captain (either captain boost or first goal bonus indicates captain)
   const isCaptain = data.bonuses.some(b =>
-    b.type.toLowerCase().includes("captain")
+    b.type.toLowerCase().includes("captain") || b.type.toLowerCase().includes("first goal")
   );
 
   // Extract rank from currentRank or from rank bonus condition

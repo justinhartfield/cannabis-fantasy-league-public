@@ -14,6 +14,8 @@ import { ChallengeInviteLanding } from "@/components/ChallengeInviteLanding";
 import type { ScoringPlayData } from "@/components/ScoringPlayOverlay";
 import { ScoringPlayAnnouncement } from "@/components/ScoringPlayAnnouncement";
 import { EntityHistoryModal } from "@/components/EntityHistoryModal";
+import { GamePhaseIndicator, type GamePhaseData, type OvertimeData } from "@/components/GamePhaseIndicator";
+import { HalftimeSubstitutionModal } from "@/components/HalftimeSubstitutionModal";
 
 import {
   Loader2,
@@ -358,6 +360,21 @@ export default function DailyChallenge() {
     enabled: !!isAuthenticated,
   });
 
+  // Game phase data for halftime/overtime timer
+  const {
+    data: gamePhaseData,
+    refetch: refetchGamePhase,
+  } = trpc.league.getChallengeGamePhase.useQuery(
+    { challengeId },
+    {
+      enabled: !!challengeId && league?.leagueType === 'challenge',
+      refetchInterval: 10000, // Refresh every 10 seconds for timer accuracy
+    }
+  );
+
+  // State for halftime substitution modal
+  const [showSubstitutionModal, setShowSubstitutionModal] = useState(false);
+
   const {
     data: teamLineup,
     isLoading: teamLineupLoading,
@@ -523,6 +540,12 @@ export default function DailyChallenge() {
     const team = league.teams.find((t: any) => t.userId === user.id);
     return team?.id;
   }, [league, user]);
+
+  // Remaining substitutions for halftime modal
+  const { data: subsData, refetch: refetchSubs } = trpc.league.getRemainingSubstitutions.useQuery(
+    { challengeId, teamId: userTeamId || 0 },
+    { enabled: !!userTeamId && !!gamePhaseData?.isHalftimePassed && !gamePhaseData?.isInOvertime }
+  );
 
   // Function to play next scoring play from queue (single play with extended timing)
   const playNextScoringPlay = useCallback(() => {
@@ -1226,6 +1249,50 @@ export default function DailyChallenge() {
           />
         )}
 
+        {/* Game Phase Timer - Shows halftime countdown, Power Hour, overtime meter */}
+        {gamePhaseData && isLive && challenger && (
+          <GamePhaseIndicator
+            data={{
+              phase: gamePhaseData.phase as GamePhaseData['phase'],
+              halftimeAt: gamePhaseData.halftimeAt,
+              endTime: gamePhaseData.endTime,
+              halftimeScoreTeam1: gamePhaseData.halftimeScoreTeam1,
+              halftimeScoreTeam2: gamePhaseData.halftimeScoreTeam2,
+              isHalftimePassed: gamePhaseData.isHalftimePassed,
+              isInOvertime: gamePhaseData.isInOvertime,
+              overtimeEndTime: gamePhaseData.overtimeEndTime,
+              durationHours: gamePhaseData.durationHours,
+              isPowerHour: gamePhaseData.isPowerHour,
+              powerHourMultiplier: gamePhaseData.powerHourMultiplier,
+            }}
+            overtimeData={gamePhaseData.isInOvertime ? {
+              team1Score: leader?.points || 0,
+              team2Score: challenger?.points || 0,
+              leadingTeamName: leader && challenger 
+                ? (leader.points > challenger.points ? leader.teamName : challenger.teamName)
+                : undefined,
+              currentLead: Math.abs((leader?.points || 0) - (challenger?.points || 0)),
+              winMarginRequired: 25,
+              minutesRemaining: gamePhaseData.overtimeEndTime 
+                ? Math.max(0, Math.ceil((new Date(gamePhaseData.overtimeEndTime).getTime() - Date.now()) / 60000))
+                : undefined,
+            } : undefined}
+          />
+        )}
+
+        {/* Halftime Substitution Button */}
+        {gamePhaseData?.phase === 'halftime_window' && userTeam && subsData && subsData.remaining > 0 && (
+          <div className="flex justify-center">
+            <Button
+              onClick={() => setShowSubstitutionModal(true)}
+              className="bg-green-600 hover:bg-green-500 text-white gap-2 animate-pulse"
+            >
+              <span className="text-lg">🔄</span>
+              Make Halftime Substitution ({subsData.remaining} left)
+            </Button>
+          </div>
+        )}
+
         {/* Status Bar with Live Feed - Double-click to manually sync */}
         <div
           className="rounded-2xl bg-white/5 border border-white/10 p-4 cursor-pointer select-none"
@@ -1451,6 +1518,10 @@ export default function DailyChallenge() {
                         // Check if this item is the captain
                         const isCaptain = teamLineup?.captainId === item.assetId &&
                           teamLineup?.captainType === item.assetType;
+                        // Check if captain earned the First Goal Bonus (top scorer on team)
+                        const hasFirstGoalBonus = isCaptain && item.breakdown?.bonuses?.some(
+                          (b: any) => b.type?.includes('First Goal') || b.type === 'first_goal_bonus'
+                        );
                         // Can select as captain if: user's team, no captain set yet, not already captain
                         const canSelectAsCaptain = isUserTeamSelected && !userTeamHasCaptain && !isCaptain;
 
@@ -1460,7 +1531,8 @@ export default function DailyChallenge() {
                             className={cn(
                               "relative transition-all duration-200",
                               canSelectAsCaptain && "cursor-pointer hover:scale-[1.02] hover:ring-2 hover:ring-yellow-400/50 rounded-[28px]",
-                              isCaptain && "ring-2 ring-yellow-400 rounded-[28px]"
+                              isCaptain && !hasFirstGoalBonus && "ring-2 ring-yellow-400 rounded-[28px]",
+                              hasFirstGoalBonus && "ring-2 ring-yellow-400 rounded-[28px] animate-pulse"
                             )}
                             onClick={() => {
                               if (canSelectAsCaptain && item.assetId) {
@@ -1468,10 +1540,26 @@ export default function DailyChallenge() {
                               }
                             }}
                           >
-                            {/* Captain Badge */}
+                            {/* Captain Badge - shows ⚽ when First Goal Bonus earned */}
                             {isCaptain && (
-                              <div className="absolute -top-2 -right-2 z-20 flex items-center justify-center w-8 h-8 rounded-full bg-yellow-500 text-black font-bold shadow-lg border-2 border-white">
-                                C
+                              <div 
+                                className={cn(
+                                  "absolute -top-2 -right-2 z-20 flex items-center justify-center w-8 h-8 rounded-full font-bold shadow-lg border-2",
+                                  hasFirstGoalBonus 
+                                    ? "bg-gradient-to-br from-yellow-400 via-yellow-500 to-orange-500 text-black border-yellow-300 animate-bounce" 
+                                    : "bg-yellow-500 text-black border-white"
+                                )}
+                                title={hasFirstGoalBonus ? "⚽ First Goal Bonus! +15 pts" : "Captain"}
+                              >
+                                {hasFirstGoalBonus ? "⚽" : "C"}
+                              </div>
+                            )}
+                            {/* First Goal Bonus celebration label */}
+                            {hasFirstGoalBonus && (
+                              <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
+                                <div className="text-xs font-bold text-yellow-400 whitespace-nowrap animate-bounce drop-shadow-[0_0_4px_rgba(234,179,8,0.8)] bg-black/60 px-2 py-0.5 rounded-full">
+                                  ⚽ First Goal! +15
+                                </div>
                               </div>
                             )}
                             {/* Make Captain Overlay */}
@@ -1531,6 +1619,32 @@ export default function DailyChallenge() {
           entityId={selectedEntity.id}
           entityName={selectedEntity.name}
           entityImage={selectedEntity.image}
+        />
+      )}
+
+      {/* Halftime Substitution Modal */}
+      {userTeam && teamLineup && (
+        <HalftimeSubstitutionModal
+          open={showSubstitutionModal}
+          onOpenChange={setShowSubstitutionModal}
+          challengeId={challengeId}
+          teamId={userTeam.id}
+          currentLineup={normalizeLineup(teamLineup).filter(s => s.assetId).map(s => ({
+            id: s.assetId!,
+            assetType: s.assetType || '',
+            assetId: s.assetId!,
+            assetName: s.assetName || '',
+            imageUrl: s.imageUrl,
+            points: s.points || 0,
+            position: s.position,
+          }))}
+          benchAssets={[]} // TODO: Fetch bench assets from roster
+          remainingSubstitutions={subsData?.remaining || 0}
+          onSubstitutionComplete={() => {
+            refetchSubs();
+            refetchLineup();
+            refetchBreakdown();
+          }}
         />
       )}
     </div>
