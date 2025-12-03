@@ -400,15 +400,15 @@ export default function CreateLeague() {
                           <div className="text-xs text-muted-foreground">2 swaps at halftime</div>
                         </div>
                       </div>
-                      {formData.durationHours === 24 && (
-                        <div className="flex items-start gap-2">
-                          <span className="text-lg">🔥</span>
-                          <div>
-                            <div className="font-medium">Power Hour</div>
-                            <div className="text-xs text-muted-foreground">2x points 4:15-4:25 PM</div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-lg">🔥</span>
+                        <div>
+                          <div className="font-medium">Power Hour</div>
+                          <div className="text-xs text-muted-foreground">
+                            {formData.durationHours === 24 ? "2x points 4:15-4:25 PM" : "Only for 24h games"}
                           </div>
                         </div>
-                      )}
+                      </div>
                       <div className="flex items-start gap-2">
                         <span className="text-lg">⚡</span>
                         <div>
