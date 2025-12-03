@@ -13,9 +13,10 @@ import { leagues, teams, dailyTeamScores, dailyScoringBreakdowns } from '../driz
 import { eq, and, desc } from 'drizzle-orm';
 import { wsManager } from './websocket';
 
-// Overtime configuration
-const OVERTIME_TRIGGER_THRESHOLD = 50;  // Points difference to trigger OT
-const OVERTIME_WIN_MARGIN = 25;         // Points lead needed to win in OT
+// Overtime configuration - DRAMATIC MODE
+const OVERTIME_TRIGGER_THRESHOLD = 100;  // Points difference to trigger OT (more dramatic!)
+const OVERTIME_EARLY_TRIGGER_MINUTES = 20; // Trigger OT if within threshold with 20 min left
+const OVERTIME_WIN_MARGIN = 25;          // Points lead needed to win in OT
 const OVERTIME_DURATION_MS = 60 * 60 * 1000; // 1 hour in milliseconds
 
 export interface OvertimeStatus {
@@ -45,6 +46,7 @@ export interface OvertimeResult {
 
 /**
  * Check if overtime should be triggered for a challenge
+ * NEW: Triggers EARLY if within 100pts with 20 min left for DRAMATIC tension!
  */
 export async function shouldTriggerOvertime(challengeId: number): Promise<boolean> {
   const db = await getDb();
@@ -60,13 +62,11 @@ export async function shouldTriggerOvertime(challengeId: number): Promise<boolea
     if (!challenge || challenge.leagueType !== 'challenge') return false;
     if (challenge.isInOvertime) return false; // Already in OT
     if (challenge.status === 'complete') return false;
-
-    // Check if we're at or past end time
     if (!challenge.challengeEndTime) return false;
     
     const now = new Date();
     const endTime = new Date(challenge.challengeEndTime);
-    if (now < endTime) return false; // Not at end time yet
+    const minutesRemaining = (endTime.getTime() - now.getTime()) / (1000 * 60);
 
     // Get current scores
     const challengeTeams = await db
@@ -98,7 +98,26 @@ export async function shouldTriggerOvertime(challengeId: number): Promise<boolea
     );
 
     const scoreDifference = Math.abs(scores[0] - scores[1]);
-    return scoreDifference <= OVERTIME_TRIGGER_THRESHOLD;
+
+    // DRAMATIC OT TRIGGER CONDITIONS:
+    // 1. At end time: if within threshold
+    // 2. EARLY trigger: if within 20 min AND score is within threshold (builds tension!)
+    const atEndTime = now >= endTime;
+    const earlyTrigger = minutesRemaining <= OVERTIME_EARLY_TRIGGER_MINUTES && 
+                         minutesRemaining > 0 && 
+                         scoreDifference <= OVERTIME_TRIGGER_THRESHOLD;
+
+    if (atEndTime && scoreDifference <= OVERTIME_TRIGGER_THRESHOLD) {
+      console.log(`[OvertimeService] 🔥 OT triggered at end time! Score diff: ${scoreDifference}`);
+      return true;
+    }
+
+    if (earlyTrigger) {
+      console.log(`[OvertimeService] ⚡ EARLY OT triggered! ${minutesRemaining.toFixed(0)} min left, score diff: ${scoreDifference}`);
+      return true;
+    }
+
+    return false;
   } catch (error) {
     console.error(`[OvertimeService] Error checking OT trigger:`, error);
     return false;
@@ -456,6 +475,7 @@ async function resolveTiebreaker(
 export function getOvertimeConfig() {
   return {
     triggerThreshold: OVERTIME_TRIGGER_THRESHOLD,
+    earlyTriggerMinutes: OVERTIME_EARLY_TRIGGER_MINUTES,
     winMargin: OVERTIME_WIN_MARGIN,
     durationMs: OVERTIME_DURATION_MS,
     durationMinutes: OVERTIME_DURATION_MS / 60000
@@ -470,6 +490,7 @@ export default {
   handleOvertimeTimeout,
   getOvertimeConfig,
   OVERTIME_TRIGGER_THRESHOLD,
+  OVERTIME_EARLY_TRIGGER_MINUTES,
   OVERTIME_WIN_MARGIN,
   OVERTIME_DURATION_MS
 };

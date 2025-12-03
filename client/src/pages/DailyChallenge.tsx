@@ -1286,6 +1286,8 @@ export default function DailyChallenge() {
             overtimeData={gamePhaseData.isInOvertime ? {
               team1Score: leader?.points || 0,
               team2Score: challenger?.points || 0,
+              team1Name: leader?.teamName,
+              team2Name: challenger?.teamName,
               leadingTeamName: leader && challenger 
                 ? (leader.points > challenger.points ? leader.teamName : challenger.teamName)
                 : undefined,

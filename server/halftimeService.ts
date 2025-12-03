@@ -15,9 +15,9 @@ import { wsManager } from './websocket';
 // Maximum substitutions allowed per team at halftime
 const MAX_SUBSTITUTIONS_PER_TEAM = 2;
 
-// Power Hour window (in minutes around 4:20 PM)
-const POWER_HOUR_START_MINUTES = 16 * 60 + 15; // 4:15 PM = 975 minutes
-const POWER_HOUR_END_MINUTES = 16 * 60 + 25;   // 4:25 PM = 985 minutes
+// Power Hour window (3:30 PM - 5:30 PM CET = 2 hour window centered on 4:20!)
+const POWER_HOUR_START_MINUTES = 15 * 60 + 30; // 3:30 PM = 930 minutes
+const POWER_HOUR_END_MINUTES = 17 * 60 + 30;   // 5:30 PM = 1050 minutes
 
 export interface HalftimeSnapshot {
   challengeId: number;
