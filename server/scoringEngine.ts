@@ -1963,7 +1963,7 @@ export async function calculateTeamDailyScore(
   teamId: number,
   challengeId: number,
   statDate: string,
-  options: { scarcityMultipliers?: ScarcityMultipliers } = {}
+  options: { scarcityMultipliers?: ScarcityMultipliers; powerHourMultiplier?: number } = {}
 ): Promise<number> {
   console.log(`[calculateTeamDailyScore] Starting calculation for team ${teamId}, challenge ${challengeId}, date ${statDate}`);
   const normalizedDate = new Date(`${statDate}T00:00:00Z`);
@@ -1981,15 +1981,33 @@ export async function calculateTeamDailyScore(
     scope: { type: 'daily', statDate: dateString },
     persistence: { mode: 'daily', teamId, challengeId, statDate: dateString },
     scarcityMultipliers: options.scarcityMultipliers,
+    powerHourMultiplier: options.powerHourMultiplier,
   });
-  console.log(`[calculateTeamDailyScore] Calculated score for team ${teamId}: ${score.totalPoints} points`);
-  return score.totalPoints;
+  
+  // Apply Power Hour multiplier if active (2x during 4:15-4:25 PM for 24h games)
+  const multiplier = options.powerHourMultiplier || 1.0;
+  const finalPoints = Math.floor(score.totalPoints * multiplier);
+  
+  if (multiplier > 1) {
+    console.log(`[calculateTeamDailyScore] 🔥 Power Hour! Score ${score.totalPoints} x ${multiplier} = ${finalPoints}`);
+  } else {
+    console.log(`[calculateTeamDailyScore] Calculated score for team ${teamId}: ${finalPoints} points`);
+  }
+  
+  return finalPoints;
 }
 
 /**
  * Calculate scores for a daily challenge on a specific date
+ * @param challengeId - The challenge ID
+ * @param statDate - The date to calculate scores for (YYYY-MM-DD)
+ * @param powerHourMultiplier - Optional multiplier for Power Hour (2x during 4:15-4:25 PM for 24h games)
  */
-export async function calculateDailyChallengeScores(challengeId: number, statDate?: string): Promise<void> {
+export async function calculateDailyChallengeScores(
+  challengeId: number, 
+  statDate?: string, 
+  powerHourMultiplier: number = 1.0
+): Promise<void> {
   const db = await getDb();
   if (!db) {
     throw new Error('Database not available');
@@ -2009,6 +2027,11 @@ export async function calculateDailyChallengeScores(challengeId: number, statDat
   }
 
   const statDateString = targetDate.toISOString().split('T')[0];
+
+  // Log Power Hour status
+  if (powerHourMultiplier > 1) {
+    console.log(`[calculateDailyChallengeScores] 🔥 Power Hour active! ${powerHourMultiplier}x multiplier`);
+  }
 
   // Check if daily challenge stats already exist for this date before running expensive aggregation
   const existingStats = await db
@@ -2049,6 +2072,7 @@ export async function calculateDailyChallengeScores(challengeId: number, statDat
       try {
         await calculateTeamDailyScore(team.id, challengeId, statDateString, {
           scarcityMultipliers,
+          powerHourMultiplier,
         });
       } catch (error) {
         console.error(`[Scoring] Error calculating daily score for team ${team.id}:`, error);
@@ -2268,6 +2292,7 @@ interface TeamScoreComputationOptions {
   persistence: TeamScorePersistence;
   scarcityMultipliers?: ScarcityMultipliers;
   skipPersistence?: boolean;
+  powerHourMultiplier?: number; // 2x during 4:15-4:25 PM for 24h games
 }
 
 export async function calculateSeasonTeamDailyScore({

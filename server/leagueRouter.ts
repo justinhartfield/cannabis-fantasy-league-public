@@ -6,6 +6,7 @@ import { eq, and, desc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { wsManager } from "./websocket";
 import { completeReferralIfEligible } from "./referralService";
+import halftimeService from "./halftimeService";
 
 /**
  * Generate a random 6-character alphanumeric league code
@@ -136,6 +137,9 @@ export const leagueRouter = router({
         seasonLength: z.number().min(4).max(52).default(18),
         isPublic: z.boolean().default(false),
         leagueType: z.enum(["season", "challenge"]).default("season"),
+        // Challenge timing fields
+        durationHours: z.number().min(4).max(168).default(24),
+        challengeStartTime: z.string().optional().transform(val => val === "" ? undefined : val),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -168,6 +172,17 @@ export const leagueRouter = router({
         // e.g., 4 week season -> playoffs start week 5
         const playoffStartWeek = input.seasonLength + 1;
         
+        // For challenges, calculate start/end/halftime times
+        const startTime = input.challengeStartTime 
+          ? new Date(input.challengeStartTime) 
+          : new Date();
+        const halftimeAt = input.leagueType === 'challenge' 
+          ? halftimeService.calculateHalftimeTimestamp(startTime, input.durationHours)
+          : null;
+        const endTime = input.leagueType === 'challenge'
+          ? halftimeService.calculateEndTime(startTime, input.durationHours)
+          : null;
+        
         const leagueResult = await db
           .insert(leagues)
           .values({
@@ -184,6 +199,11 @@ export const leagueRouter = router({
             leagueCode: leagueCode,
             leagueType: input.leagueType,
             isPublic: input.isPublic,
+            // Challenge timing fields
+            durationHours: input.leagueType === 'challenge' ? input.durationHours : null,
+            challengeStartTime: input.leagueType === 'challenge' ? startTime.toISOString() : null,
+            challengeEndTime: endTime ? endTime.toISOString() : null,
+            halftimeAt: halftimeAt ? halftimeAt.toISOString() : null,
           })
           .returning({ id: leagues.id });
 
@@ -1308,6 +1328,154 @@ export const leagueRouter = router({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to update team battlefield background",
         });
+      }
+    }),
+
+  /**
+   * Get game phase status for a challenge
+   * Returns current phase, halftime info, overtime status
+   */
+  getChallengeGamePhase: protectedProcedure
+    .input(z.object({ challengeId: z.number() }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Database not available",
+        });
+      }
+
+      try {
+        const [challenge] = await db
+          .select()
+          .from(leagues)
+          .where(and(
+            eq(leagues.id, input.challengeId),
+            eq(leagues.leagueType, 'challenge')
+          ))
+          .limit(1);
+
+        if (!challenge) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Challenge not found",
+          });
+        }
+
+        const status = await halftimeService.getHalftimeStatus(input.challengeId);
+        
+        return {
+          challengeId: input.challengeId,
+          phase: status?.phase || 'first_half',
+          halftimeAt: challenge.halftimeAt,
+          endTime: challenge.challengeEndTime,
+          halftimeScoreTeam1: challenge.halftimeScoreTeam1,
+          halftimeScoreTeam2: challenge.halftimeScoreTeam2,
+          isHalftimePassed: challenge.isHalftimePassed,
+          isInOvertime: challenge.isInOvertime,
+          overtimeEndTime: challenge.overtimeEndTime,
+          durationHours: challenge.durationHours,
+          isPowerHour: status?.isPowerHour || false,
+          powerHourMultiplier: status?.powerHourMultiplier || 1.0,
+        };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        console.error("[LeagueRouter] Error getting game phase:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to get game phase",
+        });
+      }
+    }),
+
+  /**
+   * Make a halftime substitution
+   * Allows swapping an asset in the lineup during halftime window
+   */
+  makeHalftimeSubstitution: protectedProcedure
+    .input(
+      z.object({
+        challengeId: z.number(),
+        teamId: z.number(),
+        position: z.string(),
+        newAssetType: z.string(),
+        newAssetId: z.number(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Database not available",
+        });
+      }
+
+      try {
+        // Verify user owns this team
+        const [team] = await db
+          .select()
+          .from(teams)
+          .where(eq(teams.id, input.teamId))
+          .limit(1);
+
+        if (!team) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Team not found",
+          });
+        }
+
+        if (team.userId !== ctx.user.id) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "You can only make substitutions for your own team",
+          });
+        }
+
+        // Make the substitution using halftimeService
+        const result = await halftimeService.makeSubstitution({
+          challengeId: input.challengeId,
+          teamId: input.teamId,
+          position: input.position,
+          newAssetType: input.newAssetType,
+          newAssetId: input.newAssetId,
+        });
+
+        if (!result.success) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: result.message,
+          });
+        }
+
+        return result;
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        console.error("[LeagueRouter] Error making halftime substitution:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to make substitution",
+        });
+      }
+    }),
+
+  /**
+   * Get remaining substitutions for a team in a challenge
+   */
+  getRemainingSubstitutions: protectedProcedure
+    .input(z.object({ challengeId: z.number(), teamId: z.number() }))
+    .query(async ({ input }) => {
+      try {
+        const remaining = await halftimeService.getRemainingSubstitutions(
+          input.challengeId,
+          input.teamId
+        );
+        return { remaining, max: 2 };
+      } catch (error) {
+        console.error("[LeagueRouter] Error getting remaining subs:", error);
+        return { remaining: 0, max: 2 };
       }
     }),
 });

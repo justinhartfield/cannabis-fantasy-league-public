@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import { trpc } from "@/lib/trpc";
 import {
   Trophy,
@@ -26,6 +27,9 @@ import {
   Calendar,
   UserCircle,
   Settings,
+  Clock,
+  Zap,
+  Timer,
 } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
@@ -50,7 +54,29 @@ export default function CreateLeague() {
     seasonLength: 18,
     isPublic: false,
     leagueType: "season" as "season" | "challenge",
+    // Challenge timing fields
+    durationHours: 24,
+    challengeStartTime: "", // ISO datetime
   });
+
+  // Duration presets for quick selection
+  const durationPresets = [
+    { value: 4, label: "4h Sprint", icon: "⚡" },
+    { value: 8, label: "8h Quickplay", icon: "🏃" },
+    { value: 12, label: "12h Half-Day", icon: "🌗" },
+    { value: 24, label: "24h Classic", icon: "🌿", recommended: true },
+    { value: 48, label: "48h Weekend", icon: "📅" },
+    { value: 72, label: "72h Marathon", icon: "🏆" },
+    { value: 168, label: "Weekly", icon: "📆" },
+  ];
+
+  // Calculate halftime and end time for display
+  const getHalftimeInfo = () => {
+    if (formData.durationHours === 24) {
+      return "4:20 PM (themed halftime!)";
+    }
+    return `${formData.durationHours / 2}h after start`;
+  };
 
   // Redirect to login if not authenticated
   if (!authLoading && !isAuthenticated) {
@@ -279,11 +305,119 @@ export default function CreateLeague() {
               )}
 
               {formData.leagueType === "challenge" && (
-                <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                  <p className="text-sm text-blue-700 dark:text-blue-300">
-                    <strong>Daily Challenge:</strong> 2 Spieler, 10-Asset Squads, 24h Wettbewerb.
-                    Keine Draft-Phase - direkte Lineup-Auswahl.
-                  </p>
+                <div className="space-y-4">
+                  {/* Challenge Info */}
+                  <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                      <strong>Daily Challenge:</strong> 2 Spieler, 10-Asset Squads.
+                      Keine Draft-Phase - direkte Lineup-Auswahl.
+                    </p>
+                  </div>
+
+                  {/* Duration Selection */}
+                  <div className="space-y-3">
+                    <Label className="flex items-center gap-2">
+                      <Timer className="w-4 h-4" />
+                      Challenge-Dauer
+                    </Label>
+                    <div className="grid grid-cols-4 gap-2">
+                      {durationPresets.map((preset) => (
+                        <button
+                          key={preset.value}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, durationHours: preset.value })}
+                          className={`p-2 rounded-lg border-2 transition-all text-center ${
+                            formData.durationHours === preset.value
+                              ? "border-primary bg-primary/10"
+                              : "border-border hover:border-primary/50"
+                          } ${preset.recommended ? "ring-2 ring-green-500/30" : ""}`}
+                        >
+                          <div className="text-lg">{preset.icon}</div>
+                          <div className="text-xs font-medium">{preset.label}</div>
+                          {preset.recommended && (
+                            <div className="text-[10px] text-green-600 dark:text-green-400">4:20 Halftime!</div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                    
+                    {/* Custom duration slider */}
+                    <div className="space-y-2 pt-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Custom Duration</span>
+                        <span className="font-medium">{formData.durationHours}h</span>
+                      </div>
+                      <Slider
+                        value={[formData.durationHours]}
+                        onValueChange={([value]) => setFormData({ ...formData, durationHours: value })}
+                        min={4}
+                        max={168}
+                        step={1}
+                        className="w-full"
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>4h</span>
+                        <span>168h (1 week)</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Start Time Selection */}
+                  <div className="space-y-2">
+                    <Label htmlFor="challengeStartTime" className="flex items-center gap-2">
+                      <Clock className="w-4 h-4" />
+                      Start-Zeit (optional)
+                    </Label>
+                    <Input
+                      id="challengeStartTime"
+                      type="datetime-local"
+                      value={formData.challengeStartTime}
+                      onChange={(e) => setFormData({ ...formData, challengeStartTime: e.target.value })}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Leer lassen für sofortigen Start
+                    </p>
+                  </div>
+
+                  {/* Game Mechanics Info */}
+                  <div className="p-4 rounded-lg bg-gradient-to-r from-green-500/10 to-yellow-500/10 border border-green-500/20 space-y-3">
+                    <h4 className="font-semibold flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-yellow-500" />
+                      Game Mechanics
+                    </h4>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="flex items-start gap-2">
+                        <span className="text-lg">⏱️</span>
+                        <div>
+                          <div className="font-medium">Halftime</div>
+                          <div className="text-xs text-muted-foreground">{getHalftimeInfo()}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-lg">🔄</span>
+                        <div>
+                          <div className="font-medium">Substitutions</div>
+                          <div className="text-xs text-muted-foreground">2 swaps at halftime</div>
+                        </div>
+                      </div>
+                      {formData.durationHours === 24 && (
+                        <div className="flex items-start gap-2">
+                          <span className="text-lg">🔥</span>
+                          <div>
+                            <div className="font-medium">Power Hour</div>
+                            <div className="text-xs text-muted-foreground">2x points 4:15-4:25 PM</div>
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex items-start gap-2">
+                        <span className="text-lg">⚡</span>
+                        <div>
+                          <div className="font-medium">Golden Goal OT</div>
+                          <div className="text-xs text-muted-foreground">If within 50 pts</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
             </CardContent>

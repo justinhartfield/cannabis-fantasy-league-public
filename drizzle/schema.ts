@@ -187,6 +187,24 @@ export const challengeRosters = pgTable("challengeRosters", {
 		unique("challenge_user_asset_idx").on(table.challengeId, table.userId, table.assetType, table.assetId),
 	]);
 
+// Halftime substitutions for daily challenges (soccer-style subs at 4:20 PM)
+export const halftimeSubstitutions = pgTable("halftimeSubstitutions", {
+	id: serial().primaryKey(),
+	challengeId: integer().notNull(),
+	teamId: integer().notNull(),
+	position: varchar({ length: 20 }).notNull(), // e.g., 'mfg1', 'cstr2', 'flex'
+	oldAssetType: varchar({ length: 50 }).notNull(),
+	oldAssetId: integer().notNull(),
+	newAssetType: varchar({ length: 50 }).notNull(),
+	newAssetId: integer().notNull(),
+	createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
+},
+	(table) => [
+		index("halftime_sub_challenge_idx").on(table.challengeId),
+		index("halftime_sub_team_idx").on(table.teamId),
+		unique("halftime_sub_unique").on(table.challengeId, table.teamId, table.position),
+	]);
+
 export const challenges = pgTable("challenges", {
 	id: serial().primaryKey(),
 	name: varchar({ length: 255 }).notNull(),
@@ -252,6 +270,17 @@ export const leagues = pgTable("leagues", {
 	currentDraftPick: integer().default(1),
 	currentDraftRound: integer().default(1),
 	draftPickTimeLimit: integer().default(120),
+	// Challenge timing fields for halftime & configurable duration
+	durationHours: integer().default(24),
+	challengeStartTime: timestamp("challengeStartTime", { mode: 'string', withTimezone: true }),
+	challengeEndTime: timestamp("challengeEndTime", { mode: 'string', withTimezone: true }),
+	halftimeAt: timestamp("halftimeAt", { mode: 'string', withTimezone: true }),
+	halftimeScoreTeam1: integer(),
+	halftimeScoreTeam2: integer(),
+	isHalftimePassed: boolean("isHalftimePassed").default(false),
+	isInOvertime: boolean("isInOvertime").default(false),
+	overtimeEndTime: timestamp("overtimeEndTime", { mode: 'string', withTimezone: true }),
+	overtimeWinnerId: integer(),
 },
 	(table) => [
 		unique("leagues_leagueCode_unique").on(table.leagueCode),
