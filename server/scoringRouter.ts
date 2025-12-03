@@ -1416,7 +1416,10 @@ export function normalizeDailyBreakdownPayload(bd: DailyBreakdownRow, statRecord
       b.type === 'Synergy Bonus' ||
       b.type === 'synergy_bonus' ||
       b.type === 'Full Synergy Bonus' ||
-      b.type === 'full_synergy_bonus'
+      b.type === 'full_synergy_bonus' ||
+      b.type === 'first_goal_bonus' ||
+      b.type === 'First Goal Bonus ⚽' ||
+      b.type?.includes?.('First Goal')
     );
 
     if (specialBonuses.length > 0) {
