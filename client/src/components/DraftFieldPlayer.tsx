@@ -137,6 +137,8 @@ interface DraftFieldPlayerProps {
   showScore?: boolean;
   /** Whether this player is the Captain */
   isCaptain?: boolean;
+  /** Whether the Captain earned the First Goal Bonus (top scorer) */
+  hasFirstGoalBonus?: boolean;
   /** Optional className for the container */
   className?: string;
 }
@@ -160,6 +162,7 @@ export function DraftFieldPlayer({
   score,
   showScore = false,
   isCaptain = false,
+  hasFirstGoalBonus = false,
   className,
 }: DraftFieldPlayerProps) {
   // Track if the image loaded successfully
@@ -269,11 +272,24 @@ export function DraftFieldPlayer({
       {isCaptain && player && (
         <div
           className={cn(
-            "absolute -top-1 -right-1 z-20 flex items-center justify-center rounded-full bg-yellow-500 text-black font-bold shadow-lg border-2 border-white",
+            "absolute -top-1 -right-1 z-20 flex items-center justify-center rounded-full font-bold shadow-lg border-2",
+            hasFirstGoalBonus 
+              ? "bg-gradient-to-br from-yellow-400 via-yellow-500 to-orange-500 text-black border-yellow-300 animate-pulse" 
+              : "bg-yellow-500 text-black border-white",
             size === "sm" ? "w-5 h-5 text-[10px]" : size === "lg" ? "w-7 h-7 text-sm" : "w-6 h-6 text-xs"
           )}
+          title={hasFirstGoalBonus ? "⚽ First Goal Bonus! +15 pts" : "Captain"}
         >
-          C
+          {hasFirstGoalBonus ? "⚽" : "C"}
+        </div>
+      )}
+      
+      {/* First Goal Bonus celebration effect */}
+      {isCaptain && hasFirstGoalBonus && player && (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
+          <div className="text-[10px] font-bold text-yellow-400 whitespace-nowrap animate-bounce drop-shadow-[0_0_4px_rgba(234,179,8,0.8)]">
+            ⚽ +15
+          </div>
         </div>
       )}
 

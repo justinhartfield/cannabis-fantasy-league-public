@@ -2434,79 +2434,70 @@ async function computeTeamScore(options: TeamScoreComputationOptions): Promise<T
 
   // Only apply for Daily Challenge
   if (scope.type === 'daily') {
-    // 1. Apply Captain Multiplier (2.5x to Momentum Score only)
+    // 1. Apply "First Goal Bonus" - Captain gets +15 if they're the highest scorer on the team
     console.log(`[Captain] Team ${options.teamId} lineup captain info: captainId=${teamLineup.captainId}, captainType=${teamLineup.captainType}`);
 
     if (teamLineup.captainId && teamLineup.captainType) {
-      const captainMultiplier = 2.5;
+      const FIRST_GOAL_BONUS = 15; // Bonus points for captain being top scorer
       const captainType = teamLineup.captainType;
       const captainId = teamLineup.captainId;
 
-      console.log(`[computeTeamScore] Checking Captain Boost (2.5x Momentum Score): ${captainType} #${captainId}`);
+      console.log(`[computeTeamScore] Checking First Goal Bonus: ${captainType} #${captainId}`);
 
       // Find the breakdown item for the captain
       const captainItem = breakdowns.find(b => b.assetType === captainType && b.assetId === captainId);
 
       if (captainItem) {
-        console.log(`[computeTeamScore] Found captain item: ${captainItem.assetName}, points=${captainItem.points}`);
-        
-        // Find the Momentum Score (Trend Bonus) component and apply 2.5x to it
-        let bonusPoints = 0;
-        if (captainItem.breakdown && captainItem.breakdown.components) {
-          const momentumComponent = captainItem.breakdown.components.find(
-            (c: any) => c.category === 'Trend Bonus' || c.category === 'Momentum Score'
-          );
-          
-          if (momentumComponent) {
-            const originalMomentumPoints = momentumComponent.points || 0;
-            const boostedMomentumPoints = Math.round(originalMomentumPoints * captainMultiplier);
-            bonusPoints = boostedMomentumPoints - originalMomentumPoints;
-            
-            // Update the momentum component's points
-            momentumComponent.points = boostedMomentumPoints;
-            momentumComponent.formula = `${momentumComponent.formula} (Captain 2.5x)`;
-            
-            console.log(`[computeTeamScore] Applied Captain Boost to Momentum Score: ${originalMomentumPoints} → ${boostedMomentumPoints} (+${bonusPoints} pts)`);
-          } else {
-            console.log(`[computeTeamScore] No Momentum Score component found for captain`);
-          }
-        }
-
-        // Update the item's total points
-        const originalPoints = captainItem.points || 0;
-        const boostedPoints = originalPoints + bonusPoints;
-        captainItem.points = boostedPoints;
+        // Mark as captain regardless of bonus
         captainItem.isCaptain = true;
-        captainItem.captainBonus = bonusPoints;
+        
+        // Find the highest scorer on the team (excluding the captain for comparison)
+        const highestScore = Math.max(...breakdowns.map(b => b.points || 0));
+        const captainScore = captainItem.points || 0;
+        const isTopScorer = captainScore >= highestScore && captainScore > 0;
 
-        // CRITICAL: Update the breakdown JSON so the UI sees the bonus
-        if (captainItem.breakdown) {
-          captainItem.breakdown.bonuses = captainItem.breakdown.bonuses || [];
-          captainItem.breakdown.bonuses.push({
-            type: 'Captain Boost',
-            condition: `${captainMultiplier}x Momentum Score`,
-            points: bonusPoints
+        console.log(`[computeTeamScore] Captain ${captainItem.assetName}: ${captainScore} pts, Team high: ${highestScore} pts, Is top: ${isTopScorer}`);
+
+        if (isTopScorer) {
+          // Captain is the highest scorer - award the First Goal Bonus!
+          const originalPoints = captainItem.points || 0;
+          const boostedPoints = originalPoints + FIRST_GOAL_BONUS;
+          captainItem.points = boostedPoints;
+          captainItem.captainBonus = FIRST_GOAL_BONUS;
+          captainItem.firstGoalBonus = true;
+
+          // Update the breakdown JSON so the UI sees the bonus
+          if (captainItem.breakdown) {
+            captainItem.breakdown.bonuses = captainItem.breakdown.bonuses || [];
+            captainItem.breakdown.bonuses.push({
+              type: 'First Goal Bonus ⚽',
+              condition: 'Captain is top scorer on team',
+              points: FIRST_GOAL_BONUS
+            });
+            captainItem.breakdown.total = boostedPoints;
+          }
+
+          // Update position points map
+          const posKey = captainItem.position.toLowerCase() as keyof PositionPointsMap;
+          if (positionPoints[posKey] !== undefined) {
+            positionPoints[posKey] = boostedPoints;
+          }
+
+          // Add to team bonuses for tracking
+          teamBonuses.push({
+            type: 'first_goal_bonus',
+            description: `⚽ First Goal Bonus! ${captainItem.assetName || 'Captain'} scored highest on the team`,
+            points: FIRST_GOAL_BONUS,
           });
-          captainItem.breakdown.total = boostedPoints;
-          console.log(`[computeTeamScore] Applied Captain Boost: +${bonusPoints} pts`);
+
+          totalBonus += FIRST_GOAL_BONUS;
+          console.log(`[computeTeamScore] ⚽ First Goal Bonus awarded! +${FIRST_GOAL_BONUS} pts to ${captainItem.assetName}`);
         } else {
-          console.log(`[computeTeamScore] Captain item missing breakdown object`);
+          // Captain wasn't top scorer - no bonus, but still mark them
+          captainItem.captainBonus = 0;
+          captainItem.firstGoalBonus = false;
+          console.log(`[computeTeamScore] Captain ${captainItem.assetName} was not the top scorer - no First Goal Bonus`);
         }
-
-        // Update position points map
-        const posKey = captainItem.position.toLowerCase() as keyof PositionPointsMap;
-        if (positionPoints[posKey] !== undefined) {
-          positionPoints[posKey] = boostedPoints;
-        }
-
-        // Add to team bonuses for tracking
-        teamBonuses.push({
-          type: 'captain_boost',
-          description: `Captain Boost (${captainMultiplier}x Momentum Score) for ${captainItem.assetName || 'Captain'}`,
-          points: bonusPoints,
-        });
-
-        totalBonus += bonusPoints;
       } else {
         console.log(`[computeTeamScore] Captain item NOT found in breakdowns. Available items: ${breakdowns.map(b => `${b.assetType}:${b.assetId}`).join(', ')}`);
       }

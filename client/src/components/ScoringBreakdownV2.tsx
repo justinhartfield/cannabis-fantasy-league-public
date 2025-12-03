@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown, Minus, Trophy, BarChart3, Flame, Zap, Target, TrendingUpDown, Crown, Heart, Sparkles, Link } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Trophy, BarChart3, Flame, Zap, Target, TrendingUpDown, Crown, Heart, Sparkles, Link, Goal } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -412,7 +412,17 @@ const getBonusTooltipContent = (
     };
   }
   
-  // Captain Boost - 2.5x multiplier applied to Momentum Score
+  // First Goal Bonus - Captain is the top scorer on the team
+  if (bonusType.includes('first goal')) {
+    return {
+      title: 'First Goal Bonus ⚽',
+      explanation: 'Your Captain scored the highest on your team! Great pick!',
+      formula: 'Captain is #1 scorer → +15 pts',
+      calculation: `Top scorer bonus → +${bonus.points} pts`,
+    };
+  }
+  
+  // Captain Boost (legacy) - 2.5x multiplier applied to Momentum Score
   if (bonusType.includes('captain')) {
     let multiplier = data.captainMultiplier;
     if (!multiplier || multiplier === 0) {
@@ -534,6 +544,7 @@ export default function ScoringBreakdownV2({
   };
 
   const getBonusIcon = (type: string) => {
+    if (type.includes("First Goal")) return <Goal className="w-4 h-4 text-yellow-400" />;
     if (type.includes("Streak")) return <Flame className="w-4 h-4" />;
     if (type.includes("Velocity")) return <Zap className="w-4 h-4" />;
     if (type.includes("Consistency")) return <Target className="w-4 h-4" />;
@@ -631,8 +642,13 @@ export default function ScoringBreakdownV2({
                 };
 
                 const position = getPositionForType(data.assetType);
-                // Check for both legacy snake_case and new Title Case bonus types
-                const isCaptain = data.bonuses?.some(b => b.type === 'captain_boost' || b.type === 'Captain Boost');
+                // Check for both legacy snake_case, new Title Case bonus types, and First Goal Bonus
+                const isCaptain = data.bonuses?.some(b => 
+                  b.type === 'captain_boost' || 
+                  b.type === 'Captain Boost' || 
+                  b.type === 'first_goal_bonus' ||
+                  b.type.includes('First Goal')
+                );
 
                 return (
                   <DraftFieldPlayer

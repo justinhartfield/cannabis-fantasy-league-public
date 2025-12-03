@@ -37,6 +37,8 @@ interface DraftFieldProps {
   captainId?: number | null;
   /** Captain Asset Type */
   captainType?: AssetType | null;
+  /** Whether the Captain earned the First Goal Bonus (top scorer) */
+  hasFirstGoalBonus?: boolean;
 }
 
 /**
@@ -65,6 +67,7 @@ export function DraftField({
   className,
   captainId,
   captainType,
+  hasFirstGoalBonus = false,
 }: DraftFieldProps) {
   // Get the current position being drafted
   const currentPosition = currentDraftIndex >= 0 && currentDraftIndex < CHALLENGE_DRAFT_ORDER.length
@@ -305,6 +308,7 @@ export function DraftField({
               onClick={onPositionClick ? () => handlePositionClick("ST1") : undefined}
               className={playerSizeClass}
               isCaptain={captainId === getPlayer("ST1")?.id && captainType === getPlayer("ST1")?.assetType}
+              hasFirstGoalBonus={hasFirstGoalBonus && captainId === getPlayer("ST1")?.id && captainType === getPlayer("ST1")?.assetType}
             />
             <DraftFieldPlayer
               position="ST2"
@@ -314,6 +318,7 @@ export function DraftField({
               onClick={onPositionClick ? () => handlePositionClick("ST2") : undefined}
               className={playerSizeClass}
               isCaptain={captainId === getPlayer("ST2")?.id && captainType === getPlayer("ST2")?.assetType}
+              hasFirstGoalBonus={hasFirstGoalBonus && captainId === getPlayer("ST2")?.id && captainType === getPlayer("ST2")?.assetType}
             />
           </div>
 
@@ -330,6 +335,7 @@ export function DraftField({
               onClick={onPositionClick ? () => handlePositionClick("LW") : undefined}
               className={playerSizeClass}
               isCaptain={captainId === getPlayer("LW")?.id && captainType === getPlayer("LW")?.assetType}
+              hasFirstGoalBonus={hasFirstGoalBonus && captainId === getPlayer("LW")?.id && captainType === getPlayer("LW")?.assetType}
             />
             <DraftFieldPlayer
               position="RW"
@@ -339,6 +345,7 @@ export function DraftField({
               onClick={onPositionClick ? () => handlePositionClick("RW") : undefined}
               className={playerSizeClass}
               isCaptain={captainId === getPlayer("RW")?.id && captainType === getPlayer("RW")?.assetType}
+              hasFirstGoalBonus={hasFirstGoalBonus && captainId === getPlayer("RW")?.id && captainType === getPlayer("RW")?.assetType}
             />
           </div>
 
@@ -355,6 +362,7 @@ export function DraftField({
               onClick={onPositionClick ? () => handlePositionClick("CM1") : undefined}
               className={playerSizeClass}
               isCaptain={captainId === getPlayer("CM1")?.id && captainType === getPlayer("CM1")?.assetType}
+              hasFirstGoalBonus={hasFirstGoalBonus && captainId === getPlayer("CM1")?.id && captainType === getPlayer("CM1")?.assetType}
             />
             <DraftFieldPlayer
               position="FLEX"
@@ -364,6 +372,7 @@ export function DraftField({
               onClick={onPositionClick ? () => handlePositionClick("FLEX") : undefined}
               className={playerSizeClass}
               isCaptain={captainId === getPlayer("FLEX")?.id && captainType === getPlayer("FLEX")?.assetType}
+              hasFirstGoalBonus={hasFirstGoalBonus && captainId === getPlayer("FLEX")?.id && captainType === getPlayer("FLEX")?.assetType}
             />
             <DraftFieldPlayer
               position="CM2"
@@ -373,6 +382,7 @@ export function DraftField({
               onClick={onPositionClick ? () => handlePositionClick("CM2") : undefined}
               className={playerSizeClass}
               isCaptain={captainId === getPlayer("CM2")?.id && captainType === getPlayer("CM2")?.assetType}
+              hasFirstGoalBonus={hasFirstGoalBonus && captainId === getPlayer("CM2")?.id && captainType === getPlayer("CM2")?.assetType}
             />
           </div>
 
@@ -389,6 +399,7 @@ export function DraftField({
               onClick={onPositionClick ? () => handlePositionClick("CB1") : undefined}
               className={playerSizeClass}
               isCaptain={captainId === getPlayer("CB1")?.id && captainType === getPlayer("CB1")?.assetType}
+              hasFirstGoalBonus={hasFirstGoalBonus && captainId === getPlayer("CB1")?.id && captainType === getPlayer("CB1")?.assetType}
             />
             <DraftFieldPlayer
               position="CB2"
@@ -398,6 +409,7 @@ export function DraftField({
               onClick={onPositionClick ? () => handlePositionClick("CB2") : undefined}
               className={playerSizeClass}
               isCaptain={captainId === getPlayer("CB2")?.id && captainType === getPlayer("CB2")?.assetType}
+              hasFirstGoalBonus={hasFirstGoalBonus && captainId === getPlayer("CB2")?.id && captainType === getPlayer("CB2")?.assetType}
             />
           </div>
 
@@ -411,6 +423,7 @@ export function DraftField({
               onClick={onPositionClick ? () => handlePositionClick("GK") : undefined}
               className={playerSizeClass}
               isCaptain={captainId === getPlayer("GK")?.id && captainType === getPlayer("GK")?.assetType}
+              hasFirstGoalBonus={hasFirstGoalBonus && captainId === getPlayer("GK")?.id && captainType === getPlayer("GK")?.assetType}
             />
           </div>
         </div>
