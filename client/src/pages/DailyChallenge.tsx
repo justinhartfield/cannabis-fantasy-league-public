@@ -1587,8 +1587,9 @@ export default function DailyChallenge() {
                                 components: item.breakdown?.components || [],
                                 bonuses: item.breakdown?.bonuses || [],
                                 penalties: item.breakdown?.penalties || [],
-                                subtotal: item.breakdown?.subtotal || 0,
-                                total: item.breakdown?.total ?? item.totalPoints ?? 0,
+                                subtotal: item.totalPoints ?? item.breakdown?.subtotal ?? 0,
+                                // Use totalPoints from position points (source of truth) over breakdown row
+                                total: item.totalPoints ?? item.breakdown?.total ?? 0,
                                 trendMultiplier: item.breakdown?.trendMultiplier,
                                 streakDays: item.breakdown?.streakDays,
                                 marketSharePercent: item.breakdown?.marketSharePercent,
