@@ -61,6 +61,22 @@ function formatTimeRemaining(targetTime: Date): { hours: number; minutes: number
   };
 }
 
+function formatHalftimeMessage(halftimeAt: string | null | undefined, durationHours: number | undefined): string {
+  // For 24h games, use the themed 4:20 PM message
+  if (durationHours === 24) {
+    return 'Halftime at 4:20 PM';
+  }
+  
+  // For other durations, format the actual halftime time
+  if (halftimeAt) {
+    const halftime = new Date(halftimeAt);
+    return `Halftime at ${halftime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+  }
+  
+  // Fallback
+  return 'Halftime coming up';
+}
+
 export function GamePhaseIndicator({ data, overtimeData, className }: GamePhaseIndicatorProps) {
   const [time, setTime] = useState({ hours: 0, minutes: 0, seconds: 0, total: 0 });
   const [pulse, setPulse] = useState(false);
@@ -155,7 +171,7 @@ export function GamePhaseIndicator({ data, overtimeData, className }: GamePhaseI
                   {data.phase === 'complete' && 'FINAL'}
                 </div>
                 <div className="text-white/60 text-sm">
-                  {data.phase === 'first_half' && 'Halftime at 4:20 PM'}
+                  {data.phase === 'first_half' && formatHalftimeMessage(data.halftimeAt, data.durationHours)}
                   {data.phase === 'halftime_window' && 'Make your substitutions!'}
                   {data.phase === 'second_half' && 'Push for the win!'}
                   {data.phase === 'overtime' && 'SUDDEN DEATH - First to 25pt lead wins!'}

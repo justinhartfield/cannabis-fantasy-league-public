@@ -210,10 +210,13 @@ export async function takeHalftimeSnapshot(challengeId: number): Promise<Halftim
     };
 
     // Broadcast halftime event via WebSocket
+    const halftimeMessage = challenge.durationHours === 24 
+      ? '🌿 HALFTIME! 4:20 - Time for lineup adjustments!'
+      : '🌿 HALFTIME! Time for lineup adjustments!';
     wsManager.notifyChallenge(challengeId, 'halftime', {
       type: 'halftime_snapshot',
       ...snapshot,
-      message: '🌿 HALFTIME! 4:20 - Time for lineup adjustments!'
+      message: halftimeMessage
     });
 
     console.log(`[HalftimeService] Halftime snapshot for challenge ${challengeId}: Team1=${scores[0].points}, Team2=${scores[1].points}`);
@@ -269,7 +272,10 @@ export async function makeSubstitution(request: SubstitutionRequest): Promise<Su
 
     // Must be past halftime but not complete
     if (!challenge.isHalftimePassed) {
-      return { success: false, message: 'Halftime has not passed yet. Wait for 4:20 PM!' };
+      const halftimeMsg = challenge.durationHours === 24 
+        ? 'Halftime has not passed yet. Wait for 4:20 PM!'
+        : 'Halftime has not passed yet.';
+      return { success: false, message: halftimeMsg };
     }
 
     if (challenge.status === 'complete') {
