@@ -8,7 +8,7 @@ import { router, protectedProcedure } from './_core/trpc';
 import { z } from 'zod';
 import { getDb } from './db';
 import { strainDailyChallengeStats } from '../drizzle/dailyChallengeSchema';
-import { cannabisStrains } from '../drizzle/schema';
+import { cannabisStrains, rosters, weeklyLineups, teams, leagues } from '../drizzle/schema';
 import { eq, desc } from 'drizzle-orm';
 
 export const debugRouter = router({
@@ -149,6 +149,85 @@ export const debugRouter = router({
         date: targetDate,
         fixed,
         message: `Fixed ${fixed} entities with trendMultiplier=0`,
+      };
+    }),
+
+  /**
+   * Check challenge rosters and lineups for debugging
+   */
+  checkChallengeRosters: protectedProcedure
+    .input(z.object({
+      challengeId: z.number(),
+    }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) {
+        throw new Error('Database not available');
+      }
+
+      // Get challenge info
+      const [challenge] = await db
+        .select()
+        .from(leagues)
+        .where(eq(leagues.id, input.challengeId))
+        .limit(1);
+
+      if (!challenge) {
+        return { error: 'Challenge not found' };
+      }
+
+      // Get teams
+      const challengeTeams = await db
+        .select()
+        .from(teams)
+        .where(eq(teams.leagueId, input.challengeId));
+
+      const teamData = [];
+
+      for (const team of challengeTeams) {
+        // Get roster
+        const roster = await db
+          .select()
+          .from(rosters)
+          .where(eq(rosters.teamId, team.id));
+
+        // Get lineup
+        const [lineup] = await db
+          .select()
+          .from(weeklyLineups)
+          .where(eq(weeklyLineups.teamId, team.id))
+          .limit(1);
+
+        teamData.push({
+          teamId: team.id,
+          teamName: team.name,
+          userId: team.userId,
+          rosterCount: roster.length,
+          rosterAssets: roster.map(r => ({ type: r.assetType, id: r.assetId })),
+          hasLineup: !!lineup,
+          lineupYear: lineup?.year,
+          lineupWeek: lineup?.week,
+          lineupSlots: lineup ? {
+            mfg1: lineup.mfg1Id,
+            mfg2: lineup.mfg2Id,
+            cstr1: lineup.cstr1Id,
+            cstr2: lineup.cstr2Id,
+            prd1: lineup.prd1Id,
+            prd2: lineup.prd2Id,
+            phm1: lineup.phm1Id,
+            phm2: lineup.phm2Id,
+            brd1: lineup.brd1Id,
+            flex: lineup.flexId,
+          } : null,
+        });
+      }
+
+      return {
+        challengeId: input.challengeId,
+        challengeName: challenge.name,
+        seasonYear: challenge.seasonYear,
+        currentWeek: challenge.currentWeek,
+        teams: teamData,
       };
     }),
 });

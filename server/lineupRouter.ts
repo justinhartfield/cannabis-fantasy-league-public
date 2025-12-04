@@ -2,7 +2,7 @@ import { z } from "zod";
 import { eq, and } from "drizzle-orm";
 import { protectedProcedure, router } from "./_core/trpc";
 import { getDb } from "./db";
-import { weeklyLineups, weeklyTeamScores, rosters, manufacturers, cannabisStrains, strains, pharmacies, brands, teams, leagues } from "../drizzle/schema";
+import { weeklyLineups, weeklyTeamScores, rosters, draftPicks, manufacturers, cannabisStrains, strains, pharmacies, brands, teams, leagues } from "../drizzle/schema";
 
 /**
  * Lineup Router
@@ -42,14 +42,64 @@ export const lineupRouter = router({
         )
         .limit(1);
 
-      if (!lineup) {
+      // Check if lineup exists but is completely empty (all null)
+      const lineupIsEmpty = lineup && !lineup.mfg1Id && !lineup.mfg2Id && 
+        !lineup.cstr1Id && !lineup.cstr2Id && !lineup.prd1Id && !lineup.prd2Id && 
+        !lineup.phm1Id && !lineup.phm2Id && !lineup.brd1Id && !lineup.flexId;
+
+      if (!lineup || lineupIsEmpty) {
         // Try to auto-populate from roster first
-        console.log(`[getWeeklyLineup] No lineup found for team ${input.teamId}, attempting auto-populate from roster...`);
+        console.log(`[getWeeklyLineup] No lineup found for team ${input.teamId}, year=${input.year}, week=${input.week}. Attempting auto-populate from roster...`);
         
-        const teamRoster = await db
+        let teamRoster = await db
           .select()
           .from(rosters)
           .where(eq(rosters.teamId, input.teamId));
+        
+        console.log(`[getWeeklyLineup] Found ${teamRoster.length} roster entries for team ${input.teamId}`);
+
+        // If roster is empty, try to get from draftPicks and also populate roster
+        if (teamRoster.length === 0) {
+          console.log(`[getWeeklyLineup] Roster empty, checking draftPicks for team ${input.teamId}...`);
+          
+          // Get team to find league ID
+          const [team] = await db.select().from(teams).where(eq(teams.id, input.teamId)).limit(1);
+          
+          if (team) {
+            const picks = await db
+              .select()
+              .from(draftPicks)
+              .where(and(
+                eq(draftPicks.teamId, input.teamId),
+                eq(draftPicks.leagueId, team.leagueId)
+              ));
+
+            console.log(`[getWeeklyLineup] Found ${picks.length} draft picks for team ${input.teamId}`);
+
+            if (picks.length > 0) {
+              // Create roster entries from draft picks
+              const rosterEntries = picks.map(pick => ({
+                teamId: input.teamId,
+                assetType: pick.assetType,
+                assetId: pick.assetId,
+                acquiredWeek: 1,
+                acquiredVia: "draft" as const,
+              }));
+
+              await db.insert(rosters).values(rosterEntries);
+              console.log(`[getWeeklyLineup] Created ${rosterEntries.length} roster entries from draft picks`);
+
+              // Refresh roster
+              teamRoster = await db
+                .select()
+                .from(rosters)
+                .where(eq(rosters.teamId, input.teamId));
+            }
+          }
+        }
+        
+        console.log(`[getWeeklyLineup] Final roster for team ${input.teamId}:`, 
+          teamRoster.map(r => `${r.assetType}:${r.assetId}`).join(', '));
 
         // Group roster by asset type
         const rosterMfgs = teamRoster.filter(r => r.assetType === 'manufacturer');
@@ -92,8 +142,20 @@ export const lineupRouter = router({
 
         console.log(`[getWeeklyLineup] Auto-populating lineup with ${teamRoster.length} roster players`);
 
-        const [inserted] = await db.insert(weeklyLineups).values(lineupData).returning();
-        lineup = inserted;
+        if (lineup && lineupIsEmpty) {
+          // Update existing empty lineup
+          console.log(`[getWeeklyLineup] Updating existing empty lineup for team ${input.teamId}`);
+          const [updated] = await db
+            .update(weeklyLineups)
+            .set(lineupData)
+            .where(eq(weeklyLineups.id, lineup.id))
+            .returning();
+          lineup = updated;
+        } else {
+          // Insert new lineup
+          const [inserted] = await db.insert(weeklyLineups).values(lineupData).returning();
+          lineup = inserted;
+        }
       }
 
       // Fetch weekly team scores for this lineup
