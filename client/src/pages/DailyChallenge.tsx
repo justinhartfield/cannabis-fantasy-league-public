@@ -289,25 +289,12 @@ export default function DailyChallenge() {
     return new Date(league.createdAt).toISOString().split('T')[0];
   }, [league]);
   
-  // Calculate ISO year/week from the challenge's stat date
-  // This MUST match the server-side getIsoYearWeek function exactly
-  const { currentYear, currentWeek } = useMemo(() => {
-    if (!statDate) {
-      return { currentYear: new Date().getFullYear(), currentWeek: 1 };
-    }
-    const date = new Date(`${statDate}T00:00:00Z`);
-    
-    // Exact copy of server-side getIsoYearWeek algorithm
-    const tempDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-    const dayNum = tempDate.getUTCDay() || 7;
-    tempDate.setUTCDate(tempDate.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(tempDate.getUTCFullYear(), 0, 1));
-    const week = Math.ceil((((tempDate.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-    const year = tempDate.getUTCFullYear();
-    
-    console.log(`[DailyChallenge] ISO week for ${statDate}: year=${year}, week=${week}`);
-    return { currentYear: year, currentWeek: week };
-  }, [statDate]);
+  // Use league's seasonYear and currentWeek directly to match how lineups are saved
+  // This ensures we query the same year/week that the draft saved the lineup under
+  const currentYear = league?.seasonYear || new Date().getFullYear();
+  const currentWeek = league?.currentWeek || 1;
+  
+  console.log(`[DailyChallenge] Using league year=${currentYear}, week=${currentWeek} for lineup query`);
   const challengeDateLabel = useMemo(() => {
     if (!statDate) return new Date().toLocaleDateString();
     return new Date(statDate).toLocaleDateString();

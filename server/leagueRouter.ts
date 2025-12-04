@@ -7,6 +7,7 @@ import { TRPCError } from "@trpc/server";
 import { wsManager } from "./websocket";
 import { completeReferralIfEligible } from "./referralService";
 import halftimeService from "./halftimeService";
+import { autoDraftChallenge } from "./challengeAutoDraft";
 
 /**
  * Generate a random 6-character alphanumeric league code
@@ -550,6 +551,24 @@ export const leagueRouter = router({
               winnerTeamName: firstTeam.name,
             });
           }, 500);
+
+          // Auto-draft players for both teams in the challenge
+          try {
+            console.log(`[LeagueRouter] Starting auto-draft for challenge ${league.id}`);
+            const draftResult = await autoDraftChallenge(league.id);
+            console.log(`[LeagueRouter] Auto-draft complete:`, draftResult.message);
+            
+            // Broadcast that draft is complete and game is starting
+            wsManager.broadcastToLeague(league.id, {
+              type: 'challenge_draft_complete',
+              leagueId: league.id,
+              team1Roster: draftResult.team1Result.roster.length,
+              team2Roster: draftResult.team2Result.roster.length,
+            });
+          } catch (draftError) {
+            console.error(`[LeagueRouter] Auto-draft failed for challenge ${league.id}:`, draftError);
+            // Don't throw - the challenge can still proceed, just without auto-draft
+          }
         } else {
           // For non-challenge leagues, broadcast participant joined event
           wsManager.broadcastToLeague(league.id, {
