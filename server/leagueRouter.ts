@@ -1497,4 +1497,153 @@ export const leagueRouter = router({
         return { remaining: 0, max: 2 };
       }
     }),
+
+  /**
+   * Get bench assets for halftime substitutions
+   * Returns roster assets that are NOT currently in the active lineup
+   */
+  getBenchAssets: protectedProcedure
+    .input(z.object({
+      teamId: z.number(),
+      year: z.number(),
+      week: z.number(),
+    }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Database not available",
+        });
+      }
+
+      try {
+        const { rosters, weeklyLineups, manufacturers, cannabisStrains, strains, pharmacies, brands } = await import("../drizzle/schema");
+
+        // Get the team's full roster
+        const rosterEntries = await db
+          .select()
+          .from(rosters)
+          .where(eq(rosters.teamId, input.teamId));
+
+        // Get the current lineup
+        const [lineup] = await db
+          .select()
+          .from(weeklyLineups)
+          .where(and(
+            eq(weeklyLineups.teamId, input.teamId),
+            eq(weeklyLineups.year, input.year),
+            eq(weeklyLineups.week, input.week)
+          ))
+          .limit(1);
+
+        // Build a set of asset IDs that are in the active lineup
+        const activeAssetKeys = new Set<string>();
+        if (lineup) {
+          // Manufacturers
+          if (lineup.mfg1Id) activeAssetKeys.add(`manufacturer:${lineup.mfg1Id}`);
+          if (lineup.mfg2Id) activeAssetKeys.add(`manufacturer:${lineup.mfg2Id}`);
+          // Cannabis Strains
+          if (lineup.cstr1Id) activeAssetKeys.add(`cannabis_strain:${lineup.cstr1Id}`);
+          if (lineup.cstr2Id) activeAssetKeys.add(`cannabis_strain:${lineup.cstr2Id}`);
+          // Products
+          if (lineup.prd1Id) activeAssetKeys.add(`product:${lineup.prd1Id}`);
+          if (lineup.prd2Id) activeAssetKeys.add(`product:${lineup.prd2Id}`);
+          // Pharmacies
+          if (lineup.phm1Id) activeAssetKeys.add(`pharmacy:${lineup.phm1Id}`);
+          if (lineup.phm2Id) activeAssetKeys.add(`pharmacy:${lineup.phm2Id}`);
+          // Brand
+          if (lineup.brd1Id) activeAssetKeys.add(`brand:${lineup.brd1Id}`);
+          // Flex
+          if (lineup.flexId && lineup.flexType) {
+            activeAssetKeys.add(`${lineup.flexType}:${lineup.flexId}`);
+          }
+        }
+
+        // Filter roster to only include assets NOT in the active lineup
+        const benchRosterEntries = rosterEntries.filter(entry => {
+          const key = `${entry.assetType}:${entry.assetId}`;
+          return !activeAssetKeys.has(key);
+        });
+
+        // Fetch asset details for bench assets
+        const benchAssets = await Promise.all(
+          benchRosterEntries.map(async (entry) => {
+            let assetDetails = null;
+            let imageUrl: string | null = null;
+
+            switch (entry.assetType) {
+              case "manufacturer": {
+                const [mfg] = await db
+                  .select()
+                  .from(manufacturers)
+                  .where(eq(manufacturers.id, entry.assetId))
+                  .limit(1);
+                assetDetails = mfg;
+                imageUrl = mfg?.logoUrl || null;
+                break;
+              }
+              case "cannabis_strain": {
+                const [strain] = await db
+                  .select()
+                  .from(cannabisStrains)
+                  .where(eq(cannabisStrains.id, entry.assetId))
+                  .limit(1);
+                assetDetails = strain;
+                imageUrl = strain?.imageUrl || null;
+                break;
+              }
+              case "product": {
+                const [product] = await db
+                  .select()
+                  .from(strains)
+                  .where(eq(strains.id, entry.assetId))
+                  .limit(1);
+                assetDetails = product;
+                imageUrl = product?.imageUrl || null;
+                break;
+              }
+              case "pharmacy": {
+                const [phm] = await db
+                  .select()
+                  .from(pharmacies)
+                  .where(eq(pharmacies.id, entry.assetId))
+                  .limit(1);
+                assetDetails = phm;
+                imageUrl = phm?.logoUrl || null;
+                break;
+              }
+              case "brand": {
+                const [brand] = await db
+                  .select()
+                  .from(brands)
+                  .where(eq(brands.id, entry.assetId))
+                  .limit(1);
+                assetDetails = brand;
+                imageUrl = brand?.logoUrl || null;
+                break;
+              }
+            }
+
+            return {
+              id: entry.id,
+              assetType: entry.assetType,
+              assetId: entry.assetId,
+              assetName: assetDetails?.name || "Unknown",
+              imageUrl,
+              points: 0, // Points will be calculated based on current game stats
+              position: 'bench', // Not in active lineup
+            };
+          })
+        );
+
+        return benchAssets;
+      } catch (error) {
+        console.error("[LeagueRouter] Error getting bench assets:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to get bench assets",
+        });
+      }
+    }),
 });

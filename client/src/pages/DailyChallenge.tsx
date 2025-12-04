@@ -552,6 +552,12 @@ export default function DailyChallenge() {
     { enabled: !!userTeamId && !!gamePhaseData?.isHalftimePassed && !gamePhaseData?.isInOvertime }
   );
 
+  // Fetch bench assets for halftime substitutions
+  const { data: benchAssetsData, refetch: refetchBenchAssets } = trpc.league.getBenchAssets.useQuery(
+    { teamId: userTeamId || 0, year: currentYear, week: currentWeek },
+    { enabled: !!userTeamId && !!gamePhaseData?.isHalftimePassed && !gamePhaseData?.isInOvertime }
+  );
+
   // Function to play next scoring play from queue (single play with extended timing)
   const playNextScoringPlay = useCallback(() => {
     // Move to next play in queue
@@ -1261,8 +1267,13 @@ export default function DailyChallenge() {
               phase: gamePhaseData.phase as GamePhaseData['phase'],
               halftimeAt: gamePhaseData.halftimeAt,
               endTime: gamePhaseData.endTime,
-              halftimeScoreTeam1: gamePhaseData.halftimeScoreTeam1,
-              halftimeScoreTeam2: gamePhaseData.halftimeScoreTeam2,
+              // Reorder halftime scores to match displayed team order (leader first, challenger second)
+              halftimeScoreTeam1: leader?.teamId === gamePhaseData.halftimeTeam1Id 
+                ? gamePhaseData.halftimeScoreTeam1 
+                : gamePhaseData.halftimeScoreTeam2,
+              halftimeScoreTeam2: leader?.teamId === gamePhaseData.halftimeTeam1Id 
+                ? gamePhaseData.halftimeScoreTeam2 
+                : gamePhaseData.halftimeScoreTeam1,
               isHalftimePassed: gamePhaseData.isHalftimePassed,
               isInOvertime: gamePhaseData.isInOvertime,
               overtimeEndTime: gamePhaseData.overtimeEndTime,
@@ -1481,13 +1492,7 @@ export default function DailyChallenge() {
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
                 Scoring Breakdown
               </h3>
-              {/* Captain Selection Hint */}
-              {isUserTeamSelected && !userTeamHasCaptain && (
-                <div className="flex items-center gap-2 text-xs text-yellow-400 animate-pulse">
-                  <Crown className="w-4 h-4" />
-                  <span>Click a player to make them Captain (2.5x Momentum Score)</span>
-                </div>
-              )}
+              {/* Captain badge indicator - captain is selected during Live Draft */}
               {isUserTeamSelected && userTeamHasCaptain && (
                 <div className="flex items-center gap-2 text-xs text-green-400">
                   <Crown className="w-4 h-4" />
@@ -1529,8 +1534,8 @@ export default function DailyChallenge() {
                         const hasFirstGoalBonus = isCaptain && item.breakdown?.bonuses?.some(
                           (b: any) => b.type?.includes('First Goal') || b.type === 'first_goal_bonus'
                         );
-                        // Can select as captain if: user's team, no captain set yet, not already captain
-                        const canSelectAsCaptain = isUserTeamSelected && !userTeamHasCaptain && !isCaptain;
+                        // Captain selection is only available during Live Draft, not during the challenge
+                        const canSelectAsCaptain = false;
 
                         return (
                           <div
@@ -1646,12 +1651,21 @@ export default function DailyChallenge() {
             points: s.points || 0,
             position: s.position,
           }))}
-          benchAssets={[]} // TODO: Fetch bench assets from roster
+          benchAssets={(benchAssetsData || []).map(asset => ({
+            id: asset.id,
+            assetType: asset.assetType,
+            assetId: asset.assetId,
+            assetName: asset.assetName,
+            imageUrl: asset.imageUrl,
+            points: asset.points,
+            position: asset.position,
+          }))}
           remainingSubstitutions={subsData?.remaining || 0}
           onSubstitutionComplete={() => {
             refetchSubs();
             refetchLineup();
             refetchBreakdown();
+            refetchBenchAssets();
           }}
         />
       )}

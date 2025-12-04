@@ -24,6 +24,9 @@ export interface GamePhaseData {
   endTime?: string | null;
   halftimeScoreTeam1?: number | null;
   halftimeScoreTeam2?: number | null;
+  // Team IDs to match halftime scores to displayed teams
+  halftimeTeam1Id?: number | null;
+  halftimeTeam2Id?: number | null;
   isHalftimePassed?: boolean;
   isInOvertime?: boolean;
   overtimeEndTime?: string | null;
@@ -89,7 +92,7 @@ export function GamePhaseIndicator({ data, overtimeData, className }: GamePhaseI
       if (data.phase === 'overtime' && data.overtimeEndTime) {
         targetTime = new Date(data.overtimeEndTime);
       } else if (data.phase === 'halftime_window' && data.halftimeAt) {
-        targetTime = new Date(new Date(data.halftimeAt).getTime() + 15 * 60 * 1000);
+        targetTime = new Date(new Date(data.halftimeAt).getTime() + 30 * 60 * 1000);
       } else if (data.phase === 'first_half' && data.halftimeAt) {
         targetTime = new Date(data.halftimeAt);
       } else if (data.phase === 'second_half' && data.endTime) {

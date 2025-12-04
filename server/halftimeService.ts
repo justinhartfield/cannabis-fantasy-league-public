@@ -151,11 +151,12 @@ export async function takeHalftimeSnapshot(challengeId: number): Promise<Halftim
       return null;
     }
 
-    // Get teams
+    // Get teams in consistent order (by ID) to ensure halftime scores match correctly
     const challengeTeams = await db
       .select()
       .from(teams)
       .where(eq(teams.leagueId, challengeId))
+      .orderBy(teams.id)
       .limit(2);
 
     if (challengeTeams.length < 2) {
@@ -453,12 +454,20 @@ export async function getHalftimeStatus(challengeId: number) {
   } else if (challenge.isHalftimePassed) {
     phase = 'second_half';
   } else if (halftimeAt && now >= halftimeAt) {
-    // In halftime window (15 min window for subs)
-    const halftimeWindowEnd = new Date(halftimeAt.getTime() + 15 * 60 * 1000);
+    // In halftime window (30 min window for subs)
+    const halftimeWindowEnd = new Date(halftimeAt.getTime() + 30 * 60 * 1000);
     phase = now <= halftimeWindowEnd ? 'halftime_window' : 'second_half';
   }
 
   const isPowerHour = challenge.durationHours === 24 && isInPowerHour(challenge.durationHours || 24);
+
+  // Get the teams in consistent order (by ID) to match halftime score storage
+  const challengeTeams = await db
+    .select()
+    .from(teams)
+    .where(eq(teams.leagueId, challengeId))
+    .orderBy(teams.id)
+    .limit(2);
 
   return {
     challengeId,
@@ -467,6 +476,9 @@ export async function getHalftimeStatus(challengeId: number) {
     endTime,
     halftimeScoreTeam1: challenge.halftimeScoreTeam1,
     halftimeScoreTeam2: challenge.halftimeScoreTeam2,
+    // Include team IDs so frontend can match scores to displayed teams
+    halftimeTeam1Id: challengeTeams[0]?.id ?? null,
+    halftimeTeam2Id: challengeTeams[1]?.id ?? null,
     isHalftimePassed: challenge.isHalftimePassed,
     isInOvertime: challenge.isInOvertime,
     isPowerHour,
