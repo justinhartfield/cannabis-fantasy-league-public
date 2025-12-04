@@ -54,6 +54,7 @@ export default function CreateLeague() {
     seasonLength: 18,
     isPublic: false,
     leagueType: "season" as "season" | "challenge",
+    gameMode: "b2b" as "b2b" | "public", // B2B (traditional) or Public (strain fantasy)
     // Challenge timing fields
     durationHours: 24,
     challengeStartTime: "", // ISO datetime
@@ -150,6 +151,47 @@ export default function CreateLeague() {
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Game Mode Selection */}
+              <div className="space-y-2">
+                <Label>Spiel-Modus</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, gameMode: "b2b" })}
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      formData.gameMode === "b2b"
+                        ? "border-primary bg-primary/10"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <div className="flex flex-col items-center gap-2">
+                      <Trophy className="w-6 h-6" />
+                      <span className="font-semibold">B2B Modus</span>
+                      <span className="text-xs text-muted-foreground text-center">
+                        Hersteller, Apotheken, Produkte, Marken
+                      </span>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, gameMode: "public" })}
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      formData.gameMode === "public"
+                        ? "border-primary bg-primary/10"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <div className="flex flex-col items-center gap-2">
+                      <Zap className="w-6 h-6" />
+                      <span className="font-semibold">Public Modus</span>
+                      <span className="text-xs text-muted-foreground text-center">
+                        Strains, Effekte, Terpene (Community)
+                      </span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
               {/* League Type Toggle */}
               <div className="space-y-2">
                 <Label>Liga-Typ</Label>
