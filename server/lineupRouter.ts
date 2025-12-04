@@ -30,7 +30,7 @@ export const lineupRouter = router({
       if (!db) throw new Error("Database not available");
 
       // Fetch lineup
-      const [lineup] = await db
+      let [lineup] = await db
         .select()
         .from(weeklyLineups)
         .where(
@@ -43,36 +43,57 @@ export const lineupRouter = router({
         .limit(1);
 
       if (!lineup) {
-        // Create empty lineup if it doesn't exist
-        await db
-          .insert(weeklyLineups)
-          .values({
-            teamId: input.teamId,
-            year: input.year,
-            week: input.week,
-            isLocked: 0, // Changed from false to 0 (integer)
-          });
+        // Try to auto-populate from roster first
+        console.log(`[getWeeklyLineup] No lineup found for team ${input.teamId}, attempting auto-populate from roster...`);
+        
+        const teamRoster = await db
+          .select()
+          .from(rosters)
+          .where(eq(rosters.teamId, input.teamId));
 
-        return {
+        // Group roster by asset type
+        const rosterMfgs = teamRoster.filter(r => r.assetType === 'manufacturer');
+        const rosterStrains = teamRoster.filter(r => r.assetType === 'cannabis_strain');
+        const rosterProducts = teamRoster.filter(r => r.assetType === 'product');
+        const rosterPharmacies = teamRoster.filter(r => r.assetType === 'pharmacy');
+        const rosterBrands = teamRoster.filter(r => r.assetType === 'brand');
+
+        // Build lineup from roster
+        const lineupData: any = {
           teamId: input.teamId,
           year: input.year,
           week: input.week,
-          isLocked: false,
-          captainId: null,
-          captainType: null,
-          lineup: [
-            { position: "MFG1", assetType: "manufacturer" as const, assetId: null, assetName: null, points: 0, locked: false },
-            { position: "MFG2", assetType: "manufacturer" as const, assetId: null, assetName: null, points: 0, locked: false },
-            { position: "CSTR1", assetType: "cannabis_strain" as const, assetId: null, assetName: null, points: 0, locked: false },
-            { position: "CSTR2", assetType: "cannabis_strain" as const, assetId: null, assetName: null, points: 0, locked: false },
-            { position: "PRD1", assetType: "product" as const, assetId: null, assetName: null, points: 0, locked: false },
-            { position: "PRD2", assetType: "product" as const, assetId: null, assetName: null, points: 0, locked: false },
-            { position: "PHM1", assetType: "pharmacy" as const, assetId: null, assetName: null, points: 0, locked: false },
-            { position: "PHM2", assetType: "pharmacy" as const, assetId: null, assetName: null, points: 0, locked: false },
-            { position: "BRD1", assetType: "brand" as const, assetId: null, assetName: null, points: 0, locked: false },
-            { position: "FLEX", assetType: null, assetId: null, assetName: null, points: 0, locked: false },
-          ],
+          isLocked: 0,
+          mfg1Id: rosterMfgs[0]?.assetId || null,
+          mfg2Id: rosterMfgs[1]?.assetId || null,
+          cstr1Id: rosterStrains[0]?.assetId || null,
+          cstr2Id: rosterStrains[1]?.assetId || null,
+          prd1Id: rosterProducts[0]?.assetId || null,
+          prd2Id: rosterProducts[1]?.assetId || null,
+          phm1Id: rosterPharmacies[0]?.assetId || null,
+          phm2Id: rosterPharmacies[1]?.assetId || null,
+          brd1Id: rosterBrands[0]?.assetId || null,
+          flexId: null,
+          flexType: null,
         };
+
+        // Find a flex candidate from remaining roster
+        const flexCandidates = [
+          ...rosterMfgs.slice(2),
+          ...rosterStrains.slice(2),
+          ...rosterProducts.slice(2),
+          ...rosterPharmacies.slice(2),
+          ...rosterBrands.slice(1),
+        ];
+        if (flexCandidates[0]) {
+          lineupData.flexId = flexCandidates[0].assetId;
+          lineupData.flexType = flexCandidates[0].assetType;
+        }
+
+        console.log(`[getWeeklyLineup] Auto-populating lineup with ${teamRoster.length} roster players`);
+
+        const [inserted] = await db.insert(weeklyLineups).values(lineupData).returning();
+        lineup = inserted;
       }
 
       // Fetch weekly team scores for this lineup
