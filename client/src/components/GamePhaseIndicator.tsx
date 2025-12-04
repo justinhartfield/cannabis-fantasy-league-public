@@ -132,9 +132,9 @@ export function GamePhaseIndicator({ data, overtimeData, className }: GamePhaseI
                 data.phase === 'second_half' && "bg-gradient-to-br from-purple-500 to-pink-600 shadow-purple-500/50",
                 data.phase === 'complete' && "bg-gradient-to-br from-gray-500 to-gray-600",
               )}>
-                {data.phase === 'first_half' && '🏈'}
+                {data.phase === 'first_half' && '🌱'}
                 {data.phase === 'halftime_window' && '🌿'}
-                {data.phase === 'second_half' && '⚡'}
+                {data.phase === 'second_half' && '💨'}
                 {data.phase === 'overtime' && '🔥'}
                 {data.phase === 'complete' && '🏆'}
               </div>
