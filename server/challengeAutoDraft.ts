@@ -33,6 +33,94 @@ interface AssetPick {
 }
 
 /**
+ * Ensure lineup exists for a team, creating if missing
+ */
+async function ensureLineupExists(
+  db: any, 
+  teamId: number, 
+  year: number, 
+  week: number, 
+  rosterEntries: { assetType: string; assetId: number }[]
+) {
+  // Check for existing lineup
+  const [existingLineup] = await db
+    .select()
+    .from(weeklyLineups)
+    .where(and(
+      eq(weeklyLineups.teamId, teamId),
+      eq(weeklyLineups.year, year),
+      eq(weeklyLineups.week, week)
+    ))
+    .limit(1);
+
+  // Check if lineup exists and has data
+  const lineupHasData = existingLineup && (
+    existingLineup.mfg1Id || existingLineup.mfg2Id ||
+    existingLineup.cstr1Id || existingLineup.cstr2Id ||
+    existingLineup.prd1Id || existingLineup.prd2Id ||
+    existingLineup.phm1Id || existingLineup.phm2Id ||
+    existingLineup.brd1Id || existingLineup.flexId
+  );
+
+  if (lineupHasData) {
+    console.log(`[ChallengeAutoDraft] Lineup already exists with data for team ${teamId}`);
+    return;
+  }
+
+  console.log(`[ChallengeAutoDraft] Creating/updating lineup for team ${teamId}...`);
+
+  // Group roster by asset type
+  const mfgPicks = rosterEntries.filter(r => r.assetType === 'manufacturer');
+  const strainPicks = rosterEntries.filter(r => r.assetType === 'cannabis_strain');
+  const prodPicks = rosterEntries.filter(r => r.assetType === 'product');
+  const pharmPicks = rosterEntries.filter(r => r.assetType === 'pharmacy');
+  const brandPicks = rosterEntries.filter(r => r.assetType === 'brand');
+
+  const lineupData: any = {
+    teamId,
+    year,
+    week,
+    locked: false,
+    mfg1Id: mfgPicks[0]?.assetId || null,
+    mfg2Id: mfgPicks[1]?.assetId || null,
+    cstr1Id: strainPicks[0]?.assetId || null,
+    cstr2Id: strainPicks[1]?.assetId || null,
+    prd1Id: prodPicks[0]?.assetId || null,
+    prd2Id: prodPicks[1]?.assetId || null,
+    phm1Id: pharmPicks[0]?.assetId || null,
+    phm2Id: pharmPicks[1]?.assetId || null,
+    brd1Id: brandPicks[0]?.assetId || null,
+    flexId: null,
+    flexType: null,
+  };
+
+  // Find flex from remaining roster
+  const usedIds = new Set([
+    mfgPicks[0]?.assetId, mfgPicks[1]?.assetId,
+    strainPicks[0]?.assetId, strainPicks[1]?.assetId,
+    prodPicks[0]?.assetId, prodPicks[1]?.assetId,
+    pharmPicks[0]?.assetId, pharmPicks[1]?.assetId,
+    brandPicks[0]?.assetId
+  ].filter(Boolean));
+
+  const flexCandidate = rosterEntries.find(r => !usedIds.has(r.assetId));
+  if (flexCandidate) {
+    lineupData.flexId = flexCandidate.assetId;
+    lineupData.flexType = flexCandidate.assetType;
+  }
+
+  if (existingLineup) {
+    await db.update(weeklyLineups)
+      .set(lineupData)
+      .where(eq(weeklyLineups.id, existingLineup.id));
+    console.log(`[ChallengeAutoDraft] Updated existing empty lineup for team ${teamId}`);
+  } else {
+    await db.insert(weeklyLineups).values(lineupData);
+    console.log(`[ChallengeAutoDraft] Created new lineup for team ${teamId}`);
+  }
+}
+
+/**
  * Get top-performing assets of each type for today
  * Falls back to random selection if no stats available
  */
@@ -187,6 +275,20 @@ export async function autoDraftForChallenge(
 
   console.log(`[ChallengeAutoDraft] Starting auto-draft for team ${teamId}, league ${leagueId}`);
 
+  // Get league info for year/week (needed for lineup creation)
+  const [league] = await db
+    .select()
+    .from(leagues)
+    .where(eq(leagues.id, leagueId))
+    .limit(1);
+
+  if (!league) {
+    console.error(`[ChallengeAutoDraft] ERROR: League ${leagueId} not found!`);
+    throw new Error(`League ${leagueId} not found`);
+  }
+
+  console.log(`[ChallengeAutoDraft] League found: year=${league.seasonYear}, week=${league.currentWeek}`);
+
   // Check if team already has a roster
   const existingRoster = await db
     .select()
@@ -195,10 +297,14 @@ export async function autoDraftForChallenge(
 
   if (existingRoster.length > 0) {
     console.log(`[ChallengeAutoDraft] Team ${teamId} already has ${existingRoster.length} roster entries`);
+    
+    // IMPORTANT: Even if roster exists, check if lineup exists and create if missing
+    await ensureLineupExists(db, teamId, league.seasonYear, league.currentWeek, existingRoster);
+    
     return { 
       success: true, 
       roster: existingRoster.map(r => ({ assetType: r.assetType, assetId: r.assetId, name: '' })),
-      message: "Team already has a roster" 
+      message: "Team already has a roster (lineup verified)" 
     };
   }
 
@@ -270,15 +376,8 @@ export async function autoDraftForChallenge(
     console.log(`[ChallengeAutoDraft] Inserted ${rosterEntries.length} roster entries`);
   }
 
-  // Get league info for year/week
-  const [league] = await db
-    .select()
-    .from(leagues)
-    .where(eq(leagues.id, leagueId))
-    .limit(1);
-
-  if (league) {
-    // Create lineup from roster
+  // Create lineup from roster (league already fetched at start of function)
+  {
     const lineupData: any = {
       teamId,
       year: league.seasonYear,
@@ -359,20 +458,28 @@ export async function autoDraftChallenge(leagueId: number): Promise<{
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
+  console.log(`[ChallengeAutoDraft] ========================================`);
   console.log(`[ChallengeAutoDraft] Starting challenge auto-draft for league ${leagueId}`);
 
-  // Get both teams
+  // Get both teams - ORDER BY ID to ensure consistent ordering
   const challengeTeams = await db
     .select()
     .from(teams)
-    .where(eq(teams.leagueId, leagueId));
+    .where(eq(teams.leagueId, leagueId))
+    .orderBy(teams.id);
 
   if (challengeTeams.length !== 2) {
+    console.error(`[ChallengeAutoDraft] ERROR: Expected 2 teams, found ${challengeTeams.length}`);
     throw new Error(`Challenge must have exactly 2 teams, found ${challengeTeams.length}`);
   }
 
+  console.log(`[ChallengeAutoDraft] Team 1: ${challengeTeams[0].name} (ID: ${challengeTeams[0].id}, User: ${challengeTeams[0].userId})`);
+  console.log(`[ChallengeAutoDraft] Team 2: ${challengeTeams[1].name} (ID: ${challengeTeams[1].id}, User: ${challengeTeams[1].userId})`);
+
   // Draft for team 1 first
+  console.log(`[ChallengeAutoDraft] Drafting for team 1: ${challengeTeams[0].name}...`);
   const team1Result = await autoDraftForChallenge(challengeTeams[0].id, leagueId);
+  console.log(`[ChallengeAutoDraft] Team 1 result: ${team1Result.message}, roster size: ${team1Result.roster.length}`);
   
   // Build exclusion map from team 1's picks
   const excludeIds = new Map<string, Set<number>>();
@@ -383,7 +490,9 @@ export async function autoDraftChallenge(leagueId: number): Promise<{
   }
 
   // Draft for team 2 (excluding team 1's picks)
+  console.log(`[ChallengeAutoDraft] Drafting for team 2: ${challengeTeams[1].name}...`);
   const team2Result = await autoDraftForChallenge(challengeTeams[1].id, leagueId, excludeIds);
+  console.log(`[ChallengeAutoDraft] Team 2 result: ${team2Result.message}, roster size: ${team2Result.roster.length}`);
 
   // Update league status to 'active' since both teams now have rosters
   await db.update(leagues)
@@ -391,6 +500,7 @@ export async function autoDraftChallenge(leagueId: number): Promise<{
     .where(eq(leagues.id, leagueId));
 
   console.log(`[ChallengeAutoDraft] Challenge ${leagueId} auto-draft complete. League status set to 'active'`);
+  console.log(`[ChallengeAutoDraft] ========================================`);
 
   return {
     success: true,

@@ -51,3 +51,4 @@ UPDATE "cannabisStrains" SET "imageUrl" = 'https://cfls.b-cdn.net/strains/zkittl
 
 
 
+

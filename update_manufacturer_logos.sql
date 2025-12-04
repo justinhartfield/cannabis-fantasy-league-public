@@ -72,3 +72,4 @@ UPDATE manufacturers SET "logoUrl" = 'https://cfls.b-cdn.net/manufacturers/marig
 
 
 
+
