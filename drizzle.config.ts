@@ -11,7 +11,7 @@ const connectionStringWithSSL = connectionString.includes('sslmode=')
   : `${connectionString}${connectionString.includes('?') ? '&' : '?'}sslmode=require`;
 
 export default defineConfig({
-  schema: "./drizzle/schema.ts",
+  schema: ["./drizzle/schema.ts", "./drizzle/publicModeSchema.ts"],
   out: "./drizzle",
   dialect: "postgresql",
   dbCredentials: {
