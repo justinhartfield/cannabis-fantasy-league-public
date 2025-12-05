@@ -35,7 +35,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { WeeklyCompetition } from "@/components/WeeklyCompetition";
-import { LiveTicker, MarketOverview, StockHeatMap } from "@/components/LiveTrading";
+import { LiveTicker, MarketOverview, StockHeatMap, HistoricalMarketOverview } from "@/components/LiveTrading";
 
 // Placeholder image for stocks without thumbnails
 const PLACEHOLDER_IMG = "https://images.unsplash.com/photo-1603909223429-69bb7101f420?w=100&h=100&fit=crop";
@@ -77,7 +77,7 @@ function StockCard({
                         />
                     </div>
                     <div className="text-right">
-                        <div className="text-xl font-bold text-white">€{closePrice.toFixed(2)}</div>
+                        <div className="text-xl font-bold text-white">{Math.round(closePrice)}</div>
                         <div className={cn(
                             "text-sm font-medium",
                             isPositive ? "text-emerald-400" : "text-red-400"
@@ -137,11 +137,11 @@ function HoldingCard({ holding, onSell }: HoldingCardProps) {
                     "text-xs font-bold",
                     isPositive ? "text-emerald-400" : "text-red-400"
                 )}>
-                    {isPositive ? '+' : ''}€{holding.profitLoss.toFixed(0)}
+                    {isPositive ? '+' : ''}{holding.profitLoss.toFixed(0)} pts
                 </span>
             </div>
             <div className="flex items-center justify-between text-[10px] text-zinc-500">
-                <span>{holding.shares.toFixed(0)} × €{holding.avgBuyPrice.toFixed(2)}</span>
+                <span>{holding.shares.toFixed(0)} shares @ {Math.round(holding.avgBuyPrice)} pts</span>
                 <Button
                     size="sm"
                     variant="ghost"
@@ -159,6 +159,8 @@ export default function StockMarket() {
     const { user } = useAuth();
     const [, setLocation] = useLocation();
     const [searchQuery, setSearchQuery] = useState("");
+    const [sortBy, setSortBy] = useState<'score' | 'change' | 'name'>('score');
+    const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
     const [tradeModal, setTradeModal] = useState<{
         open: boolean;
         action: 'buy' | 'sell';
@@ -228,9 +230,34 @@ export default function StockMarket() {
         setTradeModal({ open: true, action, asset, shares: 1 });
     };
 
-    const filteredStocks = stocks.filter(s =>
-        s.assetName?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    // Toggle sort
+    const toggleSort = (column: 'score' | 'change' | 'name') => {
+        if (sortBy === column) {
+            setSortDir(prev => prev === 'desc' ? 'asc' : 'desc');
+        } else {
+            setSortBy(column);
+            setSortDir(column === 'name' ? 'asc' : 'desc');
+        }
+    };
+
+    // Sort and filter stocks
+    const filteredStocks = [...stocks]
+        .filter(s => s.assetName?.toLowerCase().includes(searchQuery.toLowerCase()))
+        .sort((a, b) => {
+            let compare = 0;
+            switch (sortBy) {
+                case 'score':
+                    compare = a.closePrice - b.closePrice;
+                    break;
+                case 'change':
+                    compare = a.priceChangePercent - b.priceChangePercent;
+                    break;
+                case 'name':
+                    compare = a.assetName.localeCompare(b.assetName);
+                    break;
+            }
+            return sortDir === 'desc' ? -compare : compare;
+        });
 
     if (!user) {
         return (
@@ -270,21 +297,21 @@ export default function StockMarket() {
                         {portfolio && (
                             <div className="flex items-center gap-6">
                                 <div className="text-right">
-                                    <p className="text-zinc-400 text-xs uppercase tracking-wide">Cash</p>
-                                    <p className="text-lg font-bold text-white">€{portfolio.cashBalance.toFixed(2)}</p>
+                                    <p className="text-zinc-400 text-xs uppercase tracking-wide">Available Pts</p>
+                                    <p className="text-lg font-bold text-white">{Math.round(portfolio.cashBalance)} pts</p>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-zinc-400 text-xs uppercase tracking-wide">Holdings</p>
-                                    <p className="text-lg font-bold text-white">€{portfolio.holdingsValue.toFixed(2)}</p>
+                                    <p className="text-zinc-400 text-xs uppercase tracking-wide">Holdings Value</p>
+                                    <p className="text-lg font-bold text-white">{Math.round(portfolio.holdingsValue)} pts</p>
                                 </div>
                                 <div className="text-right px-4 py-2 rounded-lg bg-zinc-800/50">
-                                    <p className="text-zinc-400 text-xs uppercase tracking-wide">Total Value</p>
-                                    <p className="text-xl font-bold text-emerald-400">€{portfolio.totalValue.toFixed(2)}</p>
+                                    <p className="text-zinc-400 text-xs uppercase tracking-wide">Total Score</p>
+                                    <p className="text-xl font-bold text-emerald-400">{Math.round(portfolio.totalValue)} pts</p>
                                     <p className={cn(
                                         "text-xs",
                                         portfolio.totalProfitLoss >= 0 ? "text-emerald-400" : "text-red-400"
                                     )}>
-                                        {portfolio.totalProfitLoss >= 0 ? "+" : ""}€{portfolio.totalProfitLoss.toFixed(2)}
+                                        {portfolio.totalProfitLoss >= 0 ? "+" : ""}{Math.round(portfolio.totalProfitLoss)} pts
                                     </p>
                                 </div>
                             </div>
@@ -294,8 +321,9 @@ export default function StockMarket() {
             </div>
 
             {/* Market Overview */}
-            <div className="container mx-auto px-4 py-4">
+            <div className="container mx-auto px-4 py-4 space-y-4">
                 <MarketOverview stocks={stocks} />
+                <HistoricalMarketOverview />
             </div>
 
             {/* Main Content */}
@@ -369,7 +397,7 @@ export default function StockMarket() {
                                             </div>
                                             <div className="text-right">
                                                 <p className="text-sm font-medium text-emerald-400">
-                                                    €{trader.totalValue.toLocaleString()}
+                                                    {Math.round(trader.totalValue)} pts
                                                 </p>
                                                 <p className={cn(
                                                     "text-xs",
@@ -415,11 +443,35 @@ export default function StockMarket() {
                             </div>
                         ) : (
                             <div className="bg-zinc-900/50 rounded-xl border border-zinc-800 overflow-hidden">
-                                {/* Header */}
+                                {/* Header - Clickable for sorting */}
                                 <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-zinc-800/50 text-xs text-zinc-400 uppercase tracking-wide">
-                                    <div className="col-span-5">Strain</div>
-                                    <div className="col-span-2 text-right">Score</div>
-                                    <div className="col-span-2 text-right">Change</div>
+                                    <div
+                                        className="col-span-5 cursor-pointer hover:text-white flex items-center gap-1"
+                                        onClick={() => toggleSort('name')}
+                                    >
+                                        Strain
+                                        {sortBy === 'name' && (
+                                            <span className="text-emerald-400">{sortDir === 'asc' ? '↑' : '↓'}</span>
+                                        )}
+                                    </div>
+                                    <div
+                                        className="col-span-2 text-right cursor-pointer hover:text-white flex items-center justify-end gap-1"
+                                        onClick={() => toggleSort('score')}
+                                    >
+                                        Score
+                                        {sortBy === 'score' && (
+                                            <span className="text-emerald-400">{sortDir === 'asc' ? '↑' : '↓'}</span>
+                                        )}
+                                    </div>
+                                    <div
+                                        className="col-span-2 text-right cursor-pointer hover:text-white flex items-center justify-end gap-1"
+                                        onClick={() => toggleSort('change')}
+                                    >
+                                        Change
+                                        {sortBy === 'change' && (
+                                            <span className="text-emerald-400">{sortDir === 'asc' ? '↑' : '↓'}</span>
+                                        )}
+                                    </div>
                                     <div className="col-span-3 text-right">Action</div>
                                 </div>
 
@@ -503,26 +555,26 @@ export default function StockMarket() {
 
                     <div className="space-y-4 py-4">
                         <div className="flex justify-between items-center p-3 bg-zinc-800 rounded-lg">
-                            <span className="text-zinc-400">Current Price</span>
-                            <span className="text-lg font-bold">€{tradeModal.asset?.closePrice?.toFixed(2)}</span>
+                            <span className="text-zinc-400">Current Score</span>
+                            <span className="text-lg font-bold">{Math.round(tradeModal.asset?.closePrice || 0)} pts</span>
                         </div>
 
                         <div>
                             <label className="text-sm text-zinc-400 mb-1 block">Number of Shares</label>
                             <Input
                                 type="number"
-                                min="0.01"
-                                step="0.01"
+                                min="1"
+                                step="1"
                                 value={tradeModal.shares}
-                                onChange={(e) => setTradeModal(prev => ({ ...prev, shares: parseFloat(e.target.value) || 0 }))}
+                                onChange={(e) => setTradeModal(prev => ({ ...prev, shares: parseInt(e.target.value) || 1 }))}
                                 className="bg-zinc-800 border-zinc-700 text-white text-lg"
                             />
                         </div>
 
                         <div className="flex justify-between items-center p-3 bg-zinc-800/50 rounded-lg">
-                            <span className="text-zinc-400">Total Cost</span>
+                            <span className="text-zinc-400">Total Score Cost</span>
                             <span className="text-xl font-bold text-emerald-400">
-                                €{((tradeModal.asset?.closePrice || 0) * tradeModal.shares).toFixed(2)}
+                                {Math.round((tradeModal.asset?.closePrice || 0) * tradeModal.shares)} pts
                             </span>
                         </div>
                     </div>

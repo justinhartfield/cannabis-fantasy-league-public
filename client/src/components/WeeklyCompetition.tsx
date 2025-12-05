@@ -96,7 +96,7 @@ export function WeeklyCompetition() {
                                     ) : (
                                         <ArrowDownRight className="w-3 h-3" />
                                     )}
-                                    €{Math.abs(player.profitLoss).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    {player.profitLoss >= 0 ? '+' : ''}{Math.round(player.profitLoss)} pts
                                 </div>
                                 <div className="text-[10px] text-zinc-500">
                                     {player.trades} trades • {player.winRate.toFixed(0)}% win

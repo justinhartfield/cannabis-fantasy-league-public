@@ -865,4 +865,168 @@ export const stockMarketRouter = router({
                 }),
             };
         }),
+
+    /**
+     * Get historical market data with timeframe support
+     * Returns aggregated stats, type breakdowns, and historical chart data
+     */
+    getMarketHistory: publicProcedure
+        .input(z.object({
+            period: z.enum(['7d', '30d', '90d', '6m', '1y', 'all']).default('30d'),
+        }))
+        .query(async ({ input }) => {
+            const db = await getDb();
+            if (!db) return null;
+
+            const { strainDailyChallengeStats } = await import('../../drizzle/dailyChallengeSchema');
+
+            // Calculate date range based on period
+            const now = new Date();
+            let startDate = new Date();
+            switch (input.period) {
+                case '7d': startDate.setDate(now.getDate() - 7); break;
+                case '30d': startDate.setDate(now.getDate() - 30); break;
+                case '90d': startDate.setDate(now.getDate() - 90); break;
+                case '6m': startDate.setMonth(now.getMonth() - 6); break;
+                case '1y': startDate.setFullYear(now.getFullYear() - 1); break;
+                case 'all': startDate = new Date('2024-01-01'); break;
+            }
+            const startDateStr = startDate.toISOString().split('T')[0];
+
+            // Get historical data grouped by date with strain type info
+            const historicalData = await db
+                .select({
+                    statDate: strainDailyChallengeStats.statDate,
+                    strainId: strainDailyChallengeStats.strainId,
+                    orderCount: strainDailyChallengeStats.orderCount,
+                    rank: strainDailyChallengeStats.rank,
+                    trendMultiplier: strainDailyChallengeStats.trendMultiplier,
+                    consistencyScore: strainDailyChallengeStats.consistencyScore,
+                    streakDays: strainDailyChallengeStats.streakDays,
+                    strainType: cannabisStrains.type,
+                    terpenes: cannabisStrains.terpenes,
+                })
+                .from(strainDailyChallengeStats)
+                .innerJoin(cannabisStrains, eq(strainDailyChallengeStats.strainId, cannabisStrains.id))
+                .where(gte(strainDailyChallengeStats.statDate, startDateStr))
+                .orderBy(asc(strainDailyChallengeStats.statDate));
+
+            // Group by date for chart data
+            const dateMap = new Map<string, {
+                totalScore: number;
+                strainCount: number;
+                indica: number;
+                sativa: number;
+                hybrid: number;
+                totalOrders: number;
+            }>();
+
+            // Get total strain count for scoring
+            const [countResult] = await db
+                .select({ count: sql<number>`count(distinct ${strainDailyChallengeStats.strainId})` })
+                .from(strainDailyChallengeStats)
+                .where(gte(strainDailyChallengeStats.statDate, startDateStr));
+            const totalStrains = Number(countResult?.count) || 50;
+
+            // Calculate dynamic score for each strain
+            const calculateScore = (stats: any) => {
+                const orderScore = (stats.orderCount || 0) * 10;
+                const rankBonus = (totalStrains - (stats.rank || totalStrains)) * 5;
+                const trendMult = Number(stats.trendMultiplier || 1);
+                const momentumBonus = Math.round((trendMult - 1) * 50);
+                const consistencyBonus = Math.round((stats.consistencyScore || 0) / 5);
+                const streakBonus = Math.min(stats.streakDays || 0, 14) * 2;
+                return Math.max(10, orderScore + rankBonus + momentumBonus + consistencyBonus + streakBonus);
+            };
+
+            // Terpene tracking
+            const terpeneStats: Record<string, { totalScore: number; count: number }> = {};
+
+            for (const row of historicalData) {
+                const date = row.statDate;
+                const score = calculateScore(row);
+                const type = (row.strainType || 'hybrid').toLowerCase();
+
+                if (!dateMap.has(date)) {
+                    dateMap.set(date, {
+                        totalScore: 0,
+                        strainCount: 0,
+                        indica: 0,
+                        sativa: 0,
+                        hybrid: 0,
+                        totalOrders: 0,
+                    });
+                }
+
+                const dayData = dateMap.get(date)!;
+                dayData.totalScore += score;
+                dayData.strainCount++;
+                dayData.totalOrders += row.orderCount || 0;
+
+                // Type breakdown
+                if (type.includes('indica')) dayData.indica += score;
+                else if (type.includes('sativa')) dayData.sativa += score;
+                else dayData.hybrid += score;
+
+                // Parse terpenes
+                if (row.terpenes) {
+                    try {
+                        const terps = JSON.parse(row.terpenes);
+                        if (Array.isArray(terps)) {
+                            for (const terp of terps.slice(0, 3)) { // Top 3 terpenes
+                                const terpName = typeof terp === 'string' ? terp : terp.name;
+                                if (terpName) {
+                                    if (!terpeneStats[terpName]) terpeneStats[terpName] = { totalScore: 0, count: 0 };
+                                    terpeneStats[terpName].totalScore += score;
+                                    terpeneStats[terpName].count++;
+                                }
+                            }
+                        }
+                    } catch { }
+                }
+            }
+
+            // Convert to arrays for chart
+            const chartData = Array.from(dateMap.entries())
+                .sort((a, b) => a[0].localeCompare(b[0]))
+                .map(([date, data]) => ({
+                    date,
+                    avgScore: Math.round(data.totalScore / data.strainCount),
+                    indica: Math.round(data.indica / data.strainCount),
+                    sativa: Math.round(data.sativa / data.strainCount),
+                    hybrid: Math.round(data.hybrid / data.strainCount),
+                    totalOrders: data.totalOrders,
+                }));
+
+            // Top terpenes
+            const topTerpenes = Object.entries(terpeneStats)
+                .map(([name, stats]) => ({
+                    name,
+                    avgScore: Math.round(stats.totalScore / stats.count),
+                    count: stats.count,
+                }))
+                .sort((a, b) => b.avgScore - a.avgScore)
+                .slice(0, 8);
+
+            // Calculate period changes
+            const firstDay = chartData[0];
+            const lastDay = chartData[chartData.length - 1];
+            const periodChange = firstDay && lastDay
+                ? ((lastDay.avgScore - firstDay.avgScore) / firstDay.avgScore) * 100
+                : 0;
+
+            return {
+                period: input.period,
+                chartData,
+                topTerpenes,
+                summary: {
+                    currentAvgScore: lastDay?.avgScore || 0,
+                    periodChange: Math.round(periodChange * 10) / 10,
+                    totalDataPoints: chartData.length,
+                    indicaAvg: Math.round(chartData.reduce((s, d) => s + d.indica, 0) / chartData.length) || 0,
+                    sativaAvg: Math.round(chartData.reduce((s, d) => s + d.sativa, 0) / chartData.length) || 0,
+                    hybridAvg: Math.round(chartData.reduce((s, d) => s + d.hybrid, 0) / chartData.length) || 0,
+                },
+            };
+        }),
 });

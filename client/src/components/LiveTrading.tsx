@@ -57,7 +57,7 @@ export function LiveTicker({ stocks, speed = 50 }: LiveTickerProps) {
                                 "text-xs font-semibold",
                                 isUp ? "text-emerald-400" : "text-red-400"
                             )}>
-                                €{stock.closePrice.toFixed(2)}
+                                {Math.round(stock.closePrice)}
                             </span>
                             <span className={cn(
                                 "text-[10px]",
@@ -188,7 +188,7 @@ export function LivePrice({ price, previousPrice }: LivePriceProps) {
             flash === 'down' && "text-red-400 bg-red-500/20",
             !flash && "text-white"
         )}>
-            €{price.toFixed(2)}
+            {Math.round(price)}
         </span>
     );
 }
@@ -285,6 +285,290 @@ export function MarketOverview({ stocks }: MarketOverviewProps) {
                         <p className="text-[10px] text-zinc-500 uppercase">📉 Top Loser</p>
                     </div>
                 )}
+            </div>
+        </div>
+    );
+}
+
+// Historical Market Overview with timeframe charts
+import { trpc } from "@/lib/trpc";
+import { Loader2, Calendar, Leaf } from "lucide-react";
+
+type Period = '7d' | '30d' | '90d' | '6m' | '1y' | 'all';
+
+const PERIOD_LABELS: Record<Period, string> = {
+    '7d': '1W',
+    '30d': '1M',
+    '90d': '3M',
+    '6m': '6M',
+    '1y': '1Y',
+    'all': 'ALL',
+};
+
+const TERPENE_COLORS: Record<string, string> = {
+    'Myrcene': '#10b981',
+    'Limonene': '#fbbf24',
+    'Caryophyllene': '#8b5cf6',
+    'Pinene': '#22c55e',
+    'Linalool': '#ec4899',
+    'Humulene': '#f97316',
+    'Terpinolene': '#06b6d4',
+    'Ocimene': '#84cc16',
+};
+
+export function HistoricalMarketOverview() {
+    const [period, setPeriod] = useState<Period>('30d');
+    const [chartType, setChartType] = useState<'overall' | 'types'>('overall');
+
+    const { data: history, isLoading } = trpc.stockMarket.getMarketHistory.useQuery({ period });
+
+    if (isLoading) {
+        return (
+            <div className="bg-zinc-900/50 rounded-xl p-6 border border-zinc-800">
+                <div className="flex justify-center py-12">
+                    <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
+                </div>
+            </div>
+        );
+    }
+
+    if (!history || history.chartData.length === 0) {
+        return (
+            <div className="bg-zinc-900/50 rounded-xl p-6 border border-zinc-800">
+                <p className="text-center text-zinc-500">No historical data available</p>
+            </div>
+        );
+    }
+
+    const { chartData, topTerpenes, summary } = history;
+
+    // Chart calculations
+    const scores = chartData.map(d => d.avgScore);
+    const maxScore = Math.max(...scores);
+    const minScore = Math.min(...scores);
+    const scoreRange = maxScore - minScore || 1;
+
+    const isPositive = summary.periodChange >= 0;
+
+    return (
+        <div className="bg-zinc-900/50 rounded-xl border border-zinc-800 overflow-hidden">
+            {/* Header with timeframe toggles */}
+            <div className="px-6 py-4 border-b border-zinc-800 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                        <Calendar className="w-5 h-5 text-emerald-400" />
+                        Market History
+                    </h3>
+                    <p className="text-sm text-zinc-400">Score trends over time</p>
+                </div>
+
+                {/* Period toggles */}
+                <div className="flex rounded-lg bg-zinc-800 p-1">
+                    {(Object.keys(PERIOD_LABELS) as Period[]).map((p) => (
+                        <button
+                            key={p}
+                            onClick={() => setPeriod(p)}
+                            className={cn(
+                                "px-3 py-1.5 text-xs font-medium rounded-md transition-all",
+                                period === p
+                                    ? "bg-emerald-600 text-white"
+                                    : "text-zinc-400 hover:text-white"
+                            )}
+                        >
+                            {PERIOD_LABELS[p]}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Summary stats */}
+            <div className="px-6 py-4 grid grid-cols-2 md:grid-cols-5 gap-4 border-b border-zinc-800">
+                <div>
+                    <p className="text-2xl font-bold text-white">{summary.currentAvgScore}</p>
+                    <p className="text-xs text-zinc-500">Current Avg Score</p>
+                </div>
+                <div>
+                    <p className={cn(
+                        "text-2xl font-bold flex items-center gap-1",
+                        isPositive ? "text-emerald-400" : "text-red-400"
+                    )}>
+                        {isPositive ? '+' : ''}{summary.periodChange}%
+                    </p>
+                    <p className="text-xs text-zinc-500">Period Change</p>
+                </div>
+                <div>
+                    <p className="text-2xl font-bold text-purple-400">{summary.indicaAvg}</p>
+                    <p className="text-xs text-zinc-500">🟣 Indica Avg</p>
+                </div>
+                <div>
+                    <p className="text-2xl font-bold text-orange-400">{summary.sativaAvg}</p>
+                    <p className="text-xs text-zinc-500">🟠 Sativa Avg</p>
+                </div>
+                <div>
+                    <p className="text-2xl font-bold text-emerald-400">{summary.hybridAvg}</p>
+                    <p className="text-xs text-zinc-500">🟢 Hybrid Avg</p>
+                </div>
+            </div>
+
+            {/* Chart type toggle */}
+            <div className="px-6 pt-4 flex gap-2">
+                <button
+                    onClick={() => setChartType('overall')}
+                    className={cn(
+                        "px-3 py-1 text-xs rounded-full transition-all",
+                        chartType === 'overall'
+                            ? "bg-emerald-600 text-white"
+                            : "bg-zinc-800 text-zinc-400 hover:text-white"
+                    )}
+                >
+                    Overall Score
+                </button>
+                <button
+                    onClick={() => setChartType('types')}
+                    className={cn(
+                        "px-3 py-1 text-xs rounded-full transition-all",
+                        chartType === 'types'
+                            ? "bg-emerald-600 text-white"
+                            : "bg-zinc-800 text-zinc-400 hover:text-white"
+                    )}
+                >
+                    By Type
+                </button>
+            </div>
+
+            {/* SVG Chart */}
+            <div className="px-6 py-4">
+                <div className="h-48 relative">
+                    <svg viewBox="0 0 800 150" className="w-full h-full" preserveAspectRatio="none">
+                        <defs>
+                            <linearGradient id="historyGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stopColor={isPositive ? "#10b981" : "#ef4444"} stopOpacity="0.3" />
+                                <stop offset="100%" stopColor={isPositive ? "#10b981" : "#ef4444"} stopOpacity="0" />
+                            </linearGradient>
+                            <linearGradient id="indicaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.2" />
+                                <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0" />
+                            </linearGradient>
+                        </defs>
+
+                        {chartType === 'overall' ? (
+                            <>
+                                {/* Area fill */}
+                                <path
+                                    d={`
+                                        M 0 ${150 - ((chartData[0]?.avgScore || minScore) - minScore) / scoreRange * 130}
+                                        ${chartData.map((d, i) => {
+                                        const x = (i / (chartData.length - 1)) * 800;
+                                        const y = 150 - ((d.avgScore - minScore) / scoreRange * 130) - 10;
+                                        return `L ${x} ${y}`;
+                                    }).join(' ')}
+                                        L 800 150 L 0 150 Z
+                                    `}
+                                    fill="url(#historyGradient)"
+                                />
+                                {/* Line */}
+                                <path
+                                    d={`M 0 ${150 - ((chartData[0]?.avgScore || minScore) - minScore) / scoreRange * 130 - 10}
+                                        ${chartData.map((d, i) => {
+                                        const x = (i / (chartData.length - 1)) * 800;
+                                        const y = 150 - ((d.avgScore - minScore) / scoreRange * 130) - 10;
+                                        return `L ${x} ${y}`;
+                                    }).join(' ')}`}
+                                    fill="none"
+                                    stroke={isPositive ? "#10b981" : "#ef4444"}
+                                    strokeWidth="2"
+                                />
+                            </>
+                        ) : (
+                            <>
+                                {/* Indica line */}
+                                <path
+                                    d={`M 0 ${150 - ((chartData[0]?.indica || 0) - minScore) / scoreRange * 130 - 10}
+                                        ${chartData.map((d, i) => {
+                                        const x = (i / (chartData.length - 1)) * 800;
+                                        const y = 150 - ((d.indica - minScore) / scoreRange * 130) - 10;
+                                        return `L ${x} ${y}`;
+                                    }).join(' ')}`}
+                                    fill="none"
+                                    stroke="#8b5cf6"
+                                    strokeWidth="2"
+                                />
+                                {/* Sativa line */}
+                                <path
+                                    d={`M 0 ${150 - ((chartData[0]?.sativa || 0) - minScore) / scoreRange * 130 - 10}
+                                        ${chartData.map((d, i) => {
+                                        const x = (i / (chartData.length - 1)) * 800;
+                                        const y = 150 - ((d.sativa - minScore) / scoreRange * 130) - 10;
+                                        return `L ${x} ${y}`;
+                                    }).join(' ')}`}
+                                    fill="none"
+                                    stroke="#f97316"
+                                    strokeWidth="2"
+                                />
+                                {/* Hybrid line */}
+                                <path
+                                    d={`M 0 ${150 - ((chartData[0]?.hybrid || 0) - minScore) / scoreRange * 130 - 10}
+                                        ${chartData.map((d, i) => {
+                                        const x = (i / (chartData.length - 1)) * 800;
+                                        const y = 150 - ((d.hybrid - minScore) / scoreRange * 130) - 10;
+                                        return `L ${x} ${y}`;
+                                    }).join(' ')}`}
+                                    fill="none"
+                                    stroke="#10b981"
+                                    strokeWidth="2"
+                                />
+                            </>
+                        )}
+                    </svg>
+
+                    {/* Y-axis labels */}
+                    <div className="absolute left-0 top-0 bottom-0 w-10 flex flex-col justify-between text-xs text-zinc-500">
+                        <span>{Math.round(maxScore)}</span>
+                        <span>{Math.round((maxScore + minScore) / 2)}</span>
+                        <span>{Math.round(minScore)}</span>
+                    </div>
+
+                    {/* Legend for type chart */}
+                    {chartType === 'types' && (
+                        <div className="absolute top-2 right-2 flex gap-3 text-xs">
+                            <span className="flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                                Indica
+                            </span>
+                            <span className="flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+                                Sativa
+                            </span>
+                            <span className="flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                Hybrid
+                            </span>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Top Terpenes */}
+            <div className="px-6 py-4 border-t border-zinc-800">
+                <h4 className="text-sm font-medium text-zinc-400 mb-3 flex items-center gap-2">
+                    <Leaf className="w-4 h-4 text-emerald-400" />
+                    Top Performing Terpenes
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                    {topTerpenes.map((terp, i) => (
+                        <div
+                            key={terp.name}
+                            className="px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5"
+                            style={{
+                                backgroundColor: `${TERPENE_COLORS[terp.name] || '#6b7280'}20`,
+                                color: TERPENE_COLORS[terp.name] || '#9ca3af',
+                            }}
+                        >
+                            <span>{terp.name}</span>
+                            <span className="opacity-70">{terp.avgScore} pts</span>
+                        </div>
+                    ))}
+                </div>
             </div>
         </div>
     );
