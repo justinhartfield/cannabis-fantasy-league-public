@@ -25,6 +25,7 @@ import { achievementRouter } from "./achievementRouter";
 import { chatRouter } from "./chatRouter";
 import { favoriteRouter } from "./favoriteRouter";
 import { dailySummaryRouter } from "./dailySummaryRouter";
+import { publicModeRouter } from "./publicModeRouter";
 
 
 export const appRouter = router({
@@ -66,6 +67,7 @@ export const appRouter = router({
   chat: chatRouter,
   favorite: favoriteRouter,
   dailySummary: dailySummaryRouter,
+  publicMode: publicModeRouter,
 });
 
 export type AppRouter = typeof appRouter;
