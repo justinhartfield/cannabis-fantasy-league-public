@@ -26,6 +26,7 @@ import { chatRouter } from "./chatRouter";
 import { favoriteRouter } from "./favoriteRouter";
 import { dailySummaryRouter } from "./dailySummaryRouter";
 import { publicModeRouter } from "./publicModeRouter";
+import { stockMarketRouter } from "./routes/stockMarketRouter";
 
 
 export const appRouter = router({
@@ -68,6 +69,7 @@ export const appRouter = router({
   favorite: favoriteRouter,
   dailySummary: dailySummaryRouter,
   publicMode: publicModeRouter,
+  stockMarket: stockMarketRouter,
 });
 
 export type AppRouter = typeof appRouter;

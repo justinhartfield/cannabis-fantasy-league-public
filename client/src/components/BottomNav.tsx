@@ -1,4 +1,4 @@
-import { Home, Trophy, Zap, UserCircle } from "lucide-react";
+import { Home, Trophy, Zap, UserCircle, BarChart3 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useMemo } from "react";
@@ -25,6 +25,12 @@ const NAV_ITEMS: NavItem[] = [
       location.startsWith("/league") ||
       location.startsWith("/challenge") ||
       location.startsWith("/leagues"),
+  },
+  {
+    label: "Market",
+    icon: BarChart3,
+    path: "/market",
+    match: (location) => location.startsWith("/market"),
   },
   {
     label: "Predict",

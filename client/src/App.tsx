@@ -39,6 +39,7 @@ import DailySummaryPage from "./pages/DailySummaryPage";
 import LeagueNews from "./pages/LeagueNews";
 import LeagueNewsArticle from "./pages/LeagueNewsArticle";
 import PublicChallenge from "./pages/PublicChallenge";
+import StockMarket from "./pages/StockMarket";
 import { useEffect } from "react";
 import { AppLayout } from "./components/AppLayout";
 import DashboardLayout from "./components/DashboardLayout";
@@ -79,6 +80,7 @@ function AuthedRoutes() {
         <Route path={"/prediction-streak"} component={PredictionStreak} />
         <Route path={"/prediction-leaderboard"} component={PredictionLeaderboard} />
         <Route path={"/leaderboard"} component={Leaderboard} />
+        <Route path={"/market"} component={StockMarket} />
         <Route path={"/invite"} component={InviteFriends} />
         <Route path={"/profile"} component={Profile} />
         <Route path={"/rules"} component={Rules} />
