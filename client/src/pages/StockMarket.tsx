@@ -485,6 +485,7 @@ export default function StockMarket() {
                                         priceChange={stock.priceChange}
                                         priceChangePercent={stock.priceChangePercent}
                                         volume={stock.volume}
+                                        imageUrl={stock.imageUrl || undefined}
                                         onTrade={(action) => openTradeModal(action, stock)}
                                     />
                                 ))}

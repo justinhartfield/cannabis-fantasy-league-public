@@ -324,6 +324,7 @@ export const stockMarketRouter = router({
 
     /**
      * Get all available stocks with current prices
+     * Pulls directly from strainDailyChallengeStats and cannabisStrains
      */
     getStocks: publicProcedure
         .input(z.object({
@@ -335,55 +336,144 @@ export const stockMarketRouter = router({
             const db = await getDb();
             if (!db) return [];
 
+            // Import daily challenge stats
+            const { strainDailyChallengeStats, manufacturerDailyChallengeStats } =
+                await import('../../drizzle/dailyChallengeSchema');
+
             const today = new Date().toISOString().split('T')[0];
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const yesterdayStr = yesterday.toISOString().split('T')[0];
 
-            let query = db
-                .select()
-                .from(stockPrices)
-                .where(eq(stockPrices.priceDate, today));
+            const stocks: Array<{
+                assetType: string;
+                assetId: number;
+                assetName: string;
+                imageUrl: string | null;
+                closePrice: number;
+                priceChange: number;
+                priceChangePercent: number;
+                volume: number;
+            }> = [];
 
-            if (input.assetType) {
-                query = query.where(and(
-                    eq(stockPrices.priceDate, today),
-                    eq(stockPrices.assetType, input.assetType)
-                ));
+            // Get strain stocks (these are the main tradeable assets)
+            if (!input.assetType || input.assetType === 'strain' || input.assetType === 'product') {
+                // Get today's stats
+                const todayStats = await db
+                    .select({
+                        strainId: strainDailyChallengeStats.strainId,
+                        orderCount: strainDailyChallengeStats.orderCount,
+                        totalPoints: strainDailyChallengeStats.totalPoints,
+                        strainName: cannabisStrains.name,
+                        imageUrl: cannabisStrains.imageUrl,
+                    })
+                    .from(strainDailyChallengeStats)
+                    .innerJoin(cannabisStrains, eq(strainDailyChallengeStats.strainId, cannabisStrains.id))
+                    .where(eq(strainDailyChallengeStats.statDate, today))
+                    .orderBy(desc(strainDailyChallengeStats.orderCount))
+                    .limit(input.limit);
+
+                // If no today data, try yesterday
+                const statsToUse = todayStats.length > 0 ? todayStats : await db
+                    .select({
+                        strainId: strainDailyChallengeStats.strainId,
+                        orderCount: strainDailyChallengeStats.orderCount,
+                        totalPoints: strainDailyChallengeStats.totalPoints,
+                        strainName: cannabisStrains.name,
+                        imageUrl: cannabisStrains.imageUrl,
+                    })
+                    .from(strainDailyChallengeStats)
+                    .innerJoin(cannabisStrains, eq(strainDailyChallengeStats.strainId, cannabisStrains.id))
+                    .where(eq(strainDailyChallengeStats.statDate, yesterdayStr))
+                    .orderBy(desc(strainDailyChallengeStats.orderCount))
+                    .limit(input.limit);
+
+                for (const stat of statsToUse) {
+                    // Calculate price based on order volume
+                    // Base price €10, scales with order volume
+                    const basePrice = 10;
+                    const orderMultiplier = Math.max(0.5, Math.min(5, (stat.orderCount || 0) / 50));
+                    const price = Math.round(basePrice * orderMultiplier * 100) / 100;
+
+                    // Random price change for demo (in production, compare to yesterday)
+                    const priceChange = Math.round((Math.random() * 4 - 2) * 100) / 100;
+                    const priceChangePercent = Math.round((priceChange / price) * 10000) / 100;
+
+                    stocks.push({
+                        assetType: 'strain',
+                        assetId: stat.strainId,
+                        assetName: stat.strainName || `Strain #${stat.strainId}`,
+                        imageUrl: stat.imageUrl,
+                        closePrice: price,
+                        priceChange,
+                        priceChangePercent,
+                        volume: stat.orderCount || 0,
+                    });
+                }
             }
 
-            const prices = await query
-                .orderBy(
-                    input.sortBy === 'price' ? desc(stockPrices.closePrice) :
-                        input.sortBy === 'change' ? desc(stockPrices.priceChangePercent) :
-                            desc(stockPrices.volume)
-                )
-                .limit(input.limit);
+            // Get manufacturer stocks (hedge funds)
+            if (!input.assetType || input.assetType === 'manufacturer') {
+                const mfgStats = await db
+                    .select({
+                        mfgId: manufacturerDailyChallengeStats.manufacturerId,
+                        orderCount: manufacturerDailyChallengeStats.orderCount,
+                        totalPoints: manufacturerDailyChallengeStats.totalPoints,
+                        mfgName: manufacturers.name,
+                        imageUrl: manufacturers.logoUrl,
+                    })
+                    .from(manufacturerDailyChallengeStats)
+                    .innerJoin(manufacturers, eq(manufacturerDailyChallengeStats.manufacturerId, manufacturers.id))
+                    .where(eq(manufacturerDailyChallengeStats.statDate, today))
+                    .orderBy(desc(manufacturerDailyChallengeStats.orderCount))
+                    .limit(input.limit);
 
-            // Enrich with asset names
-            return Promise.all(prices.map(async (p) => {
-                let assetName = '';
-                if (p.assetType === 'product' || p.assetType === 'strain') {
-                    const [strain] = await db
-                        .select({ name: cannabisStrains.name })
-                        .from(cannabisStrains)
-                        .where(eq(cannabisStrains.id, p.assetId))
-                        .limit(1);
-                    assetName = strain?.name || '';
-                } else if (p.assetType === 'manufacturer') {
-                    const [mfg] = await db
-                        .select({ name: manufacturers.name })
-                        .from(manufacturers)
-                        .where(eq(manufacturers.id, p.assetId))
-                        .limit(1);
-                    assetName = mfg?.name || '';
+                // If no today data, try yesterday
+                const mfgStatsToUse = mfgStats.length > 0 ? mfgStats : await db
+                    .select({
+                        mfgId: manufacturerDailyChallengeStats.manufacturerId,
+                        orderCount: manufacturerDailyChallengeStats.orderCount,
+                        totalPoints: manufacturerDailyChallengeStats.totalPoints,
+                        mfgName: manufacturers.name,
+                        imageUrl: manufacturers.logoUrl,
+                    })
+                    .from(manufacturerDailyChallengeStats)
+                    .innerJoin(manufacturers, eq(manufacturerDailyChallengeStats.manufacturerId, manufacturers.id))
+                    .where(eq(manufacturerDailyChallengeStats.statDate, yesterdayStr))
+                    .orderBy(desc(manufacturerDailyChallengeStats.orderCount))
+                    .limit(input.limit);
+
+                for (const stat of mfgStatsToUse) {
+                    const basePrice = 25; // Hedge funds are more expensive
+                    const orderMultiplier = Math.max(0.5, Math.min(5, (stat.orderCount || 0) / 200));
+                    const price = Math.round(basePrice * orderMultiplier * 100) / 100;
+
+                    const priceChange = Math.round((Math.random() * 6 - 3) * 100) / 100;
+                    const priceChangePercent = Math.round((priceChange / price) * 10000) / 100;
+
+                    stocks.push({
+                        assetType: 'manufacturer',
+                        assetId: stat.mfgId,
+                        assetName: stat.mfgName || `Manufacturer #${stat.mfgId}`,
+                        imageUrl: stat.imageUrl,
+                        closePrice: price,
+                        priceChange,
+                        priceChangePercent,
+                        volume: stat.orderCount || 0,
+                    });
                 }
+            }
 
-                return {
-                    ...p,
-                    assetName,
-                    closePrice: Number(p.closePrice),
-                    priceChange: Number(p.priceChange),
-                    priceChangePercent: Number(p.priceChangePercent),
-                };
-            }));
+            // Sort based on input
+            if (input.sortBy === 'price') {
+                stocks.sort((a, b) => b.closePrice - a.closePrice);
+            } else if (input.sortBy === 'change') {
+                stocks.sort((a, b) => b.priceChangePercent - a.priceChangePercent);
+            } else {
+                stocks.sort((a, b) => b.volume - a.volume);
+            }
+
+            return stocks.slice(0, input.limit);
         }),
 
     /**
