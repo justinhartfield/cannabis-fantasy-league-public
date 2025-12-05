@@ -47,7 +47,7 @@ async function syncLegendaryStrains() {
   }
 
   const strainsRanked = await getStrainsRanked();
-  
+
   // Consider top 50 strains as legendary candidates
   const legendaryStrainNames = strainsRanked.slice(0, 50).map(s => s.strainName);
 
@@ -107,7 +107,7 @@ async function syncTrendingStrains(date: string) {
   }
 
   const strainsToday = await getStrainsRanked();
-  
+
   // Get yesterday's data for comparison
   const yesterday = new Date(date);
   yesterday.setDate(yesterday.getDate() - 1);
@@ -115,7 +115,7 @@ async function syncTrendingStrains(date: string) {
 
   // For now, we'll use today's data and calculate simple deltas
   // In production, you'd fetch yesterday's data from the database or Metabase
-  
+
   for (const strain of strainsToday.slice(0, 100)) {
     const slug = strain.strainName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
@@ -182,7 +182,7 @@ async function syncEffectCategories(date: string) {
   for (let i = 0; i < effectsToday.length; i++) {
     const effect = effectsToday[i];
     const yesterdayEffect = effectsYesterday.find(e => e.effectName === effect.effectName);
-    
+
     const slug = effect.effectName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const todayCount = effect.count;
     const yesterdayCount = yesterdayEffect?.count || 0;
@@ -328,7 +328,7 @@ async function syncTerpeneProfiles(date: string) {
   for (let i = 0; i < terpenesToday.length; i++) {
     const terpene = terpenesToday[i];
     const yesterdayTerpene = terpenesYesterday.find(t => t.terpeneName === terpene.terpeneName);
-    
+
     const slug = terpene.terpeneName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const todayCount = terpene.count;
     const yesterdayCount = yesterdayTerpene?.count || 0;
@@ -380,7 +380,7 @@ async function syncEntityStats(date: string) {
  */
 export async function syncPublicModeData(date?: string) {
   const syncDate = date || new Date().toISOString().split('T')[0];
-  
+
   console.log('='.repeat(60));
   console.log('Public Mode Data Sync');
   console.log(`Date: ${syncDate}`);
@@ -434,8 +434,9 @@ export async function scheduleDailySync() {
   }, msUntilNextRun);
 }
 
-// If running as a standalone script
-if (require.main === module) {
+// If running as a standalone script (ESM compatible)
+const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+if (isMainModule) {
   syncPublicModeData()
     .then(() => {
       console.log('Exiting...');
