@@ -401,7 +401,7 @@ export default function StockMarket() {
                             </div>
                         </div>
 
-                        {/* Stock Grid */}
+                        {/* Stock List */}
                         {stocksLoading ? (
                             <div className="flex justify-center py-20">
                                 <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
@@ -410,24 +410,72 @@ export default function StockMarket() {
                             <div className="text-center py-20 text-zinc-500">
                                 <BarChart3 className="w-16 h-16 mx-auto mb-4 opacity-30" />
                                 <p className="text-lg">No stocks available</p>
-                                <p className="text-sm">Check back later for market updates</p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                {filteredStocks.map((stock, i) => (
-                                    <StockCard
-                                        key={`${stock.assetType}-${stock.assetId}`}
-                                        assetType={stock.assetType}
-                                        assetId={stock.assetId}
-                                        assetName={stock.assetName || `Asset #${stock.assetId}`}
-                                        closePrice={stock.closePrice}
-                                        priceChange={stock.priceChange}
-                                        priceChangePercent={stock.priceChangePercent}
-                                        volume={stock.volume}
-                                        imageUrl={stock.imageUrl || undefined}
-                                        onTrade={(action) => openTradeModal(action, stock)}
-                                    />
-                                ))}
+                            <div className="bg-zinc-900/50 rounded-xl border border-zinc-800 overflow-hidden">
+                                {/* Header */}
+                                <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-zinc-800/50 text-xs text-zinc-400 uppercase tracking-wide">
+                                    <div className="col-span-5">Strain</div>
+                                    <div className="col-span-2 text-right">Price</div>
+                                    <div className="col-span-2 text-right">Change</div>
+                                    <div className="col-span-3 text-right">Action</div>
+                                </div>
+
+                                {/* Rows */}
+                                <div className="divide-y divide-zinc-800">
+                                    {filteredStocks.map((stock) => {
+                                        const isPositive = stock.priceChange >= 0;
+                                        return (
+                                            <div
+                                                key={`${stock.assetType}-${stock.assetId}`}
+                                                className="grid grid-cols-12 gap-4 px-4 py-3 items-center hover:bg-zinc-800/30 transition-colors"
+                                            >
+                                                {/* Strain Name + Image */}
+                                                <div className="col-span-5 flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-zinc-800 flex-shrink-0">
+                                                        <img
+                                                            src={stock.imageUrl || PLACEHOLDER_IMG}
+                                                            alt={stock.assetName}
+                                                            className="w-full h-full object-cover"
+                                                        />
+                                                    </div>
+                                                    <span className="font-medium text-white truncate">
+                                                        {stock.assetName}
+                                                    </span>
+                                                </div>
+
+                                                {/* Price */}
+                                                <div className="col-span-2 text-right">
+                                                    <span className="text-lg font-bold text-white">
+                                                        €{stock.closePrice.toFixed(2)}
+                                                    </span>
+                                                </div>
+
+                                                {/* Change */}
+                                                <div className="col-span-2 text-right">
+                                                    <span className={cn(
+                                                        "text-sm font-medium",
+                                                        isPositive ? "text-emerald-400" : "text-red-400"
+                                                    )}>
+                                                        {isPositive ? '▲' : '▼'} {Math.abs(stock.priceChangePercent).toFixed(1)}%
+                                                    </span>
+                                                </div>
+
+                                                {/* Buy Button */}
+                                                <div className="col-span-3 text-right">
+                                                    <Button
+                                                        size="sm"
+                                                        className="bg-emerald-600 hover:bg-emerald-500 text-white h-8 px-4"
+                                                        onClick={() => openTradeModal('buy', stock)}
+                                                    >
+                                                        <TrendingUp className="w-3 h-3 mr-1" />
+                                                        Buy
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         )}
                     </div>
