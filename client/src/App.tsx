@@ -38,6 +38,7 @@ import DisplayMode from "./pages/DisplayMode";
 import DailySummaryPage from "./pages/DailySummaryPage";
 import LeagueNews from "./pages/LeagueNews";
 import LeagueNewsArticle from "./pages/LeagueNewsArticle";
+import PublicChallenge from "./pages/PublicChallenge";
 import { useEffect } from "react";
 import { AppLayout } from "./components/AppLayout";
 import DashboardLayout from "./components/DashboardLayout";
@@ -72,6 +73,9 @@ function AuthedRoutes() {
         <Route path={"/challenge/:id/playoffs"} component={Playoffs} />
         <Route path={"/challenge/:id/lineup"} component={Lineup} />
         <Route path={"/challenge/:id/scoring"} component={Scoring} />
+        {/* Public Mode: Strain Fantasy League routes */}
+        <Route path={"/public/:leagueId"} component={PublicChallenge} />
+        <Route path={"/public/:leagueId/draft"} component={PublicChallenge} />
         <Route path={"/prediction-streak"} component={PredictionStreak} />
         <Route path={"/prediction-leaderboard"} component={PredictionLeaderboard} />
         <Route path={"/leaderboard"} component={Leaderboard} />
