@@ -62,45 +62,42 @@ function StockCard({
     onTrade
 }: StockCardProps) {
     const isPositive = priceChange >= 0;
-    const shortName = assetName.length > 18 ? assetName.substring(0, 16) + '..' : assetName;
 
     return (
-        <Card className="group relative overflow-hidden bg-gradient-to-br from-zinc-900/80 to-zinc-950/80 border-zinc-800 hover:border-emerald-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/10">
-            <CardContent className="p-3 relative">
-                <div className="flex items-center gap-3 mb-3">
-                    {/* Thumbnail */}
-                    <div className="w-12 h-12 rounded-lg overflow-hidden ring-1 ring-zinc-700 flex-shrink-0">
+        <Card className="bg-zinc-900/80 border-zinc-800 hover:border-emerald-500/50 transition-all">
+            <CardContent className="p-4">
+                {/* Top row: Image + Price */}
+                <div className="flex items-center justify-between mb-2">
+                    <div className="w-14 h-14 rounded-lg overflow-hidden bg-zinc-800">
                         <img
                             src={imageUrl || PLACEHOLDER_IMG}
                             alt={assetName}
                             className="w-full h-full object-cover"
                         />
                     </div>
-
-                    {/* Name & Price */}
-                    <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-white text-sm truncate">{shortName}</h3>
-                        <div className="flex items-center gap-2">
-                            <span className="text-lg font-bold text-white">
-                                €{closePrice.toFixed(2)}
-                            </span>
-                            <span className={cn(
-                                "text-xs font-medium",
-                                isPositive ? "text-emerald-400" : "text-red-400"
-                            )}>
-                                {isPositive ? '▲' : '▼'}{Math.abs(priceChangePercent).toFixed(1)}%
-                            </span>
+                    <div className="text-right">
+                        <div className="text-xl font-bold text-white">€{closePrice.toFixed(2)}</div>
+                        <div className={cn(
+                            "text-sm font-medium",
+                            isPositive ? "text-emerald-400" : "text-red-400"
+                        )}>
+                            {isPositive ? '▲' : '▼'} {Math.abs(priceChangePercent).toFixed(1)}%
                         </div>
                     </div>
                 </div>
 
-                {/* Trade Button */}
+                {/* Name - full width */}
+                <h3 className="text-base font-semibold text-white mb-3 leading-tight">
+                    {assetName}
+                </h3>
+
+                {/* Buy Button */}
                 <Button
                     size="sm"
-                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-8"
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white h-9"
                     onClick={() => onTrade('buy')}
                 >
-                    <TrendingUp className="w-3 h-3 mr-1" />
+                    <TrendingUp className="w-4 h-4 mr-1.5" />
                     Buy
                 </Button>
             </CardContent>
