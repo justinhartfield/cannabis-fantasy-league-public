@@ -52,7 +52,6 @@ interface StockCardProps {
 }
 
 function StockCard({
-    assetType,
     assetId,
     assetName,
     closePrice,
@@ -63,92 +62,47 @@ function StockCard({
     onTrade
 }: StockCardProps) {
     const isPositive = priceChange >= 0;
-
-    const typeIcon = {
-        product: <Package className="w-4 h-4" />,
-        strain: <Leaf className="w-4 h-4" />,
-        manufacturer: <Factory className="w-4 h-4" />,
-    }[assetType] || <Package className="w-4 h-4" />;
-
-    const typeLabel = {
-        product: "Stock",
-        strain: "Fund",
-        manufacturer: "Hedge Fund",
-    }[assetType] || "Stock";
+    const shortName = assetName.length > 18 ? assetName.substring(0, 16) + '..' : assetName;
 
     return (
         <Card className="group relative overflow-hidden bg-gradient-to-br from-zinc-900/80 to-zinc-950/80 border-zinc-800 hover:border-emerald-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/10">
-            {/* Glow effect */}
-            <div className={cn(
-                "absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300",
-                isPositive
-                    ? "bg-gradient-to-br from-emerald-500/5 to-transparent"
-                    : "bg-gradient-to-br from-red-500/5 to-transparent"
-            )} />
-
-            <CardContent className="p-4 relative">
-                <div className="flex items-start gap-3">
+            <CardContent className="p-3 relative">
+                <div className="flex items-center gap-3 mb-3">
                     {/* Thumbnail */}
-                    <div className="relative w-14 h-14 rounded-xl overflow-hidden ring-2 ring-zinc-700 group-hover:ring-emerald-500/50 transition-all">
+                    <div className="w-12 h-12 rounded-lg overflow-hidden ring-1 ring-zinc-700 flex-shrink-0">
                         <img
                             src={imageUrl || PLACEHOLDER_IMG}
                             alt={assetName}
                             className="w-full h-full object-cover"
                         />
-                        <div className="absolute bottom-0 left-0 right-0 bg-black/60 px-1 py-0.5">
-                            <div className="flex items-center justify-center gap-1 text-[10px] text-zinc-300">
-                                {typeIcon}
-                                <span>{typeLabel}</span>
-                            </div>
-                        </div>
                     </div>
 
-                    {/* Info */}
+                    {/* Name & Price */}
                     <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-white truncate text-sm">{assetName}</h3>
-                        <p className="text-zinc-500 text-xs">Vol: {volume.toLocaleString()}</p>
-
-                        {/* Price */}
-                        <div className="flex items-center gap-2 mt-1">
+                        <h3 className="font-semibold text-white text-sm truncate">{shortName}</h3>
+                        <div className="flex items-center gap-2">
                             <span className="text-lg font-bold text-white">
                                 €{closePrice.toFixed(2)}
                             </span>
-                            <Badge
-                                variant="outline"
-                                className={cn(
-                                    "text-xs px-1.5 py-0",
-                                    isPositive
-                                        ? "border-emerald-500/50 text-emerald-400 bg-emerald-500/10"
-                                        : "border-red-500/50 text-red-400 bg-red-500/10"
-                                )}
-                            >
-                                {isPositive ? <ArrowUpRight className="w-3 h-3 mr-0.5" /> : <ArrowDownRight className="w-3 h-3 mr-0.5" />}
-                                {priceChangePercent.toFixed(1)}%
-                            </Badge>
+                            <span className={cn(
+                                "text-xs font-medium",
+                                isPositive ? "text-emerald-400" : "text-red-400"
+                            )}>
+                                {isPositive ? '▲' : '▼'}{Math.abs(priceChangePercent).toFixed(1)}%
+                            </span>
                         </div>
                     </div>
                 </div>
 
-                {/* Trade Buttons */}
-                <div className="flex gap-2 mt-3">
-                    <Button
-                        size="sm"
-                        className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-8"
-                        onClick={() => onTrade('buy')}
-                    >
-                        <TrendingUp className="w-3 h-3 mr-1" />
-                        Buy
-                    </Button>
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        className="flex-1 border-zinc-700 hover:bg-zinc-800 text-xs h-8"
-                        onClick={() => onTrade('sell')}
-                    >
-                        <TrendingDown className="w-3 h-3 mr-1" />
-                        Sell
-                    </Button>
-                </div>
+                {/* Trade Button */}
+                <Button
+                    size="sm"
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-8"
+                    onClick={() => onTrade('buy')}
+                >
+                    <TrendingUp className="w-3 h-3 mr-1" />
+                    Buy
+                </Button>
             </CardContent>
         </Card>
     );
@@ -206,7 +160,6 @@ function HoldingCard({ holding, onSell }: HoldingCardProps) {
 export default function StockMarket() {
     const { user } = useAuth();
     const [searchQuery, setSearchQuery] = useState("");
-    const [selectedAssetType, setSelectedAssetType] = useState<string>("all");
     const [tradeModal, setTradeModal] = useState<{
         open: boolean;
         action: 'buy' | 'sell';
@@ -218,14 +171,14 @@ export default function StockMarket() {
     const { data: portfolio, isLoading: portfolioLoading, refetch: refetchPortfolio } =
         trpc.stockMarket.getPortfolio.useQuery(undefined, { enabled: !!user });
 
-    // Fetch available stocks with auto-refresh every 30 seconds
+    // Fetch strains only (simplified - no manufacturers)
     const { data: stocks = [], isLoading: stocksLoading, refetch: refetchStocks } =
         trpc.stockMarket.getStocks.useQuery({
-            assetType: selectedAssetType === 'all' ? undefined : selectedAssetType as any,
-            limit: 100, // Get more for ticker
+            assetType: 'strain', // Strains only
+            limit: 100,
             sortBy: 'volume',
         }, {
-            refetchInterval: 30000, // Refresh every 30 seconds for "real-time" feel
+            refetchInterval: 30000,
         });
 
     // Fetch leaderboard
@@ -449,26 +402,6 @@ export default function StockMarket() {
                                     className="pl-10 bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500"
                                 />
                             </div>
-
-                            <Tabs value={selectedAssetType} onValueChange={setSelectedAssetType}>
-                                <TabsList className="bg-zinc-900 border border-zinc-800">
-                                    <TabsTrigger value="all" className="data-[state=active]:bg-emerald-600">
-                                        All
-                                    </TabsTrigger>
-                                    <TabsTrigger value="product" className="data-[state=active]:bg-emerald-600">
-                                        <Package className="w-4 h-4 mr-1" />
-                                        Stocks
-                                    </TabsTrigger>
-                                    <TabsTrigger value="strain" className="data-[state=active]:bg-emerald-600">
-                                        <Leaf className="w-4 h-4 mr-1" />
-                                        Funds
-                                    </TabsTrigger>
-                                    <TabsTrigger value="manufacturer" className="data-[state=active]:bg-emerald-600">
-                                        <Factory className="w-4 h-4 mr-1" />
-                                        Hedge Funds
-                                    </TabsTrigger>
-                                </TabsList>
-                            </Tabs>
                         </div>
 
                         {/* Stock Grid */}
