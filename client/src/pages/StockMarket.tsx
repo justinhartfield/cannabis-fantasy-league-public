@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -157,7 +157,7 @@ function HoldingCard({ holding, onSell }: HoldingCardProps) {
 
 export default function StockMarket() {
     const { user } = useAuth();
-    const navigate = useNavigate();
+    const [, setLocation] = useLocation();
     const [searchQuery, setSearchQuery] = useState("");
     const [tradeModal, setTradeModal] = useState<{
         open: boolean;
@@ -435,7 +435,7 @@ export default function StockMarket() {
                                                 {/* Strain Name + Image - Clickable */}
                                                 <div
                                                     className="col-span-5 flex items-center gap-3 cursor-pointer group"
-                                                    onClick={() => navigate(`/market/strain/${stock.assetId}`)}
+                                                    onClick={() => setLocation(`/market/strain/${stock.assetId}`)}
                                                 >
                                                     <div className="w-10 h-10 rounded-lg overflow-hidden bg-zinc-800 flex-shrink-0 ring-1 ring-zinc-700 group-hover:ring-emerald-500/50 transition-all">
                                                         <img

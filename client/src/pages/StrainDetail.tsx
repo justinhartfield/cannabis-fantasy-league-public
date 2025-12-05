@@ -8,14 +8,14 @@
  * - Trading functionality
  */
 
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { trpc } from "@/utils/trpc";
-import { useAuth } from "@/components/AuthProvider";
+import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -58,10 +58,10 @@ const FLAVOR_EMOJIS: Record<string, string> = {
 };
 
 export default function StrainDetail() {
-    const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
+    const params = useParams<{ id: string }>();
+    const [, setLocation] = useLocation();
     const { user } = useAuth();
-    const strainId = parseInt(id || "0");
+    const strainId = parseInt(params.id || "0");
 
     const [tradeModal, setTradeModal] = useState<{
         open: boolean;
@@ -117,7 +117,7 @@ export default function StrainDetail() {
         return (
             <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center gap-4">
                 <p className="text-zinc-400">Strain not found</p>
-                <Button onClick={() => navigate('/market')}>
+                <Button onClick={() => setLocation('/market')}>
                     <ArrowLeft className="w-4 h-4 mr-2" />
                     Back to Market
                 </Button>
@@ -142,7 +142,7 @@ export default function StrainDetail() {
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => navigate('/market')}
+                        onClick={() => setLocation('/market')}
                         className="text-zinc-400 hover:text-white"
                     >
                         <ArrowLeft className="w-4 h-4 mr-2" />
