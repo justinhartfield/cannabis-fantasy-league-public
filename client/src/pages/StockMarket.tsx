@@ -418,7 +418,7 @@ export default function StockMarket() {
                                 {/* Header */}
                                 <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-zinc-800/50 text-xs text-zinc-400 uppercase tracking-wide">
                                     <div className="col-span-5">Strain</div>
-                                    <div className="col-span-2 text-right">Price</div>
+                                    <div className="col-span-2 text-right">Score</div>
                                     <div className="col-span-2 text-right">Change</div>
                                     <div className="col-span-3 text-right">Action</div>
                                 </div>
@@ -449,10 +449,10 @@ export default function StockMarket() {
                                                     </span>
                                                 </div>
 
-                                                {/* Price */}
+                                                {/* Score */}
                                                 <div className="col-span-2 text-right">
                                                     <span className="text-lg font-bold text-white">
-                                                        €{stock.closePrice.toFixed(2)}
+                                                        {Math.round(stock.closePrice)}
                                                     </span>
                                                 </div>
 

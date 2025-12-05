@@ -125,14 +125,14 @@ export default function StrainDetail() {
         );
     }
 
-    const isPositive = strain.priceChange >= 0;
+    const isPositive = strain.scoreChange >= 0;
 
     // Calculate chart dimensions
-    const chartData = strain.priceHistory;
-    const prices = chartData.map(d => d.price);
-    const maxPrice = Math.max(...prices, strain.currentPrice);
-    const minPrice = Math.min(...prices, strain.currentPrice);
-    const priceRange = maxPrice - minPrice || 1;
+    const chartData = strain.scoreHistory;
+    const scores = chartData.map(d => d.score);
+    const maxScore = Math.max(...scores, strain.currentScore);
+    const minScore = Math.min(...scores, strain.currentScore);
+    const scoreRange = maxScore - minScore || 1;
 
     return (
         <div className="min-h-screen bg-zinc-950 text-white">
@@ -195,22 +195,23 @@ export default function StrainDetail() {
                         </div>
                     </div>
 
-                    {/* Right: Name + Price + Quick Stats */}
+                    {/* Right: Name + Score + Quick Stats */}
                     <div className="col-span-12 lg:col-span-8">
                         <div className="h-full flex flex-col">
-                            {/* Name & Price */}
+                            {/* Name & Score */}
                             <div className="mb-6">
                                 <h1 className="text-4xl font-bold text-white mb-2">{strain.name}</h1>
                                 <div className="flex items-center gap-4">
                                     <span className="text-5xl font-black text-white">
-                                        €{strain.currentPrice.toFixed(2)}
+                                        {Math.round(strain.currentScore)}
                                     </span>
+                                    <span className="text-lg text-zinc-400">pts</span>
                                     <div className={cn(
                                         "flex items-center gap-1 px-3 py-1.5 rounded-full text-lg font-bold",
                                         isPositive ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
                                     )}>
                                         {isPositive ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
-                                        {isPositive ? '+' : ''}{strain.priceChange.toFixed(2)} ({strain.priceChangePercent.toFixed(1)}%)
+                                        {isPositive ? '+' : ''}{strain.scoreChange} ({strain.scoreChangePercent}%)
                                     </div>
                                 </div>
 
@@ -271,12 +272,12 @@ export default function StrainDetail() {
                     </div>
                 </div>
 
-                {/* Price Chart */}
+                {/* Score Chart */}
                 <Card className="bg-zinc-900/50 border-zinc-800 mb-8">
                     <CardContent className="p-6">
                         <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                             <Activity className="w-5 h-5 text-emerald-400" />
-                            30-Day Price History
+                            30-Day Score History
                         </h3>
 
                         {chartData.length > 0 ? (
@@ -284,7 +285,7 @@ export default function StrainDetail() {
                                 <svg viewBox="0 0 800 200" className="w-full h-full" preserveAspectRatio="none">
                                     {/* Grid lines */}
                                     <defs>
-                                        <linearGradient id="priceGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <linearGradient id="scoreGradient" x1="0%" y1="0%" x2="0%" y2="100%">
                                             <stop offset="0%" stopColor={isPositive ? "#10b981" : "#ef4444"} stopOpacity="0.3" />
                                             <stop offset="100%" stopColor={isPositive ? "#10b981" : "#ef4444"} stopOpacity="0" />
                                         </linearGradient>
@@ -293,26 +294,26 @@ export default function StrainDetail() {
                                     {/* Area fill */}
                                     <path
                                         d={`
-                                            M 0 ${200 - ((chartData[0]?.price || minPrice) - minPrice) / priceRange * 180}
+                                            M 0 ${200 - ((chartData[0]?.score || minScore) - minScore) / scoreRange * 180}
                                             ${chartData.map((d, i) => {
                                             const x = (i / (chartData.length - 1)) * 800;
-                                            const y = 200 - ((d.price - minPrice) / priceRange * 180) - 10;
+                                            const y = 200 - ((d.score - minScore) / scoreRange * 180) - 10;
                                             return `L ${x} ${y}`;
                                         }).join(' ')}
                                             L 800 200
                                             L 0 200
                                             Z
                                         `}
-                                        fill="url(#priceGradient)"
+                                        fill="url(#scoreGradient)"
                                     />
 
                                     {/* Line */}
                                     <path
                                         d={`
-                                            M 0 ${200 - ((chartData[0]?.price || minPrice) - minPrice) / priceRange * 180 - 10}
+                                            M 0 ${200 - ((chartData[0]?.score || minScore) - minScore) / scoreRange * 180 - 10}
                                             ${chartData.map((d, i) => {
                                             const x = (i / (chartData.length - 1)) * 800;
-                                            const y = 200 - ((d.price - minPrice) / priceRange * 180) - 10;
+                                            const y = 200 - ((d.score - minScore) / scoreRange * 180) - 10;
                                             return `L ${x} ${y}`;
                                         }).join(' ')}
                                         `}
@@ -326,7 +327,7 @@ export default function StrainDetail() {
                                     {/* Data points */}
                                     {chartData.map((d, i) => {
                                         const x = (i / (chartData.length - 1)) * 800;
-                                        const y = 200 - ((d.price - minPrice) / priceRange * 180) - 10;
+                                        const y = 200 - ((d.score - minScore) / scoreRange * 180) - 10;
                                         return (
                                             <circle
                                                 key={i}
@@ -342,9 +343,9 @@ export default function StrainDetail() {
 
                                 {/* Y-axis labels */}
                                 <div className="absolute left-0 top-0 bottom-0 w-12 flex flex-col justify-between text-xs text-zinc-500 pr-2">
-                                    <span>€{maxPrice.toFixed(2)}</span>
-                                    <span>€{((maxPrice + minPrice) / 2).toFixed(2)}</span>
-                                    <span>€{minPrice.toFixed(2)}</span>
+                                    <span>{Math.round(maxScore)}</span>
+                                    <span>{Math.round((maxScore + minScore) / 2)}</span>
+                                    <span>{Math.round(minScore)}</span>
                                 </div>
                             </div>
                         ) : (

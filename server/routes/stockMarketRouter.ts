@@ -359,12 +359,17 @@ export const stockMarketRouter = router({
 
             // Get strain stocks (these are the main tradeable assets)
             if (!input.assetType || input.assetType === 'strain' || input.assetType === 'product') {
-                // Get today's stats
+                // Get today's stats with ALL scoring factors
                 const todayStats = await db
                     .select({
                         strainId: strainDailyChallengeStats.strainId,
                         orderCount: strainDailyChallengeStats.orderCount,
                         totalPoints: strainDailyChallengeStats.totalPoints,
+                        rank: strainDailyChallengeStats.rank,
+                        previousRank: strainDailyChallengeStats.previousRank,
+                        trendMultiplier: strainDailyChallengeStats.trendMultiplier,
+                        consistencyScore: strainDailyChallengeStats.consistencyScore,
+                        streakDays: strainDailyChallengeStats.streakDays,
                         strainName: cannabisStrains.name,
                         imageUrl: cannabisStrains.imageUrl,
                     })
@@ -380,6 +385,11 @@ export const stockMarketRouter = router({
                         strainId: strainDailyChallengeStats.strainId,
                         orderCount: strainDailyChallengeStats.orderCount,
                         totalPoints: strainDailyChallengeStats.totalPoints,
+                        rank: strainDailyChallengeStats.rank,
+                        previousRank: strainDailyChallengeStats.previousRank,
+                        trendMultiplier: strainDailyChallengeStats.trendMultiplier,
+                        consistencyScore: strainDailyChallengeStats.consistencyScore,
+                        streakDays: strainDailyChallengeStats.streakDays,
                         strainName: cannabisStrains.name,
                         imageUrl: cannabisStrains.imageUrl,
                     })
@@ -389,25 +399,34 @@ export const stockMarketRouter = router({
                     .orderBy(desc(strainDailyChallengeStats.orderCount))
                     .limit(input.limit);
 
-                for (const stat of statsToUse) {
-                    // Calculate price based on order volume
-                    // Base price €10, scales with order volume
-                    const basePrice = 10;
-                    const orderMultiplier = Math.max(0.5, Math.min(5, (stat.orderCount || 0) / 50));
-                    const price = Math.round(basePrice * orderMultiplier * 100) / 100;
+                const totalStrains = statsToUse.length;
 
-                    // Random price change for demo (in production, compare to yesterday)
-                    const priceChange = Math.round((Math.random() * 4 - 2) * 100) / 100;
-                    const priceChangePercent = Math.round((priceChange / price) * 10000) / 100;
+                for (const stat of statsToUse) {
+                    // DYNAMIC SCORE CALCULATION
+                    // Score factors that create relative dynamics:
+                    const orderScore = (stat.orderCount || 0) * 10;                    // More orders = higher score
+                    const rankBonus = (totalStrains - (stat.rank || totalStrains)) * 5; // Higher rank = bonus (zero-sum!)
+                    const trendMultiplier = Number(stat.trendMultiplier || 1);
+                    const momentumBonus = Math.round((trendMultiplier - 1) * 50);      // Momentum adds/subtracts
+                    const consistencyBonus = Math.round((stat.consistencyScore || 0) / 5);
+                    const streakBonus = Math.min(stat.streakDays || 0, 14) * 2;        // Max 28 pts from streak
+
+                    const score = Math.max(10, orderScore + rankBonus + momentumBonus + consistencyBonus + streakBonus);
+
+                    // Calculate score change from rank movement
+                    // If rank improved (lower number), score went up; if rank dropped, score went down
+                    const rankChange = (stat.previousRank || stat.rank || 0) - (stat.rank || 0);
+                    const scoreChange = rankChange * 5 + momentumBonus;
+                    const scoreChangePercent = score > 0 ? (scoreChange / score) * 100 : 0;
 
                     stocks.push({
                         assetType: 'strain',
                         assetId: stat.strainId,
                         assetName: stat.strainName || `Strain #${stat.strainId}`,
                         imageUrl: stat.imageUrl,
-                        closePrice: price,
-                        priceChange,
-                        priceChangePercent,
+                        closePrice: score, // Now represents SCORE, not price
+                        priceChange: scoreChange,
+                        priceChangePercent: Math.round(scoreChangePercent * 10) / 10,
                         volume: stat.orderCount || 0,
                     });
                 }
@@ -718,20 +737,41 @@ export const stockMarketRouter = router({
                 .orderBy(desc(strainDailyChallengeStats.statDate))
                 .limit(1);
 
-            // Calculate current price from order count
-            const BASE_PRICE = 5.00;
-            const currentPrice = latestStats
-                ? BASE_PRICE + (latestStats.orderCount * 0.1)
-                : BASE_PRICE;
+            // Get total strains for rank bonus calculation
+            const today = new Date().toISOString().split('T')[0];
+            const [countResult] = await db
+                .select({ count: sql<number>`count(*)` })
+                .from(strainDailyChallengeStats)
+                .where(eq(strainDailyChallengeStats.statDate, latestStats?.statDate || today));
+            const totalStrains = Number(countResult?.count) || 50;
 
-            // Get yesterday's price for daily change
+            // DYNAMIC SCORE CALCULATION (same formula as getStocks)
+            const calculateScore = (stats: typeof latestStats) => {
+                if (!stats) return 100;
+                const orderScore = (stats.orderCount || 0) * 10;
+                const rankBonus = (totalStrains - (stats.rank || totalStrains)) * 5;
+                const trendMult = Number(stats.trendMultiplier || 1);
+                const momentumBonus = Math.round((trendMult - 1) * 50);
+                const consistencyBonus = Math.round((stats.consistencyScore || 0) / 5);
+                const streakBonus = Math.min(stats.streakDays || 0, 14) * 2;
+                return Math.max(10, orderScore + rankBonus + momentumBonus + consistencyBonus + streakBonus);
+            };
+
+            const currentScore = calculateScore(latestStats);
+
+            // Calculate score change from previous day
             const yesterdayStats = history.length > 1 ? history[history.length - 2] : null;
-            const yesterdayPrice = yesterdayStats
-                ? BASE_PRICE + (yesterdayStats.orderCount * 0.1)
-                : currentPrice;
-            const priceChange = currentPrice - yesterdayPrice;
-            const priceChangePercent = yesterdayPrice > 0
-                ? ((currentPrice - yesterdayPrice) / yesterdayPrice) * 100
+            const yesterdayScore = yesterdayStats ? calculateScore({
+                orderCount: yesterdayStats.orderCount,
+                rank: yesterdayStats.rank,
+                trendMultiplier: yesterdayStats.trendMultiplier,
+                consistencyScore: yesterdayStats.consistencyScore,
+                streakDays: yesterdayStats.streakDays,
+            } as any) : currentScore;
+
+            const scoreChange = currentScore - yesterdayScore;
+            const scoreChangePercent = yesterdayScore > 0
+                ? ((currentScore - yesterdayScore) / yesterdayScore) * 100
                 : 0;
 
             // Parse JSON fields safely
@@ -778,10 +818,10 @@ export const stockMarketRouter = router({
                 flavors: parseJsonField(strain.flavors),
                 terpenes: parseJsonField(strain.terpenes),
 
-                // Current Price
-                currentPrice,
-                priceChange,
-                priceChangePercent,
+                // Current Score (not price!)
+                currentScore,
+                scoreChange,
+                scoreChangePercent: Math.round(scoreChangePercent * 10) / 10,
 
                 // Latest Stats
                 todayOrders: latestStats?.orderCount || 0,
@@ -799,14 +839,24 @@ export const stockMarketRouter = router({
                 avg30DayOrders: Math.round(avg30DayOrders),
                 totalVolume30Days: totalVolume,
 
-                // Historical Data for Charts
-                priceHistory: history.map(h => ({
-                    date: h.statDate,
-                    price: BASE_PRICE + (h.orderCount * 0.1),
-                    orders: h.orderCount,
-                    volume: h.salesVolumeGrams,
-                    rank: h.rank,
-                })),
+                // Historical Data for Charts - now with SCORES
+                scoreHistory: history.map(h => {
+                    // Calculate historical score for each day
+                    const dayScore = calculateScore({
+                        orderCount: h.orderCount,
+                        rank: h.rank,
+                        trendMultiplier: h.trendMultiplier,
+                        consistencyScore: h.consistencyScore,
+                        streakDays: h.streakDays,
+                    } as any);
+                    return {
+                        date: h.statDate,
+                        score: dayScore,
+                        orders: h.orderCount,
+                        volume: h.salesVolumeGrams,
+                        rank: h.rank,
+                    };
+                }),
             };
         }),
 });
