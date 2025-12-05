@@ -18,86 +18,74 @@ interface LiveTickerProps {
     speed?: number;
 }
 
-export function LiveTicker({ stocks, speed = 30 }: LiveTickerProps) {
+export function LiveTicker({ stocks, speed = 50 }: LiveTickerProps) {
     if (!stocks || stocks.length === 0) return null;
 
-    // Duplicate stocks for seamless loop
-    const tickerStocks = [...stocks, ...stocks];
+    // Only show top 20 stocks in ticker
+    const topStocks = stocks.slice(0, 20);
+    const tickerStocks = [...topStocks, ...topStocks];
 
     return (
-        <div className="relative overflow-hidden bg-black/90 border-b border-zinc-800">
+        <div className="relative overflow-hidden bg-black border-b border-zinc-800 h-10">
             {/* Live indicator */}
-            <div className="absolute left-0 top-0 bottom-0 z-10 flex items-center px-3 bg-gradient-to-r from-black via-black to-transparent">
-                <div className="flex items-center gap-2">
+            <div className="absolute left-0 top-0 bottom-0 z-10 flex items-center px-3 bg-black">
+                <div className="flex items-center gap-1.5">
                     <span className="relative flex h-2 w-2">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
                     </span>
-                    <span className="text-xs font-medium text-red-400 uppercase tracking-wider">LIVE</span>
+                    <span className="text-[10px] font-bold text-red-400">LIVE</span>
                 </div>
             </div>
 
             {/* Scrolling ticker */}
             <div
-                className="flex animate-scroll py-2 pl-20"
-                style={{
-                    animationDuration: `${tickerStocks.length * speed / 10}s`,
-                }}
+                className="flex items-center h-full animate-ticker whitespace-nowrap"
+                style={{ paddingLeft: '70px' }}
             >
-                {tickerStocks.map((stock, i) => (
-                    <TickerItem key={`${stock.assetId}-${i}`} stock={stock} />
-                ))}
+                {tickerStocks.map((stock, i) => {
+                    const isUp = stock.priceChange >= 0;
+                    // Get short name (first 8 chars)
+                    const shortName = stock.assetName.length > 10
+                        ? stock.assetName.substring(0, 8) + '..'
+                        : stock.assetName;
+
+                    return (
+                        <span key={`${stock.assetId}-${i}`} className="inline-flex items-center gap-1.5 px-4">
+                            <span className="text-xs text-zinc-400">{shortName}</span>
+                            <span className={cn(
+                                "text-xs font-semibold",
+                                isUp ? "text-emerald-400" : "text-red-400"
+                            )}>
+                                €{stock.closePrice.toFixed(2)}
+                            </span>
+                            <span className={cn(
+                                "text-[10px]",
+                                isUp ? "text-emerald-500" : "text-red-500"
+                            )}>
+                                {isUp ? '▲' : '▼'}{Math.abs(stock.priceChangePercent).toFixed(1)}%
+                            </span>
+                        </span>
+                    );
+                })}
             </div>
 
             {/* Gradient fade on right */}
-            <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-black to-transparent z-10" />
+            <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-black to-transparent z-10" />
 
             <style>{`
-        @keyframes scroll {
+        @keyframes ticker {
           0% { transform: translateX(0); }
           100% { transform: translateX(-50%); }
         }
-        .animate-scroll {
-          animation: scroll linear infinite;
+        .animate-ticker {
+          animation: ticker ${topStocks.length * 3}s linear infinite;
         }
       `}</style>
         </div>
     );
 }
 
-function TickerItem({ stock }: { stock: Stock }) {
-    const isPositive = stock.priceChange >= 0;
-
-    return (
-        <div className="flex items-center gap-3 px-4 border-r border-zinc-800 whitespace-nowrap">
-            {/* Thumbnail */}
-            {stock.imageUrl && (
-                <img
-                    src={stock.imageUrl}
-                    alt=""
-                    className="w-6 h-6 rounded-full object-cover ring-1 ring-zinc-700"
-                />
-            )}
-
-            {/* Name & Price */}
-            <div className="flex items-center gap-2">
-                <span className="text-sm text-zinc-300 font-medium max-w-[120px] truncate">
-                    {stock.assetName}
-                </span>
-                <span className="text-sm font-bold text-white">
-                    €{stock.closePrice.toFixed(2)}
-                </span>
-                <span className={cn(
-                    "text-xs font-medium flex items-center",
-                    isPositive ? "text-emerald-400" : "text-red-400"
-                )}>
-                    {isPositive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                    {Math.abs(stock.priceChangePercent).toFixed(1)}%
-                </span>
-            </div>
-        </div>
-    );
-}
 
 // Heat map visualization
 interface HeatMapProps {

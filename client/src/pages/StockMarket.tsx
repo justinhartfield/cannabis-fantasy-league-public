@@ -172,39 +172,33 @@ interface HoldingCardProps {
 function HoldingCard({ holding, onSell }: HoldingCardProps) {
     const isPositive = holding.profitLoss >= 0;
 
-    return (
-        <div className="flex items-center justify-between p-3 bg-zinc-900/50 rounded-lg border border-zinc-800 hover:border-zinc-700 transition-all">
-            <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500/20 to-emerald-600/20 flex items-center justify-center">
-                    <Leaf className="w-5 h-5 text-emerald-400" />
-                </div>
-                <div>
-                    <p className="font-medium text-white text-sm">{holding.assetName}</p>
-                    <p className="text-xs text-zinc-500">
-                        {holding.shares.toFixed(2)} shares @ €{holding.avgBuyPrice.toFixed(2)}
-                    </p>
-                </div>
-            </div>
+    // Truncate name
+    const shortName = holding.assetName.length > 12
+        ? holding.assetName.substring(0, 10) + '..'
+        : holding.assetName;
 
-            <div className="text-right">
-                <p className="font-semibold text-white">€{holding.currentValue.toFixed(2)}</p>
-                <p className={cn(
-                    "text-xs flex items-center justify-end gap-1",
+    return (
+        <div className="p-2 bg-zinc-900/50 rounded-lg border border-zinc-800">
+            <div className="flex items-center justify-between mb-1">
+                <span className="font-medium text-white text-xs truncate max-w-[100px]">{shortName}</span>
+                <span className={cn(
+                    "text-xs font-bold",
                     isPositive ? "text-emerald-400" : "text-red-400"
                 )}>
-                    {isPositive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                    €{Math.abs(holding.profitLoss).toFixed(2)} ({holding.profitLossPercent.toFixed(1)}%)
-                </p>
+                    {isPositive ? '+' : ''}€{holding.profitLoss.toFixed(0)}
+                </span>
             </div>
-
-            <Button
-                size="sm"
-                variant="ghost"
-                className="ml-3 text-zinc-400 hover:text-red-400"
-                onClick={onSell}
-            >
-                Sell
-            </Button>
+            <div className="flex items-center justify-between text-[10px] text-zinc-500">
+                <span>{holding.shares.toFixed(0)} × €{holding.avgBuyPrice.toFixed(2)}</span>
+                <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-5 px-2 text-[10px] text-zinc-400 hover:text-red-400"
+                    onClick={onSell}
+                >
+                    SELL
+                </Button>
+            </div>
         </div>
     );
 }
