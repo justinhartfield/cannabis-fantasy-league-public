@@ -77,8 +77,8 @@ export default function PublicChallenge() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<"game" | "draft" | "stats">("game");
 
-  // Fetch league data
-  const { data: league, isLoading: leagueLoading } = trpc.publicMode.getLeague.useQuery(
+  // Fetch league data from regular leagues table (challenges are stored there)
+  const { data: league, isLoading: leagueLoading } = trpc.league.getById.useQuery(
     { leagueId: Number(leagueId) },
     { enabled: !!leagueId }
   );
@@ -142,7 +142,7 @@ export default function PublicChallenge() {
   const handleDraftPick = (position: PublicPosition, entityId: number) => {
     // Find the entity from available entities
     let entity: PublicEntity | null = null;
-    
+
     if (position === "legendary_strain") {
       entity = legendaryStrains.find(e => e.id === entityId) || null;
     } else if (position === "trending_strain") {
