@@ -1,13 +1,8 @@
 /**
- * Public Mode Scheduler
+ * Public Mode Scheduler - Database Version
  * 
- * Handles daily synchronization of Metabase data for public mode entities:
- * - Legendary Strains
- * - Trending Strains
- * - Effect Categories
- * - Consumption Types
- * - Terpene Profiles
- * - Entity Stats
+ * Populates public mode tables from existing database data instead of Metabase.
+ * Uses: cannabisStrains, strainDailyChallengeStats, etc.
  */
 
 import { getDb } from "./db";
@@ -17,362 +12,359 @@ import {
   publicEffectCategories,
   publicConsumptionTypes,
   publicTerpeneProfiles,
-  publicModeStats,
 } from "../drizzle/publicModeSchema";
-import {
-  getAllPublicModeData,
-  getEffectsStatsToday,
-  getEffectsStatsYesterday,
-  getGeneticsStatsToday,
-  getGeneticsStatsYesterday,
-  getThcStatsToday,
-  getThcStatsYesterday,
-  getProductTypeStatsToday,
-  getProductTypeStatsYesterday,
-  getTerpenesStatsToday,
-  getTerpenesStatsYesterday,
-  getStrainsRanked,
-} from "./lib/metabase-public-mode";
-import { calculateScore, ScoringInput, EntityType } from "./publicModeScoringEngine";
-import { eq, and, sql } from "drizzle-orm";
+import { cannabisStrains } from "../drizzle/schema";
+import { strainDailyChallengeStats } from "../drizzle/dailyChallengeSchema";
+import { eq, desc, sql, and, ne, isNotNull } from "drizzle-orm";
 
 /**
- * Sync legendary strains from top-ranked strains
+ * Sync legendary strains from cannabisStrains table
+ * Top strains become "legendary" 
  */
 async function syncLegendaryStrains() {
-  console.log('Syncing legendary strains...');
+  console.log('Syncing legendary strains from database...');
   const db = await getDb();
-  if (!db) {
-    throw new Error('Database not available');
-  }
+  if (!db) throw new Error('Database not available');
 
-  const strainsRanked = await getStrainsRanked();
+  // Get top strains with product counts
+  const topStrains = await db
+    .select({
+      id: cannabisStrains.id,
+      name: cannabisStrains.name,
+      slug: cannabisStrains.slug,
+      description: cannabisStrains.description,
+      imageUrl: cannabisStrains.imageUrl,
+      type: cannabisStrains.type,
+      thcMin: cannabisStrains.thcMin,
+      thcMax: cannabisStrains.thcMax,
+      terpenes: cannabisStrains.terpenes,
+      productCount: cannabisStrains.pharmaceuticalProductCount,
+    })
+    .from(cannabisStrains)
+    .where(isNotNull(cannabisStrains.name))
+    .orderBy(desc(cannabisStrains.pharmaceuticalProductCount))
+    .limit(50);
 
-  // Consider top 50 strains as legendary candidates
-  const legendaryStrainNames = strainsRanked.slice(0, 50).map(s => s.strainName);
+  let count = 0;
+  for (const strain of topStrains) {
+    if (!strain.name) continue;
 
-  for (const strainName of legendaryStrainNames) {
-    const strain = strainsRanked.find(s => s.strainName === strainName);
-    if (!strain) continue;
+    const slug = strain.slug || strain.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
-    const slug = strainName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    // Determine tier based on rank
+    let tier = 'classic';
+    if (count < 10) tier = 'legendary';
+    else if (count < 25) tier = 'elite';
 
-    // Check if strain exists
-    const [existing] = await db
-      .select()
-      .from(publicLegendaryStrains)
-      .where(eq(publicLegendaryStrains.slug, slug))
-      .limit(1);
+    // Get THC range string
+    const thcRange = strain.thcMin && strain.thcMax
+      ? `${strain.thcMin}-${strain.thcMax}%`
+      : strain.thcMax ? `${strain.thcMax}%` : undefined;
 
-    if (existing) {
-      // Update existing strain
-      await db
-        .update(publicLegendaryStrains)
-        .set({
-          totalOrders: strain.orderCount,
-          updatedAt: new Date().toISOString(),
-        })
-        .where(eq(publicLegendaryStrains.id, existing.id));
-    } else {
-      // Insert new strain
-      // Determine tier based on rank
-      let tier = 'classic';
-      if (strain.rank <= 10) tier = 'legendary';
-      else if (strain.rank <= 25) tier = 'elite';
-
-      await db
-        .insert(publicLegendaryStrains)
-        .values({
-          name: strainName,
-          slug,
-          tier,
-          totalOrders: strain.orderCount,
-          uniqueUsers: 0, // Will be updated by stats sync
-          isActive: true,
-        });
+    // Parse terpenes if available
+    let dominantTerpenes = null;
+    if (strain.terpenes) {
+      try {
+        const parsed = JSON.parse(strain.terpenes);
+        if (Array.isArray(parsed)) {
+          dominantTerpenes = parsed.slice(0, 3).join(', ');
+        }
+      } catch (e) {
+        // If it's a string, use it directly
+        if (typeof strain.terpenes === 'string') {
+          dominantTerpenes = strain.terpenes;
+        }
+      }
     }
+
+    // Upsert into publicLegendaryStrains
+    await db
+      .insert(publicLegendaryStrains)
+      .values({
+        name: strain.name,
+        slug,
+        description: strain.description,
+        tier,
+        imageUrl: strain.imageUrl,
+        genetics: strain.type,
+        thcRange,
+        dominantTerpenes,
+        totalOrders: strain.productCount || 0,
+        uniqueUsers: 0,
+        isActive: true,
+      })
+      .onConflictDoUpdate({
+        target: publicLegendaryStrains.slug,
+        set: {
+          totalOrders: strain.productCount || 0,
+          updatedAt: new Date().toISOString(),
+        },
+      });
+
+    count++;
   }
 
-  console.log(`✅ Synced ${legendaryStrainNames.length} legendary strains`);
+  console.log(`✅ Synced ${count} legendary strains`);
 }
 
 /**
- * Sync trending strains
+ * Sync trending strains from strainDailyChallengeStats
  */
 async function syncTrendingStrains(date: string) {
-  console.log('Syncing trending strains...');
+  console.log('Syncing trending strains from database...');
   const db = await getDb();
-  if (!db) {
-    throw new Error('Database not available');
-  }
+  if (!db) throw new Error('Database not available');
 
-  const strainsToday = await getStrainsRanked();
+  // Get strains with recent stats
+  const trendingData = await db
+    .select({
+      strainId: strainDailyChallengeStats.strainId,
+      orderCount: strainDailyChallengeStats.orderCount,
+      totalPoints: strainDailyChallengeStats.totalPoints,
+      rank: strainDailyChallengeStats.rank,
+      strainName: cannabisStrains.name,
+      strainSlug: cannabisStrains.slug,
+      strainImage: cannabisStrains.imageUrl,
+      strainDescription: cannabisStrains.description,
+      genetics: cannabisStrains.type,
+      thcMax: cannabisStrains.thcMax,
+      terpenes: cannabisStrains.terpenes,
+    })
+    .from(strainDailyChallengeStats)
+    .innerJoin(cannabisStrains, eq(strainDailyChallengeStats.strainId, cannabisStrains.id))
+    .where(eq(strainDailyChallengeStats.statDate, date))
+    .orderBy(desc(strainDailyChallengeStats.orderCount))
+    .limit(100);
 
-  // Get yesterday's data for comparison
-  const yesterday = new Date(date);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayDate = yesterday.toISOString().split('T')[0];
+  let count = 0;
+  for (const data of trendingData) {
+    if (!data.strainName) continue;
 
-  // For now, we'll use today's data and calculate simple deltas
-  // In production, you'd fetch yesterday's data from the database or Metabase
+    const slug = data.strainSlug || data.strainName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
-  for (const strain of strainsToday.slice(0, 100)) {
-    const slug = strain.strainName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-
-    // Get yesterday's data from database
-    const [yesterdayData] = await db
-      .select()
-      .from(publicTrendingStrains)
-      .where(
-        and(
-          eq(publicTrendingStrains.slug, slug),
-          eq(publicTrendingStrains.snapshotDate, yesterdayDate)
-        )
-      )
-      .limit(1);
-
-    const yesterdayOrders = yesterdayData?.todayOrders || 0;
-    const todayOrders = strain.orderCount;
-    const delta = todayOrders - yesterdayOrders;
-    const percentage = yesterdayOrders > 0 ? Math.round((delta / yesterdayOrders) * 100) : 0;
-
-    // Calculate streak
-    let streakDays = 0;
-    if (delta > 0) {
-      streakDays = (yesterdayData?.streakDays || 0) + 1;
-    }
-
-    // Calculate trend score (simplified)
-    const trendScore = Math.max(0, 50 + percentage);
+    // Calculate trend score based on rank and orders
+    const trendScore = Math.max(0, 100 - (data.rank || 50) + Math.min(50, data.orderCount || 0));
+    const isViral = trendScore > 80;
 
     await db
       .insert(publicTrendingStrains)
       .values({
-        name: strain.strainName,
+        name: data.strainName,
         slug,
-        todayOrders,
-        yesterdayOrders,
-        weekOverWeekDelta: delta,
-        weekOverWeekPercentage: percentage,
-        uniqueUsers: 0, // Will be updated by stats sync
+        description: data.strainDescription,
+        imageUrl: data.strainImage,
+        genetics: data.genetics,
+        thcRange: data.thcMax ? `${data.thcMax}%` : undefined,
+        dominantTerpenes: data.terpenes,
+        todayOrders: data.orderCount || 0,
+        yesterdayOrders: 0,
+        weekOverWeekDelta: 0,
+        weekOverWeekPercentage: 0,
+        uniqueUsers: 0,
         trendScore,
-        isViral: percentage > 50,
-        streakDays,
+        isViral,
+        streakDays: 0,
         snapshotDate: date,
       })
       .onConflictDoNothing();
+
+    count++;
   }
 
-  console.log(`✅ Synced ${strainsToday.length} trending strains`);
+  console.log(`✅ Synced ${count} trending strains`);
 }
 
 /**
- * Sync effect categories
+ * Sync effect categories from cannabisStrains.effects
  */
 async function syncEffectCategories(date: string) {
-  console.log('Syncing effect categories...');
+  console.log('Syncing effect categories from database...');
   const db = await getDb();
-  if (!db) {
-    throw new Error('Database not available');
+  if (!db) throw new Error('Database not available');
+
+  // Get strains with effects
+  const strainsWithEffects = await db
+    .select({
+      effects: cannabisStrains.effects,
+    })
+    .from(cannabisStrains)
+    .where(isNotNull(cannabisStrains.effects))
+    .limit(1000);
+
+  // Count effect occurrences
+  const effectCounts: Record<string, number> = {};
+  for (const strain of strainsWithEffects) {
+    if (!strain.effects) continue;
+
+    try {
+      const effects = JSON.parse(strain.effects);
+      if (Array.isArray(effects)) {
+        for (const effect of effects) {
+          const effectName = String(effect).trim();
+          if (effectName) {
+            effectCounts[effectName] = (effectCounts[effectName] || 0) + 1;
+          }
+        }
+      }
+    } catch (e) {
+      // Try as comma-separated string
+      const effects = strain.effects.split(',').map(e => e.trim()).filter(Boolean);
+      for (const effect of effects) {
+        effectCounts[effect] = (effectCounts[effect] || 0) + 1;
+      }
+    }
   }
 
-  const effectsToday = await getEffectsStatsToday();
-  const effectsYesterday = await getEffectsStatsYesterday();
+  // Sort by count and insert
+  const sortedEffects = Object.entries(effectCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 50);
 
-  for (let i = 0; i < effectsToday.length; i++) {
-    const effect = effectsToday[i];
-    const yesterdayEffect = effectsYesterday.find(e => e.effectName === effect.effectName);
-
-    const slug = effect.effectName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    const todayCount = effect.count;
-    const yesterdayCount = yesterdayEffect?.count || 0;
-    const delta = todayCount - yesterdayCount;
-    const percentage = yesterdayCount > 0 ? Math.round((delta / yesterdayCount) * 100) : 0;
+  let rank = 1;
+  for (const [effectName, count] of sortedEffects) {
+    const slug = effectName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
     await db
       .insert(publicEffectCategories)
       .values({
-        effectName: effect.effectName,
+        effectName,
         slug,
-        todayCount,
-        yesterdayCount,
-        weekOverWeekDelta: delta,
-        weekOverWeekPercentage: percentage,
-        totalStrains: 0, // Would need additional data
-        avgRating: 0, // Would need additional data
-        popularityRank: i + 1,
+        todayCount: count,
+        yesterdayCount: 0,
+        weekOverWeekDelta: 0,
+        weekOverWeekPercentage: 0,
+        totalStrains: count,
+        avgRating: 0,
+        popularityRank: rank,
         snapshotDate: date,
       })
       .onConflictDoNothing();
+
+    rank++;
   }
 
-  console.log(`✅ Synced ${effectsToday.length} effect categories`);
+  console.log(`✅ Synced ${sortedEffects.length} effect categories`);
 }
 
 /**
- * Sync consumption types (genetics, THC, product types)
+ * Sync consumption types (genetics types from cannabisStrains.type)
  */
 async function syncConsumptionTypes(date: string) {
-  console.log('Syncing consumption types...');
+  console.log('Syncing consumption types from database...');
   const db = await getDb();
-  if (!db) {
-    throw new Error('Database not available');
-  }
+  if (!db) throw new Error('Database not available');
 
-  // Sync genetics
-  const geneticsToday = await getGeneticsStatsToday();
-  const geneticsYesterday = await getGeneticsStatsYesterday();
+  // Get genetics type counts
+  const geneticsData = await db
+    .select({
+      type: cannabisStrains.type,
+      count: sql<number>`count(*)`,
+    })
+    .from(cannabisStrains)
+    .where(isNotNull(cannabisStrains.type))
+    .groupBy(cannabisStrains.type)
+    .orderBy(desc(sql`count(*)`));
 
-  for (const genetics of geneticsToday) {
-    const yesterdayGenetics = geneticsYesterday.find(g => g.geneticsType === genetics.geneticsType);
-    const slug = genetics.geneticsType.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    const todayCount = genetics.count;
-    const yesterdayCount = yesterdayGenetics?.count || 0;
-    const delta = todayCount - yesterdayCount;
-    const percentage = yesterdayCount > 0 ? Math.round((delta / yesterdayCount) * 100) : 0;
+  const totalCount = geneticsData.reduce((sum, g) => sum + Number(g.count), 0);
+
+  for (const genetics of geneticsData) {
+    if (!genetics.type) continue;
+
+    const slug = `genetics-${genetics.type.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+    const count = Number(genetics.count);
+    const percentage = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
 
     await db
       .insert(publicConsumptionTypes)
       .values({
         categoryType: 'genetics',
-        categoryValue: genetics.geneticsType,
-        slug: `genetics-${slug}`,
-        todayCount,
-        yesterdayCount,
-        weekOverWeekDelta: delta,
-        weekOverWeekPercentage: percentage,
-        marketSharePercentage: Math.round(genetics.percentage),
-        totalProducts: 0,
+        categoryValue: genetics.type,
+        slug,
+        todayCount: count,
+        yesterdayCount: 0,
+        weekOverWeekDelta: 0,
+        weekOverWeekPercentage: 0,
+        marketSharePercentage: percentage,
+        totalProducts: count,
         uniqueUsers: 0,
         snapshotDate: date,
       })
       .onConflictDoNothing();
   }
 
-  // Sync THC levels
-  const thcToday = await getThcStatsToday();
-  const thcYesterday = await getThcStatsYesterday();
-
-  for (const thc of thcToday) {
-    const yesterdayThc = thcYesterday.find(t => t.thcRange === thc.thcRange);
-    const slug = thc.thcRange.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    const todayCount = thc.count;
-    const yesterdayCount = yesterdayThc?.count || 0;
-    const delta = todayCount - yesterdayCount;
-    const percentage = yesterdayCount > 0 ? Math.round((delta / yesterdayCount) * 100) : 0;
-
-    await db
-      .insert(publicConsumptionTypes)
-      .values({
-        categoryType: 'thc',
-        categoryValue: thc.thcRange,
-        slug: `thc-${slug}`,
-        todayCount,
-        yesterdayCount,
-        weekOverWeekDelta: delta,
-        weekOverWeekPercentage: percentage,
-        marketSharePercentage: Math.round(thc.percentage),
-        totalProducts: 0,
-        uniqueUsers: 0,
-        snapshotDate: date,
-      })
-      .onConflictDoNothing();
-  }
-
-  // Sync product types
-  const productTypeToday = await getProductTypeStatsToday();
-  const productTypeYesterday = await getProductTypeStatsYesterday();
-
-  for (const productType of productTypeToday) {
-    const yesterdayProductType = productTypeYesterday.find(p => p.productType === productType.productType);
-    const slug = productType.productType.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    const todayCount = productType.count;
-    const yesterdayCount = yesterdayProductType?.count || 0;
-    const delta = todayCount - yesterdayCount;
-    const percentage = yesterdayCount > 0 ? Math.round((delta / yesterdayCount) * 100) : 0;
-
-    await db
-      .insert(publicConsumptionTypes)
-      .values({
-        categoryType: 'productType',
-        categoryValue: productType.productType,
-        slug: `product-${slug}`,
-        todayCount,
-        yesterdayCount,
-        weekOverWeekDelta: delta,
-        weekOverWeekPercentage: percentage,
-        marketSharePercentage: Math.round(productType.percentage),
-        totalProducts: 0,
-        uniqueUsers: 0,
-        snapshotDate: date,
-      })
-      .onConflictDoNothing();
-  }
-
-  console.log(`✅ Synced consumption types (genetics, THC, product types)`);
+  console.log(`✅ Synced ${geneticsData.length} consumption types`);
 }
 
 /**
- * Sync terpene profiles
+ * Sync terpene profiles from cannabisStrains.terpenes
  */
 async function syncTerpeneProfiles(date: string) {
-  console.log('Syncing terpene profiles...');
+  console.log('Syncing terpene profiles from database...');
   const db = await getDb();
-  if (!db) {
-    throw new Error('Database not available');
+  if (!db) throw new Error('Database not available');
+
+  // Get strains with terpenes
+  const strainsWithTerpenes = await db
+    .select({
+      terpenes: cannabisStrains.terpenes,
+    })
+    .from(cannabisStrains)
+    .where(isNotNull(cannabisStrains.terpenes))
+    .limit(1000);
+
+  // Count terpene occurrences
+  const terpeneCounts: Record<string, number> = {};
+  for (const strain of strainsWithTerpenes) {
+    if (!strain.terpenes) continue;
+
+    try {
+      const terpenes = JSON.parse(strain.terpenes);
+      if (Array.isArray(terpenes)) {
+        for (const terpene of terpenes) {
+          const terpeneName = String(terpene).trim();
+          if (terpeneName) {
+            terpeneCounts[terpeneName] = (terpeneCounts[terpeneName] || 0) + 1;
+          }
+        }
+      }
+    } catch (e) {
+      // Try as comma-separated string
+      const terpenes = strain.terpenes.split(',').map(t => t.trim()).filter(Boolean);
+      for (const terpene of terpenes) {
+        terpeneCounts[terpene] = (terpeneCounts[terpene] || 0) + 1;
+      }
+    }
   }
 
-  const terpenesToday = await getTerpenesStatsToday();
-  const terpenesYesterday = await getTerpenesStatsYesterday();
+  // Sort by count and insert
+  const sortedTerpenes = Object.entries(terpeneCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 50);
 
-  for (let i = 0; i < terpenesToday.length; i++) {
-    const terpene = terpenesToday[i];
-    const yesterdayTerpene = terpenesYesterday.find(t => t.terpeneName === terpene.terpeneName);
-
-    const slug = terpene.terpeneName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    const todayCount = terpene.count;
-    const yesterdayCount = yesterdayTerpene?.count || 0;
-    const delta = todayCount - yesterdayCount;
-    const percentage = yesterdayCount > 0 ? Math.round((delta / yesterdayCount) * 100) : 0;
+  let rank = 1;
+  for (const [terpeneName, count] of sortedTerpenes) {
+    const slug = terpeneName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
     await db
       .insert(publicTerpeneProfiles)
       .values({
-        terpeneName: terpene.terpeneName,
+        terpeneName,
         slug,
-        todayCount,
-        yesterdayCount,
-        weekOverWeekDelta: delta,
-        weekOverWeekPercentage: percentage,
-        totalStrains: 0,
-        popularityRank: i + 1,
+        todayCount: count,
+        yesterdayCount: 0,
+        weekOverWeekDelta: 0,
+        weekOverWeekPercentage: 0,
+        totalStrains: count,
+        popularityRank: rank,
         uniqueUsers: 0,
         snapshotDate: date,
       })
       .onConflictDoNothing();
+
+    rank++;
   }
 
-  console.log(`✅ Synced ${terpenesToday.length} terpene profiles`);
-}
-
-/**
- * Calculate and sync entity stats
- */
-async function syncEntityStats(date: string) {
-  console.log('Calculating entity stats...');
-  const db = await getDb();
-  if (!db) {
-    throw new Error('Database not available');
-  }
-
-  // This is a simplified implementation
-  // In production, you would:
-  // 1. Fetch all entities for each type
-  // 2. Calculate max values for normalization
-  // 3. Calculate scores using the scoring engine
-  // 4. Insert/update stats in publicModeStats table
-
-  console.log('⚠️  Entity stats calculation is a placeholder - implement based on real data');
+  console.log(`✅ Synced ${sortedTerpenes.length} terpene profiles`);
 }
 
 /**
@@ -382,7 +374,7 @@ export async function syncPublicModeData(date?: string) {
   const syncDate = date || new Date().toISOString().split('T')[0];
 
   console.log('='.repeat(60));
-  console.log('Public Mode Data Sync');
+  console.log('Public Mode Data Sync (Database)');
   console.log(`Date: ${syncDate}`);
   console.log('='.repeat(60));
   console.log('');
@@ -393,7 +385,6 @@ export async function syncPublicModeData(date?: string) {
     await syncEffectCategories(syncDate);
     await syncConsumptionTypes(syncDate);
     await syncTerpeneProfiles(syncDate);
-    await syncEntityStats(syncDate);
 
     console.log('');
     console.log('='.repeat(60));
@@ -409,10 +400,8 @@ export async function syncPublicModeData(date?: string) {
 
 /**
  * Schedule daily sync
- * This can be called from a cron job or scheduled task
  */
 export async function scheduleDailySync() {
-  // Run sync every day at 2 AM
   const now = new Date();
   const nextRun = new Date(
     now.getFullYear(),
@@ -424,12 +413,10 @@ export async function scheduleDailySync() {
   );
 
   const msUntilNextRun = nextRun.getTime() - now.getTime();
-
   console.log(`Scheduling next sync for ${nextRun.toISOString()}`);
 
   setTimeout(async () => {
     await syncPublicModeData();
-    // Schedule next run
     scheduleDailySync();
   }, msUntilNextRun);
 }
