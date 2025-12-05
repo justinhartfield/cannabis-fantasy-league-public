@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { WeeklyCompetition } from "@/components/WeeklyCompetition";
+import { LiveTicker, MarketOverview, StockHeatMap } from "@/components/LiveTrading";
 
 // Placeholder image for stocks without thumbnails
 const PLACEHOLDER_IMG = "https://images.unsplash.com/photo-1603909223429-69bb7101f420?w=100&h=100&fit=crop";
@@ -223,12 +224,14 @@ export default function StockMarket() {
     const { data: portfolio, isLoading: portfolioLoading, refetch: refetchPortfolio } =
         trpc.stockMarket.getPortfolio.useQuery(undefined, { enabled: !!user });
 
-    // Fetch available stocks
-    const { data: stocks = [], isLoading: stocksLoading } =
+    // Fetch available stocks with auto-refresh every 30 seconds
+    const { data: stocks = [], isLoading: stocksLoading, refetch: refetchStocks } =
         trpc.stockMarket.getStocks.useQuery({
             assetType: selectedAssetType === 'all' ? undefined : selectedAssetType as any,
-            limit: 50,
+            limit: 100, // Get more for ticker
             sortBy: 'volume',
+        }, {
+            refetchInterval: 30000, // Refresh every 30 seconds for "real-time" feel
         });
 
     // Fetch leaderboard
@@ -300,6 +303,9 @@ export default function StockMarket() {
 
     return (
         <div className="min-h-screen bg-zinc-950">
+            {/* Live Ticker Tape */}
+            <LiveTicker stocks={stocks} speed={40} />
+
             {/* Header */}
             <div className="bg-gradient-to-r from-emerald-900/20 via-zinc-900 to-zinc-900 border-b border-zinc-800">
                 <div className="container mx-auto px-4 py-6">
@@ -339,6 +345,11 @@ export default function StockMarket() {
                         )}
                     </div>
                 </div>
+            </div>
+
+            {/* Market Overview */}
+            <div className="container mx-auto px-4 py-4">
+                <MarketOverview stocks={stocks} />
             </div>
 
             {/* Main Content */}
