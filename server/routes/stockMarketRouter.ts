@@ -399,7 +399,13 @@ export const stockMarketRouter = router({
                     .orderBy(desc(strainDailyChallengeStats.orderCount))
                     .limit(input.limit);
 
-                const totalStrains = statsToUse.length;
+                // Get actual total strain count for consistent rank bonus calculation
+                const dateForCount = todayStats.length > 0 ? today : yesterdayStr;
+                const [countResult] = await db
+                    .select({ count: sql<number>`count(*)` })
+                    .from(strainDailyChallengeStats)
+                    .where(eq(strainDailyChallengeStats.statDate, dateForCount));
+                const totalStrains = Number(countResult?.count) || 50;
 
                 for (const stat of statsToUse) {
                     // DYNAMIC SCORE CALCULATION
