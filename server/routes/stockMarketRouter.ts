@@ -15,7 +15,8 @@ import {
     marketLeaderboard
 } from '../../drizzle/stockMarketSchema';
 import { strains, cannabisStrains, manufacturers } from '../../drizzle/schema';
-import { eq, and, desc, sql, gte } from 'drizzle-orm';
+import { strainDailyChallengeStats } from '../../drizzle/dailyChallengeSchema';
+import { eq, and, desc, sql, gte, asc } from 'drizzle-orm';
 import { getCurrentPrice, calculateProductPrices, savePrices } from '../stockPricingEngine';
 import { TRPCError } from '@trpc/server';
 
@@ -669,6 +670,143 @@ export const stockMarketRouter = router({
                 ],
                 endsAt: endDate.toISOString(),
                 daysRemaining: daysUntilSunday,
+            };
+        }),
+
+    /**
+     * Get detailed strain information with historical data
+     * Bloomberg Terminal style view
+     */
+    getStrainDetail: publicProcedure
+        .input(z.object({
+            strainId: z.number(),
+        }))
+        .query(async ({ input }) => {
+            const db = await getDb();
+            if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+
+            // Get strain info
+            const [strain] = await db
+                .select()
+                .from(cannabisStrains)
+                .where(eq(cannabisStrains.id, input.strainId))
+                .limit(1);
+
+            if (!strain) {
+                throw new TRPCError({ code: 'NOT_FOUND', message: 'Strain not found' });
+            }
+
+            // Get 30 days of historical stats
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            const startDateStr = thirtyDaysAgo.toISOString().split('T')[0];
+
+            const history = await db
+                .select()
+                .from(strainDailyChallengeStats)
+                .where(and(
+                    eq(strainDailyChallengeStats.strainId, input.strainId),
+                    gte(strainDailyChallengeStats.statDate, startDateStr)
+                ))
+                .orderBy(asc(strainDailyChallengeStats.statDate));
+
+            // Get latest stats for current values
+            const [latestStats] = await db
+                .select()
+                .from(strainDailyChallengeStats)
+                .where(eq(strainDailyChallengeStats.strainId, input.strainId))
+                .orderBy(desc(strainDailyChallengeStats.statDate))
+                .limit(1);
+
+            // Calculate current price from order count
+            const BASE_PRICE = 5.00;
+            const currentPrice = latestStats
+                ? BASE_PRICE + (latestStats.orderCount * 0.1)
+                : BASE_PRICE;
+
+            // Get yesterday's price for daily change
+            const yesterdayStats = history.length > 1 ? history[history.length - 2] : null;
+            const yesterdayPrice = yesterdayStats
+                ? BASE_PRICE + (yesterdayStats.orderCount * 0.1)
+                : currentPrice;
+            const priceChange = currentPrice - yesterdayPrice;
+            const priceChangePercent = yesterdayPrice > 0
+                ? ((currentPrice - yesterdayPrice) / yesterdayPrice) * 100
+                : 0;
+
+            // Parse JSON fields safely
+            const parseJsonField = (field: string | null | undefined): string[] => {
+                if (!field) return [];
+                try {
+                    const parsed = JSON.parse(field);
+                    return Array.isArray(parsed) ? parsed : [];
+                } catch {
+                    return field.split(',').map(s => s.trim()).filter(Boolean);
+                }
+            };
+
+            // Calculate 7-day and 30-day performance
+            const last7Days = history.slice(-7);
+            const last30Days = history;
+
+            const avg7DayOrders = last7Days.length > 0
+                ? last7Days.reduce((sum, d) => sum + d.orderCount, 0) / last7Days.length
+                : 0;
+            const avg30DayOrders = last30Days.length > 0
+                ? last30Days.reduce((sum, d) => sum + d.orderCount, 0) / last30Days.length
+                : 0;
+
+            const totalVolume = last30Days.reduce((sum, d) => sum + d.salesVolumeGrams, 0);
+
+            return {
+                // Basic Info
+                id: strain.id,
+                name: strain.name,
+                slug: strain.slug,
+                type: strain.type || 'Hybrid',
+                description: strain.description,
+                imageUrl: (strain as any).imageUrl || null,
+
+                // THC/CBD
+                thcMin: strain.thcMin,
+                thcMax: strain.thcMax,
+                cbdMin: strain.cbdMin,
+                cbdMax: strain.cbdMax,
+
+                // Parsed arrays
+                effects: parseJsonField(strain.effects),
+                flavors: parseJsonField(strain.flavors),
+                terpenes: parseJsonField(strain.terpenes),
+
+                // Current Price
+                currentPrice,
+                priceChange,
+                priceChangePercent,
+
+                // Latest Stats
+                todayOrders: latestStats?.orderCount || 0,
+                todayVolume: latestStats?.salesVolumeGrams || 0,
+                currentRank: latestStats?.rank || 0,
+                previousRank: latestStats?.previousRank || 0,
+                streakDays: latestStats?.streakDays || 0,
+                trendMultiplier: latestStats?.trendMultiplier ? Number(latestStats.trendMultiplier) : 1.0,
+                consistencyScore: latestStats?.consistencyScore || 0,
+                velocityScore: latestStats?.velocityScore || 0,
+                marketShare: latestStats?.marketSharePercent ? Number(latestStats.marketSharePercent) : 0,
+
+                // Performance Stats
+                avg7DayOrders: Math.round(avg7DayOrders),
+                avg30DayOrders: Math.round(avg30DayOrders),
+                totalVolume30Days: totalVolume,
+
+                // Historical Data for Charts
+                priceHistory: history.map(h => ({
+                    date: h.statDate,
+                    price: BASE_PRICE + (h.orderCount * 0.1),
+                    orders: h.orderCount,
+                    volume: h.salesVolumeGrams,
+                    rank: h.rank,
+                })),
             };
         }),
 });

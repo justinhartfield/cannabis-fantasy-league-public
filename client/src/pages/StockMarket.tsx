@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -156,6 +157,7 @@ function HoldingCard({ holding, onSell }: HoldingCardProps) {
 
 export default function StockMarket() {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [searchQuery, setSearchQuery] = useState("");
     const [tradeModal, setTradeModal] = useState<{
         open: boolean;
@@ -430,16 +432,19 @@ export default function StockMarket() {
                                                 key={`${stock.assetType}-${stock.assetId}`}
                                                 className="grid grid-cols-12 gap-4 px-4 py-3 items-center hover:bg-zinc-800/30 transition-colors"
                                             >
-                                                {/* Strain Name + Image */}
-                                                <div className="col-span-5 flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-zinc-800 flex-shrink-0">
+                                                {/* Strain Name + Image - Clickable */}
+                                                <div
+                                                    className="col-span-5 flex items-center gap-3 cursor-pointer group"
+                                                    onClick={() => navigate(`/market/strain/${stock.assetId}`)}
+                                                >
+                                                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-zinc-800 flex-shrink-0 ring-1 ring-zinc-700 group-hover:ring-emerald-500/50 transition-all">
                                                         <img
                                                             src={stock.imageUrl || PLACEHOLDER_IMG}
                                                             alt={stock.assetName}
                                                             className="w-full h-full object-cover"
                                                         />
                                                     </div>
-                                                    <span className="font-medium text-white truncate">
+                                                    <span className="font-medium text-white truncate group-hover:text-emerald-400 transition-colors">
                                                         {stock.assetName}
                                                     </span>
                                                 </div>
