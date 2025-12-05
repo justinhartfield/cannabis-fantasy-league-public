@@ -544,14 +544,131 @@ export const stockMarketRouter = router({
      * Calculate and update prices (admin/cron)
      */
     updatePrices: protectedProcedure.mutation(async ({ ctx }) => {
-        const today = new Date().toISOString().split('T')[0];
-
-        const productPrices = await calculateProductPrices(today);
-        await savePrices(productPrices, today);
+        const { updateDailyPrices } = await import('../stockMarketCron');
+        const count = await updateDailyPrices();
 
         return {
             success: true,
-            message: `Updated ${productPrices.length} prices`,
+            message: `Updated ${count} prices`,
         };
     }),
+
+    /**
+     * Get price history for charts
+     */
+    getPriceHistory: publicProcedure
+        .input(z.object({
+            assetType: z.enum(['product', 'strain', 'manufacturer']),
+            assetId: z.number(),
+            days: z.number().default(30),
+        }))
+        .query(async ({ input }) => {
+            const db = await getDb();
+            if (!db) return [];
+
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - input.days);
+            const startDateStr = startDate.toISOString().split('T')[0];
+
+            const history = await db
+                .select()
+                .from(stockPrices)
+                .where(and(
+                    eq(stockPrices.assetType, input.assetType),
+                    eq(stockPrices.assetId, input.assetId),
+                    gte(stockPrices.priceDate, startDateStr)
+                ))
+                .orderBy(stockPrices.priceDate);
+
+            return history.map(h => ({
+                date: h.priceDate,
+                open: Number(h.openPrice),
+                close: Number(h.closePrice),
+                high: Number(h.highPrice),
+                low: Number(h.lowPrice),
+                volume: h.volume,
+                change: Number(h.priceChange),
+                changePercent: Number(h.priceChangePercent),
+            }));
+        }),
+
+    /**
+     * Get weekly competition winners
+     */
+    getWeeklyWinners: publicProcedure
+        .input(z.object({
+            limit: z.number().default(5),
+        }))
+        .query(async ({ input }) => {
+            const db = await getDb();
+            if (!db) return [];
+
+            // Get recent weekly achievements
+            const winners = await db
+                .select()
+                .from(marketAchievements)
+                .where(sql`${marketAchievements.achievementType} LIKE 'weekly_%'`)
+                .orderBy(desc(marketAchievements.earnedAt))
+                .limit(input.limit * 3); // Get last few weeks
+
+            return winners.map(w => ({
+                userId: w.userId,
+                achievement: w.achievementName,
+                description: w.description,
+                earnedAt: w.earnedAt,
+            }));
+        }),
+
+    /**
+     * Get current week standings
+     */
+    getWeeklyStandings: publicProcedure
+        .input(z.object({
+            limit: z.number().default(10),
+        }))
+        .query(async ({ input }) => {
+            const db = await getDb();
+            if (!db) return [];
+
+            // Get portfolios sorted by P/L
+            const standings = await db
+                .select({
+                    userId: userPortfolios.userId,
+                    totalValue: userPortfolios.totalValue,
+                    profitLoss: userPortfolios.totalProfitLoss,
+                    winCount: userPortfolios.winCount,
+                    lossCount: userPortfolios.lossCount,
+                })
+                .from(userPortfolios)
+                .orderBy(desc(userPortfolios.totalProfitLoss))
+                .limit(input.limit);
+
+            // Calculate days until Sunday
+            const now = new Date();
+            const daysUntilSunday = (7 - now.getDay()) % 7 || 7;
+            const endDate = new Date(now);
+            endDate.setDate(now.getDate() + daysUntilSunday);
+            endDate.setHours(0, 0, 0, 0);
+
+            return {
+                standings: standings.map((s, i) => ({
+                    rank: i + 1,
+                    userId: s.userId,
+                    totalValue: Number(s.totalValue),
+                    profitLoss: Number(s.profitLoss),
+                    profitLossPercent: (Number(s.profitLoss) / 100000) * 100,
+                    trades: s.winCount + s.lossCount,
+                    winRate: s.winCount + s.lossCount > 0
+                        ? (s.winCount / (s.winCount + s.lossCount)) * 100
+                        : 0,
+                })),
+                prizes: [
+                    { place: 1, points: 1000, emoji: '🏆' },
+                    { place: 2, points: 500, emoji: '🥈' },
+                    { place: 3, points: 250, emoji: '🥉' },
+                ],
+                endsAt: endDate.toISOString(),
+                daysRemaining: daysUntilSunday,
+            };
+        }),
 });

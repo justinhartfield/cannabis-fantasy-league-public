@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { WeeklyCompetition } from "@/components/WeeklyCompetition";
 
 // Placeholder image for stocks without thumbnails
 const PLACEHOLDER_IMG = "https://images.unsplash.com/photo-1603909223429-69bb7101f420?w=100&h=100&fit=crop";
@@ -425,6 +426,9 @@ export default function StockMarket() {
                                 </div>
                             </CardContent>
                         </Card>
+
+                        {/* Weekly Competition */}
+                        <WeeklyCompetition />
                     </div>
 
                     {/* Right: Stock Browser */}
