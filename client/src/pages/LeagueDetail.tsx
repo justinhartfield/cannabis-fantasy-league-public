@@ -92,12 +92,12 @@ export default function LeagueDetail() {
     }
   }, [league, userTeam]);
 
-  // Redirect to public mode if this is a public league (Strain Fantasy League)
+  // Redirect to public mode if this is a Strain Fantasy League (gameMode === 'public')
   useEffect(() => {
-    if (league?.isPublic) {
+    if (league?.gameMode === 'public') {
       setLocation(`/public/${league.id}`);
     }
-  }, [league?.isPublic, league?.id, setLocation]);
+  }, [league?.gameMode, league?.id, setLocation]);
 
   // Debug logging
   console.log("[LeagueDetail] State:", {
@@ -151,6 +151,18 @@ export default function LeagueDetail() {
             <Link href="/">Zurück zum Dashboard</Link>
           </Button>
         </div>
+      </div>
+    );
+  }
+
+  // Redirect to public mode BEFORE rendering DailyChallenge for Strain Fantasy leagues
+  // This must be a synchronous check, not just useEffect, to prevent the old UI from rendering
+  if (league?.gameMode === 'public') {
+    // Use immediate redirect instead of relying on useEffect
+    setLocation(`/public/${league.id}`);
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }

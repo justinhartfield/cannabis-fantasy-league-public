@@ -897,6 +897,17 @@ export default function Draft() {
     );
   }
 
+  // Redirect to public mode draft if this is a Strain Fantasy league (gameMode === 'public')
+  // Must be placed after league is loaded but before rendering old draft UI
+  if (league?.gameMode === 'public') {
+    setLocation(`/public/${league.id}/draft`);
+    return (
+      <div className="min-h-screen bg-[#1a1d29] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-[#00d4aa]" />
+      </div>
+    );
+  }
+
   // Use current pick from draft status (WebSocket state)
   const currentPick = currentPickNumber || 1;
 
