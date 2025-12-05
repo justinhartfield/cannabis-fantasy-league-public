@@ -863,4 +863,36 @@ export const adminRouter = router({
         });
       }
     }),
+
+  /**
+   * Sync Public Mode data from Metabase
+   * Populates legendary strains, trending strains, effects, consumption types, terpenes
+   */
+  syncPublicModeData: adminProcedure
+    .input(z.object({
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    }).default({}))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        // Dynamic import to avoid circular dependency
+        const { syncPublicModeData } = await import('../publicModeScheduler');
+
+        // Run sync in background (don't await)
+        syncPublicModeData(input.date).catch(err => {
+          console.error('[Admin] Public mode sync background error:', err);
+        });
+
+        return {
+          success: true,
+          message: `Public mode data sync started for ${input.date || 'today'}`,
+        };
+      } catch (error) {
+        console.error('[Admin] Failed to start public mode sync:', error);
+        return {
+          success: false,
+          message: 'Failed to start public mode sync',
+          error: error instanceof Error ? error.message : 'Unknown error',
+        };
+      }
+    }),
 });
