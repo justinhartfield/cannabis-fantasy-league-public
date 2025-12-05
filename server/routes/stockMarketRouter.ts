@@ -43,8 +43,8 @@ export const stockMarketRouter = router({
                 .insert(userPortfolios)
                 .values({
                     userId: ctx.user.id,
-                    cashBalance: '100000',
-                    totalValue: '100000',
+                    cashBalance: '100',
+                    totalValue: '100',
                 })
                 .returning();
         }
@@ -102,7 +102,7 @@ export const stockMarketRouter = router({
             cashBalance: Number(portfolio.cashBalance),
             holdingsValue,
             totalValue,
-            totalProfitLoss: totalValue - 100000, // P/L from starting capital
+            totalProfitLoss: totalValue - 100, // P/L from starting capital
             holdings: holdingsWithPrices,
         };
     }),
@@ -526,7 +526,7 @@ export const stockMarketRouter = router({
                 userId: p.userId,
                 totalValue: Number(p.totalValue),
                 profitLoss: Number(p.totalProfitLoss),
-                profitLossPercent: ((Number(p.totalProfitLoss)) / 100000) * 100,
+                profitLossPercent: ((Number(p.totalProfitLoss)) / 100) * 100,
                 winRate: p.winCount + p.lossCount > 0
                     ? (p.winCount / (p.winCount + p.lossCount)) * 100
                     : 0,
@@ -676,7 +676,7 @@ export const stockMarketRouter = router({
                     userId: s.userId,
                     totalValue: Number(s.totalValue),
                     profitLoss: Number(s.profitLoss),
-                    profitLossPercent: (Number(s.profitLoss) / 100000) * 100,
+                    profitLossPercent: (Number(s.profitLoss) / 100) * 100,
                     trades: s.winCount + s.lossCount,
                     winRate: s.winCount + s.lossCount > 0
                         ? (s.winCount / (s.winCount + s.lossCount)) * 100

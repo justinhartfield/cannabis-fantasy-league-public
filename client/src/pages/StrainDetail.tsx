@@ -468,8 +468,8 @@ export default function StrainDetail() {
 
                     <div className="space-y-4 py-4">
                         <div className="flex items-center justify-between">
-                            <span className="text-zinc-400">Current Price</span>
-                            <span className="text-xl font-bold">€{strain.currentPrice.toFixed(2)}</span>
+                            <span className="text-zinc-400">Current Score</span>
+                            <span className="text-xl font-bold">{Math.round(strain.currentScore)} pts</span>
                         </div>
 
                         <div className="space-y-2">
@@ -487,9 +487,9 @@ export default function StrainDetail() {
                         </div>
 
                         <div className="flex items-center justify-between pt-2 border-t border-zinc-800">
-                            <span className="text-zinc-400">Total</span>
+                            <span className="text-zinc-400">Total Score Cost</span>
                             <span className="text-2xl font-bold text-white">
-                                €{(strain.currentPrice * tradeModal.shares).toFixed(2)}
+                                {Math.round(strain.currentScore * tradeModal.shares)} pts
                             </span>
                         </div>
                     </div>
