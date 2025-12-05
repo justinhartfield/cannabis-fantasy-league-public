@@ -54,7 +54,7 @@ export default function CreateLeague() {
     seasonLength: 18,
     isPublic: false,
     leagueType: "season" as "season" | "challenge",
-    gameMode: "b2b" as "b2b" | "public", // B2B (traditional) or Public (strain fantasy)
+    gameMode: "public" as "b2b" | "public", // Now always public (Strain Fantasy)
     // Challenge timing fields
     durationHours: 24,
     challengeStartTime: "", // ISO datetime
@@ -124,9 +124,9 @@ export default function CreateLeague() {
             <div className="flex items-center gap-3">
               <Trophy className="w-12 h-12 text-yellow-500" />
               <div>
-                  <h1 className="text-xl font-bold text-foreground headline-primary">
-                    Create New League
-                  </h1>
+                <h1 className="text-xl font-bold text-foreground headline-primary">
+                  Create New League
+                </h1>
                 <p className="text-sm text-muted-foreground">
                   {formData.leagueType === "season" ? "Saison-Modus" : "Daily Challenge"}
                 </p>
@@ -142,54 +142,25 @@ export default function CreateLeague() {
           {/* Basic Information */}
           <Card className="bg-card border-border">
             <CardHeader>
-                <CardTitle className="text-card-foreground flex items-center gap-2">
-                  <Settings className="w-5 h-5" />
-                  Basic Information
-                </CardTitle>
-                <CardDescription className="text-muted-foreground">
-                  Set the basic information for your league.
-                </CardDescription>
+              <CardTitle className="text-card-foreground flex items-center gap-2">
+                <Settings className="w-5 h-5" />
+                Basic Information
+              </CardTitle>
+              <CardDescription className="text-muted-foreground">
+                Set the basic information for your league.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Game Mode Selection */}
-              <div className="space-y-2">
-                <Label>Spiel-Modus</Label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, gameMode: "b2b" })}
-                    className={`p-4 rounded-lg border-2 transition-all ${
-                      formData.gameMode === "b2b"
-                        ? "border-primary bg-primary/10"
-                        : "border-border hover:border-primary/50"
-                    }`}
-                  >
-                    <div className="flex flex-col items-center gap-2">
-                      <Trophy className="w-6 h-6" />
-                      <span className="font-semibold">B2B Modus</span>
-                      <span className="text-xs text-muted-foreground text-center">
-                        Hersteller, Apotheken, Produkte, Marken
-                      </span>
-                    </div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, gameMode: "public" })}
-                    className={`p-4 rounded-lg border-2 transition-all ${
-                      formData.gameMode === "public"
-                        ? "border-primary bg-primary/10"
-                        : "border-border hover:border-primary/50"
-                    }`}
-                  >
-                    <div className="flex flex-col items-center gap-2">
-                      <Zap className="w-6 h-6" />
-                      <span className="font-semibold">Public Modus</span>
-                      <span className="text-xs text-muted-foreground text-center">
-                        Strains, Effekte, Terpene (Community)
-                      </span>
-                    </div>
-                  </button>
+              {/* Strain Fantasy League Info - B2B mode removed */}
+              <div className="p-4 rounded-lg bg-gradient-to-r from-green-500/10 to-primary/10 border border-green-500/20">
+                <div className="flex items-center gap-2 mb-2">
+                  <Zap className="w-5 h-5 text-primary" />
+                  <span className="font-semibold text-foreground">Strain Fantasy League</span>
                 </div>
+                <p className="text-sm text-muted-foreground">
+                  Draft legendary strains, trending effects, and terpene profiles.
+                  Compete based on community engagement and popularity metrics.
+                </p>
               </div>
 
               {/* League Type Toggle */}
@@ -199,11 +170,10 @@ export default function CreateLeague() {
                   <button
                     type="button"
                     onClick={() => setFormData({ ...formData, leagueType: "season" })}
-                    className={`p-4 rounded-lg border-2 transition-all ${
-                      formData.leagueType === "season"
-                        ? "border-primary bg-primary/10"
-                        : "border-border hover:border-primary/50"
-                    }`}
+                    className={`p-4 rounded-lg border-2 transition-all ${formData.leagueType === "season"
+                      ? "border-primary bg-primary/10"
+                      : "border-border hover:border-primary/50"
+                      }`}
                   >
                     <div className="flex flex-col items-center gap-2">
                       <Trophy className="w-6 h-6" />
@@ -216,11 +186,10 @@ export default function CreateLeague() {
                   <button
                     type="button"
                     onClick={() => setFormData({ ...formData, leagueType: "challenge" })}
-                    className={`p-4 rounded-lg border-2 transition-all ${
-                      formData.leagueType === "challenge"
-                        ? "border-primary bg-primary/10"
-                        : "border-border hover:border-primary/50"
-                    }`}
+                    className={`p-4 rounded-lg border-2 transition-all ${formData.leagueType === "challenge"
+                      ? "border-primary bg-primary/10"
+                      : "border-border hover:border-primary/50"
+                      }`}
                   >
                     <div className="flex flex-col items-center gap-2">
                       <Calendar className="w-6 h-6" />
@@ -368,11 +337,10 @@ export default function CreateLeague() {
                           key={preset.value}
                           type="button"
                           onClick={() => setFormData({ ...formData, durationHours: preset.value })}
-                          className={`p-2 rounded-lg border-2 transition-all text-center ${
-                            formData.durationHours === preset.value
-                              ? "border-primary bg-primary/10"
-                              : "border-border hover:border-primary/50"
-                          } ${preset.recommended ? "ring-2 ring-green-500/30" : ""}`}
+                          className={`p-2 rounded-lg border-2 transition-all text-center ${formData.durationHours === preset.value
+                            ? "border-primary bg-primary/10"
+                            : "border-border hover:border-primary/50"
+                            } ${preset.recommended ? "ring-2 ring-green-500/30" : ""}`}
                         >
                           <div className="text-lg">{preset.icon}</div>
                           <div className="text-xs font-medium">{preset.label}</div>
@@ -382,7 +350,7 @@ export default function CreateLeague() {
                         </button>
                       ))}
                     </div>
-                    
+
                     {/* Custom duration slider */}
                     <div className="space-y-2 pt-2">
                       <div className="flex justify-between text-sm">
@@ -479,66 +447,57 @@ export default function CreateLeague() {
             <CardContent>
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  Der Draft besteht aus <strong>10 Runden</strong>. Jedes Team wählt folgende Positionen:
+                  Each team drafts <strong>5 positions</strong> in the Strain Fantasy League:
                 </p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-2">
                   <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
-                    <div className="w-8 h-8 rounded bg-blue-500/10 flex items-center justify-center">
-                      <span className="text-xs font-bold text-blue-600">2×</span>
+                    <div className="w-8 h-8 rounded bg-yellow-500/10 flex items-center justify-center">
+                      <span className="text-lg">🏆</span>
                     </div>
                     <div>
-                      <div className="text-sm font-medium">Hersteller</div>
-                      <div className="text-xs text-muted-foreground">MFG</div>
+                      <div className="text-sm font-medium">Legendary Strain</div>
+                      <div className="text-xs text-muted-foreground">Classic, established strains</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
                     <div className="w-8 h-8 rounded bg-green-500/10 flex items-center justify-center">
-                      <span className="text-xs font-bold text-green-600">2×</span>
+                      <span className="text-lg">📈</span>
                     </div>
                     <div>
-                      <div className="text-sm font-medium">Cannabis Strains</div>
-                      <div className="text-xs text-muted-foreground">CSTR</div>
+                      <div className="text-sm font-medium">Trending Strain</div>
+                      <div className="text-xs text-muted-foreground">Viral and growing strains</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
                     <div className="w-8 h-8 rounded bg-purple-500/10 flex items-center justify-center">
-                      <span className="text-xs font-bold text-purple-600">2×</span>
+                      <span className="text-lg">✨</span>
                     </div>
                     <div>
-                      <div className="text-sm font-medium">Produkte</div>
-                      <div className="text-xs text-muted-foreground">PRD</div>
+                      <div className="text-sm font-medium">Effect Category</div>
+                      <div className="text-xs text-muted-foreground">Relaxed, Euphoric, Creative, etc.</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
+                    <div className="w-8 h-8 rounded bg-blue-500/10 flex items-center justify-center">
+                      <span className="text-lg">🧪</span>
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium">Consumption Type</div>
+                      <div className="text-xs text-muted-foreground">Flower, Edibles, Oils, etc.</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
                     <div className="w-8 h-8 rounded bg-orange-500/10 flex items-center justify-center">
-                      <span className="text-xs font-bold text-orange-600">2×</span>
+                      <span className="text-lg">💧</span>
                     </div>
                     <div>
-                      <div className="text-sm font-medium">Apotheken</div>
-                      <div className="text-xs text-muted-foreground">PHM</div>
+                      <div className="text-sm font-medium">Terpene Profile</div>
+                      <div className="text-xs text-muted-foreground">Myrcene, Limonene, Caryophyllene, etc.</div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
-                    <div className="w-8 h-8 rounded bg-yellow-500/10 flex items-center justify-center">
-                      <span className="text-xs font-bold text-yellow-600">1×</span>
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium">Marken</div>
-                      <div className="text-xs text-muted-foreground">BRD</div>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 p-2 rounded-md bg-primary/5 border border-primary/20">
-                  <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center">
-                    <span className="text-xs font-bold text-primary">1×</span>
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium">FLEX Position</div>
-                    <div className="text-xs text-muted-foreground">Beliebige Kategorie</div>
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground pt-2">
-                  💡 Die FLEX-Position kann mit einem Spieler aus einer beliebigen Kategorie besetzt werden.
+                  💡 Points are earned based on orders, trends, and community engagement.
                 </p>
               </div>
             </CardContent>
@@ -547,30 +506,30 @@ export default function CreateLeague() {
           {/* Draft Settings - Season Only */}
           {formData.leagueType === "season" && (
             <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="text-card-foreground flex items-center gap-2">
-                <Calendar className="w-5 h-5" />
-                Draft-Einstellungen
-              </CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Wann soll der Draft stattfinden?
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="draftDate">Draft-Datum (optional)</Label>
-                <Input
-                  id="draftDate"
-                  type="datetime-local"
-                  value={formData.draftDate}
-                  onChange={(e) => setFormData({ ...formData, draftDate: e.target.value })}
-                />
-                <p className="text-sm text-muted-foreground">
-                  Leer lassen, um später festzulegen
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+              <CardHeader>
+                <CardTitle className="text-card-foreground flex items-center gap-2">
+                  <Calendar className="w-5 h-5" />
+                  Draft-Einstellungen
+                </CardTitle>
+                <CardDescription className="text-muted-foreground">
+                  Wann soll der Draft stattfinden?
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="draftDate">Draft-Datum (optional)</Label>
+                  <Input
+                    id="draftDate"
+                    type="datetime-local"
+                    value={formData.draftDate}
+                    onChange={(e) => setFormData({ ...formData, draftDate: e.target.value })}
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Leer lassen, um später festzulegen
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
 

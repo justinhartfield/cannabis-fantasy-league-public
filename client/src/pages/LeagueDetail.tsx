@@ -92,13 +92,6 @@ export default function LeagueDetail() {
     }
   }, [league, userTeam]);
 
-  // Redirect to public mode if this is a Strain Fantasy League (gameMode === 'public')
-  useEffect(() => {
-    if (league?.gameMode === 'public') {
-      setLocation(`/public/${league.id}`);
-    }
-  }, [league?.gameMode, league?.id, setLocation]);
-
   // Debug logging
   console.log("[LeagueDetail] State:", {
     publicInfoLoading,
@@ -155,24 +148,14 @@ export default function LeagueDetail() {
     );
   }
 
-  // Redirect to public mode BEFORE rendering DailyChallenge for Strain Fantasy leagues
-  // This must be a synchronous check, not just useEffect, to prevent the old UI from rendering
-  if (league?.gameMode === 'public') {
-    // Use immediate redirect instead of relying on useEffect
+  // ALL challenges now use the Strain Fantasy League UI (Public Mode)
+  // B2B mode has been removed - PublicChallenge is the only challenge UI
+  if (league?.leagueType === "challenge") {
     setLocation(`/public/${league.id}`);
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
-    );
-  }
-
-  // If this is a challenge and user is authenticated, render DailyChallenge with AppLayout
-  if (league?.leagueType === "challenge") {
-    return (
-      <AppLayout>
-        <DailyChallenge />
-      </AppLayout>
     );
   }
 

@@ -897,10 +897,10 @@ export default function Draft() {
     );
   }
 
-  // Redirect to public mode draft if this is a Strain Fantasy league (gameMode === 'public')
-  // Must be placed after league is loaded but before rendering old draft UI
-  if (league?.gameMode === 'public') {
-    setLocation(`/public/${league.id}/draft`);
+  // ALL challenges now use the Strain Fantasy League draft (Public Mode)
+  // B2B mode has been removed - redirect ALL challenge drafts to public draft
+  if (league?.leagueType === 'challenge') {
+    setLocation(`/public/${league.id}`);
     return (
       <div className="min-h-screen bg-[#1a1d29] flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-[#00d4aa]" />
