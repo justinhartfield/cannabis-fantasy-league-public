@@ -276,14 +276,71 @@ export async function savePrices(prices: StockPrice[], date: string): Promise<vo
 }
 
 /**
- * Get current price for an asset
+ * Get current dynamic score for an asset (replaces old static price)
+ * Computes score from strainDailyChallengeStats using popularity/momentum formula
  */
 export async function getCurrentPrice(assetType: string, assetId: number): Promise<number> {
     const db = await getDb();
     if (!db) return BASE_PRICE;
 
-    const today = new Date().toISOString().split('T')[0];
+    // For strains, calculate dynamic score from daily challenge stats
+    if (assetType === 'strain' || assetType === 'product') {
+        const today = new Date().toISOString().split('T')[0];
 
+        // Get today's stats for this strain
+        const [todayStats] = await db
+            .select({
+                orderCount: strainDailyChallengeStats.orderCount,
+                rank: strainDailyChallengeStats.rank,
+                trendMultiplier: strainDailyChallengeStats.trendMultiplier,
+                consistencyScore: strainDailyChallengeStats.consistencyScore,
+                streakDays: strainDailyChallengeStats.streakDays,
+            })
+            .from(strainDailyChallengeStats)
+            .where(and(
+                eq(strainDailyChallengeStats.strainId, assetId),
+                eq(strainDailyChallengeStats.statDate, today)
+            ))
+            .limit(1);
+
+        if (!todayStats) {
+            // No stats today, try yesterday
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+            const [yesterdayStats] = await db
+                .select({
+                    orderCount: strainDailyChallengeStats.orderCount,
+                    rank: strainDailyChallengeStats.rank,
+                    trendMultiplier: strainDailyChallengeStats.trendMultiplier,
+                    consistencyScore: strainDailyChallengeStats.consistencyScore,
+                    streakDays: strainDailyChallengeStats.streakDays,
+                })
+                .from(strainDailyChallengeStats)
+                .where(and(
+                    eq(strainDailyChallengeStats.strainId, assetId),
+                    eq(strainDailyChallengeStats.statDate, yesterdayStr)
+                ))
+                .limit(1);
+
+            if (!yesterdayStats) return 100; // Default score
+
+            return calculateDynamicScore(yesterdayStats, 50); // Assume 50 total strains
+        }
+
+        // Get total strain count for ranking bonus
+        const [countResult] = await db
+            .select({ count: sql<number>`count(distinct ${strainDailyChallengeStats.strainId})` })
+            .from(strainDailyChallengeStats)
+            .where(eq(strainDailyChallengeStats.statDate, today));
+        const totalStrains = Number(countResult?.count) || 50;
+
+        return calculateDynamicScore(todayStats, totalStrains);
+    }
+
+    // For manufacturers, fall back to old price table for now
+    const today = new Date().toISOString().split('T')[0];
     const [price] = await db
         .select()
         .from(stockPrices)
@@ -295,6 +352,37 @@ export async function getCurrentPrice(assetType: string, assetId: number): Promi
         .limit(1);
 
     return price ? Number(price.closePrice) : BASE_PRICE;
+}
+
+/**
+ * Calculate dynamic score from strain stats
+ */
+function calculateDynamicScore(stats: {
+    orderCount: number | null;
+    rank: number | null;
+    trendMultiplier: string | null;
+    consistencyScore: string | null;
+    streakDays: number | null;
+}, totalStrains: number): number {
+    // Order-based score (primary factor)
+    const orderScore = (stats.orderCount || 0) * 10;
+
+    // Rank bonus (higher rank = more bonus)
+    const rank = stats.rank || totalStrains;
+    const rankBonus = (totalStrains - rank) * 5;
+
+    // Momentum bonus from trend multiplier
+    const trendMultiplier = Number(stats.trendMultiplier || 1);
+    const momentumBonus = Math.round((trendMultiplier - 1) * 50);
+
+    // Consistency bonus
+    const consistencyBonus = Math.round(Number(stats.consistencyScore || 0) / 5);
+
+    // Streak bonus (capped at 14 days)
+    const streakBonus = Math.min(stats.streakDays || 0, 14) * 2;
+
+    // Calculate total score (minimum 10)
+    return Math.max(10, orderScore + rankBonus + momentumBonus + consistencyBonus + streakBonus);
 }
 
 /**

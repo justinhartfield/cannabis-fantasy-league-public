@@ -514,29 +514,57 @@ export const stockMarketRouter = router({
             const db = await getDb();
             if (!db) return [];
 
-            // For alltime, just get top portfolios by total value
+            // Get all portfolios with their holdings
             const portfolios = await db
                 .select({
                     userId: userPortfolios.userId,
-                    totalValue: userPortfolios.totalValue,
-                    totalProfitLoss: userPortfolios.totalProfitLoss,
+                    cashBalance: userPortfolios.cashBalance,
                     winCount: userPortfolios.winCount,
                     lossCount: userPortfolios.lossCount,
                 })
                 .from(userPortfolios)
-                .orderBy(desc(userPortfolios.totalValue))
-                .limit(input.limit);
+                .limit(100); // Get more than limit to sort after
 
-            return portfolios.map((p, i) => ({
-                rank: i + 1,
-                userId: p.userId,
-                totalValue: Number(p.totalValue),
-                profitLoss: Number(p.totalProfitLoss),
-                profitLossPercent: ((Number(p.totalProfitLoss)) / 100) * 100,
-                winRate: p.winCount + p.lossCount > 0
-                    ? (p.winCount / (p.winCount + p.lossCount)) * 100
-                    : 0,
+            // Calculate dynamic values for each portfolio
+            const portfolioValues = await Promise.all(portfolios.map(async (p) => {
+                // Get holdings for this user
+                const holdings = await db
+                    .select()
+                    .from(stockHoldings)
+                    .where(eq(stockHoldings.userId, p.userId));
+
+                // Calculate current holdings value using dynamic scores
+                let holdingsValue = 0;
+                let costBasis = 0;
+                for (const h of holdings) {
+                    const currentScore = await getCurrentPrice(h.assetType, h.assetId);
+                    holdingsValue += Number(h.shares) * currentScore;
+                    costBasis += Number(h.shares) * Number(h.avgBuyPrice);
+                }
+
+                const cash = Number(p.cashBalance);
+                const totalValue = cash + holdingsValue;
+                const profitLoss = totalValue - 100; // Starting capital is 100
+
+                return {
+                    userId: p.userId,
+                    totalValue,
+                    profitLoss,
+                    profitLossPercent: (profitLoss / 100) * 100,
+                    winRate: p.winCount + p.lossCount > 0
+                        ? (p.winCount / (p.winCount + p.lossCount)) * 100
+                        : 0,
+                };
             }));
+
+            // Sort by totalValue and take top N
+            return portfolioValues
+                .sort((a, b) => b.totalValue - a.totalValue)
+                .slice(0, input.limit)
+                .map((p, i) => ({
+                    rank: i + 1,
+                    ...p,
+                }));
         }),
 
     /**
@@ -654,20 +682,53 @@ export const stockMarketRouter = router({
         }))
         .query(async ({ input }) => {
             const db = await getDb();
-            if (!db) return [];
+            if (!db) return { standings: [], prizes: [], endsAt: '', daysRemaining: 0 };
 
-            // Get portfolios sorted by P/L
-            const standings = await db
+            // Get all portfolios with holdings
+            const portfolios = await db
                 .select({
                     userId: userPortfolios.userId,
-                    totalValue: userPortfolios.totalValue,
-                    profitLoss: userPortfolios.totalProfitLoss,
+                    cashBalance: userPortfolios.cashBalance,
                     winCount: userPortfolios.winCount,
                     lossCount: userPortfolios.lossCount,
                 })
                 .from(userPortfolios)
-                .orderBy(desc(userPortfolios.totalProfitLoss))
-                .limit(input.limit);
+                .limit(50);
+
+            // Calculate dynamic values for each portfolio
+            const portfolioValues = await Promise.all(portfolios.map(async (p) => {
+                const holdings = await db
+                    .select()
+                    .from(stockHoldings)
+                    .where(eq(stockHoldings.userId, p.userId));
+
+                let holdingsValue = 0;
+                for (const h of holdings) {
+                    const currentScore = await getCurrentPrice(h.assetType, h.assetId);
+                    holdingsValue += Number(h.shares) * currentScore;
+                }
+
+                const cash = Number(p.cashBalance);
+                const totalValue = cash + holdingsValue;
+                const profitLoss = totalValue - 100;
+
+                return {
+                    userId: p.userId,
+                    totalValue,
+                    profitLoss,
+                    profitLossPercent: (profitLoss / 100) * 100,
+                    trades: p.winCount + p.lossCount,
+                    winRate: p.winCount + p.lossCount > 0
+                        ? (p.winCount / (p.winCount + p.lossCount)) * 100
+                        : 0,
+                };
+            }));
+
+            // Sort by profitLoss and take top N
+            const standings = portfolioValues
+                .sort((a, b) => b.profitLoss - a.profitLoss)
+                .slice(0, input.limit)
+                .map((s, i) => ({ rank: i + 1, ...s }));
 
             // Calculate days until Sunday
             const now = new Date();
@@ -677,17 +738,7 @@ export const stockMarketRouter = router({
             endDate.setHours(0, 0, 0, 0);
 
             return {
-                standings: standings.map((s, i) => ({
-                    rank: i + 1,
-                    userId: s.userId,
-                    totalValue: Number(s.totalValue),
-                    profitLoss: Number(s.profitLoss),
-                    profitLossPercent: (Number(s.profitLoss) / 100) * 100,
-                    trades: s.winCount + s.lossCount,
-                    winRate: s.winCount + s.lossCount > 0
-                        ? (s.winCount / (s.winCount + s.lossCount)) * 100
-                        : 0,
-                })),
+                standings,
                 prizes: [
                     { place: 1, points: 1000, emoji: '🏆' },
                     { place: 2, points: 500, emoji: '🥈' },
