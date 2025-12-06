@@ -38,7 +38,7 @@ export const stockMarketRouter = router({
             .limit(1);
 
         if (!portfolio) {
-            // Create new portfolio with €100k
+            // Create new portfolio with 100 pts starting balance
             [portfolio] = await db
                 .insert(userPortfolios)
                 .values({
@@ -218,7 +218,7 @@ export const stockMarketRouter = router({
 
             return {
                 success: true,
-                message: `Bought ${input.shares} shares at €${currentPrice.toFixed(2)}`,
+                message: `Bought ${input.shares} shares at ${Math.round(currentPrice)} pts`,
                 totalCost,
                 newCashBalance,
             };
@@ -316,7 +316,7 @@ export const stockMarketRouter = router({
 
             return {
                 success: true,
-                message: `Sold ${input.shares} shares at €${currentPrice.toFixed(2)}`,
+                message: `Sold ${input.shares} shares at ${Math.round(currentPrice)} pts (${profitLoss >= 0 ? '+' : ''}${Math.round(profitLoss)} pts)`,
                 totalValue,
                 profitLoss,
                 newCashBalance,
