@@ -36,6 +36,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { WeeklyCompetition } from "@/components/WeeklyCompetition";
 import { LiveTicker, MarketOverview, StockHeatMap, HistoricalMarketOverview } from "@/components/LiveTrading";
+import { FlipScore } from "@/components/FlipScore";
 
 // Placeholder image for stocks without thumbnails
 const PLACEHOLDER_IMG = "https://images.unsplash.com/photo-1603909223429-69bb7101f420?w=100&h=100&fit=crop";
@@ -501,11 +502,9 @@ export default function StockMarket() {
                                                     </span>
                                                 </div>
 
-                                                {/* Score */}
+                                                {/* Score - Animated Flip Clock */}
                                                 <div className="col-span-2 text-right">
-                                                    <span className="text-lg font-bold text-white">
-                                                        {Math.round(stock.closePrice)}
-                                                    </span>
+                                                    <FlipScore value={stock.closePrice} size="sm" />
                                                 </div>
 
                                                 {/* Change */}

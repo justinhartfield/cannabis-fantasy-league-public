@@ -617,6 +617,48 @@
   }
 
   /* ===========================================
+   * FLIP CLOCK / STOCK TICKER ANIMATIONS
+   * =========================================== */
+
+  /* Top card flip - rotates down to reveal new number */
+  .animate-flip-top {
+    animation: flip-top 0.3s ease-in forwards;
+    transform-origin: bottom center;
+  }
+
+  @keyframes flip-top {
+    0% {
+      transform: rotateX(0deg);
+    }
+    100% {
+      transform: rotateX(-90deg);
+    }
+  }
+
+  /* Bottom card flip - rotates up to show new number */
+  .animate-flip-bottom {
+    animation: flip-bottom 0.3s ease-out forwards;
+    animation-delay: 0.15s;
+    transform-origin: top center;
+    transform: rotateX(90deg);
+  }
+
+  @keyframes flip-bottom {
+    0% {
+      transform: rotateX(90deg);
+    }
+    100% {
+      transform: rotateX(0deg);
+    }
+  }
+
+  /* Flip digit container with 3D perspective */
+  .flip-digit {
+    perspective: 200px;
+    transform-style: preserve-3d;
+  }
+
+  /* ===========================================
    * ANIMATED SCORE COUNTER - Slot Machine Style
    * =========================================== */
 
