@@ -139,7 +139,14 @@ export const stockMarketRouter = router({
 
             const cashBalance = Number(portfolio.cashBalance);
 
-            // Allow margin (going negative)
+            // Strict balance check - no negative balances allowed
+            if (totalCost > cashBalance) {
+                throw new TRPCError({
+                    code: 'BAD_REQUEST',
+                    message: `Insufficient balance. You have ${Math.round(cashBalance)} pts but need ${Math.round(totalCost)} pts.`
+                });
+            }
+
             const newCashBalance = cashBalance - totalCost;
 
             // Update portfolio cash
@@ -1004,6 +1011,7 @@ export const stockMarketRouter = router({
                 sativa: number;
                 hybrid: number;
                 totalOrders: number;
+                terpeneScores: Record<string, { total: number; count: number }>;
             }>();
 
             // Get total strain count for scoring
@@ -1024,7 +1032,7 @@ export const stockMarketRouter = router({
                 return Math.max(10, orderScore + rankBonus + momentumBonus + consistencyBonus + streakBonus);
             };
 
-            // Terpene tracking
+            // Terpene tracking (overall)
             const terpeneStats: Record<string, { totalScore: number; count: number }> = {};
 
             for (const row of historicalData) {
@@ -1040,6 +1048,7 @@ export const stockMarketRouter = router({
                         sativa: 0,
                         hybrid: 0,
                         totalOrders: 0,
+                        terpeneScores: {},
                     });
                 }
 
@@ -1053,7 +1062,7 @@ export const stockMarketRouter = router({
                 else if (type.includes('sativa')) dayData.sativa += score;
                 else dayData.hybrid += score;
 
-                // Parse terpenes
+                // Parse terpenes and track per-date
                 if (row.terpenes) {
                     try {
                         const terps = JSON.parse(row.terpenes);
@@ -1061,9 +1070,15 @@ export const stockMarketRouter = router({
                             for (const terp of terps.slice(0, 3)) { // Top 3 terpenes
                                 const terpName = typeof terp === 'string' ? terp : terp.name;
                                 if (terpName) {
+                                    // Overall tracking
                                     if (!terpeneStats[terpName]) terpeneStats[terpName] = { totalScore: 0, count: 0 };
                                     terpeneStats[terpName].totalScore += score;
                                     terpeneStats[terpName].count++;
+
+                                    // Per-date tracking
+                                    if (!dayData.terpeneScores[terpName]) dayData.terpeneScores[terpName] = { total: 0, count: 0 };
+                                    dayData.terpeneScores[terpName].total += score;
+                                    dayData.terpeneScores[terpName].count++;
                                 }
                             }
                         }
@@ -1071,17 +1086,33 @@ export const stockMarketRouter = router({
                 }
             }
 
+            // Get top 5 terpenes globally for consistent charting
+            const topTerpeneNames = Object.entries(terpeneStats)
+                .sort((a, b) => (b[1].totalScore / b[1].count) - (a[1].totalScore / a[1].count))
+                .slice(0, 5)
+                .map(([name]) => name);
+
             // Convert to arrays for chart
             const chartData = Array.from(dateMap.entries())
                 .sort((a, b) => a[0].localeCompare(b[0]))
-                .map(([date, data]) => ({
-                    date,
-                    avgScore: Math.round(data.totalScore / data.strainCount),
-                    indica: Math.round(data.indica / data.strainCount),
-                    sativa: Math.round(data.sativa / data.strainCount),
-                    hybrid: Math.round(data.hybrid / data.strainCount),
-                    totalOrders: data.totalOrders,
-                }));
+                .map(([date, data]) => {
+                    // Calculate terpene averages for this date
+                    const terpenes: Record<string, number> = {};
+                    for (const terpName of topTerpeneNames) {
+                        const td = data.terpeneScores[terpName];
+                        terpenes[terpName] = td ? Math.round(td.total / td.count) : 0;
+                    }
+
+                    return {
+                        date,
+                        avgScore: Math.round(data.totalScore / data.strainCount),
+                        indica: Math.round(data.indica / data.strainCount),
+                        sativa: Math.round(data.sativa / data.strainCount),
+                        hybrid: Math.round(data.hybrid / data.strainCount),
+                        totalOrders: data.totalOrders,
+                        ...terpenes, // Spread terpene scores into chart data
+                    };
+                });
 
             // Top terpenes
             const topTerpenes = Object.entries(terpeneStats)

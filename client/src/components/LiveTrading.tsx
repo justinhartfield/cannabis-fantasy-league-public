@@ -318,7 +318,7 @@ const TERPENE_COLORS: Record<string, string> = {
 
 export function HistoricalMarketOverview() {
     const [period, setPeriod] = useState<Period>('30d');
-    const [chartType, setChartType] = useState<'overall' | 'types'>('overall');
+    const [chartType, setChartType] = useState<'overall' | 'types' | 'terpenes'>('overall');
 
     const { data: history, isLoading } = trpc.stockMarket.getMarketHistory.useQuery({ period });
 
@@ -349,6 +349,9 @@ export function HistoricalMarketOverview() {
     const scoreRange = maxScore - minScore || 1;
 
     const isPositive = summary.periodChange >= 0;
+
+    // Get terpene names from top terpenes for charting
+    const terpeneNames = topTerpenes.slice(0, 5).map(t => t.name);
 
     return (
         <div className="bg-zinc-900/50 rounded-xl border border-zinc-800 overflow-hidden">
@@ -434,6 +437,18 @@ export function HistoricalMarketOverview() {
                 >
                     By Type
                 </button>
+                <button
+                    onClick={() => setChartType('terpenes')}
+                    className={cn(
+                        "px-3 py-1 text-xs rounded-full transition-all flex items-center gap-1",
+                        chartType === 'terpenes'
+                            ? "bg-emerald-600 text-white"
+                            : "bg-zinc-800 text-zinc-400 hover:text-white"
+                    )}
+                >
+                    <Leaf className="w-3 h-3" />
+                    By Terpene
+                </button>
             </div>
 
             {/* SVG Chart */}
@@ -479,7 +494,7 @@ export function HistoricalMarketOverview() {
                                     strokeWidth="2"
                                 />
                             </>
-                        ) : (
+                        ) : chartType === 'types' ? (
                             <>
                                 {/* Indica line */}
                                 <path
@@ -518,6 +533,28 @@ export function HistoricalMarketOverview() {
                                     strokeWidth="2"
                                 />
                             </>
+                        ) : (
+                            /* Terpene lines */
+                            <>
+                                {terpeneNames.map((terpName, idx) => {
+                                    const color = TERPENE_COLORS[terpName] || ['#06b6d4', '#ec4899', '#eab308', '#3b82f6', '#f97316'][idx % 5];
+                                    return (
+                                        <path
+                                            key={terpName}
+                                            d={`M 0 ${150 - (((chartData[0] as any)?.[terpName] || minScore) - minScore) / scoreRange * 130 - 10}
+                                                ${chartData.map((d: any, i) => {
+                                                const x = (i / (chartData.length - 1)) * 800;
+                                                const val = d[terpName] || 0;
+                                                const y = 150 - ((val - minScore) / scoreRange * 130) - 10;
+                                                return `L ${x} ${y}`;
+                                            }).join(' ')}`}
+                                            fill="none"
+                                            stroke={color}
+                                            strokeWidth="2"
+                                        />
+                                    );
+                                })}
+                            </>
                         )}
                     </svg>
 
@@ -545,31 +582,24 @@ export function HistoricalMarketOverview() {
                             </span>
                         </div>
                     )}
-                </div>
-            </div>
 
-            {/* Top Terpenes */}
-            <div className="px-6 py-4 border-t border-zinc-800">
-                <h4 className="text-sm font-medium text-zinc-400 mb-3 flex items-center gap-2">
-                    <Leaf className="w-4 h-4 text-emerald-400" />
-                    Top Performing Terpenes
-                </h4>
-                <div className="flex flex-wrap gap-2">
-                    {topTerpenes.map((terp, i) => (
-                        <div
-                            key={terp.name}
-                            className="px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5"
-                            style={{
-                                backgroundColor: `${TERPENE_COLORS[terp.name] || '#6b7280'}20`,
-                                color: TERPENE_COLORS[terp.name] || '#9ca3af',
-                            }}
-                        >
-                            <span>{terp.name}</span>
-                            <span className="opacity-70">{terp.avgScore} pts</span>
+                    {/* Legend for terpene chart */}
+                    {chartType === 'terpenes' && (
+                        <div className="absolute top-2 right-2 flex flex-wrap gap-2 text-xs max-w-[200px]">
+                            {terpeneNames.map((name, idx) => {
+                                const color = TERPENE_COLORS[name] || ['#06b6d4', '#ec4899', '#eab308', '#3b82f6', '#f97316'][idx % 5];
+                                return (
+                                    <span key={name} className="flex items-center gap-1">
+                                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color }}></span>
+                                        {name}
+                                    </span>
+                                );
+                            })}
                         </div>
-                    ))}
+                    )}
                 </div>
             </div>
         </div>
     );
 }
+
