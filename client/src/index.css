@@ -51,33 +51,45 @@
 
 :root {
   /* Weed.de 2026 Theme - Light Mode */
-  --primary: #A3FF12; /* Bright Green - Primary CTAs */
+  --primary: #A3FF12;
+  /* Bright Green - Primary CTAs */
   --primary-foreground: #000000;
-  --secondary: #FF5C47; /* Coral/Orange - Headlines & Accents */
+  --secondary: #FF5C47;
+  /* Coral/Orange - Headlines & Accents */
   --secondary-foreground: #FFFFFF;
   --sidebar-primary: #FF5C47;
   --sidebar-primary-foreground: #FFFFFF;
-  --chart-1: #A3FF12; /* Bright Green */
-  --chart-2: #FF5C47; /* Coral */
-  --chart-3: #FF69B4; /* Hot Pink */
-  --chart-4: #3D1A4A; /* Deep Purple */
-  --chart-5: #4A1A1A; /* Burgundy */
-  --radius: 1rem; /* Increased for more rounded corners */
-  --background: #F5F5DC; /* Cream/Beige */
+  --chart-1: #A3FF12;
+  /* Bright Green */
+  --chart-2: #FF5C47;
+  /* Coral */
+  --chart-3: #FF69B4;
+  /* Hot Pink */
+  --chart-4: #3D1A4A;
+  /* Deep Purple */
+  --chart-5: #4A1A1A;
+  /* Burgundy */
+  --radius: 1rem;
+  /* Increased for more rounded corners */
+  --background: #F5F5DC;
+  /* Cream/Beige */
   --foreground: #000000;
   --card: #FFFFFF;
   --card-foreground: #000000;
   --popover: #FFFFFF;
   --popover-foreground: #000000;
   --muted: #E5E7EB;
-  --muted-foreground: #374151; /* Changed from #6B7280 to #374151 (gray-700) for better contrast on cream background */
-  --accent: #FF5C47; /* Coral accent */
+  --muted-foreground: #374151;
+  /* Changed from #6B7280 to #374151 (gray-700) for better contrast on cream background */
+  --accent: #FF5C47;
+  /* Coral accent */
   --accent-foreground: #FFFFFF;
   --destructive: #EF4444;
   --destructive-foreground: #FFFFFF;
   --border: #E5E7EB;
   --input: #E5E7EB;
-  --ring: #A3FF12; /* Bright Green focus ring */
+  --ring: #A3FF12;
+  /* Bright Green focus ring */
   --sidebar: #FFFFFF;
   --sidebar-foreground: #000000;
   --sidebar-accent: #F3F4F6;
@@ -91,32 +103,42 @@
 
 .dark {
   /* Weed.de 2026 Theme - Dark Mode */
-  --primary: #A3FF12; /* Bright Green */
+  --primary: #A3FF12;
+  /* Bright Green */
   --primary-foreground: #000000;
-  --secondary: #FF5C47; /* Coral/Orange */
+  --secondary: #FF5C47;
+  /* Coral/Orange */
   --secondary-foreground: #FFFFFF;
   --sidebar-primary: #FF5C47;
   --sidebar-primary-foreground: #FFFFFF;
-  --background: #4A1A1A; /* Deep Burgundy */
+  --background: #4A1A1A;
+  /* Deep Burgundy */
   --foreground: #FFFFFF;
-  --card: #3D1A4A; /* Deep Purple cards */
+  --card: #3D1A4A;
+  /* Deep Purple cards */
   --card-foreground: #FFFFFF;
   --popover: #3D1A4A;
   --popover-foreground: #FFFFFF;
   --muted: #3D1A4A;
   --muted-foreground: #9CA3AF;
-  --accent: #FF5C47; /* Coral accent */
+  --accent: #FF5C47;
+  /* Coral accent */
   --accent-foreground: #FFFFFF;
   --destructive: #EF4444;
   --destructive-foreground: #FFFFFF;
   --border: rgba(255, 255, 255, 0.1);
   --input: rgba(255, 255, 255, 0.1);
   --ring: #A3FF12;
-  --chart-1: #A3FF12; /* Bright Green */
-  --chart-2: #FF5C47; /* Coral */
-  --chart-3: #FF69B4; /* Hot Pink */
-  --chart-4: #3D1A4A; /* Deep Purple */
-  --chart-5: #4A1A1A; /* Burgundy */
+  --chart-1: #A3FF12;
+  /* Bright Green */
+  --chart-2: #FF5C47;
+  /* Coral */
+  --chart-3: #FF69B4;
+  /* Hot Pink */
+  --chart-4: #3D1A4A;
+  /* Deep Purple */
+  --chart-5: #4A1A1A;
+  /* Burgundy */
   --sidebar: #3D1A4A;
   --sidebar-foreground: #FFFFFF;
   --sidebar-accent: #4A1A1A;
@@ -132,9 +154,11 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
   [type="button"]:not(:disabled),
@@ -191,7 +215,8 @@
     width: 100%;
     margin-left: auto;
     margin-right: auto;
-    padding-left: 1rem; /* 16px - mobile padding */
+    padding-left: 1rem;
+    /* 16px - mobile padding */
     padding-right: 1rem;
   }
 
@@ -202,16 +227,19 @@
 
   @media (min-width: 640px) {
     .container {
-      padding-left: 1.5rem; /* 24px - tablet padding */
+      padding-left: 1.5rem;
+      /* 24px - tablet padding */
       padding-right: 1.5rem;
     }
   }
 
   @media (min-width: 1024px) {
     .container {
-      padding-left: 2rem; /* 32px - desktop padding */
+      padding-left: 2rem;
+      /* 32px - desktop padding */
       padding-right: 2rem;
-      max-width: 1280px; /* Standard content width */
+      max-width: 1280px;
+      /* Standard content width */
     }
   }
 
@@ -335,7 +363,7 @@
 
   .pattern-grid {
     background-image: linear-gradient(rgba(255, 92, 71, 0.1) 1px, transparent 1px),
-                      linear-gradient(90deg, rgba(255, 92, 71, 0.1) 1px, transparent 1px);
+      linear-gradient(90deg, rgba(255, 92, 71, 0.1) 1px, transparent 1px);
     background-size: 40px 40px;
   }
 
@@ -345,9 +373,12 @@
   }
 
   @keyframes pulse-live {
-    0%, 100% {
+
+    0%,
+    100% {
       opacity: 1;
     }
+
     50% {
       opacity: 0.5;
     }
@@ -363,9 +394,11 @@
       transform: scale(0.8);
       opacity: 0;
     }
+
     50% {
       transform: scale(1.1);
     }
+
     100% {
       transform: scale(1);
       opacity: 1;
@@ -382,6 +415,7 @@
       transform: translateY(20px);
       opacity: 0;
     }
+
     100% {
       transform: translateY(0);
       opacity: 1;
@@ -390,12 +424,10 @@
 
   /* Shimmer effect for loading */
   .shimmer {
-    background: linear-gradient(
-      90deg,
-      rgba(255, 255, 255, 0) 0%,
-      rgba(255, 255, 255, 0.1) 50%,
-      rgba(255, 255, 255, 0) 100%
-    );
+    background: linear-gradient(90deg,
+        rgba(255, 255, 255, 0) 0%,
+        rgba(255, 255, 255, 0.1) 50%,
+        rgba(255, 255, 255, 0) 100%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
   }
@@ -404,6 +436,7 @@
     0% {
       background-position: -200% 0;
     }
+
     100% {
       background-position: 200% 0;
     }
@@ -424,12 +457,16 @@
   }
 
   @keyframes winner-celebration {
-    0%, 100% {
+
+    0%,
+    100% {
       transform: scale(1) rotate(0deg);
     }
+
     25% {
       transform: scale(1.1) rotate(-5deg);
     }
+
     75% {
       transform: scale(1.1) rotate(5deg);
     }
@@ -472,6 +509,7 @@
     0% {
       left: -100%;
     }
+
     100% {
       left: 100%;
     }
@@ -491,6 +529,7 @@
       transform: translateY(10px);
       opacity: 0;
     }
+
     100% {
       transform: translateY(0);
       opacity: 1;
@@ -502,6 +541,7 @@
       transform: translateY(-10px);
       opacity: 0;
     }
+
     100% {
       transform: translateY(0);
       opacity: 1;
@@ -513,9 +553,11 @@
     0% {
       transform: rotateY(0deg) rotateX(0deg);
     }
+
     50% {
       transform: rotateY(1800deg) rotateX(20deg) scale(1.1);
     }
+
     100% {
       transform: rotateY(3600deg) rotateX(0deg);
     }
@@ -531,6 +573,7 @@
       opacity: 0;
       transform: scale(0.95);
     }
+
     100% {
       opacity: 1;
       transform: scale(1);
@@ -560,39 +603,52 @@
 
   /* Battle Arena Animations */
   @keyframes float-left {
-    0%, 100% {
+
+    0%,
+    100% {
       transform: translateY(0) translateX(0);
     }
+
     25% {
       transform: translateY(-8px) translateX(4px);
     }
+
     50% {
       transform: translateY(-4px) translateX(0);
     }
+
     75% {
       transform: translateY(-10px) translateX(-4px);
     }
   }
 
   @keyframes float-right {
-    0%, 100% {
+
+    0%,
+    100% {
       transform: translateY(0) translateX(0);
     }
+
     25% {
       transform: translateY(-10px) translateX(-4px);
     }
+
     50% {
       transform: translateY(-4px) translateX(0);
     }
+
     75% {
       transform: translateY(-8px) translateX(4px);
     }
   }
 
   @keyframes bounce-subtle {
-    0%, 100% {
+
+    0%,
+    100% {
       transform: translateY(0);
     }
+
     50% {
       transform: translateY(-6px);
     }
@@ -630,6 +686,7 @@
     0% {
       transform: rotateX(0deg);
     }
+
     100% {
       transform: rotateX(-90deg);
     }
@@ -647,6 +704,7 @@
     0% {
       transform: rotateX(90deg);
     }
+
     100% {
       transform: rotateX(0deg);
     }
@@ -656,6 +714,27 @@
   .flip-digit {
     perspective: 200px;
     transform-style: preserve-3d;
+  }
+
+  /* Simple digit roll animation */
+  .animate-digit-roll {
+    animation: digit-roll 0.2s ease-out;
+  }
+
+  @keyframes digit-roll {
+    0% {
+      transform: translateY(-50%);
+      opacity: 0;
+    }
+
+    50% {
+      transform: translateY(10%);
+    }
+
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
   }
 
   /* ===========================================
@@ -673,14 +752,17 @@
       transform: translateY(-30px) rotateX(-90deg) scale(0.8);
       filter: blur(4px);
     }
+
     40% {
       opacity: 1;
       transform: translateY(8px) rotateX(15deg) scale(1.15);
       filter: blur(0);
     }
+
     70% {
       transform: translateY(-4px) rotateX(-5deg) scale(1.05);
     }
+
     100% {
       opacity: 1;
       transform: translateY(0) rotateX(0) scale(1);
@@ -695,18 +777,20 @@
 
   @keyframes score-glow-pulse {
     0% {
-      text-shadow: 
+      text-shadow:
         0 0 30px var(--score-glow-color, #cfff4d),
         0 0 60px var(--score-glow-color, #cfff4d),
         0 0 90px var(--score-glow-color, #cfff4d);
       transform: scale(1.1);
     }
+
     50% {
-      text-shadow: 
+      text-shadow:
         0 0 15px var(--score-glow-color, #cfff4d),
         0 0 30px var(--score-glow-color, #cfff4d);
       transform: scale(1.05);
     }
+
     100% {
       text-shadow: none;
       transform: scale(1);
@@ -735,6 +819,7 @@
       opacity: 1;
       transform: translate(0, 0) scale(1);
     }
+
     100% {
       opacity: 0;
       transform: translate(var(--particle-x, 50px), var(--particle-y, -50px)) scale(0);
@@ -751,10 +836,12 @@
       opacity: 0;
       transform: translateY(10px) scale(0.5);
     }
+
     50% {
       opacity: 1;
       transform: translateY(-5px) scale(1.2);
     }
+
     100% {
       opacity: 1;
       transform: translateY(0) scale(1);
@@ -772,6 +859,7 @@
       opacity: 1;
       transform: translateY(0);
     }
+
     100% {
       opacity: 0;
       transform: translateY(-20px);
@@ -784,15 +872,43 @@
   }
 
   @keyframes score-big-shake {
-    0%, 100% { transform: translateX(0) rotate(0); }
-    10% { transform: translateX(-8px) rotate(-2deg); }
-    20% { transform: translateX(8px) rotate(2deg); }
-    30% { transform: translateX(-6px) rotate(-1deg); }
-    40% { transform: translateX(6px) rotate(1deg); }
-    50% { transform: translateX(-4px) rotate(0); }
-    60% { transform: translateX(4px) rotate(0); }
-    70% { transform: translateX(-2px); }
-    80% { transform: translateX(2px); }
+
+    0%,
+    100% {
+      transform: translateX(0) rotate(0);
+    }
+
+    10% {
+      transform: translateX(-8px) rotate(-2deg);
+    }
+
+    20% {
+      transform: translateX(8px) rotate(2deg);
+    }
+
+    30% {
+      transform: translateX(-6px) rotate(-1deg);
+    }
+
+    40% {
+      transform: translateX(6px) rotate(1deg);
+    }
+
+    50% {
+      transform: translateX(-4px) rotate(0);
+    }
+
+    60% {
+      transform: translateX(4px) rotate(0);
+    }
+
+    70% {
+      transform: translateX(-2px);
+    }
+
+    80% {
+      transform: translateX(2px);
+    }
   }
 
   /* Score counter wrapper with perspective for 3D effect */
@@ -811,6 +927,7 @@
       transform: translateY(100%);
       opacity: 0;
     }
+
     100% {
       transform: translateY(0);
       opacity: 1;
@@ -823,16 +940,47 @@
 
   /* Screen shake effect */
   @keyframes screen-shake {
-    0%, 100% { transform: translate(0, 0); }
-    10% { transform: translate(-5px, -3px); }
-    20% { transform: translate(5px, 2px); }
-    30% { transform: translate(-4px, 4px); }
-    40% { transform: translate(4px, -2px); }
-    50% { transform: translate(-3px, 3px); }
-    60% { transform: translate(3px, -3px); }
-    70% { transform: translate(-2px, 2px); }
-    80% { transform: translate(2px, -1px); }
-    90% { transform: translate(-1px, 1px); }
+
+    0%,
+    100% {
+      transform: translate(0, 0);
+    }
+
+    10% {
+      transform: translate(-5px, -3px);
+    }
+
+    20% {
+      transform: translate(5px, 2px);
+    }
+
+    30% {
+      transform: translate(-4px, 4px);
+    }
+
+    40% {
+      transform: translate(4px, -2px);
+    }
+
+    50% {
+      transform: translate(-3px, 3px);
+    }
+
+    60% {
+      transform: translate(3px, -3px);
+    }
+
+    70% {
+      transform: translate(-2px, 2px);
+    }
+
+    80% {
+      transform: translate(2px, -1px);
+    }
+
+    90% {
+      transform: translate(-1px, 1px);
+    }
   }
 
   .animate-screen-shake {
@@ -845,10 +993,12 @@
       opacity: 0;
       transform: translate(-50%, -50%) scale(0.3);
     }
+
     50% {
       opacity: 1;
       transform: translate(-50%, -50%) scale(1.3);
     }
+
     100% {
       opacity: 1;
       transform: translate(-50%, -50%) scale(1);
@@ -865,6 +1015,7 @@
       opacity: 1;
       transform: translate(-50%, -50%) translateY(0) scale(1);
     }
+
     100% {
       opacity: 0;
       transform: translate(-50%, -50%) translateY(-30px) scale(0.8);
@@ -881,6 +1032,7 @@
       opacity: 1;
       transform: translate(-50%, -50%) rotate(var(--particle-angle, 0deg)) translateX(0);
     }
+
     100% {
       opacity: 0;
       transform: translate(-50%, -50%) rotate(var(--particle-angle, 0deg)) translateX(var(--particle-distance, 50px));
@@ -893,17 +1045,39 @@
 
   /* Attack lunge animation */
   @keyframes attack-lunge {
-    0% { transform: translateX(0) scale(1); }
-    30% { transform: translateX(30px) scale(1.1); }
-    60% { transform: translateX(-10px) scale(0.95); }
-    100% { transform: translateX(0) scale(1); }
+    0% {
+      transform: translateX(0) scale(1);
+    }
+
+    30% {
+      transform: translateX(30px) scale(1.1);
+    }
+
+    60% {
+      transform: translateX(-10px) scale(0.95);
+    }
+
+    100% {
+      transform: translateX(0) scale(1);
+    }
   }
 
   @keyframes attack-lunge-left {
-    0% { transform: translateX(0) scale(1); }
-    30% { transform: translateX(-30px) scale(1.1); }
-    60% { transform: translateX(10px) scale(0.95); }
-    100% { transform: translateX(0) scale(1); }
+    0% {
+      transform: translateX(0) scale(1);
+    }
+
+    30% {
+      transform: translateX(-30px) scale(1.1);
+    }
+
+    60% {
+      transform: translateX(10px) scale(0.95);
+    }
+
+    100% {
+      transform: translateX(0) scale(1);
+    }
   }
 
   .animate-attack-lunge {
@@ -920,10 +1094,12 @@
       opacity: 0;
       transform: scaleX(0) rotate(-45deg);
     }
+
     20% {
       opacity: 1;
       transform: scaleX(1) rotate(-45deg);
     }
+
     100% {
       opacity: 0;
       transform: scaleX(1) rotate(-45deg);
@@ -940,10 +1116,12 @@
       opacity: 1;
       transform: scale(0);
     }
+
     50% {
       opacity: 0.8;
       transform: scale(1.5);
     }
+
     100% {
       opacity: 0;
       transform: scale(2);
@@ -956,12 +1134,29 @@
 
   /* Impact flash */
   @keyframes impact-flash {
-    0% { opacity: 0; }
-    15% { opacity: 1; }
-    30% { opacity: 0; }
-    45% { opacity: 0.6; }
-    60% { opacity: 0; }
-    100% { opacity: 0; }
+    0% {
+      opacity: 0;
+    }
+
+    15% {
+      opacity: 1;
+    }
+
+    30% {
+      opacity: 0;
+    }
+
+    45% {
+      opacity: 0.6;
+    }
+
+    60% {
+      opacity: 0;
+    }
+
+    100% {
+      opacity: 0;
+    }
   }
 
   .animate-impact-flash {
@@ -970,9 +1165,17 @@
 
   /* Health bar depletion */
   @keyframes health-deplete {
-    0% { transform: scaleX(1); }
-    30% { transform: scaleX(1.02); }
-    100% { transform: scaleX(var(--health-percent, 1)); }
+    0% {
+      transform: scaleX(1);
+    }
+
+    30% {
+      transform: scaleX(1.02);
+    }
+
+    100% {
+      transform: scaleX(var(--health-percent, 1));
+    }
   }
 
   .animate-health-deplete {
@@ -982,11 +1185,27 @@
 
   /* Health bar shake on hit */
   @keyframes health-shake {
-    0%, 100% { transform: translateX(0); }
-    20% { transform: translateX(-3px); }
-    40% { transform: translateX(3px); }
-    60% { transform: translateX(-2px); }
-    80% { transform: translateX(2px); }
+
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+
+    20% {
+      transform: translateX(-3px);
+    }
+
+    40% {
+      transform: translateX(3px);
+    }
+
+    60% {
+      transform: translateX(-2px);
+    }
+
+    80% {
+      transform: translateX(2px);
+    }
   }
 
   .animate-health-shake {
@@ -995,11 +1214,14 @@
 
   /* Health bar critical glow */
   @keyframes health-critical {
-    0%, 100% { 
+
+    0%,
+    100% {
       box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
       opacity: 1;
     }
-    50% { 
+
+    50% {
       box-shadow: 0 0 20px rgba(239, 68, 68, 0.8);
       opacity: 0.7;
     }
@@ -1015,10 +1237,12 @@
       opacity: 0;
       transform: scale(0.5) translateY(20px);
     }
+
     50% {
       opacity: 1;
       transform: scale(1.3) translateY(-10px);
     }
+
     100% {
       opacity: 1;
       transform: scale(1) translateY(0);
@@ -1031,11 +1255,14 @@
 
   /* Combo text pulse */
   @keyframes combo-pulse {
-    0%, 100% { 
+
+    0%,
+    100% {
       transform: scale(1);
       text-shadow: 0 0 10px currentColor;
     }
-    50% { 
+
+    50% {
       transform: scale(1.05);
       text-shadow: 0 0 20px currentColor;
     }
@@ -1047,8 +1274,13 @@
 
   /* Super combo rainbow effect */
   @keyframes super-combo-rainbow {
-    0% { filter: hue-rotate(0deg); }
-    100% { filter: hue-rotate(360deg); }
+    0% {
+      filter: hue-rotate(0deg);
+    }
+
+    100% {
+      filter: hue-rotate(360deg);
+    }
   }
 
   .animate-super-combo {
@@ -1057,11 +1289,28 @@
 
   /* Fighter hit reaction */
   @keyframes fighter-hit {
-    0% { transform: translateX(0) rotate(0); filter: brightness(1); }
-    20% { transform: translateX(10px) rotate(5deg); filter: brightness(2); }
-    40% { transform: translateX(-5px) rotate(-2deg); filter: brightness(1); }
-    60% { transform: translateX(3px) rotate(1deg); }
-    100% { transform: translateX(0) rotate(0); }
+    0% {
+      transform: translateX(0) rotate(0);
+      filter: brightness(1);
+    }
+
+    20% {
+      transform: translateX(10px) rotate(5deg);
+      filter: brightness(2);
+    }
+
+    40% {
+      transform: translateX(-5px) rotate(-2deg);
+      filter: brightness(1);
+    }
+
+    60% {
+      transform: translateX(3px) rotate(1deg);
+    }
+
+    100% {
+      transform: translateX(0) rotate(0);
+    }
   }
 
   .animate-fighter-hit {
@@ -1070,11 +1319,25 @@
 
   /* Victory pose animation */
   @keyframes victory-pose {
-    0% { transform: scale(1) translateY(0); }
-    30% { transform: scale(1.1) translateY(-10px); }
-    50% { transform: scale(1.15) translateY(-15px); }
-    70% { transform: scale(1.1) translateY(-10px); }
-    100% { transform: scale(1.05) translateY(-5px); }
+    0% {
+      transform: scale(1) translateY(0);
+    }
+
+    30% {
+      transform: scale(1.1) translateY(-10px);
+    }
+
+    50% {
+      transform: scale(1.15) translateY(-15px);
+    }
+
+    70% {
+      transform: scale(1.1) translateY(-10px);
+    }
+
+    100% {
+      transform: scale(1.05) translateY(-5px);
+    }
   }
 
   .animate-victory {
@@ -1087,13 +1350,16 @@
       opacity: 0;
       transform: scale(5) rotate(-10deg);
     }
+
     50% {
       opacity: 1;
       transform: scale(1.2) rotate(5deg);
     }
+
     70% {
       transform: scale(0.9) rotate(-2deg);
     }
+
     100% {
       opacity: 1;
       transform: scale(1) rotate(0);
@@ -1110,6 +1376,7 @@
       opacity: 0;
       transform: translate(-50%, -100%);
     }
+
     100% {
       opacity: 1;
       transform: translate(-50%, 0);
@@ -1126,6 +1393,7 @@
       opacity: 1;
       transform: translate(-50%, 0);
     }
+
     100% {
       opacity: 0;
       transform: translate(-50%, -100%);
@@ -1142,77 +1410,93 @@
 
   /* Epic fighter knockback - dramatic recoil with bounce recovery */
   @keyframes fighter-knockback {
-    0% { 
-      transform: translateX(0) rotate(0) scale(1); 
+    0% {
+      transform: translateX(0) rotate(0) scale(1);
       filter: brightness(1);
     }
-    10% { 
-      transform: translateX(40px) rotate(15deg) scale(0.9); 
+
+    10% {
+      transform: translateX(40px) rotate(15deg) scale(0.9);
       filter: brightness(3) saturate(0);
     }
-    20% { 
-      transform: translateX(60px) rotate(20deg) scale(0.85); 
+
+    20% {
+      transform: translateX(60px) rotate(20deg) scale(0.85);
       filter: brightness(2) saturate(0.5) hue-rotate(-30deg);
     }
+
     35% {
       transform: translateX(50px) rotate(10deg) scale(0.9);
       filter: brightness(1.5) saturate(0.7) hue-rotate(-20deg);
     }
-    50% { 
-      transform: translateX(30px) rotate(5deg) scale(0.95); 
+
+    50% {
+      transform: translateX(30px) rotate(5deg) scale(0.95);
       filter: brightness(1.2) saturate(0.8) hue-rotate(-10deg);
     }
+
     65% {
       transform: translateX(15px) rotate(-3deg) scale(1);
       filter: brightness(1.8) saturate(0.6);
     }
-    80% { 
-      transform: translateX(-10px) rotate(-5deg) scale(1.02); 
+
+    80% {
+      transform: translateX(-10px) rotate(-5deg) scale(1.02);
       filter: brightness(1);
     }
+
     90% {
       transform: translateX(5px) rotate(2deg) scale(1);
     }
-    100% { 
-      transform: translateX(0) rotate(0) scale(1); 
+
+    100% {
+      transform: translateX(0) rotate(0) scale(1);
       filter: brightness(1);
     }
   }
 
   @keyframes fighter-knockback-left {
-    0% { 
-      transform: translateX(0) rotate(0) scale(1); 
+    0% {
+      transform: translateX(0) rotate(0) scale(1);
       filter: brightness(1);
     }
-    10% { 
-      transform: translateX(-40px) rotate(-15deg) scale(0.9); 
+
+    10% {
+      transform: translateX(-40px) rotate(-15deg) scale(0.9);
       filter: brightness(3) saturate(0);
     }
-    20% { 
-      transform: translateX(-60px) rotate(-20deg) scale(0.85); 
+
+    20% {
+      transform: translateX(-60px) rotate(-20deg) scale(0.85);
       filter: brightness(2) saturate(0.5) hue-rotate(-30deg);
     }
+
     35% {
       transform: translateX(-50px) rotate(-10deg) scale(0.9);
       filter: brightness(1.5) saturate(0.7) hue-rotate(-20deg);
     }
-    50% { 
-      transform: translateX(-30px) rotate(-5deg) scale(0.95); 
+
+    50% {
+      transform: translateX(-30px) rotate(-5deg) scale(0.95);
       filter: brightness(1.2) saturate(0.8) hue-rotate(-10deg);
     }
+
     65% {
       transform: translateX(-15px) rotate(3deg) scale(1);
       filter: brightness(1.8) saturate(0.6);
     }
-    80% { 
-      transform: translateX(10px) rotate(5deg) scale(1.02); 
+
+    80% {
+      transform: translateX(10px) rotate(5deg) scale(1.02);
       filter: brightness(1);
     }
+
     90% {
       transform: translateX(-5px) rotate(-2deg) scale(1);
     }
-    100% { 
-      transform: translateX(0) rotate(0) scale(1); 
+
+    100% {
+      transform: translateX(0) rotate(0) scale(1);
       filter: brightness(1);
     }
   }
@@ -1227,44 +1511,55 @@
 
   /* Damaged fighter flicker - sustained hurt state */
   @keyframes fighter-damaged {
-    0%, 100% { 
-      filter: brightness(1) saturate(1); 
+
+    0%,
+    100% {
+      filter: brightness(1) saturate(1);
       opacity: 1;
     }
-    10% { 
-      filter: brightness(2) saturate(0.3) sepia(0.5) hue-rotate(-30deg); 
+
+    10% {
+      filter: brightness(2) saturate(0.3) sepia(0.5) hue-rotate(-30deg);
       opacity: 0.6;
     }
-    20% { 
-      filter: brightness(1.5) saturate(0.5) sepia(0.3); 
+
+    20% {
+      filter: brightness(1.5) saturate(0.5) sepia(0.3);
       opacity: 1;
     }
-    30% { 
-      filter: brightness(2.5) saturate(0) sepia(0.8) hue-rotate(-40deg); 
+
+    30% {
+      filter: brightness(2.5) saturate(0) sepia(0.8) hue-rotate(-40deg);
       opacity: 0.4;
     }
-    40% { 
-      filter: brightness(1.2) saturate(0.7); 
+
+    40% {
+      filter: brightness(1.2) saturate(0.7);
       opacity: 1;
     }
-    50% { 
-      filter: brightness(1.8) saturate(0.4) sepia(0.4) hue-rotate(-20deg); 
+
+    50% {
+      filter: brightness(1.8) saturate(0.4) sepia(0.4) hue-rotate(-20deg);
       opacity: 0.7;
     }
-    60% { 
-      filter: brightness(1) saturate(0.8); 
+
+    60% {
+      filter: brightness(1) saturate(0.8);
       opacity: 1;
     }
-    70% { 
-      filter: brightness(1.5) saturate(0.5) sepia(0.2); 
+
+    70% {
+      filter: brightness(1.5) saturate(0.5) sepia(0.2);
       opacity: 0.8;
     }
-    80% { 
-      filter: brightness(1) saturate(0.9); 
+
+    80% {
+      filter: brightness(1) saturate(0.9);
       opacity: 1;
     }
-    90% { 
-      filter: brightness(1.2) saturate(0.7); 
+
+    90% {
+      filter: brightness(1.2) saturate(0.7);
       opacity: 0.9;
     }
   }
@@ -1275,20 +1570,63 @@
 
   /* Mega screen shake - heavier dramatic shake for big hits */
   @keyframes screen-mega-shake {
-    0%, 100% { transform: translate(0, 0) rotate(0); }
-    5% { transform: translate(-15px, -10px) rotate(-2deg); }
-    10% { transform: translate(15px, 8px) rotate(2deg); }
-    15% { transform: translate(-12px, 12px) rotate(-1.5deg); }
-    20% { transform: translate(12px, -8px) rotate(1.5deg); }
-    25% { transform: translate(-10px, 10px) rotate(-1deg); }
-    30% { transform: translate(10px, -10px) rotate(1deg); }
-    35% { transform: translate(-8px, 6px) rotate(-0.8deg); }
-    40% { transform: translate(8px, -6px) rotate(0.8deg); }
-    50% { transform: translate(-6px, 5px) rotate(-0.5deg); }
-    60% { transform: translate(5px, -4px) rotate(0.5deg); }
-    70% { transform: translate(-4px, 3px) rotate(-0.3deg); }
-    80% { transform: translate(3px, -2px) rotate(0.3deg); }
-    90% { transform: translate(-2px, 1px) rotate(-0.1deg); }
+
+    0%,
+    100% {
+      transform: translate(0, 0) rotate(0);
+    }
+
+    5% {
+      transform: translate(-15px, -10px) rotate(-2deg);
+    }
+
+    10% {
+      transform: translate(15px, 8px) rotate(2deg);
+    }
+
+    15% {
+      transform: translate(-12px, 12px) rotate(-1.5deg);
+    }
+
+    20% {
+      transform: translate(12px, -8px) rotate(1.5deg);
+    }
+
+    25% {
+      transform: translate(-10px, 10px) rotate(-1deg);
+    }
+
+    30% {
+      transform: translate(10px, -10px) rotate(1deg);
+    }
+
+    35% {
+      transform: translate(-8px, 6px) rotate(-0.8deg);
+    }
+
+    40% {
+      transform: translate(8px, -6px) rotate(0.8deg);
+    }
+
+    50% {
+      transform: translate(-6px, 5px) rotate(-0.5deg);
+    }
+
+    60% {
+      transform: translate(5px, -4px) rotate(0.5deg);
+    }
+
+    70% {
+      transform: translate(-4px, 3px) rotate(-0.3deg);
+    }
+
+    80% {
+      transform: translate(3px, -2px) rotate(0.3deg);
+    }
+
+    90% {
+      transform: translate(-2px, 1px) rotate(-0.1deg);
+    }
   }
 
   .animate-screen-mega-shake {
@@ -1302,23 +1640,28 @@
       transform: scale(0.2) translateY(30px);
       text-shadow: 0 0 80px currentColor, 0 0 120px currentColor;
     }
+
     15% {
       opacity: 1;
       transform: scale(1.8) translateY(-20px);
       text-shadow: 0 0 60px currentColor, 0 0 100px currentColor;
     }
+
     30% {
       transform: scale(1.4) translateY(-10px);
       text-shadow: 0 0 40px currentColor, 0 0 80px currentColor;
     }
+
     50% {
       transform: scale(1.2) translateY(0);
       text-shadow: 0 0 30px currentColor, 0 0 60px currentColor;
     }
+
     70% {
       opacity: 1;
       transform: scale(1.1) translateY(-5px);
     }
+
     100% {
       opacity: 1;
       transform: scale(1) translateY(0);
@@ -1336,10 +1679,12 @@
       opacity: 1;
       transform: translateY(0) scale(1);
     }
+
     30% {
       opacity: 1;
       transform: translateY(-20px) scale(1.05);
     }
+
     100% {
       opacity: 0;
       transform: translateY(-80px) scale(0.6);
@@ -1358,24 +1703,29 @@
       transform: scaleX(0) rotate(var(--slash-angle, -45deg));
       filter: blur(8px);
     }
+
     15% {
       opacity: 1;
       transform: scaleX(0.3) rotate(var(--slash-angle, -45deg));
       filter: blur(2px);
     }
+
     30% {
       opacity: 1;
       transform: scaleX(1) rotate(var(--slash-angle, -45deg));
       filter: blur(0);
     }
+
     50% {
       opacity: 0.9;
       transform: scaleX(1.1) rotate(var(--slash-angle, -45deg));
     }
+
     70% {
       opacity: 0.6;
       transform: scaleX(1) rotate(var(--slash-angle, -45deg));
     }
+
     100% {
       opacity: 0;
       transform: scaleX(0.8) rotate(var(--slash-angle, -45deg));
@@ -1392,22 +1742,25 @@
     0% {
       opacity: 1;
       transform: scale(0);
-      box-shadow: 0 0 0 0 var(--nova-color, rgba(255,255,255,0.8));
+      box-shadow: 0 0 0 0 var(--nova-color, rgba(255, 255, 255, 0.8));
     }
+
     30% {
       opacity: 0.9;
       transform: scale(1);
-      box-shadow: 0 0 30px 10px var(--nova-color, rgba(255,255,255,0.6));
+      box-shadow: 0 0 30px 10px var(--nova-color, rgba(255, 255, 255, 0.6));
     }
+
     60% {
       opacity: 0.6;
       transform: scale(2);
-      box-shadow: 0 0 60px 20px var(--nova-color, rgba(255,255,255,0.4));
+      box-shadow: 0 0 60px 20px var(--nova-color, rgba(255, 255, 255, 0.4));
     }
+
     100% {
       opacity: 0;
       transform: scale(3);
-      box-shadow: 0 0 80px 30px var(--nova-color, rgba(255,255,255,0));
+      box-shadow: 0 0 80px 30px var(--nova-color, rgba(255, 255, 255, 0));
     }
   }
 
@@ -1417,50 +1770,62 @@
 
   /* Epic attack lunge - extended dramatic lunge */
   @keyframes attack-lunge-epic {
-    0% { 
-      transform: translateX(0) scale(1) rotate(0); 
+    0% {
+      transform: translateX(0) scale(1) rotate(0);
     }
-    15% { 
-      transform: translateX(-20px) scale(1.1) rotate(-5deg); 
+
+    15% {
+      transform: translateX(-20px) scale(1.1) rotate(-5deg);
     }
-    35% { 
-      transform: translateX(80px) scale(1.25) rotate(8deg); 
+
+    35% {
+      transform: translateX(80px) scale(1.25) rotate(8deg);
     }
-    50% { 
-      transform: translateX(60px) scale(1.15) rotate(5deg); 
+
+    50% {
+      transform: translateX(60px) scale(1.15) rotate(5deg);
     }
-    70% { 
-      transform: translateX(20px) scale(1.05) rotate(2deg); 
+
+    70% {
+      transform: translateX(20px) scale(1.05) rotate(2deg);
     }
-    85% { 
-      transform: translateX(-10px) scale(0.95) rotate(-2deg); 
+
+    85% {
+      transform: translateX(-10px) scale(0.95) rotate(-2deg);
     }
-    100% { 
-      transform: translateX(0) scale(1) rotate(0); 
+
+    100% {
+      transform: translateX(0) scale(1) rotate(0);
     }
   }
 
   @keyframes attack-lunge-epic-left {
-    0% { 
-      transform: translateX(0) scale(1) rotate(0); 
+    0% {
+      transform: translateX(0) scale(1) rotate(0);
     }
-    15% { 
-      transform: translateX(20px) scale(1.1) rotate(5deg); 
+
+    15% {
+      transform: translateX(20px) scale(1.1) rotate(5deg);
     }
-    35% { 
-      transform: translateX(-80px) scale(1.25) rotate(-8deg); 
+
+    35% {
+      transform: translateX(-80px) scale(1.25) rotate(-8deg);
     }
-    50% { 
-      transform: translateX(-60px) scale(1.15) rotate(-5deg); 
+
+    50% {
+      transform: translateX(-60px) scale(1.15) rotate(-5deg);
     }
-    70% { 
-      transform: translateX(-20px) scale(1.05) rotate(-2deg); 
+
+    70% {
+      transform: translateX(-20px) scale(1.05) rotate(-2deg);
     }
-    85% { 
-      transform: translateX(10px) scale(0.95) rotate(2deg); 
+
+    85% {
+      transform: translateX(10px) scale(0.95) rotate(2deg);
     }
-    100% { 
-      transform: translateX(0) scale(1) rotate(0); 
+
+    100% {
+      transform: translateX(0) scale(1) rotate(0);
     }
   }
 
@@ -1474,16 +1839,45 @@
 
   /* Impact mega flash - full screen dramatic flash */
   @keyframes impact-mega-flash {
-    0% { opacity: 0; }
-    8% { opacity: 1; }
-    15% { opacity: 0.2; }
-    22% { opacity: 0.9; }
-    30% { opacity: 0.1; }
-    40% { opacity: 0.7; }
-    50% { opacity: 0.05; }
-    65% { opacity: 0.4; }
-    80% { opacity: 0; }
-    100% { opacity: 0; }
+    0% {
+      opacity: 0;
+    }
+
+    8% {
+      opacity: 1;
+    }
+
+    15% {
+      opacity: 0.2;
+    }
+
+    22% {
+      opacity: 0.9;
+    }
+
+    30% {
+      opacity: 0.1;
+    }
+
+    40% {
+      opacity: 0.7;
+    }
+
+    50% {
+      opacity: 0.05;
+    }
+
+    65% {
+      opacity: 0.4;
+    }
+
+    80% {
+      opacity: 0;
+    }
+
+    100% {
+      opacity: 0;
+    }
   }
 
   .animate-impact-mega-flash {
@@ -1497,20 +1891,25 @@
       transform: scale(0.3) rotate(-20deg);
       filter: blur(10px);
     }
+
     20% {
       opacity: 1;
       transform: scale(1.5) rotate(5deg);
       filter: blur(0);
     }
+
     40% {
       transform: scale(1.2) rotate(-3deg);
     }
+
     60% {
       transform: scale(1.3) rotate(2deg);
     }
+
     80% {
       transform: scale(1.1) rotate(-1deg);
     }
+
     100% {
       opacity: 1;
       transform: scale(1) rotate(0);
@@ -1527,10 +1926,12 @@
       opacity: 1;
       transform: translate(-50%, -50%) rotate(var(--particle-angle, 0deg)) translateX(0) scale(1);
     }
+
     50% {
       opacity: 0.8;
       transform: translate(-50%, -50%) rotate(var(--particle-angle, 0deg)) translateX(calc(var(--particle-distance, 80px) * 0.6)) scale(1.5);
     }
+
     100% {
       opacity: 0;
       transform: translate(-50%, -50%) rotate(var(--particle-angle, 0deg)) translateX(var(--particle-distance, 120px)) scale(0.5);
@@ -1547,6 +1948,7 @@
       transform: rotate(0deg);
       opacity: 1;
     }
+
     100% {
       transform: rotate(360deg);
       opacity: 1;
@@ -1559,18 +1961,24 @@
 
   /* Hurt vignette pulse */
   @keyframes hurt-vignette {
-    0%, 100% {
+
+    0%,
+    100% {
       box-shadow: inset 0 0 60px 20px rgba(255, 0, 0, 0);
     }
+
     20% {
       box-shadow: inset 0 0 100px 40px rgba(255, 0, 0, 0.6);
     }
+
     40% {
       box-shadow: inset 0 0 80px 30px rgba(255, 0, 0, 0.3);
     }
+
     60% {
       box-shadow: inset 0 0 90px 35px rgba(255, 0, 0, 0.5);
     }
+
     80% {
       box-shadow: inset 0 0 70px 25px rgba(255, 0, 0, 0.2);
     }
@@ -1582,9 +1990,12 @@
 
   /* Animated gradient for game phase indicators */
   @keyframes gradient-x {
-    0%, 100% {
+
+    0%,
+    100% {
       background-position: 0% 50%;
     }
+
     50% {
       background-position: 100% 50%;
     }
@@ -1597,9 +2008,12 @@
 
   /* Intense overtime pulse */
   @keyframes overtime-pulse {
-    0%, 100% {
+
+    0%,
+    100% {
       box-shadow: 0 0 20px rgba(255, 100, 0, 0.3);
     }
+
     50% {
       box-shadow: 0 0 40px rgba(255, 100, 0, 0.6), 0 0 60px rgba(255, 50, 0, 0.3);
     }
@@ -1611,15 +2025,20 @@
 
   /* Power hour fire effect */
   @keyframes fire-flicker {
-    0%, 100% {
+
+    0%,
+    100% {
       filter: brightness(1) saturate(1);
     }
+
     25% {
       filter: brightness(1.1) saturate(1.1);
     }
+
     50% {
       filter: brightness(0.95) saturate(1.2);
     }
+
     75% {
       filter: brightness(1.05) saturate(1.05);
     }

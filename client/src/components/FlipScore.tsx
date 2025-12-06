@@ -8,17 +8,15 @@ interface FlipDigitProps {
 
 function FlipDigit({ digit, delay = 0 }: FlipDigitProps) {
     const [displayDigit, setDisplayDigit] = useState(digit);
-    const [isFlipping, setIsFlipping] = useState(false);
-    const [previousDigit, setPreviousDigit] = useState(digit);
+    const [isAnimating, setIsAnimating] = useState(false);
 
     useEffect(() => {
         if (digit !== displayDigit) {
-            setPreviousDigit(displayDigit);
-            setIsFlipping(true);
+            setIsAnimating(true);
 
             const timer = setTimeout(() => {
                 setDisplayDigit(digit);
-                setTimeout(() => setIsFlipping(false), 300);
+                setTimeout(() => setIsAnimating(false), 200);
             }, delay);
 
             return () => clearTimeout(timer);
@@ -26,54 +24,24 @@ function FlipDigit({ digit, delay = 0 }: FlipDigitProps) {
     }, [digit, delay, displayDigit]);
 
     return (
-        <div className="relative w-[1.2em] h-[1.6em] overflow-hidden">
-            {/* Background card */}
-            <div className="absolute inset-0 bg-zinc-800 rounded-sm shadow-inner" />
-
-            {/* Top half (static) */}
-            <div className="absolute inset-x-0 top-0 h-1/2 bg-zinc-800 rounded-t-sm overflow-hidden border-b border-zinc-900">
-                <span className="absolute inset-0 flex items-end justify-center pb-0 text-white font-mono font-bold leading-none">
-                    {displayDigit}
-                </span>
+        <div className="relative w-[0.7em] h-[1.2em] bg-zinc-800 rounded-sm overflow-hidden">
+            {/* Single digit display */}
+            <div
+                className={cn(
+                    "absolute inset-0 flex items-center justify-center text-white font-mono font-bold transition-all duration-200",
+                    isAnimating && "animate-digit-roll"
+                )}
+            >
+                {displayDigit}
             </div>
 
-            {/* Bottom half (static) */}
-            <div className="absolute inset-x-0 bottom-0 h-1/2 bg-zinc-700 rounded-b-sm overflow-hidden">
-                <span className="absolute inset-0 flex items-start justify-center pt-0 text-white font-mono font-bold leading-none">
-                    {displayDigit}
-                </span>
-            </div>
+            {/* Subtle horizontal line for texture */}
+            <div className="absolute inset-x-0 top-1/2 h-px bg-zinc-700/50" />
 
-            {/* Flipping top half */}
-            {isFlipping && (
-                <div
-                    className="absolute inset-x-0 top-0 h-1/2 bg-zinc-800 rounded-t-sm overflow-hidden origin-bottom animate-flip-top"
-                    style={{ transformStyle: 'preserve-3d', backfaceVisibility: 'hidden' }}
-                >
-                    <span className="absolute inset-0 flex items-end justify-center pb-0 text-white font-mono font-bold leading-none">
-                        {previousDigit}
-                    </span>
-                </div>
+            {/* Flash overlay on change */}
+            {isAnimating && (
+                <div className="absolute inset-0 bg-emerald-500/30 animate-pulse" />
             )}
-
-            {/* Flipping bottom half */}
-            {isFlipping && (
-                <div
-                    className="absolute inset-x-0 bottom-0 h-1/2 bg-zinc-700 rounded-b-sm overflow-hidden origin-top animate-flip-bottom"
-                    style={{ transformStyle: 'preserve-3d', backfaceVisibility: 'hidden' }}
-                >
-                    <span className="absolute inset-0 flex items-start justify-center pt-0 text-white font-mono font-bold leading-none">
-                        {displayDigit}
-                    </span>
-                </div>
-            )}
-
-            {/* Center line divider */}
-            <div className="absolute inset-x-0 top-1/2 h-px bg-zinc-900/50 z-10" />
-
-            {/* Side shadows for 3D effect */}
-            <div className="absolute inset-y-0 left-0 w-px bg-black/20" />
-            <div className="absolute inset-y-0 right-0 w-px bg-black/20" />
         </div>
     );
 }
@@ -86,7 +54,7 @@ interface FlipScoreProps {
 }
 
 export function FlipScore({ value, className, size = 'md', suffix = '' }: FlipScoreProps) {
-    const digits = Math.round(value).toString().padStart(1, '0').split('');
+    const digits = Math.round(value).toString().split('');
 
     const sizeClasses = {
         sm: 'text-lg',
@@ -101,11 +69,11 @@ export function FlipScore({ value, className, size = 'md', suffix = '' }: FlipSc
                 <FlipDigit
                     key={`pos-${digits.length - i}`}
                     digit={digit}
-                    delay={i * 50} // Stagger animation
+                    delay={i * 30}
                 />
             ))}
             {suffix && (
-                <span className="ml-1 text-zinc-400 font-normal text-[0.6em]">{suffix}</span>
+                <span className="ml-1 text-zinc-400 font-normal text-[0.5em]">{suffix}</span>
             )}
         </div>
     );
