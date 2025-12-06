@@ -50,7 +50,7 @@ class WebSocketManager {
     // Handle upgrade requests
     server.on('upgrade', (request: IncomingMessage, socket: any, head: Buffer) => {
       const { pathname } = parse(request.url || '');
-      
+
       if (pathname === '/ws') {
         this.wss!.handleUpgrade(request, socket, head, (ws) => {
           this.wss!.emit('connection', ws, request);
@@ -494,8 +494,8 @@ class WebSocketManager {
     createdAt: string;
   }) {
     this.broadcastToLeague(leagueId, {
-        type: 'chat_message',
-        ...data,
+      type: 'chat_message',
+      ...data,
     });
   }
 
@@ -548,6 +548,15 @@ class WebSocketManager {
       }, index * 6000);
     });
   }
+
+  /**
+   * Send message to a specific user (alias for notifyUser for consistency)
+   */
+  sendToUser(userId: number, message: any) {
+    this.notifyUser(userId, message);
+  }
 }
 
 export const wsManager = new WebSocketManager();
+export const getWebSocketServer = () => wsManager;
+

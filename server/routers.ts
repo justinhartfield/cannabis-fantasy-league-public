@@ -27,6 +27,7 @@ import { favoriteRouter } from "./favoriteRouter";
 import { dailySummaryRouter } from "./dailySummaryRouter";
 import { publicModeRouter } from "./publicModeRouter";
 import { stockMarketRouter } from "./routes/stockMarketRouter";
+import { portfolioDuelsRouter } from "./portfolioDuelsRouter";
 
 
 export const appRouter = router({
@@ -70,6 +71,7 @@ export const appRouter = router({
   dailySummary: dailySummaryRouter,
   publicMode: publicModeRouter,
   stockMarket: stockMarketRouter,
+  duels: portfolioDuelsRouter,
 });
 
 export type AppRouter = typeof appRouter;
