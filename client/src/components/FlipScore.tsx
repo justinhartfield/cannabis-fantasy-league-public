@@ -8,16 +8,14 @@ interface FlipDigitProps {
 
 function FlipDigit({ digit, delay = 0 }: FlipDigitProps) {
     const [currentDigit, setCurrentDigit] = useState(digit);
-    const [prevDigit, setPrevDigit] = useState(digit);
     const [isFlipping, setIsFlipping] = useState(false);
 
     useEffect(() => {
         if (digit !== currentDigit) {
             const timer = setTimeout(() => {
-                setPrevDigit(currentDigit);
                 setIsFlipping(true);
 
-                // Halfway through animation, swap the digit
+                // Update digit halfway through
                 setTimeout(() => {
                     setCurrentDigit(digit);
                 }, 150);
@@ -33,64 +31,22 @@ function FlipDigit({ digit, delay = 0 }: FlipDigitProps) {
     }, [digit, currentDigit, delay]);
 
     return (
-        <div
-            className="relative w-[0.65em] h-[1.1em] perspective-500"
-            style={{ perspective: '500px' }}
-        >
-            {/* Background panel (static) */}
-            <div className="absolute inset-0 bg-gradient-to-b from-zinc-800 to-zinc-900 rounded-sm shadow-inner">
-                {/* Bottom half - shows new digit */}
-                <div className="absolute inset-x-0 bottom-0 h-1/2 flex items-center justify-center overflow-hidden rounded-b-sm">
-                    <span className="text-white font-mono font-bold translate-y-[-50%]">
-                        {currentDigit}
-                    </span>
-                </div>
-                {/* Top half - shows current digit */}
-                <div className="absolute inset-x-0 top-0 h-1/2 flex items-center justify-center overflow-hidden rounded-t-sm bg-zinc-800">
-                    <span className="text-white font-mono font-bold translate-y-[50%]">
-                        {currentDigit}
-                    </span>
-                </div>
+        <div className="relative w-[0.65em] h-[1.1em] bg-gradient-to-b from-zinc-800 to-zinc-900 rounded-sm overflow-hidden shadow-inner">
+            {/* Main digit display */}
+            <div className={cn(
+                "absolute inset-0 flex items-center justify-center text-white font-mono font-bold transition-transform duration-150",
+                isFlipping && "animate-digit-roll"
+            )}>
+                {currentDigit}
             </div>
 
-            {/* Flipping top half */}
+            {/* Center divider line */}
+            <div className="absolute inset-x-0 top-1/2 h-px bg-zinc-700/50 pointer-events-none" />
+
+            {/* Flash on change */}
             {isFlipping && (
-                <div
-                    className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-zinc-700 to-zinc-800 rounded-t-sm origin-bottom overflow-hidden"
-                    style={{
-                        animation: 'flipTop 0.3s ease-in forwards',
-                        transformStyle: 'preserve-3d',
-                        backfaceVisibility: 'hidden',
-                    }}
-                >
-                    <span className="absolute inset-0 flex items-center justify-center text-white font-mono font-bold translate-y-[50%]">
-                        {prevDigit}
-                    </span>
-                </div>
+                <div className="absolute inset-0 bg-emerald-500/20 animate-pulse pointer-events-none" />
             )}
-
-            {/* Flipping bottom half (comes from top) */}
-            {isFlipping && (
-                <div
-                    className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-b from-zinc-800 to-zinc-900 rounded-b-sm origin-top overflow-hidden"
-                    style={{
-                        animation: 'flipBottom 0.3s ease-out 0.15s forwards',
-                        transformStyle: 'preserve-3d',
-                        backfaceVisibility: 'hidden',
-                        transform: 'rotateX(90deg)',
-                    }}
-                >
-                    <span className="absolute inset-0 flex items-center justify-center text-white font-mono font-bold translate-y-[-50%]">
-                        {currentDigit}
-                    </span>
-                </div>
-            )}
-
-            {/* Center line */}
-            <div className="absolute inset-x-0 top-1/2 h-[1px] bg-zinc-950 z-10" />
-
-            {/* Shine effect */}
-            <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none rounded-sm" />
         </div>
     );
 }
@@ -127,9 +83,9 @@ export function FlipScore({ value, className, size = 'md', suffix = '' }: FlipSc
     return (
         <div
             className={cn(
-                "flex items-center gap-[2px] p-1 rounded-md transition-all duration-300",
-                direction === 'up' && "bg-emerald-500/10 shadow-[0_0_10px_rgba(16,185,129,0.2)]",
-                direction === 'down' && "bg-red-500/10 shadow-[0_0_10px_rgba(239,68,68,0.2)]",
+                "inline-flex items-center gap-[2px] p-1 rounded-md transition-all duration-300",
+                direction === 'up' && "bg-emerald-500/10",
+                direction === 'down' && "bg-red-500/10",
                 sizeClasses[size],
                 className
             )}
@@ -138,11 +94,11 @@ export function FlipScore({ value, className, size = 'md', suffix = '' }: FlipSc
                 <FlipDigit
                     key={`pos-${digits.length - i}`}
                     digit={digit}
-                    delay={i * 50}
+                    delay={i * 40}
                 />
             ))}
             {suffix && (
-                <span className="ml-1.5 text-zinc-400 font-medium text-[0.4em]">{suffix}</span>
+                <span className="ml-1 text-zinc-400 font-medium text-[0.4em]">{suffix}</span>
             )}
         </div>
     );
@@ -186,12 +142,7 @@ export function AnimatedScoreTicker({
                     sizeConfig[size].change,
                     isPositive ? "text-emerald-400" : "text-red-400"
                 )}>
-                    <span className={cn(
-                        "transition-transform duration-200",
-                        isPositive ? "animate-bounce-subtle" : ""
-                    )}>
-                        {isPositive ? '▲' : '▼'}
-                    </span>
+                    <span>{isPositive ? '▲' : '▼'}</span>
                     <span className="font-medium">{isPositive ? '+' : ''}{change}</span>
                     <span className="text-zinc-500">({changePercent.toFixed(1)}%)</span>
                 </div>
