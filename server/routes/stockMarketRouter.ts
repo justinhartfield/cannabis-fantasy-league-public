@@ -608,6 +608,40 @@ export const stockMarketRouter = router({
     }),
 
     /**
+     * ADMIN: Reset all portfolios to 100 pts and clear all holdings
+     */
+    resetAllPortfolios: protectedProcedure.mutation(async ({ ctx }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+
+        // Delete all holdings
+        const deletedHoldings = await db.delete(stockHoldings).returning();
+
+        // Reset all portfolios to 100 pts
+        const updatedPortfolios = await db
+            .update(userPortfolios)
+            .set({
+                cashBalance: '100',
+                totalValue: '100',
+                totalProfitLoss: '0',
+                winCount: 0,
+                lossCount: 0,
+                updatedAt: new Date().toISOString(),
+            })
+            .returning();
+
+        // Optionally clear trade history
+        await db.delete(tradeHistory);
+
+        return {
+            success: true,
+            message: `Reset ${updatedPortfolios.length} portfolios to 100 pts, deleted ${deletedHoldings.length} holdings`,
+            portfoliosReset: updatedPortfolios.length,
+            holdingsDeleted: deletedHoldings.length,
+        };
+    }),
+
+    /**
      * Get price history for charts
      */
     getPriceHistory: publicProcedure

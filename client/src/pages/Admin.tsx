@@ -5,10 +5,159 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
 import { ADMIN_PASS_STORAGE_KEY, DEFAULT_ADMIN_BYPASS_PASSWORD } from "@shared/const";
-import { Database, RefreshCw, Loader2, XCircle, Eye, Calendar, BarChart3, KeyRound, Trophy, Image as ImageIcon, Search, Upload } from "lucide-react";
+import { Database, RefreshCw, Loader2, XCircle, Eye, Calendar, BarChart3, KeyRound, Trophy, Image as ImageIcon, Search, Upload, Trash2, Users, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { FormEvent, useEffect, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
+
+// ============ MARKET ADMIN COMPONENTS ============
+
+function MarketAdminStats() {
+  const { data: leaderboard } = trpc.stockMarket.getLeaderboard.useQuery({ limit: 5 });
+  const totalPortfolios = leaderboard?.length || 0;
+  const totalValue = leaderboard?.reduce((sum, p) => sum + p.totalValue, 0) || 0;
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-3">
+      <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-4">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Users className="w-4 h-4" />
+          Active Portfolios
+        </div>
+        <div className="text-2xl font-bold mt-1">{totalPortfolios}</div>
+      </div>
+      <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-4">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Wallet className="w-4 h-4" />
+          Total Market Value
+        </div>
+        <div className="text-2xl font-bold mt-1">{Math.round(totalValue)} pts</div>
+      </div>
+      <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-4">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <BarChart3 className="w-4 h-4" />
+          Starting Balance
+        </div>
+        <div className="text-2xl font-bold mt-1">100 pts</div>
+      </div>
+    </div>
+  );
+}
+
+function ResetAllPortfoliosButton() {
+  const utils = trpc.useUtils();
+  const resetMutation = trpc.stockMarket.resetAllPortfolios.useMutation({
+    onSuccess: (data) => {
+      toast.success(data.message);
+      utils.stockMarket.getLeaderboard.invalidate();
+      utils.stockMarket.getWeeklyStandings.invalidate();
+    },
+    onError: (err) => {
+      toast.error(`Failed to reset: ${err.message}`);
+    },
+  });
+
+  const handleReset = () => {
+    if (typeof window !== "undefined") {
+      const confirmed = window.confirm(
+        "⚠️ DANGER: This will:\n\n" +
+        "• Delete ALL user stock holdings\n" +
+        "• Reset ALL portfolios to 100 pts\n" +
+        "• Clear ALL trade history\n\n" +
+        "This action CANNOT be undone. Continue?"
+      );
+      if (!confirmed) return;
+    }
+    resetMutation.mutate();
+  };
+
+  return (
+    <Button
+      variant="destructive"
+      onClick={handleReset}
+      disabled={resetMutation.isPending}
+    >
+      {resetMutation.isPending ? (
+        <>
+          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          Resetting...
+        </>
+      ) : (
+        <>
+          <Trash2 className="w-4 h-4 mr-2" />
+          Reset All Portfolios
+        </>
+      )}
+    </Button>
+  );
+}
+
+function UserPortfoliosTable() {
+  const { data: leaderboard, refetch } = trpc.stockMarket.getLeaderboard.useQuery({ limit: 50 });
+
+  if (!leaderboard || leaderboard.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        No portfolios found. Users need to visit /market to create a portfolio.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="font-medium">User Portfolios ({leaderboard.length})</h4>
+        <Button variant="ghost" size="sm" onClick={() => refetch()}>
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Refresh
+        </Button>
+      </div>
+      <div className="overflow-x-auto rounded-lg border">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50">
+            <tr className="text-left">
+              <th className="px-4 py-2 font-medium">Rank</th>
+              <th className="px-4 py-2 font-medium">User ID</th>
+              <th className="px-4 py-2 font-medium text-right">Total Value</th>
+              <th className="px-4 py-2 font-medium text-right">Profit/Loss</th>
+              <th className="px-4 py-2 font-medium text-right">Win Rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            {leaderboard.map((p) => (
+              <tr key={p.userId} className="border-t hover:bg-muted/30">
+                <td className="px-4 py-2">
+                  <span className={`inline-flex w-6 h-6 items-center justify-center rounded-full text-xs font-bold ${p.rank === 1 ? 'bg-yellow-500/20 text-yellow-500' :
+                      p.rank === 2 ? 'bg-gray-400/20 text-gray-400' :
+                        p.rank === 3 ? 'bg-orange-500/20 text-orange-500' :
+                          'bg-muted text-muted-foreground'
+                    }`}>
+                    {p.rank}
+                  </span>
+                </td>
+                <td className="px-4 py-2 font-mono text-xs truncate max-w-[150px]" title={p.userId}>
+                  {p.userId.substring(0, 12)}...
+                </td>
+                <td className="px-4 py-2 text-right font-medium">
+                  {Math.round(p.totalValue)} pts
+                </td>
+                <td className={`px-4 py-2 text-right ${p.profitLoss >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                  {p.profitLoss >= 0 ? '+' : ''}{Math.round(p.profitLoss)} pts
+                </td>
+                <td className="px-4 py-2 text-right text-muted-foreground">
+                  {p.winRate.toFixed(0)}%
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ============ END MARKET ADMIN COMPONENTS ============
+
 
 export default function Admin() {
   const utils = trpc.useUtils();
@@ -944,6 +1093,37 @@ export default function Admin() {
                   </div>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Stock Market Admin Tools */}
+          <Card className="border-orange-500/30 bg-gradient-to-br from-orange-500/5 to-transparent">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-orange-500">
+                <BarChart3 className="w-5 h-5" />
+                Stock Market Admin
+              </CardTitle>
+              <CardDescription>
+                Manage user portfolios, holdings, and market data for the /market feature.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Market Stats */}
+              <MarketAdminStats />
+
+              {/* Quick Actions */}
+              <div className="grid gap-3 sm:grid-cols-3">
+                <ResetAllPortfoliosButton />
+                <Button variant="outline" onClick={() => window.location.href = '/market'}>
+                  View Market Page
+                </Button>
+                <Button variant="outline" disabled>
+                  Export Data (Coming Soon)
+                </Button>
+              </div>
+
+              {/* User Portfolios Table */}
+              <UserPortfoliosTable />
             </CardContent>
           </Card>
 
