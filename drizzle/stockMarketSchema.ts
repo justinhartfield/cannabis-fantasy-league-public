@@ -106,3 +106,32 @@ export const marketAchievements = pgTable("marketAchievements", {
     index("achievement_user_idx").on(table.userId),
     unique("achievement_unique").on(table.userId, table.achievementType),
 ]);
+
+// User Watchlist - tracked stocks
+export const stockWatchlist = pgTable("stockWatchlist", {
+    id: serial().primaryKey(),
+    userId: integer().notNull(),
+    assetType: varchar({ length: 20 }).notNull(), // 'product', 'strain', 'manufacturer'
+    assetId: integer().notNull(),
+    addedAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+    index("watchlist_user_idx").on(table.userId),
+    unique("watchlist_unique").on(table.userId, table.assetType, table.assetId),
+]);
+
+// Price Alerts - notifications when score hits target
+export const priceAlerts = pgTable("priceAlerts", {
+    id: serial().primaryKey(),
+    userId: integer().notNull(),
+    assetType: varchar({ length: 20 }).notNull(),
+    assetId: integer().notNull(),
+    assetName: varchar({ length: 255 }),
+    targetScore: decimal({ precision: 10, scale: 2 }).notNull(),
+    direction: varchar({ length: 10 }).notNull(), // 'above' | 'below'
+    isTriggered: boolean().default(false).notNull(),
+    createdAt: timestamp({ mode: 'string', withTimezone: true }).defaultNow().notNull(),
+    triggeredAt: timestamp({ mode: 'string', withTimezone: true }),
+}, (table) => [
+    index("alert_user_idx").on(table.userId),
+    index("alert_asset_idx").on(table.assetType, table.assetId),
+]);

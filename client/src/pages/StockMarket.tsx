@@ -31,6 +31,8 @@ import {
     Trophy,
     Zap,
     Sparkles,
+    Star,
+    Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -50,7 +52,10 @@ interface StockCardProps {
     priceChangePercent: number;
     volume: number;
     imageUrl?: string;
+    isOnWatchlist?: boolean;
     onTrade: (action: 'buy' | 'sell') => void;
+    onToggleWatchlist?: () => void;
+    onCreateAlert?: () => void;
 }
 
 function StockCard({
@@ -61,21 +66,48 @@ function StockCard({
     priceChangePercent,
     volume,
     imageUrl,
-    onTrade
+    isOnWatchlist,
+    onTrade,
+    onToggleWatchlist,
+    onCreateAlert,
 }: StockCardProps) {
     const isPositive = priceChange >= 0;
 
     return (
         <Card className="bg-zinc-900/80 border-zinc-800 hover:border-emerald-500/50 transition-all">
             <CardContent className="p-4">
-                {/* Top row: Image + Price */}
-                <div className="flex items-center justify-between mb-2">
-                    <div className="w-14 h-14 rounded-lg overflow-hidden bg-zinc-800">
-                        <img
-                            src={imageUrl || PLACEHOLDER_IMG}
-                            alt={assetName}
-                            className="w-full h-full object-cover"
-                        />
+                {/* Top row: Image + Actions + Price */}
+                <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-start gap-2">
+                        <div className="w-12 h-12 rounded-lg overflow-hidden bg-zinc-800 shrink-0">
+                            <img
+                                src={imageUrl || PLACEHOLDER_IMG}
+                                alt={assetName}
+                                className="w-full h-full object-cover"
+                            />
+                        </div>
+                        {/* Quick action buttons */}
+                        <div className="flex flex-col gap-1">
+                            <button
+                                onClick={onToggleWatchlist}
+                                className={cn(
+                                    "p-1 rounded transition-colors",
+                                    isOnWatchlist
+                                        ? "text-yellow-400 bg-yellow-500/20"
+                                        : "text-zinc-500 hover:text-yellow-400 hover:bg-yellow-500/10"
+                                )}
+                                title={isOnWatchlist ? "Remove from watchlist" : "Add to watchlist"}
+                            >
+                                <Star className={cn("w-4 h-4", isOnWatchlist && "fill-current")} />
+                            </button>
+                            <button
+                                onClick={onCreateAlert}
+                                className="p-1 rounded text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                                title="Set price alert"
+                            >
+                                <Bell className="w-4 h-4" />
+                            </button>
+                        </div>
                     </div>
                     <div className="text-right">
                         <div className="text-xl font-bold text-white">{Math.round(closePrice)}</div>
@@ -106,6 +138,7 @@ function StockCard({
         </Card>
     );
 }
+
 
 interface HoldingCardProps {
     holding: {
@@ -229,6 +262,79 @@ export default function StockMarket() {
 
     const openTradeModal = (action: 'buy' | 'sell', asset: any) => {
         setTradeModal({ open: true, action, asset, shares: 1 });
+    };
+
+    // ============ WATCHLIST ============
+    const { data: watchlist = [], refetch: refetchWatchlist } =
+        trpc.stockMarket.getWatchlist.useQuery(undefined, { enabled: !!user });
+
+    const watchlistIds = new Set(watchlist.map(w => `${w.assetType}-${w.assetId}`));
+
+    const addToWatchlistMutation = trpc.stockMarket.addToWatchlist.useMutation({
+        onSuccess: (data) => {
+            toast.success(data.message);
+            refetchWatchlist();
+        },
+        onError: (err) => toast.error(err.message),
+    });
+
+    const removeFromWatchlistMutation = trpc.stockMarket.removeFromWatchlist.useMutation({
+        onSuccess: (data) => {
+            toast.success(data.message);
+            refetchWatchlist();
+        },
+        onError: (err) => toast.error(err.message),
+    });
+
+    const toggleWatchlist = (assetType: string, assetId: number) => {
+        const key = `${assetType}-${assetId}`;
+        if (watchlistIds.has(key)) {
+            removeFromWatchlistMutation.mutate({ assetType: assetType as any, assetId });
+        } else {
+            addToWatchlistMutation.mutate({ assetType: assetType as any, assetId });
+        }
+    };
+
+    // ============ ALERTS ============
+    const [alertModal, setAlertModal] = useState<{
+        open: boolean;
+        asset?: { assetType: string; assetId: number; assetName: string; currentScore: number };
+        targetScore: number;
+        direction: 'above' | 'below';
+    }>({ open: false, targetScore: 0, direction: 'above' });
+
+    const { data: alerts = [], refetch: refetchAlerts } =
+        trpc.stockMarket.getAlerts.useQuery(undefined, { enabled: !!user });
+
+    const createAlertMutation = trpc.stockMarket.createAlert.useMutation({
+        onSuccess: (data) => {
+            toast.success(data.message);
+            refetchAlerts();
+            setAlertModal({ open: false, targetScore: 0, direction: 'above' });
+        },
+        onError: (err) => toast.error(err.message),
+    });
+
+    const deleteAlertMutation = trpc.stockMarket.deleteAlert.useMutation({
+        onSuccess: () => {
+            toast.success('Alert deleted');
+            refetchAlerts();
+        },
+        onError: (err) => toast.error(err.message),
+    });
+
+    const openAlertModal = (stock: any) => {
+        setAlertModal({
+            open: true,
+            asset: {
+                assetType: stock.assetType,
+                assetId: stock.assetId,
+                assetName: stock.assetName,
+                currentScore: stock.closePrice,
+            },
+            targetScore: Math.round(stock.closePrice * 1.1), // Default 10% above
+            direction: 'above',
+        });
     };
 
     // Toggle sort
@@ -447,7 +553,7 @@ export default function StockMarket() {
                                 {/* Header - Clickable for sorting */}
                                 <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-zinc-800/50 text-xs text-zinc-400 uppercase tracking-wide">
                                     <div
-                                        className="col-span-5 cursor-pointer hover:text-white flex items-center gap-1"
+                                        className="col-span-4 cursor-pointer hover:text-white flex items-center gap-1"
                                         onClick={() => toggleSort('name')}
                                     >
                                         Strain
@@ -473,13 +579,14 @@ export default function StockMarket() {
                                             <span className="text-emerald-400">{sortDir === 'asc' ? '↑' : '↓'}</span>
                                         )}
                                     </div>
-                                    <div className="col-span-3 text-right">Action</div>
+                                    <div className="col-span-4 text-right">Actions</div>
                                 </div>
 
                                 {/* Rows */}
                                 <div className="divide-y divide-zinc-800">
                                     {filteredStocks.map((stock) => {
                                         const isPositive = stock.priceChange >= 0;
+                                        const isWatched = watchlistIds.has(`${stock.assetType}-${stock.assetId}`);
                                         return (
                                             <div
                                                 key={`${stock.assetType}-${stock.assetId}`}
@@ -487,7 +594,7 @@ export default function StockMarket() {
                                             >
                                                 {/* Strain Name + Image - Clickable */}
                                                 <div
-                                                    className="col-span-5 flex items-center gap-3 cursor-pointer group"
+                                                    className="col-span-4 flex items-center gap-3 cursor-pointer group"
                                                     onClick={() => setLocation(`/market/strain/${stock.assetId}`)}
                                                 >
                                                     <div className="w-10 h-10 rounded-lg overflow-hidden bg-zinc-800 flex-shrink-0 ring-1 ring-zinc-700 group-hover:ring-emerald-500/50 transition-all">
@@ -517,8 +624,27 @@ export default function StockMarket() {
                                                     </span>
                                                 </div>
 
-                                                {/* Buy Button */}
-                                                <div className="col-span-3 text-right">
+                                                {/* Actions: Watchlist + Alert + Buy */}
+                                                <div className="col-span-4 flex items-center justify-end gap-2">
+                                                    <button
+                                                        onClick={() => toggleWatchlist(stock.assetType, stock.assetId)}
+                                                        className={cn(
+                                                            "p-1.5 rounded transition-colors",
+                                                            isWatched
+                                                                ? "text-yellow-400 bg-yellow-500/20"
+                                                                : "text-zinc-500 hover:text-yellow-400 hover:bg-yellow-500/10"
+                                                        )}
+                                                        title={isWatched ? "Remove from watchlist" : "Add to watchlist"}
+                                                    >
+                                                        <Star className={cn("w-4 h-4", isWatched && "fill-current")} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => openAlertModal(stock)}
+                                                        className="p-1.5 rounded text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                                                        title="Set price alert"
+                                                    >
+                                                        <Bell className="w-4 h-4" />
+                                                    </button>
                                                     <Button
                                                         size="sm"
                                                         className="bg-emerald-600 hover:bg-emerald-500 text-white h-8 px-4"
@@ -599,6 +725,100 @@ export default function StockMarket() {
                                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                             )}
                             {tradeModal.action === 'buy' ? 'Buy' : 'Sell'} Shares
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Alert Modal */}
+            <Dialog open={alertModal.open} onOpenChange={(open) => setAlertModal(prev => ({ ...prev, open }))}>
+                <DialogContent className="bg-zinc-900 border-zinc-700 text-white max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Bell className="w-5 h-5 text-emerald-400" />
+                            Create Price Alert
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    {alertModal.asset && (
+                        <div className="space-y-4 py-4">
+                            <div className="flex justify-between items-center p-3 bg-zinc-800 rounded-lg">
+                                <span className="text-zinc-400">Strain</span>
+                                <span className="text-lg font-semibold text-white">{alertModal.asset.assetName}</span>
+                            </div>
+
+                            <div className="flex justify-between items-center p-3 bg-zinc-800 rounded-lg">
+                                <span className="text-zinc-400">Current Score</span>
+                                <span className="text-lg font-bold text-emerald-400">{Math.round(alertModal.asset.currentScore)} pts</span>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-sm text-zinc-400">Alert me when score goes</label>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setAlertModal(prev => ({ ...prev, direction: 'above' }))}
+                                        className={cn(
+                                            "flex-1 p-2 rounded-lg border transition-all",
+                                            alertModal.direction === 'above'
+                                                ? "border-emerald-500 bg-emerald-500/20 text-emerald-400"
+                                                : "border-zinc-700 text-zinc-400 hover:border-zinc-600"
+                                        )}
+                                    >
+                                        ▲ Above
+                                    </button>
+                                    <button
+                                        onClick={() => setAlertModal(prev => ({ ...prev, direction: 'below' }))}
+                                        className={cn(
+                                            "flex-1 p-2 rounded-lg border transition-all",
+                                            alertModal.direction === 'below'
+                                                ? "border-red-500 bg-red-500/20 text-red-400"
+                                                : "border-zinc-700 text-zinc-400 hover:border-zinc-600"
+                                        )}
+                                    >
+                                        ▼ Below
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-sm text-zinc-400 mb-1 block">Target Score</label>
+                                <Input
+                                    type="number"
+                                    min="1"
+                                    step="1"
+                                    value={alertModal.targetScore}
+                                    onChange={(e) => setAlertModal(prev => ({ ...prev, targetScore: parseInt(e.target.value) || 0 }))}
+                                    className="bg-zinc-800 border-zinc-700 text-white text-lg"
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setAlertModal({ open: false, targetScore: 0, direction: 'above' })}
+                            className="border-zinc-700"
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={() => {
+                                if (alertModal.asset) {
+                                    createAlertMutation.mutate({
+                                        assetType: alertModal.asset.assetType as any,
+                                        assetId: alertModal.asset.assetId,
+                                        assetName: alertModal.asset.assetName,
+                                        targetScore: alertModal.targetScore,
+                                        direction: alertModal.direction,
+                                    });
+                                }
+                            }}
+                            disabled={createAlertMutation.isPending}
+                            className="bg-emerald-600 hover:bg-emerald-500"
+                        >
+                            {createAlertMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                            Create Alert
                         </Button>
                     </DialogFooter>
                 </DialogContent>

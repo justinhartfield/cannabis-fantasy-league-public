@@ -710,6 +710,27 @@
     }
   }
 
+  /* NEW: Split-flap flip keyframes for FlipScore component */
+  @keyframes flipTop {
+    0% {
+      transform: rotateX(0deg);
+    }
+
+    100% {
+      transform: rotateX(-90deg);
+    }
+  }
+
+  @keyframes flipBottom {
+    0% {
+      transform: rotateX(90deg);
+    }
+
+    100% {
+      transform: rotateX(0deg);
+    }
+  }
+
   /* Flip digit container with 3D perspective */
   .flip-digit {
     perspective: 200px;
@@ -735,6 +756,23 @@
       transform: translateY(0);
       opacity: 1;
     }
+  }
+
+  /* Bounce subtle for score arrows */
+  @keyframes bounce-arrow {
+
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+
+    50% {
+      transform: translateY(-3px);
+    }
+  }
+
+  .animate-bounce-arrow {
+    animation: bounce-arrow 0.6s ease-in-out 2;
   }
 
   /* ===========================================

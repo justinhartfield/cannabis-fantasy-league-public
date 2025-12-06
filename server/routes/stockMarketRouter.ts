@@ -12,7 +12,9 @@ import {
     stockHoldings,
     tradeHistory,
     stockPrices,
-    marketLeaderboard
+    marketLeaderboard,
+    stockWatchlist,
+    priceAlerts
 } from '../../drizzle/stockMarketSchema';
 import { strains, cannabisStrains, manufacturers } from '../../drizzle/schema';
 import { strainDailyChallengeStats } from '../../drizzle/dailyChallengeSchema';
@@ -1145,4 +1147,239 @@ export const stockMarketRouter = router({
                 },
             };
         }),
+
+    // ============ WATCHLIST ============
+
+    /**
+     * Get user's watchlist with current scores
+     */
+    getWatchlist: protectedProcedure.query(async ({ ctx }) => {
+        const db = await getDb();
+        if (!db) return [];
+
+        const watchlist = await db
+            .select({
+                id: stockWatchlist.id,
+                assetType: stockWatchlist.assetType,
+                assetId: stockWatchlist.assetId,
+                addedAt: stockWatchlist.addedAt,
+                name: cannabisStrains.name,
+                type: cannabisStrains.type,
+                imageUrl: cannabisStrains.imageUrl,
+            })
+            .from(stockWatchlist)
+            .leftJoin(cannabisStrains, eq(stockWatchlist.assetId, cannabisStrains.id))
+            .where(eq(stockWatchlist.userId, ctx.user.id))
+            .orderBy(desc(stockWatchlist.addedAt));
+
+        // Get current scores for each item
+        const items = await Promise.all(watchlist.map(async (item) => {
+            const currentScore = await getCurrentPrice(item.assetType, item.assetId);
+            return {
+                ...item,
+                currentScore,
+            };
+        }));
+
+        return items;
+    }),
+
+    /**
+     * Add to watchlist (max 20 items)
+     */
+    addToWatchlist: protectedProcedure
+        .input(z.object({
+            assetType: z.enum(['product', 'strain', 'manufacturer']),
+            assetId: z.number(),
+        }))
+        .mutation(async ({ ctx, input }) => {
+            const db = await getDb();
+            if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+
+            // Check limit
+            const existing = await db
+                .select({ count: sql<number>`count(*)` })
+                .from(stockWatchlist)
+                .where(eq(stockWatchlist.userId, ctx.user.id));
+
+            if (Number(existing[0]?.count) >= 20) {
+                throw new TRPCError({ code: 'BAD_REQUEST', message: 'Watchlist limit reached (max 20)' });
+            }
+
+            // Check if already exists
+            const [alreadyExists] = await db
+                .select()
+                .from(stockWatchlist)
+                .where(and(
+                    eq(stockWatchlist.userId, ctx.user.id),
+                    eq(stockWatchlist.assetType, input.assetType),
+                    eq(stockWatchlist.assetId, input.assetId),
+                ))
+                .limit(1);
+
+            if (alreadyExists) {
+                return { success: true, message: 'Already on watchlist' };
+            }
+
+            await db.insert(stockWatchlist).values({
+                userId: ctx.user.id,
+                assetType: input.assetType,
+                assetId: input.assetId,
+            });
+
+            return { success: true, message: 'Added to watchlist' };
+        }),
+
+    /**
+     * Remove from watchlist
+     */
+    removeFromWatchlist: protectedProcedure
+        .input(z.object({
+            assetType: z.enum(['product', 'strain', 'manufacturer']),
+            assetId: z.number(),
+        }))
+        .mutation(async ({ ctx, input }) => {
+            const db = await getDb();
+            if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+
+            await db
+                .delete(stockWatchlist)
+                .where(and(
+                    eq(stockWatchlist.userId, ctx.user.id),
+                    eq(stockWatchlist.assetType, input.assetType),
+                    eq(stockWatchlist.assetId, input.assetId),
+                ));
+
+            return { success: true, message: 'Removed from watchlist' };
+        }),
+
+    /**
+     * Check if item is on watchlist
+     */
+    isOnWatchlist: protectedProcedure
+        .input(z.object({
+            assetType: z.enum(['product', 'strain', 'manufacturer']),
+            assetId: z.number(),
+        }))
+        .query(async ({ ctx, input }) => {
+            const db = await getDb();
+            if (!db) return false;
+
+            const [exists] = await db
+                .select()
+                .from(stockWatchlist)
+                .where(and(
+                    eq(stockWatchlist.userId, ctx.user.id),
+                    eq(stockWatchlist.assetType, input.assetType),
+                    eq(stockWatchlist.assetId, input.assetId),
+                ))
+                .limit(1);
+
+            return !!exists;
+        }),
+
+    // ============ PRICE ALERTS ============
+
+    /**
+     * Create a price alert
+     */
+    createAlert: protectedProcedure
+        .input(z.object({
+            assetType: z.enum(['product', 'strain', 'manufacturer']),
+            assetId: z.number(),
+            assetName: z.string().optional(),
+            targetScore: z.number().positive(),
+            direction: z.enum(['above', 'below']),
+        }))
+        .mutation(async ({ ctx, input }) => {
+            const db = await getDb();
+            if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+
+            // Limit to 10 active alerts per user
+            const existing = await db
+                .select({ count: sql<number>`count(*)` })
+                .from(priceAlerts)
+                .where(and(
+                    eq(priceAlerts.userId, ctx.user.id),
+                    eq(priceAlerts.isTriggered, false),
+                ));
+
+            if (Number(existing[0]?.count) >= 10) {
+                throw new TRPCError({ code: 'BAD_REQUEST', message: 'Alert limit reached (max 10 active)' });
+            }
+
+            await db.insert(priceAlerts).values({
+                userId: ctx.user.id,
+                assetType: input.assetType,
+                assetId: input.assetId,
+                assetName: input.assetName,
+                targetScore: String(input.targetScore),
+                direction: input.direction,
+            });
+
+            return { success: true, message: `Alert created: ${input.direction} ${input.targetScore} pts` };
+        }),
+
+    /**
+     * Get user's alerts
+     */
+    getAlerts: protectedProcedure.query(async ({ ctx }) => {
+        const db = await getDb();
+        if (!db) return [];
+
+        const alerts = await db
+            .select()
+            .from(priceAlerts)
+            .where(eq(priceAlerts.userId, ctx.user.id))
+            .orderBy(desc(priceAlerts.createdAt));
+
+        // Get current scores
+        const items = await Promise.all(alerts.map(async (alert) => {
+            const currentScore = await getCurrentPrice(alert.assetType, alert.assetId);
+            return {
+                ...alert,
+                targetScore: Number(alert.targetScore),
+                currentScore,
+            };
+        }));
+
+        return items;
+    }),
+
+    /**
+     * Delete an alert
+     */
+    deleteAlert: protectedProcedure
+        .input(z.object({ alertId: z.number() }))
+        .mutation(async ({ ctx, input }) => {
+            const db = await getDb();
+            if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+
+            await db
+                .delete(priceAlerts)
+                .where(and(
+                    eq(priceAlerts.id, input.alertId),
+                    eq(priceAlerts.userId, ctx.user.id),
+                ));
+
+            return { success: true, message: 'Alert deleted' };
+        }),
+
+    /**
+     * Get count of triggered alerts (for badge)
+     */
+    getTriggeredAlertsCount: protectedProcedure.query(async ({ ctx }) => {
+        const db = await getDb();
+        if (!db) return 0;
+
+        const [result] = await db
+            .select({ count: sql<number>`count(*)` })
+            .from(priceAlerts)
+            .where(and(
+                eq(priceAlerts.userId, ctx.user.id),
+                eq(priceAlerts.isTriggered, true),
+            ));
+
+        return Number(result?.count) || 0;
+    }),
 });
