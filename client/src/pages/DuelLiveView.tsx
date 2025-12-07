@@ -9,7 +9,7 @@ const DuelLiveView: React.FC = () => {
     const [, setLocation] = useLocation();
     const { user } = useAuth();
 
-    const { data: duel, isLoading } = trpc.portfolioDuels.getDuelById.useQuery(
+    const { data: duel, isLoading } = trpc.duels.getDuelById.useQuery(
         { duelId },
         {
             enabled: !!duelId,

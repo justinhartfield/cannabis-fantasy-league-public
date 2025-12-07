@@ -29,7 +29,7 @@ const DuelDraftRoom: React.FC = () => {
     const [timeLeft, setTimeLeft] = useState(20);
 
     // Queries
-    const { data: duel, refetch: refetchDuel } = trpc.portfolioDuels.getDuelById.useQuery(
+    const { data: duel, refetch: refetchDuel } = trpc.duels.getDuelById.useQuery(
         { duelId },
         {
             enabled: !!duelId,
@@ -37,13 +37,13 @@ const DuelDraftRoom: React.FC = () => {
         }
     );
 
-    const { data: availableAssets } = trpc.portfolioDuels.getAvailableAssets.useQuery(
+    const { data: availableAssets } = trpc.duels.getAvailableAssets.useQuery(
         { duelId, assetType: activeTab },
         { enabled: !!duelId && !!activeTab }
     );
 
     // Mutations
-    const makePickMutation = trpc.portfolioDuels.makePick.useMutation({
+    const makePickMutation = trpc.duels.makePick.useMutation({
         onSuccess: () => {
             toast.success('Pick confirmed!');
             setSelectedPosition(null);
