@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useLocation } from 'wouter';
 import { trpc } from '@/lib/trpc';
 import { useAuth } from '@/_core/hooks/useAuth';
-import Layout from '@/components/Layout';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { toast } from 'sonner';
 
@@ -118,7 +117,7 @@ const DuelDraftRoom: React.FC = () => {
     };
 
     return (
-        <Layout>
+        <>
             <div className="container mx-auto px-4 py-6 max-w-6xl text-white">
                 {/* Header */}
                 <div className="flex justify-between items-center mb-8 bg-gray-800 p-4 rounded-xl border border-gray-700">
@@ -265,7 +264,7 @@ const DuelDraftRoom: React.FC = () => {
 
                 </div>
             </div>
-        </Layout>
+        </>
     );
 };
 

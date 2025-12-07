@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { useParams, useLocation } from 'wouter';
 import { trpc } from '@/lib/trpc';
-import Layout from '@/components/Layout';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { formatCurrency } from '@/utils/format';
 
@@ -39,7 +38,7 @@ const DuelLiveView: React.FC = () => {
     const opponent = duel.opponent;
 
     return (
-        <Layout>
+        <>
             <div className="container mx-auto px-4 py-6 max-w-4xl text-white">
                 <div className="text-center mb-8">
                     <h1 className="text-3xl font-bold mb-2">Portfolio Duel</h1>
@@ -112,7 +111,7 @@ const DuelLiveView: React.FC = () => {
                     </div>
                 </div>
             </div>
-        </Layout>
+        </>
     );
 };
 
