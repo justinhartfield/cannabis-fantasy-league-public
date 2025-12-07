@@ -2,7 +2,6 @@ import React, { useEffect } from 'react';
 import { useParams, useLocation } from 'wouter';
 import { trpc } from '@/lib/trpc';
 import { useAuth } from '@/_core/hooks/useAuth';
-import { formatCurrency } from '@/utils/format';
 
 const DuelLiveView: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -43,7 +42,7 @@ const DuelLiveView: React.FC = () => {
                 <div className="text-center mb-8">
                     <h1 className="text-3xl font-bold mb-2">Portfolio Duel</h1>
                     <div className="text-purple-400 font-mono">
-                        Pot: {formatCurrency(duel.prizePool)} Points
+                        Pot: {duel.prizePool.toLocaleString()} Points
                     </div>
                     <div className="text-xs text-gray-500 mt-1 uppercase tracking-widest">
                         {duel.status}
