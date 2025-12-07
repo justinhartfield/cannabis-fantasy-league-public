@@ -41,6 +41,8 @@ import LeagueNewsArticle from "./pages/LeagueNewsArticle";
 import PublicChallenge from "./pages/PublicChallenge";
 import StockMarket from "./pages/StockMarket";
 import StrainDetail from "./pages/StrainDetail";
+import ManufacturerDetail from "./pages/ManufacturerDetail";
+import PharmacyDetail from "./pages/PharmacyDetail";
 import PortfolioDuels from "./pages/PortfolioDuels";
 import DuelDraftRoom from "./pages/DuelDraftRoom";
 import DuelLiveView from "./pages/DuelLiveView";
@@ -86,6 +88,8 @@ function AuthedRoutes() {
         <Route path={"/leaderboard"} component={Leaderboard} />
         <Route path={"/market"} component={StockMarket} />
         <Route path={"/market/strain/:id"} component={StrainDetail} />
+        <Route path={"/market/manufacturer/:id"} component={ManufacturerDetail} />
+        <Route path={"/market/pharmacy/:id"} component={PharmacyDetail} />
         <Route path={"/duels"} component={PortfolioDuels} />
         <Route path={"/duels/:id/draft"} component={DuelDraftRoom} />
         <Route path={"/duels/:id"} component={DuelLiveView} />

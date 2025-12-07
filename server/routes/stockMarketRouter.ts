@@ -16,8 +16,8 @@ import {
     stockWatchlist,
     priceAlerts
 } from '../../drizzle/stockMarketSchema';
-import { strains, cannabisStrains, manufacturers } from '../../drizzle/schema';
-import { strainDailyChallengeStats } from '../../drizzle/dailyChallengeSchema';
+import { strains, cannabisStrains, manufacturers, pharmacies } from '../../drizzle/schema';
+import { strainDailyChallengeStats, pharmacyDailyChallengeStats } from '../../drizzle/dailyChallengeSchema';
 import { eq, and, desc, sql, gte, asc } from 'drizzle-orm';
 import { getCurrentPrice, calculateProductPrices, savePrices } from '../stockPricingEngine';
 import { TRPCError } from '@trpc/server';
@@ -84,6 +84,13 @@ export const stockMarketRouter = router({
                     .where(eq(manufacturers.id, h.assetId))
                     .limit(1);
                 assetName = mfg?.name || `Manufacturer #${h.assetId}`;
+            } else if (h.assetType === 'pharmacy') {
+                const [pharm] = await db
+                    .select({ name: pharmacies.name })
+                    .from(pharmacies)
+                    .where(eq(pharmacies.id, h.assetId))
+                    .limit(1);
+                assetName = pharm?.name || `Pharmacy #${h.assetId}`;
             }
 
             return {
@@ -114,7 +121,7 @@ export const stockMarketRouter = router({
      */
     buy: protectedProcedure
         .input(z.object({
-            assetType: z.enum(['product', 'strain', 'manufacturer']),
+            assetType: z.enum(['product', 'strain', 'manufacturer', 'pharmacy']),
             assetId: z.number(),
             shares: z.number().positive(),
         }))
@@ -238,7 +245,7 @@ export const stockMarketRouter = router({
      */
     sell: protectedProcedure
         .input(z.object({
-            assetType: z.enum(['product', 'strain', 'manufacturer']),
+            assetType: z.enum(['product', 'strain', 'manufacturer', 'pharmacy']),
             assetId: z.number(),
             shares: z.number().positive(),
         }))
@@ -338,7 +345,7 @@ export const stockMarketRouter = router({
      */
     getStocks: publicProcedure
         .input(z.object({
-            assetType: z.enum(['product', 'strain', 'manufacturer']).optional(),
+            assetType: z.enum(['product', 'strain', 'manufacturer', 'pharmacy']).optional(),
             limit: z.number().default(50),
             sortBy: z.enum(['price', 'change', 'volume']).default('volume'),
         }))
@@ -494,6 +501,78 @@ export const stockMarketRouter = router({
                         closePrice: price,
                         priceChange,
                         priceChangePercent,
+                        volume: stat.orderCount || 0,
+                    });
+                }
+            }
+
+            // Get pharmacy stocks (retail chains)
+            if (!input.assetType || input.assetType === 'pharmacy') {
+                const pharmStats = await db
+                    .select({
+                        pharmId: pharmacyDailyChallengeStats.pharmacyId,
+                        orderCount: pharmacyDailyChallengeStats.orderCount,
+                        totalPoints: pharmacyDailyChallengeStats.totalPoints,
+                        rank: pharmacyDailyChallengeStats.rank,
+                        previousRank: pharmacyDailyChallengeStats.previousRank,
+                        trendMultiplier: pharmacyDailyChallengeStats.trendMultiplier,
+                        pharmName: pharmacies.name,
+                        imageUrl: pharmacies.logoUrl,
+                    })
+                    .from(pharmacyDailyChallengeStats)
+                    .innerJoin(pharmacies, eq(pharmacyDailyChallengeStats.pharmacyId, pharmacies.id))
+                    .where(eq(pharmacyDailyChallengeStats.statDate, today))
+                    .orderBy(desc(pharmacyDailyChallengeStats.orderCount))
+                    .limit(input.limit);
+
+                // If no today data, try yesterday
+                const pharmStatsToUse = pharmStats.length > 0 ? pharmStats : await db
+                    .select({
+                        pharmId: pharmacyDailyChallengeStats.pharmacyId,
+                        orderCount: pharmacyDailyChallengeStats.orderCount,
+                        totalPoints: pharmacyDailyChallengeStats.totalPoints,
+                        rank: pharmacyDailyChallengeStats.rank,
+                        previousRank: pharmacyDailyChallengeStats.previousRank,
+                        trendMultiplier: pharmacyDailyChallengeStats.trendMultiplier,
+                        pharmName: pharmacies.name,
+                        imageUrl: pharmacies.logoUrl,
+                    })
+                    .from(pharmacyDailyChallengeStats)
+                    .innerJoin(pharmacies, eq(pharmacyDailyChallengeStats.pharmacyId, pharmacies.id))
+                    .where(eq(pharmacyDailyChallengeStats.statDate, yesterdayStr))
+                    .orderBy(desc(pharmacyDailyChallengeStats.orderCount))
+                    .limit(input.limit);
+
+                // Get total pharmacy count for rank bonus
+                const dateForPharmCount = pharmStats.length > 0 ? today : yesterdayStr;
+                const [pharmCountResult] = await db
+                    .select({ count: sql<number>`count(*)` })
+                    .from(pharmacyDailyChallengeStats)
+                    .where(eq(pharmacyDailyChallengeStats.statDate, dateForPharmCount));
+                const totalPharmacies = Number(pharmCountResult?.count) || 30;
+
+                for (const stat of pharmStatsToUse) {
+                    // Dynamic score calculation similar to strains
+                    const orderScore = (stat.orderCount || 0) * 8; // Slightly lower weight than strains
+                    const rankBonus = (totalPharmacies - (stat.rank || totalPharmacies)) * 4;
+                    const trendMult = Number(stat.trendMultiplier || 1);
+                    const momentumBonus = Math.round((trendMult - 1) * 40);
+
+                    const score = Math.max(10, orderScore + rankBonus + momentumBonus);
+
+                    // Calculate score change from rank movement
+                    const rankChange = (stat.previousRank || stat.rank || 0) - (stat.rank || 0);
+                    const scoreChange = rankChange * 4 + momentumBonus;
+                    const scoreChangePercent = score > 0 ? (scoreChange / score) * 100 : 0;
+
+                    stocks.push({
+                        assetType: 'pharmacy',
+                        assetId: stat.pharmId,
+                        assetName: stat.pharmName || `Pharmacy #${stat.pharmId}`,
+                        imageUrl: stat.imageUrl,
+                        closePrice: score,
+                        priceChange: scoreChange,
+                        priceChangePercent: Math.round(scoreChangePercent * 10) / 10,
                         volume: stat.orderCount || 0,
                     });
                 }
@@ -655,7 +734,7 @@ export const stockMarketRouter = router({
      */
     getPriceHistory: publicProcedure
         .input(z.object({
-            assetType: z.enum(['product', 'strain', 'manufacturer']),
+            assetType: z.enum(['product', 'strain', 'manufacturer', 'pharmacy']),
             assetId: z.number(),
             days: z.number().default(30),
         }))
@@ -961,6 +1040,182 @@ export const stockMarketRouter = router({
         }),
 
     /**
+     * Get detailed manufacturer information with historical data
+     */
+    getManufacturerDetail: publicProcedure
+        .input(z.object({
+            manufacturerId: z.number(),
+        }))
+        .query(async ({ input }) => {
+            const db = await getDb();
+            if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+
+            const { manufacturerDailyChallengeStats } = await import('../../drizzle/dailyChallengeSchema');
+
+            // Get manufacturer info
+            const [mfg] = await db
+                .select()
+                .from(manufacturers)
+                .where(eq(manufacturers.id, input.manufacturerId))
+                .limit(1);
+
+            if (!mfg) {
+                throw new TRPCError({ code: 'NOT_FOUND', message: 'Manufacturer not found' });
+            }
+
+            // Get 30 days of historical stats
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            const startDateStr = thirtyDaysAgo.toISOString().split('T')[0];
+
+            const history = await db
+                .select()
+                .from(manufacturerDailyChallengeStats)
+                .where(and(
+                    eq(manufacturerDailyChallengeStats.manufacturerId, input.manufacturerId),
+                    gte(manufacturerDailyChallengeStats.statDate, startDateStr)
+                ))
+                .orderBy(asc(manufacturerDailyChallengeStats.statDate));
+
+            // Get latest stats
+            const [latestStats] = await db
+                .select()
+                .from(manufacturerDailyChallengeStats)
+                .where(eq(manufacturerDailyChallengeStats.manufacturerId, input.manufacturerId))
+                .orderBy(desc(manufacturerDailyChallengeStats.statDate))
+                .limit(1);
+
+            // Calculate dynamic score
+            const today = new Date().toISOString().split('T')[0];
+            const [countResult] = await db
+                .select({ count: sql<number>`count(*)` })
+                .from(manufacturerDailyChallengeStats)
+                .where(eq(manufacturerDailyChallengeStats.statDate, latestStats?.statDate || today));
+            const totalManufacturers = Number(countResult?.count) || 30;
+
+            const calculateScore = (stats: typeof latestStats) => {
+                if (!stats) return 100;
+                const orderScore = (stats.orderCount || 0) * 8;
+                const rankBonus = (totalManufacturers - (stats.rank || totalManufacturers)) * 4;
+                const trendMult = Number(stats.trendMultiplier || 1);
+                const momentumBonus = Math.round((trendMult - 1) * 40);
+                return Math.max(10, orderScore + rankBonus + momentumBonus);
+            };
+
+            const currentScore = calculateScore(latestStats);
+            const yesterdayStats = history.length > 1 ? history[history.length - 2] : null;
+            const yesterdayScore = yesterdayStats ? calculateScore(yesterdayStats as any) : currentScore;
+            const scoreChange = currentScore - yesterdayScore;
+            const scoreChangePercent = yesterdayScore > 0 ? ((currentScore - yesterdayScore) / yesterdayScore) * 100 : 0;
+
+            return {
+                id: mfg.id,
+                name: mfg.name,
+                logoUrl: mfg.logoUrl,
+                description: mfg.description,
+                currentScore,
+                scoreChange,
+                scoreChangePercent: Math.round(scoreChangePercent * 10) / 10,
+                todayOrders: latestStats?.orderCount || 0,
+                currentRank: latestStats?.rank || 0,
+                previousRank: latestStats?.previousRank || 0,
+                scoreHistory: history.map(h => ({
+                    date: h.statDate,
+                    score: calculateScore(h as any),
+                    orders: h.orderCount,
+                    rank: h.rank,
+                })),
+            };
+        }),
+
+    /**
+     * Get detailed pharmacy information with historical data
+     */
+    getPharmacyDetail: publicProcedure
+        .input(z.object({
+            pharmacyId: z.number(),
+        }))
+        .query(async ({ input }) => {
+            const db = await getDb();
+            if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+
+            // Get pharmacy info
+            const [pharm] = await db
+                .select()
+                .from(pharmacies)
+                .where(eq(pharmacies.id, input.pharmacyId))
+                .limit(1);
+
+            if (!pharm) {
+                throw new TRPCError({ code: 'NOT_FOUND', message: 'Pharmacy not found' });
+            }
+
+            // Get 30 days of historical stats
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            const startDateStr = thirtyDaysAgo.toISOString().split('T')[0];
+
+            const history = await db
+                .select()
+                .from(pharmacyDailyChallengeStats)
+                .where(and(
+                    eq(pharmacyDailyChallengeStats.pharmacyId, input.pharmacyId),
+                    gte(pharmacyDailyChallengeStats.statDate, startDateStr)
+                ))
+                .orderBy(asc(pharmacyDailyChallengeStats.statDate));
+
+            // Get latest stats
+            const [latestStats] = await db
+                .select()
+                .from(pharmacyDailyChallengeStats)
+                .where(eq(pharmacyDailyChallengeStats.pharmacyId, input.pharmacyId))
+                .orderBy(desc(pharmacyDailyChallengeStats.statDate))
+                .limit(1);
+
+            // Calculate dynamic score
+            const today = new Date().toISOString().split('T')[0];
+            const [countResult] = await db
+                .select({ count: sql<number>`count(*)` })
+                .from(pharmacyDailyChallengeStats)
+                .where(eq(pharmacyDailyChallengeStats.statDate, latestStats?.statDate || today));
+            const totalPharmacies = Number(countResult?.count) || 30;
+
+            const calculateScore = (stats: typeof latestStats) => {
+                if (!stats) return 100;
+                const orderScore = (stats.orderCount || 0) * 8;
+                const rankBonus = (totalPharmacies - (stats.rank || totalPharmacies)) * 4;
+                const trendMult = Number(stats.trendMultiplier || 1);
+                const momentumBonus = Math.round((trendMult - 1) * 40);
+                return Math.max(10, orderScore + rankBonus + momentumBonus);
+            };
+
+            const currentScore = calculateScore(latestStats);
+            const yesterdayStats = history.length > 1 ? history[history.length - 2] : null;
+            const yesterdayScore = yesterdayStats ? calculateScore(yesterdayStats as any) : currentScore;
+            const scoreChange = currentScore - yesterdayScore;
+            const scoreChangePercent = yesterdayScore > 0 ? ((currentScore - yesterdayScore) / yesterdayScore) * 100 : 0;
+
+            return {
+                id: pharm.id,
+                name: pharm.name,
+                logoUrl: pharm.logoUrl,
+                city: pharm.city,
+                currentScore,
+                scoreChange,
+                scoreChangePercent: Math.round(scoreChangePercent * 10) / 10,
+                todayOrders: latestStats?.orderCount || 0,
+                currentRank: latestStats?.rank || 0,
+                previousRank: latestStats?.previousRank || 0,
+                scoreHistory: history.map(h => ({
+                    date: h.statDate,
+                    score: calculateScore(h as any),
+                    orders: h.orderCount,
+                    rank: h.rank,
+                })),
+            };
+        }),
+
+    /**
      * Get historical market data with timeframe support
      * Returns aggregated stats, type breakdowns, and historical chart data
      */
@@ -1189,7 +1444,7 @@ export const stockMarketRouter = router({
      */
     addToWatchlist: protectedProcedure
         .input(z.object({
-            assetType: z.enum(['product', 'strain', 'manufacturer']),
+            assetType: z.enum(['product', 'strain', 'manufacturer', 'pharmacy']),
             assetId: z.number(),
         }))
         .mutation(async ({ ctx, input }) => {
@@ -1235,7 +1490,7 @@ export const stockMarketRouter = router({
      */
     removeFromWatchlist: protectedProcedure
         .input(z.object({
-            assetType: z.enum(['product', 'strain', 'manufacturer']),
+            assetType: z.enum(['product', 'strain', 'manufacturer', 'pharmacy']),
             assetId: z.number(),
         }))
         .mutation(async ({ ctx, input }) => {
@@ -1258,7 +1513,7 @@ export const stockMarketRouter = router({
      */
     isOnWatchlist: protectedProcedure
         .input(z.object({
-            assetType: z.enum(['product', 'strain', 'manufacturer']),
+            assetType: z.enum(['product', 'strain', 'manufacturer', 'pharmacy']),
             assetId: z.number(),
         }))
         .query(async ({ ctx, input }) => {
@@ -1285,7 +1540,7 @@ export const stockMarketRouter = router({
      */
     createAlert: protectedProcedure
         .input(z.object({
-            assetType: z.enum(['product', 'strain', 'manufacturer']),
+            assetType: z.enum(['product', 'strain', 'manufacturer', 'pharmacy']),
             assetId: z.number(),
             assetName: z.string().optional(),
             targetScore: z.number().positive(),

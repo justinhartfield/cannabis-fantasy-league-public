@@ -33,6 +33,7 @@ import {
     Sparkles,
     Star,
     Bell,
+    Store,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -193,6 +194,7 @@ export default function StockMarket() {
     const { user } = useAuth();
     const [, setLocation] = useLocation();
     const [searchQuery, setSearchQuery] = useState("");
+    const [assetTypeFilter, setAssetTypeFilter] = useState<'strain' | 'manufacturer' | 'pharmacy'>('strain');
     const [sortBy, setSortBy] = useState<'score' | 'change' | 'name'>('score');
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
     const [tradeModal, setTradeModal] = useState<{
@@ -206,10 +208,10 @@ export default function StockMarket() {
     const { data: portfolio, isLoading: portfolioLoading, refetch: refetchPortfolio } =
         trpc.stockMarket.getPortfolio.useQuery(undefined, { enabled: !!user });
 
-    // Fetch strains only (simplified - no manufacturers)
+    // Fetch stocks based on selected asset type
     const { data: stocks = [], isLoading: stocksLoading, refetch: refetchStocks } =
         trpc.stockMarket.getStocks.useQuery({
-            assetType: 'strain', // Strains only
+            assetType: assetTypeFilter,
             limit: 100,
             sortBy: 'volume',
         }, {
@@ -525,6 +527,46 @@ export default function StockMarket() {
 
                     {/* Right: Stock Browser */}
                     <div className="col-span-12 lg:col-span-9">
+                        {/* Asset Type Tabs */}
+                        <div className="flex gap-2 mb-4">
+                            <button
+                                onClick={() => setAssetTypeFilter('strain')}
+                                className={cn(
+                                    "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
+                                    assetTypeFilter === 'strain'
+                                        ? "bg-emerald-600 text-white"
+                                        : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white"
+                                )}
+                            >
+                                <Leaf className="w-4 h-4" />
+                                Strains
+                            </button>
+                            <button
+                                onClick={() => setAssetTypeFilter('manufacturer')}
+                                className={cn(
+                                    "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
+                                    assetTypeFilter === 'manufacturer'
+                                        ? "bg-emerald-600 text-white"
+                                        : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white"
+                                )}
+                            >
+                                <Factory className="w-4 h-4" />
+                                Manufacturers
+                            </button>
+                            <button
+                                onClick={() => setAssetTypeFilter('pharmacy')}
+                                className={cn(
+                                    "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
+                                    assetTypeFilter === 'pharmacy'
+                                        ? "bg-emerald-600 text-white"
+                                        : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white"
+                                )}
+                            >
+                                <Store className="w-4 h-4" />
+                                Pharmacies
+                            </button>
+                        </div>
+
                         {/* Filters */}
                         <div className="flex items-center gap-4 mb-6">
                             <div className="relative flex-1 max-w-md">
@@ -556,7 +598,7 @@ export default function StockMarket() {
                                         className="col-span-4 cursor-pointer hover:text-white flex items-center gap-1"
                                         onClick={() => toggleSort('name')}
                                     >
-                                        Strain
+                                        {assetTypeFilter === 'strain' ? 'Strain' : assetTypeFilter === 'manufacturer' ? 'Manufacturer' : 'Pharmacy'}
                                         {sortBy === 'name' && (
                                             <span className="text-emerald-400">{sortDir === 'asc' ? '↑' : '↓'}</span>
                                         )}
@@ -592,10 +634,17 @@ export default function StockMarket() {
                                                 key={`${stock.assetType}-${stock.assetId}`}
                                                 className="grid grid-cols-12 gap-4 px-4 py-3 items-center hover:bg-zinc-800/30 transition-colors"
                                             >
-                                                {/* Strain Name + Image - Clickable */}
+                                                {/* Asset Name + Image - Clickable */}
                                                 <div
                                                     className="col-span-4 flex items-center gap-3 cursor-pointer group"
-                                                    onClick={() => setLocation(`/market/strain/${stock.assetId}`)}
+                                                    onClick={() => {
+                                                        const route = stock.assetType === 'strain'
+                                                            ? `/market/strain/${stock.assetId}`
+                                                            : stock.assetType === 'manufacturer'
+                                                                ? `/market/manufacturer/${stock.assetId}`
+                                                                : `/market/pharmacy/${stock.assetId}`;
+                                                        setLocation(route);
+                                                    }}
                                                 >
                                                     <div className="w-10 h-10 rounded-lg overflow-hidden bg-zinc-800 flex-shrink-0 ring-1 ring-zinc-700 group-hover:ring-emerald-500/50 transition-all">
                                                         <img
