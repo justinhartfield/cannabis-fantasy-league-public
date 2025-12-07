@@ -633,7 +633,7 @@ export const users = pgTable("users", {
 	role: varchar({ length: 50 }).default('user').notNull(),
 	currentPredictionStreak: integer().default(0).notNull(),
 	longestPredictionStreak: integer().default(0).notNull(),
-	referralCredits: integer().default(0).notNull(),
+	referralCredits: integer().default(1000).notNull(),
 	doubleDownTokens: integer().default(0).notNull(),
 	referralCode: varchar({ length: 32 }),
 	referredByUserId: integer(),
