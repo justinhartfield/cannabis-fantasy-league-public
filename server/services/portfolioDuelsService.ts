@@ -25,6 +25,7 @@ import {
     pharmacyDailyChallengeStats
 } from "../../drizzle/dailyChallengeSchema";
 import { cannabisStrains, manufacturers, strains, pharmacies } from "../../drizzle/schema";
+import { getWebSocketServer } from "../websocket";
 
 export interface CreateDuelOptions {
     creatorId: number;
@@ -269,6 +270,8 @@ class PortfolioDuelsService {
         // Validate position matches asset type
         this.validatePositionAssetType(position, assetType);
 
+        // Broadcast pick to opponent immediately (before DB confirm just in case, but better after)
+
         // Get asset name
         const assetName = await this.getAssetName(assetType, assetId);
 
@@ -295,7 +298,19 @@ class PortfolioDuelsService {
         }).returning();
 
         // Check if draft is complete (both players have 5 picks)
-        await this.checkDraftComplete(duelId);
+        const isComplete = await this.checkDraftComplete(duelId);
+
+        // Notify opponent via WebSocket
+        const ws = getWebSocketServer();
+        const opponentId = duel.creatorId === userId ? duel.opponentId : duel.creatorId;
+        if (opponentId) {
+            ws.sendToUser(opponentId, {
+                type: 'opponent_picked',
+                duelId,
+                pick,
+                nextTurnUserId: isComplete ? null : opponentId // Simplified turn logic
+            });
+        }
 
         return pick;
     }
@@ -365,6 +380,17 @@ class PortfolioDuelsService {
                 updatedAt: now.toISOString(),
             })
             .where(eq(portfolioDuels.id, duelId));
+
+        // Notify both players that duel has started
+        const ws = getWebSocketServer();
+        const [updatedDuel] = await db.select().from(portfolioDuels).where(eq(portfolioDuels.id, duelId));
+
+        if (updatedDuel) {
+            ws.sendToUser(updatedDuel.creatorId, { type: 'duel_started', duelId });
+            if (updatedDuel.opponentId) {
+                ws.sendToUser(updatedDuel.opponentId, { type: 'duel_started', duelId });
+            }
+        }
     }
 
     /**
@@ -470,6 +496,13 @@ class PortfolioDuelsService {
         await this.updateDuelStats(duel.creatorId, creatorTotal > opponentTotal, creatorTotal >= opponentTotal && opponentTotal >= creatorTotal, duel.anteAmount);
         if (duel.opponentId) {
             await this.updateDuelStats(duel.opponentId, opponentTotal > creatorTotal, creatorTotal >= opponentTotal && opponentTotal >= creatorTotal, duel.anteAmount);
+        }
+
+        // Notify players
+        const ws = getWebSocketServer();
+        ws.sendToUser(duel.creatorId, { type: 'duel_complete', duelId, winnerId });
+        if (duel.opponentId) {
+            ws.sendToUser(duel.opponentId, { type: 'duel_complete', duelId, winnerId });
         }
     }
 

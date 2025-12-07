@@ -42,6 +42,8 @@ import PublicChallenge from "./pages/PublicChallenge";
 import StockMarket from "./pages/StockMarket";
 import StrainDetail from "./pages/StrainDetail";
 import PortfolioDuels from "./pages/PortfolioDuels";
+import DuelDraftRoom from "./pages/DuelDraftRoom";
+import DuelLiveView from "./pages/DuelLiveView";
 import { useEffect } from "react";
 import { AppLayout } from "./components/AppLayout";
 import DashboardLayout from "./components/DashboardLayout";
@@ -85,7 +87,8 @@ function AuthedRoutes() {
         <Route path={"/market"} component={StockMarket} />
         <Route path={"/market/strain/:id"} component={StrainDetail} />
         <Route path={"/duels"} component={PortfolioDuels} />
-        <Route path={"/duels/:id"} component={PortfolioDuels} />
+        <Route path={"/duels/:id/draft"} component={DuelDraftRoom} />
+        <Route path={"/duels/:id"} component={DuelLiveView} />
         <Route path={"/invite"} component={InviteFriends} />
         <Route path={"/profile"} component={Profile} />
         <Route path={"/rules"} component={Rules} />
