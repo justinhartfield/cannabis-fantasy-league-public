@@ -4,7 +4,7 @@ import { trpc } from '@/lib/trpc';
 import { useAuth } from '@/_core/hooks/useAuth';
 import Layout from '@/components/Layout';
 import { useWebSocket } from '@/hooks/useWebSocket';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 
 // Types
 type DuelPosition = 'STRAIN_1' | 'STRAIN_2' | 'MANUFACTURER' | 'PRODUCT' | 'PHARMACY';
