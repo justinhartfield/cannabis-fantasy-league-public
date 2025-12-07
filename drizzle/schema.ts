@@ -806,6 +806,9 @@ export const customMigrations = pgTable("_migrations", {
 // Daily Challenge Stats Tables
 export * from './dailyChallengeSchema';
 
+// Dispensary Tycoon Game Tables
+export * from './dispensaryTycoonSchema';
+
 // ============================================================================
 // PREDICTION STREAK TABLES
 // ============================================================================

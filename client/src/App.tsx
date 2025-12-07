@@ -46,6 +46,7 @@ import PharmacyDetail from "./pages/PharmacyDetail";
 import PortfolioDuels from "./pages/PortfolioDuels";
 import DuelDraftRoom from "./pages/DuelDraftRoom";
 import DuelLiveView from "./pages/DuelLiveView";
+import TycoonDashboard from "./pages/TycoonDashboard";
 import { useEffect } from "react";
 import { AppLayout } from "./components/AppLayout";
 import DashboardLayout from "./components/DashboardLayout";
@@ -93,6 +94,8 @@ function AuthedRoutes() {
         <Route path={"/duels"} component={PortfolioDuels} />
         <Route path={"/duels/:id/draft"} component={DuelDraftRoom} />
         <Route path={"/duels/:id"} component={DuelLiveView} />
+        {/* Dispensary Tycoon Game */}
+        <Route path={"/tycoon"} component={TycoonDashboard} />
         <Route path={"/invite"} component={InviteFriends} />
         <Route path={"/profile"} component={Profile} />
         <Route path={"/rules"} component={Rules} />

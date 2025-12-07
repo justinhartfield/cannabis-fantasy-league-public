@@ -28,6 +28,7 @@ import { dailySummaryRouter } from "./dailySummaryRouter";
 import { publicModeRouter } from "./publicModeRouter";
 import { stockMarketRouter } from "./routes/stockMarketRouter";
 import { portfolioDuelsRouter } from "./portfolioDuelsRouter";
+import { tycoonRouter } from "./routers/tycoonRouter";
 
 
 export const appRouter = router({
@@ -72,6 +73,9 @@ export const appRouter = router({
   publicMode: publicModeRouter,
   stockMarket: stockMarketRouter,
   duels: portfolioDuelsRouter,
+
+  // Dispensary Tycoon Game
+  tycoon: tycoonRouter,
 });
 
 export type AppRouter = typeof appRouter;
